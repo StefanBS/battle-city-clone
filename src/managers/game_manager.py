@@ -45,6 +45,7 @@ class GameManager:
         # Initialize font
         pygame.font.init()
         self.font = pygame.font.SysFont(None, 48)
+        self.small_font = pygame.font.SysFont(None, 24)
 
     def _spawn_enemy(self) -> None:
         """Spawn a new enemy tank at a random position."""
@@ -159,8 +160,11 @@ class GameManager:
                     continue
 
                 # Check collision with player tank
-                if bullet_rect.colliderect(self.player_tank.rect):
-                    self.state = GameState.GAME_OVER
+                if bullet_rect.colliderect(self.player_tank.rect) and not self.player_tank.is_invincible:
+                    self.player_tank.respawn()
+                    enemy.bullet.active = False
+                    if self.player_tank.lives <= 0:
+                        self.state = GameState.GAME_OVER
                     return
 
                 # Check collision with map tiles
@@ -199,6 +203,20 @@ class GameManager:
         restart_rect = restart_text.get_rect(center=(self.screen_width // 2, self.screen_height // 2 + 50))
         self.screen.blit(restart_text, restart_rect)
 
+    def _draw_hud(self) -> None:
+        """Draw the heads-up display."""
+        # Draw lives
+        lives_text = self.small_font.render(f"Lives: {self.player_tank.lives}", True, (255, 255, 255))
+        self.screen.blit(lives_text, (10, 10))
+
+        # Draw invincibility timer if active
+        if self.player_tank.is_invincible:
+            remaining_time = max(0, self.player_tank.respawn_duration - self.player_tank.respawn_timer)
+            invincible_text = self.small_font.render(
+                f"Invincible: {remaining_time:.1f}s", True, (255, 255, 0)
+            )
+            self.screen.blit(invincible_text, (10, 40))
+
     def render(self) -> None:
         """Render the game state."""
         # Clear the screen
@@ -213,6 +231,9 @@ class GameManager:
         # Draw enemy tanks
         for enemy in self.enemy_tanks:
             enemy.draw(self.screen)
+
+        # Draw HUD
+        self._draw_hud()
 
         # Draw game over screen if needed
         if self.state == GameState.GAME_OVER:
