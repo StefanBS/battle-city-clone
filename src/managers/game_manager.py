@@ -1,9 +1,12 @@
 import pygame
 import sys
-from typing import Optional
+from typing import Optional, List
 from core.map import Map
 from core.player_tank import PlayerTank
+from core.enemy_tank import EnemyTank
 from core.tile import TileType
+from states.game_state import GameState
+import random
 
 
 class GameManager:
@@ -23,7 +26,7 @@ class GameManager:
         self.fps = 60
 
         # Game state
-        self.running = True
+        self.state = GameState.RUNNING
         self.background_color = (0, 0, 0)  # Black background
 
         # Initialize the map
@@ -35,26 +38,72 @@ class GameManager:
         start_y = self.screen_height - self.tile_size * 2
         self.player_tank = PlayerTank(start_x, start_y, self.tile_size)
 
+        # Initialize enemy tanks
+        self.enemy_tanks: List[EnemyTank] = []
+        self._spawn_enemy()
+
+        # Initialize font
+        pygame.font.init()
+        self.font = pygame.font.SysFont(None, 48)
+
+    def _spawn_enemy(self) -> None:
+        """Spawn a new enemy tank at a random position."""
+        # Find a valid spawn position (not colliding with walls)
+        while True:
+            x = random.randint(1, self.map.width - 2) * self.tile_size
+            y = random.randint(1, self.map.height - 2) * self.tile_size
+
+            # Check if the position is valid (not colliding with walls)
+            temp_rect = pygame.Rect(x, y, self.tile_size, self.tile_size)
+            collision = False
+            for map_rect in self.map.get_collidable_tiles():
+                if temp_rect.colliderect(map_rect):
+                    collision = True
+                    break
+
+            if not collision:
+                enemy = EnemyTank(x, y, self.tile_size)
+                self.enemy_tanks.append(enemy)
+                break
+
     def handle_events(self) -> None:
         """Handle pygame events."""
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                self.running = False
+                pygame.quit()
+                sys.exit()
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    self.running = False
-            # Pass events to the player tank
-            self.player_tank.handle_event(event)
+                    pygame.quit()
+                    sys.exit()
+                elif event.key == pygame.K_r and self.state != GameState.RUNNING:
+                    # Restart game
+                    self.__init__()
+            # Pass events to the player tank only if game is running
+            if self.state == GameState.RUNNING:
+                self.player_tank.handle_event(event)
 
     def update(self) -> None:
         """Update game state."""
+        if self.state != GameState.RUNNING:
+            return
+
         # Get collidable map tiles
         map_rects = self.map.get_collidable_tiles()
 
         # Update the player tank
         self.player_tank.update(1.0 / self.fps, map_rects)
 
-        # Handle bullet collisions with map tiles
+        # Update enemy tanks
+        for enemy in self.enemy_tanks[:]:  # Create a copy of the list for iteration
+            enemy.update(1.0 / self.fps, map_rects)
+
+        # Handle bullet collisions with map tiles and tanks
+        self._handle_bullet_collisions()
+
+    def _handle_bullet_collisions(self) -> None:
+        """Handle all bullet collisions with map tiles and tanks."""
+        # Handle player bullet collisions
         if self.player_tank.bullet is not None and self.player_tank.bullet.active:
             bullet_rect = self.player_tank.bullet.rect
 
@@ -68,6 +117,13 @@ class GameManager:
                 self.player_tank.bullet.active = False
                 return
 
+            # Check collision with enemy tanks
+            for enemy in self.enemy_tanks[:]:
+                if bullet_rect.colliderect(enemy.rect):
+                    self.enemy_tanks.remove(enemy)
+                    self.player_tank.bullet.active = False
+                    return
+
             # Check collision with map tiles
             for y in range(self.map.height):
                 for x in range(self.map.width):
@@ -77,15 +133,71 @@ class GameManager:
                             # Destroy brick tile
                             tile.type = TileType.EMPTY
                             self.player_tank.bullet.active = False
-                            return  # Exit after first collision
+                            return
                         elif tile.type == TileType.STEEL:
                             # Bullet stops at steel
                             self.player_tank.bullet.active = False
-                            return  # Exit after first collision
+                            return
                         elif tile.type == TileType.BASE:
                             # Game over if base is hit
-                            self.running = False
-                            return  # Exit after first collision
+                            self.state = GameState.GAME_OVER
+                            return
+
+        # Handle enemy bullet collisions
+        for enemy in self.enemy_tanks:
+            if enemy.bullet is not None and enemy.bullet.active:
+                bullet_rect = enemy.bullet.rect
+
+                # Check if bullet is out of bounds
+                if (
+                    bullet_rect.x < 0
+                    or bullet_rect.x > self.screen_width
+                    or bullet_rect.y < 0
+                    or bullet_rect.y > self.screen_height
+                ):
+                    enemy.bullet.active = False
+                    continue
+
+                # Check collision with player tank
+                if bullet_rect.colliderect(self.player_tank.rect):
+                    self.state = GameState.GAME_OVER
+                    return
+
+                # Check collision with map tiles
+                for y in range(self.map.height):
+                    for x in range(self.map.width):
+                        tile = self.map.get_tile_at(x, y)
+                        if tile and tile.rect.colliderect(bullet_rect):
+                            if tile.type == TileType.BRICK:
+                                # Destroy brick tile
+                                tile.type = TileType.EMPTY
+                                enemy.bullet.active = False
+                                break
+                            elif tile.type == TileType.STEEL:
+                                # Bullet stops at steel
+                                enemy.bullet.active = False
+                                break
+                            elif tile.type == TileType.BASE:
+                                # Game over if base is hit
+                                self.state = GameState.GAME_OVER
+                                return
+
+    def _draw_game_over(self) -> None:
+        """Draw the game over screen."""
+        # Draw semi-transparent overlay
+        overlay = pygame.Surface((self.screen_width, self.screen_height), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 128))  # Black with 50% opacity
+        self.screen.blit(overlay, (0, 0))
+
+        # Draw game over text
+        text = self.font.render("GAME OVER", True, (255, 0, 0))
+        text_rect = text.get_rect(center=(self.screen_width // 2, self.screen_height // 2))
+        self.screen.blit(text, text_rect)
+
+        # Draw restart instructions
+        restart_text = self.font.render("Press R to Restart", True, (255, 255, 255))
+        restart_rect = restart_text.get_rect(center=(self.screen_width // 2, self.screen_height // 2 + 50))
+        self.screen.blit(restart_text, restart_rect)
 
     def render(self) -> None:
         """Render the game state."""
@@ -98,12 +210,21 @@ class GameManager:
         # Draw the player tank
         self.player_tank.draw(self.screen)
 
+        # Draw enemy tanks
+        for enemy in self.enemy_tanks:
+            enemy.draw(self.screen)
+
+        # Draw game over screen if needed
+        if self.state == GameState.GAME_OVER:
+            self._draw_game_over()
+
         # Update the display
         pygame.display.flip()
 
     def run(self) -> None:
         """Main game loop."""
-        while self.running:
+        running = True
+        while running:
             self.handle_events()
             self.update()
             self.render()
