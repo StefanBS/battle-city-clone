@@ -41,4 +41,4 @@ class Tile:
         pygame.draw.rect(surface, color, self.rect)
 
         # Add a border to make tiles more visible
-        pygame.draw.rect(surface, (50, 50, 50), self.rect, 1)
+        # pygame.draw.rect(surface, (50, 50, 50), self.rect, 1)

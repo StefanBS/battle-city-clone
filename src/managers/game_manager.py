@@ -3,6 +3,7 @@ import sys
 from typing import Optional
 from core.map import Map
 from core.player_tank import PlayerTank
+from core.tile import TileType
 
 
 class GameManager:
@@ -52,6 +53,35 @@ class GameManager:
 
         # Update the player tank
         self.player_tank.update(1.0 / self.fps, map_rects)
+
+        # Handle bullet collisions with map tiles
+        if self.player_tank.bullet is not None and self.player_tank.bullet.active:
+            bullet_rect = self.player_tank.bullet.rect
+
+            # Check if bullet is out of bounds
+            if (bullet_rect.x < 0 or bullet_rect.x > self.screen_width or
+                bullet_rect.y < 0 or bullet_rect.y > self.screen_height):
+                self.player_tank.bullet.active = False
+                return
+
+            # Check collision with map tiles
+            for y in range(self.map.height):
+                for x in range(self.map.width):
+                    tile = self.map.get_tile_at(x, y)
+                    if tile and tile.rect.colliderect(bullet_rect):
+                        if tile.type == TileType.BRICK:
+                            # Destroy brick tile
+                            tile.type = TileType.EMPTY
+                            self.player_tank.bullet.active = False
+                            return  # Exit after first collision
+                        elif tile.type == TileType.STEEL:
+                            # Bullet stops at steel
+                            self.player_tank.bullet.active = False
+                            return  # Exit after first collision
+                        elif tile.type == TileType.BASE:
+                            # Game over if base is hit
+                            self.running = False
+                            return  # Exit after first collision
 
     def render(self) -> None:
         """Render the game state."""
