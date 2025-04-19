@@ -73,4 +73,4 @@ class Bullet(GameObject):
                 surface.blit(self.sprite, self.rect)
             else:
                 # Draw a simple bullet if no sprite is provided
-                pygame.draw.rect(surface, (255, 255, 0), self.rect)  # Yellow bullet 
+                pygame.draw.rect(surface, (255, 255, 0), self.rect)  # Yellow bullet

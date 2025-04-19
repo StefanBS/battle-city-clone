@@ -59,8 +59,12 @@ class GameManager:
             bullet_rect = self.player_tank.bullet.rect
 
             # Check if bullet is out of bounds
-            if (bullet_rect.x < 0 or bullet_rect.x > self.screen_width or
-                bullet_rect.y < 0 or bullet_rect.y > self.screen_height):
+            if (
+                bullet_rect.x < 0
+                or bullet_rect.x > self.screen_width
+                or bullet_rect.y < 0
+                or bullet_rect.y > self.screen_height
+            ):
                 self.player_tank.bullet.active = False
                 return
 
