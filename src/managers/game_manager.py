@@ -106,21 +106,29 @@ class GameManager:
         """Handle all bullet collisions with map tiles and tanks."""
         # Handle player bullet collisions
         if self.player_tank.bullet is not None and self.player_tank.bullet.active:
-            bullet_rect = self.player_tank.bullet.rect
+            player_bullet_rect = self.player_tank.bullet.rect
 
             # Check if bullet is out of bounds
             if (
-                bullet_rect.x < 0
-                or bullet_rect.x > self.screen_width
-                or bullet_rect.y < 0
-                or bullet_rect.y > self.screen_height
+                player_bullet_rect.x < 0
+                or player_bullet_rect.x > self.screen_width
+                or player_bullet_rect.y < 0
+                or player_bullet_rect.y > self.screen_height
             ):
                 self.player_tank.bullet.active = False
                 return
 
+            # Check collision with enemy bullets
+            for enemy in self.enemy_tanks:
+                if enemy.bullet is not None and enemy.bullet.active:
+                    if player_bullet_rect.colliderect(enemy.bullet.rect):
+                        self.player_tank.bullet.active = False
+                        enemy.bullet.active = False
+                        return
+
             # Check collision with enemy tanks
             for enemy in self.enemy_tanks[:]:
-                if bullet_rect.colliderect(enemy.rect):
+                if player_bullet_rect.colliderect(enemy.rect):
                     if enemy.take_damage():
                         self.enemy_tanks.remove(enemy)
                     self.player_tank.bullet.active = False
@@ -130,7 +138,7 @@ class GameManager:
             for y in range(self.map.height):
                 for x in range(self.map.width):
                     tile = self.map.get_tile_at(x, y)
-                    if tile and tile.rect.colliderect(bullet_rect):
+                    if tile and tile.rect.colliderect(player_bullet_rect):
                         if tile.type == TileType.BRICK:
                             # Destroy brick tile
                             tile.type = TileType.EMPTY
@@ -148,20 +156,30 @@ class GameManager:
         # Handle enemy bullet collisions
         for enemy in self.enemy_tanks:
             if enemy.bullet is not None and enemy.bullet.active:
-                bullet_rect = enemy.bullet.rect
+                enemy_bullet_rect = enemy.bullet.rect
 
                 # Check if bullet is out of bounds
                 if (
-                    bullet_rect.x < 0
-                    or bullet_rect.x > self.screen_width
-                    or bullet_rect.y < 0
-                    or bullet_rect.y > self.screen_height
+                    enemy_bullet_rect.x < 0
+                    or enemy_bullet_rect.x > self.screen_width
+                    or enemy_bullet_rect.y < 0
+                    or enemy_bullet_rect.y > self.screen_height
                 ):
                     enemy.bullet.active = False
                     continue
 
+                # Check collision with player bullet
+                if (
+                    self.player_tank.bullet is not None
+                    and self.player_tank.bullet.active
+                    and enemy_bullet_rect.colliderect(self.player_tank.bullet.rect)
+                ):
+                    enemy.bullet.active = False
+                    self.player_tank.bullet.active = False
+                    return
+
                 # Check collision with player tank
-                if bullet_rect.colliderect(self.player_tank.rect):
+                if enemy_bullet_rect.colliderect(self.player_tank.rect):
                     if not self.player_tank.is_invincible:
                         if self.player_tank.take_damage():
                             self.state = GameState.GAME_OVER
@@ -174,7 +192,7 @@ class GameManager:
                 for y in range(self.map.height):
                     for x in range(self.map.width):
                         tile = self.map.get_tile_at(x, y)
-                        if tile and tile.rect.colliderect(bullet_rect):
+                        if tile and tile.rect.colliderect(enemy_bullet_rect):
                             if tile.type == TileType.BRICK:
                                 # Destroy brick tile
                                 tile.type = TileType.EMPTY
