@@ -21,12 +21,14 @@ WHITE: Tuple[int, int, int] = (255, 255, 255)
 RED: Tuple[int, int, int] = (255, 0, 0)
 GREEN: Tuple[int, int, int] = (0, 255, 0)
 BLUE: Tuple[int, int, int] = (0, 0, 255)
+YELLOW: Tuple[int, int, int] = (255, 255, 0)
 
 # Tank settings
 TANK_SPEED: int = 2
 TANK_WIDTH: int = TILE_SIZE
 TANK_HEIGHT: int = TILE_SIZE
-PLAYER_LIVES: int = 3
+PLAYER_HEALTH: int = 3  # Player starts with 3 health points
+ENEMY_HEALTH: int = 1  # Basic enemy tanks have 1 health point
 
 # Bullet settings
 BULLET_SPEED: int = 4

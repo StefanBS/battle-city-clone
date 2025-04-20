@@ -1,0 +1,170 @@
+import pygame
+from typing import Optional
+from .game_object import GameObject
+from .bullet import Bullet
+
+
+class Tank(GameObject):
+    """Base tank class with common functionality."""
+
+    def __init__(
+        self,
+        x: int,
+        y: int,
+        tile_size: int,
+        sprite: pygame.Surface = None,
+        health: int = 1,
+        lives: int = 1,
+        speed: int = 1,
+    ):
+        """
+        Initialize the tank.
+
+        Args:
+            x: Initial x position
+            y: Initial y position
+            tile_size: Size of a tile in pixels
+            sprite: Optional sprite surface
+            health: Initial health points
+            lives: Number of lives
+            speed: Movement speed multiplier
+        """
+        super().__init__(x, y, tile_size, tile_size, sprite)
+        self.speed = tile_size  # Move one tile at a time
+        self.direction = "up"  # Initial direction
+        self.bullet: Optional[Bullet] = None
+        self.tile_size = tile_size
+        self.health = health
+        self.max_health = health
+        self.lives = lives
+        self.move_timer = 0
+        self.move_delay = 0.15  # Time between movements in seconds
+        self.target_position = (x, y)
+        self.is_invincible = False
+        self.invincibility_timer = 0
+        self.invincibility_duration = 0
+        self.blink_timer = 0
+        self.blink_interval = 0.2  # Blink every 0.2 seconds during invincibility
+
+    def take_damage(self, amount: int = 1) -> bool:
+        """
+        Take damage and return whether the tank was destroyed.
+
+        Args:
+            amount: Amount of damage to take (defaults to 1)
+
+        Returns:
+            True if the tank was destroyed, False otherwise
+        """
+        if self.is_invincible:
+            return False
+
+        # Ensure we don't go below 0 health
+        self.health = max(0, self.health - amount)
+
+        # If health reaches 0, lose a life and reset health
+        if self.health <= 0:
+            self.lives -= 1
+            if self.lives > 0:
+                self.health = self.max_health
+                return False
+            return True
+        return False
+
+    def shoot(self) -> None:
+        """Create a new bullet if none exists."""
+        if self.bullet is None or not self.bullet.active:
+            # Calculate bullet starting position (center of tank)
+            bullet_x = self.x + self.width // 2 - self.tile_size // 4
+            bullet_y = self.y + self.height // 2 - self.tile_size // 4
+            self.bullet = Bullet(bullet_x, bullet_y, self.direction, self.tile_size)
+
+    def update(self, dt: float, map_rects: list[pygame.Rect]) -> None:
+        """
+        Update the tank's state.
+
+        Args:
+            dt: Time elapsed since last update in seconds
+            map_rects: List of rectangles representing collidable map tiles
+        """
+        # Update invincibility timer
+        if self.is_invincible:
+            self.invincibility_timer += dt
+            self.blink_timer += dt
+            if self.invincibility_timer >= self.invincibility_duration:
+                self.is_invincible = False
+                self.invincibility_timer = 0
+
+        # Update movement timer
+        self.move_timer += dt
+
+        # Update the tank's rect
+        super().update(dt)
+
+        # Update bullet if it exists
+        if self.bullet is not None:
+            self.bullet.update(dt)
+
+    def _move(self, dx: int, dy: int, map_rects: list[pygame.Rect]) -> bool:
+        """
+        Attempt to move the tank and return whether the movement was successful.
+
+        Args:
+            dx: X movement amount
+            dy: Y movement amount
+            map_rects: List of rectangles representing collidable map tiles
+
+        Returns:
+            True if movement was successful, False otherwise
+        """
+        if self.move_timer < self.move_delay:
+            return False
+
+        # Calculate target position
+        target_x = self.x + dx * self.speed
+        target_y = self.y + dy * self.speed
+
+        # Create a temporary rect for collision checking
+        temp_rect = pygame.Rect(
+            target_x,
+            target_y,
+            self.width,
+            self.height,
+        )
+
+        # Check for collisions with map tiles
+        collision = False
+        for map_rect in map_rects:
+            if temp_rect.colliderect(map_rect):
+                collision = True
+                break
+
+        if not collision:
+            self.x = target_x
+            self.y = target_y
+            self.target_position = (self.x, self.y)
+            self.move_timer = 0
+            return True
+
+        return False
+
+    def draw(self, surface: pygame.Surface) -> None:
+        """
+        Draw the tank and its bullet on the given surface.
+
+        Args:
+            surface: Surface to draw on
+        """
+        # Only draw if not invincible or during visible phase of blinking
+        if (
+            not self.is_invincible
+            or self.blink_timer % (self.blink_interval * 2) < self.blink_interval
+        ):
+            if self.sprite:
+                surface.blit(self.sprite, self.rect)
+            else:
+                # Draw a simple tank if no sprite is provided
+                pygame.draw.rect(surface, self.color, self.rect)
+
+        if self.bullet is not None and self.bullet.active:
+            self.bullet.draw(surface)

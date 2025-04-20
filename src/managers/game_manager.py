@@ -121,7 +121,8 @@ class GameManager:
             # Check collision with enemy tanks
             for enemy in self.enemy_tanks[:]:
                 if bullet_rect.colliderect(enemy.rect):
-                    self.enemy_tanks.remove(enemy)
+                    if enemy.take_damage():
+                        self.enemy_tanks.remove(enemy)
                     self.player_tank.bullet.active = False
                     return
 
@@ -160,11 +161,13 @@ class GameManager:
                     continue
 
                 # Check collision with player tank
-                if bullet_rect.colliderect(self.player_tank.rect) and not self.player_tank.is_invincible:
-                    self.player_tank.respawn()
+                if bullet_rect.colliderect(self.player_tank.rect):
+                    if not self.player_tank.is_invincible:
+                        if self.player_tank.take_damage():
+                            self.state = GameState.GAME_OVER
+                        else:
+                            self.player_tank.respawn()
                     enemy.bullet.active = False
-                    if self.player_tank.lives <= 0:
-                        self.state = GameState.GAME_OVER
                     return
 
                 # Check collision with map tiles
@@ -189,29 +192,41 @@ class GameManager:
     def _draw_game_over(self) -> None:
         """Draw the game over screen."""
         # Draw semi-transparent overlay
-        overlay = pygame.Surface((self.screen_width, self.screen_height), pygame.SRCALPHA)
+        overlay = pygame.Surface(
+            (self.screen_width, self.screen_height), pygame.SRCALPHA
+        )
         overlay.fill((0, 0, 0, 128))  # Black with 50% opacity
         self.screen.blit(overlay, (0, 0))
 
         # Draw game over text
         text = self.font.render("GAME OVER", True, (255, 0, 0))
-        text_rect = text.get_rect(center=(self.screen_width // 2, self.screen_height // 2))
+        text_rect = text.get_rect(
+            center=(self.screen_width // 2, self.screen_height // 2)
+        )
         self.screen.blit(text, text_rect)
 
         # Draw restart instructions
         restart_text = self.font.render("Press R to Restart", True, (255, 255, 255))
-        restart_rect = restart_text.get_rect(center=(self.screen_width // 2, self.screen_height // 2 + 50))
+        restart_rect = restart_text.get_rect(
+            center=(self.screen_width // 2, self.screen_height // 2 + 50)
+        )
         self.screen.blit(restart_text, restart_rect)
 
     def _draw_hud(self) -> None:
         """Draw the heads-up display."""
         # Draw lives
-        lives_text = self.small_font.render(f"Lives: {self.player_tank.lives}", True, (255, 255, 255))
+        lives_text = self.small_font.render(
+            f"Lives: {self.player_tank.lives}", True, (255, 255, 255)
+        )
         self.screen.blit(lives_text, (10, 10))
 
         # Draw invincibility timer if active
         if self.player_tank.is_invincible:
-            remaining_time = max(0, self.player_tank.respawn_duration - self.player_tank.respawn_timer)
+            remaining_time = max(
+                0,
+                self.player_tank.invincibility_duration
+                - self.player_tank.invincibility_timer,
+            )
             invincible_text = self.small_font.render(
                 f"Invincible: {remaining_time:.1f}s", True, (255, 255, 0)
             )
