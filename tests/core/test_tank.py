@@ -13,7 +13,7 @@ class TestTank:
         """Create a tank instance for testing."""
         pygame.init()
         return Tank(0, 0, TILE_SIZE)
-    
+
     @pytest.fixture
     def tank_two_lives(self):
         """Create a tank instance with two lives for testing."""
@@ -32,7 +32,7 @@ class TestTank:
         # Set direction and shoot
         tank.direction = direction
         tank.shoot()
-        
+
         # Verify bullet direction
         assert tank.bullet is not None
         assert tank.bullet.direction == direction
@@ -60,7 +60,9 @@ class TestTank:
     def test_take_damage_die(self, tank_two_lives):
         """Test taking damage and dying."""
         # Take 1 damage, should die and lose a life
-        assert not tank_two_lives.take_damage()  # Returns False because tank still has lives left
+        assert (
+            not tank_two_lives.take_damage()
+        )  # Returns False because tank still has lives left
         assert tank_two_lives.health == 1
         assert tank_two_lives.lives == 1
 
@@ -76,16 +78,16 @@ class TestTank:
         # Set invincibility
         tank.is_invincible = True
         tank.invincibility_duration = 3.0
-        
+
         # Try to take damage while invincible
         assert not tank.take_damage()
         assert tank.health == 1
         assert tank.lives == 1
-        
+
         # Update with time less than duration
         tank.update(1.0, [])
         assert tank.is_invincible
-        
+
         # Update with time more than duration
         tank.update(3.0, [])
         assert not tank.is_invincible
@@ -97,7 +99,7 @@ class TestTank:
         assert tank.bullet is not None
         assert isinstance(tank.bullet, Bullet)
         assert tank.bullet.active
-        
+
         # Test bullet position (should be centered on tank)
         expected_x = tank.x + tank.width // 2 - BULLET_WIDTH // 2
         expected_y = tank.y + tank.height // 2 - BULLET_HEIGHT // 2
@@ -107,23 +109,23 @@ class TestTank:
     def test_move(self, tank):
         """Test movement functionality."""
         map_rects = []  # Empty list for no collisions
-        
+
         # First move should fail due to move_timer
         assert not tank._move(1, 0, map_rects)
         assert tank.x == 0
         assert tank.y == 0
-        
+
         # Advance the move_timer past the delay
         tank.move_timer = tank.move_delay
-        
+
         # Now movement should succeed
         assert tank._move(1, 0, map_rects)
         assert tank.x == TANK_SPEED
         assert tank.y == 0
-        
+
         # Reset timer for next move
         tank.move_timer = tank.move_delay
-        
+
         # Test moving down
         assert tank._move(0, 1, map_rects)
         assert tank.x == TANK_SPEED
@@ -133,13 +135,13 @@ class TestTank:
         """Test edge cases for movement."""
         map_rects = []  # Empty list for no collisions
         tank.move_timer = tank.move_delay
-        
+
         # Test moving with zero delta
         # Zero movement should succeed but not change position
         assert tank._move(0, 0, map_rects)
         assert tank.x == 0
         assert tank.y == 0
-        
+
         # Test moving diagonally (should not be allowed)
         assert not tank._move(1, 1, map_rects)
         assert tank.x == 0
@@ -165,21 +167,21 @@ class TestTank:
         tank_rect = pygame.Rect(tank.x, tank.y, tank.width, tank.height)
         map_rects = [tank_rect]
         tank.move_timer = tank.move_delay
-        
+
         # Should not collide with own position
         assert tank._move(1, 0, map_rects)
         assert tank.x == TANK_SPEED
-        
+
         # Test collision with multiple walls
         wall1 = pygame.Rect(TANK_SPEED, 0, TILE_SIZE, TILE_SIZE)
         wall2 = pygame.Rect(0, TANK_SPEED, TILE_SIZE, TILE_SIZE)
         map_rects = [wall1, wall2]
-        
+
         # Reset position
         tank.x = 0
         tank.y = 0
         tank.move_timer = tank.move_delay
-        
+
         # Should be blocked by first wall
         assert not tank._move(1, 0, map_rects)
         assert tank.x == 0
