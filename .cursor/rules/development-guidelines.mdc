@@ -1,0 +1,14 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# Development Guidelines
+
+- Follow PEP 8 style guide
+- Use type hints for better code documentation
+- Write docstrings for all public functions and classes
+- Keep functions and classes focused on a single responsibility
+- Write tests for new features
+- Update documentation when making significant changes

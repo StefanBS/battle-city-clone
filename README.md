@@ -7,33 +7,26 @@ A Python and Pygame implementation of the classic NES game Battle City.
 ```
 battle-city-clone/
 ├── src/                    # Source code
+│   ├── __init__.py
 │   ├── core/              # Core game mechanics and systems
 │   │   ├── __init__.py
 │   │   ├── game_object.py # Base GameObject class
-│   │   ├── tank.py        # Tank base class and implementations
+│   │   ├── tank.py        # Tank base class
+│   │   ├── player_tank.py # Player-controlled tank
+│   │   ├── enemy_tank.py  # AI-controlled tank
 │   │   ├── bullet.py      # Bullet implementation
 │   │   ├── tile.py        # Tile types and implementation
-│   │   ├── map.py         # Map management
-│   │   └── collision.py   # Collision detection
+│   │   └── map.py         # Map management
 │   │
 │   ├── managers/          # Game managers
-│   │   ├── __init__.py
 │   │   ├── game_manager.py
-│   │   ├── input_handler.py
-│   │   ├── renderer.py
-│   │   ├── sound_manager.py
-│   │   ├── ui_manager.py
-│   │   └── powerup_manager.py
+│   │   └── input_handler.py
 │   │
 │   ├── states/            # Game states
-│   │   ├── __init__.py
 │   │   └── game_state.py  # Game state enum
 │   │
 │   ├── utils/             # Utility functions and helpers
-│   │   ├── __init__.py
-│   │   ├── constants.py   # Game constants
-│   │   ├── helpers.py     # Helper functions
-│   │   └── config.py      # Configuration settings
+│   │   └── constants.py   # Game constants
 │   │
 │   └── main.py            # Entry point
 │
@@ -101,12 +94,3 @@ pytest -k "test_bullet"
 Tests are organized into:
 - Unit tests: Test individual components in isolation
 - Integration tests: Test interactions between components
-
-## Development Guidelines
-
-- Follow PEP 8 style guide
-- Use type hints for better code documentation
-- Write docstrings for all public functions and classes
-- Keep functions and classes focused on a single responsibility
-- Write tests for new features
-- Update documentation when making significant changes

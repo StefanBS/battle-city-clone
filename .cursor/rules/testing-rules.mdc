@@ -1,0 +1,10 @@
+---
+description: 
+globs: tests/**/*.py
+alwaysApply: false
+---
+
+# Testing rules
+
+- Use Pytest for testing. Try to use Pytest whenever possible on tests
+- Unit tests should be decoupled from any other component. Use mocks when needed
