@@ -2,6 +2,14 @@ import pygame
 from typing import Optional
 from .game_object import GameObject
 from .bullet import Bullet
+from utils.constants import (
+    TILE_SIZE,
+    TANK_SPEED,
+    TANK_WIDTH,
+    TANK_HEIGHT,
+    BULLET_WIDTH,
+    BULLET_HEIGHT,
+)
 
 
 class Tank(GameObject):
@@ -11,11 +19,11 @@ class Tank(GameObject):
         self,
         x: int,
         y: int,
-        tile_size: int,
+        tile_size: int = TILE_SIZE,
         sprite: pygame.Surface = None,
         health: int = 1,
         lives: int = 1,
-        speed: int = 1,
+        speed: int = TANK_SPEED,
     ):
         """
         Initialize the tank.
@@ -29,8 +37,8 @@ class Tank(GameObject):
             lives: Number of lives
             speed: Movement speed multiplier
         """
-        super().__init__(x, y, tile_size, tile_size, sprite)
-        self.speed = tile_size  # Move one tile at a time
+        super().__init__(x, y, TANK_WIDTH, TANK_HEIGHT, sprite)
+        self.speed = speed
         self.direction = "up"  # Initial direction
         self.bullet: Optional[Bullet] = None
         self.tile_size = tile_size
@@ -75,9 +83,9 @@ class Tank(GameObject):
         """Create a new bullet if none exists."""
         if self.bullet is None or not self.bullet.active:
             # Calculate bullet starting position (center of tank)
-            bullet_x = self.x + self.width // 2 - self.tile_size // 4
-            bullet_y = self.y + self.height // 2 - self.tile_size // 4
-            self.bullet = Bullet(bullet_x, bullet_y, self.direction, self.tile_size)
+            bullet_x = self.x + self.width // 2 - BULLET_WIDTH // 2
+            bullet_y = self.y + self.height // 2 - BULLET_HEIGHT // 2
+            self.bullet = Bullet(bullet_x, bullet_y, self.direction)
 
     def update(self, dt: float, map_rects: list[pygame.Rect]) -> None:
         """
@@ -110,8 +118,8 @@ class Tank(GameObject):
         Attempt to move the tank and return whether the movement was successful.
 
         Args:
-            dx: X movement amount
-            dy: Y movement amount
+            dx: X movement amount (-1, 0, or 1)
+            dy: Y movement amount (-1, 0, or 1)
             map_rects: List of rectangles representing collidable map tiles
 
         Returns:
@@ -120,7 +128,7 @@ class Tank(GameObject):
         if self.move_timer < self.move_delay:
             return False
 
-        # Calculate target position
+        # Calculate target position (move by one tile)
         target_x = self.x + dx * self.speed
         target_y = self.y + dy * self.speed
 

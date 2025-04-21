@@ -24,7 +24,7 @@ BLUE: Tuple[int, int, int] = (0, 0, 255)
 YELLOW: Tuple[int, int, int] = (255, 255, 0)
 
 # Tank settings
-TANK_SPEED: int = 2
+TANK_SPEED: int = TILE_SIZE  # Move exactly one tile per movement
 TANK_WIDTH: int = TILE_SIZE
 TANK_HEIGHT: int = TILE_SIZE
 PLAYER_HEALTH: int = 3  # Player starts with 3 health points
@@ -34,22 +34,6 @@ ENEMY_HEALTH: int = 1  # Basic enemy tanks have 1 health point
 BULLET_SPEED: int = 4
 BULLET_WIDTH: int = 8
 BULLET_HEIGHT: int = 8
-
-# Tile types
-EMPTY: int = 0
-BRICK: int = 1
-STEEL: int = 2
-WATER: int = 3
-TREES: int = 4
-ICE: int = 5
-BASE: int = 6
-
-# Game states
-STATE_MENU: str = "menu"
-STATE_PLAYING: str = "playing"
-STATE_PAUSED: str = "paused"
-STATE_GAME_OVER: str = "game_over"
-STATE_LEVEL_COMPLETE: str = "level_complete"
 
 # Power-up types
 POWER_UP_INVINCIBLE: str = "invincible"

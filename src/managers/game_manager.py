@@ -6,6 +6,16 @@ from core.player_tank import PlayerTank
 from core.enemy_tank import EnemyTank
 from core.tile import TileType
 from states.game_state import GameState
+from utils.constants import (
+    WINDOW_TITLE,
+    FPS,
+    TILE_SIZE,
+    GRID_WIDTH,
+    GRID_HEIGHT,
+    BLACK,
+    WHITE,
+    YELLOW,
+)
 import random
 
 
@@ -15,27 +25,27 @@ class GameManager:
     def __init__(self):
         """Initialize the game window and basic settings."""
         # Set up the display
-        self.tile_size = 32
-        self.screen_width = 25 * self.tile_size  # 25 tiles wide
-        self.screen_height = 20 * self.tile_size  # 20 tiles high
+        self.tile_size = TILE_SIZE
+        self.screen_width = GRID_WIDTH * TILE_SIZE
+        self.screen_height = GRID_HEIGHT * TILE_SIZE
         self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
-        pygame.display.set_caption("Battle City Clone")
+        pygame.display.set_caption(WINDOW_TITLE)
 
         # Game clock for controlling frame rate
         self.clock = pygame.time.Clock()
-        self.fps = 60
+        self.fps = FPS
 
         # Game state
         self.state = GameState.RUNNING
-        self.background_color = (0, 0, 0)  # Black background
+        self.background_color = BLACK
 
         # Initialize the map
         self.map = Map()
 
         # Initialize the player tank
-        # Start at the bottom center of the screen
-        start_x = (self.screen_width - self.tile_size) // 2
-        start_y = self.screen_height - self.tile_size * 2
+        # Start at the bottom center of the screen, within map boundaries
+        start_x = (self.map.width * self.tile_size - self.tile_size) // 2
+        start_y = (self.map.height - 2) * self.tile_size  # Two tiles up from bottom
         self.player_tank = PlayerTank(start_x, start_y, self.tile_size)
 
         # Initialize enemy tanks
@@ -234,7 +244,7 @@ class GameManager:
         """Draw the heads-up display."""
         # Draw lives
         lives_text = self.small_font.render(
-            f"Lives: {self.player_tank.lives}", True, (255, 255, 255)
+            f"Lives: {self.player_tank.lives}", True, WHITE
         )
         self.screen.blit(lives_text, (10, 10))
 
@@ -246,7 +256,7 @@ class GameManager:
                 - self.player_tank.invincibility_timer,
             )
             invincible_text = self.small_font.render(
-                f"Invincible: {remaining_time:.1f}s", True, (255, 255, 0)
+                f"Invincible: {remaining_time:.1f}s", True, YELLOW
             )
             self.screen.blit(invincible_text, (10, 40))
 

@@ -1,35 +1,38 @@
 import pygame
-from typing import Tuple
+from typing import Optional
 from .game_object import GameObject
+from utils.constants import (
+    BULLET_SPEED,
+    BULLET_WIDTH,
+    BULLET_HEIGHT,
+    WHITE,
+)
 
 
 class Bullet(GameObject):
-    """Represents a bullet in the game."""
+    """Bullet entity that can be fired by tanks."""
 
     def __init__(
         self,
         x: int,
         y: int,
         direction: str,
-        tile_size: int,
-        sprite: pygame.Surface = None,
+        sprite: Optional[pygame.Surface] = None,
     ):
         """
-        Initialize a bullet.
+        Initialize the bullet.
 
         Args:
             x: Initial x position
             y: Initial y position
             direction: Direction of movement ("up", "down", "left", "right")
-            tile_size: Size of a tile in pixels
             sprite: Optional sprite surface
         """
-        # Bullet size is half of a tile
-        bullet_size = tile_size // 2
-        super().__init__(x, y, bullet_size, bullet_size, sprite)
-        self.speed = 4  # Pixels per frame
+        super().__init__(x, y, BULLET_WIDTH, BULLET_HEIGHT, sprite)
         self.direction = direction
+        self.speed = BULLET_SPEED
         self.active = True
+        self.color = WHITE
 
     def update(self, dt: float) -> None:
         """
@@ -42,23 +45,16 @@ class Bullet(GameObject):
             return
 
         # Calculate movement based on direction
-        dx, dy = 0, 0
-        if self.direction == "up":
-            dy = -1
-        elif self.direction == "down":
-            dy = 1
-        elif self.direction == "left":
-            dx = -1
+        if self.direction == "left":
+            self.x -= self.speed
         elif self.direction == "right":
-            dx = 1
+            self.x += self.speed
+        elif self.direction == "up":
+            self.y -= self.speed
+        elif self.direction == "down":
+            self.y += self.speed
 
-        # Calculate new position
-        new_x = self.x + dx * self.speed
-        new_y = self.y + dy * self.speed
-
-        # Update position
-        self.x = new_x
-        self.y = new_y
+        # Update the bullet's rect
         super().update(dt)
 
     def draw(self, surface: pygame.Surface) -> None:
@@ -68,9 +64,10 @@ class Bullet(GameObject):
         Args:
             surface: Surface to draw on
         """
-        if self.active:
-            if self.sprite:
-                surface.blit(self.sprite, self.rect)
-            else:
-                # Draw a simple bullet if no sprite is provided
-                pygame.draw.rect(surface, (255, 255, 0), self.rect)  # Yellow bullet
+        if not self.active:
+            return
+
+        if self.sprite:
+            surface.blit(self.sprite, self.rect)
+        else:
+            pygame.draw.rect(surface, self.color, self.rect)

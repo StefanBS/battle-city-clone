@@ -1,15 +1,20 @@
 from typing import List
 import pygame
 from .tile import Tile, TileType
+from utils.constants import (
+    TILE_SIZE,
+    GRID_WIDTH,
+    GRID_HEIGHT,
+)
 
 
 class Map:
     """Manages the game map and its tiles."""
 
-    def __init__(self, width: int = 25, height: int = 20):
-        self.width = width
-        self.height = height
-        self.tile_size = 32
+    def __init__(self):
+        self.width = GRID_WIDTH
+        self.height = GRID_HEIGHT
+        self.tile_size = TILE_SIZE
         self.tiles: List[List[Tile]] = []
 
         # Initialize empty map
@@ -42,7 +47,7 @@ class Map:
                 self.tiles[y][x].type = TileType.STEEL
 
         # Add the base
-        # self.tiles[self.height - 2][self.width // 2].type = TileType.BASE
+        self.tiles[self.height - 2][self.width // 2].type = TileType.BASE
 
     def draw(self, surface) -> None:
         """Draw all tiles on the given surface."""
