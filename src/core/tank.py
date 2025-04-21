@@ -128,6 +128,10 @@ class Tank(GameObject):
         if self.move_timer < self.move_delay:
             return False
 
+        # Prevent diagonal movement by only allowing one direction at a time
+        if dx != 0 and dy != 0:
+            return False
+
         # Calculate target position (move by one tile)
         target_x = self.x + dx * self.speed
         target_y = self.y + dy * self.speed
