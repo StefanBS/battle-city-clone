@@ -1,6 +1,6 @@
 import pygame
 import sys
-from typing import Optional, List
+from typing import Optional, List, Tuple
 from core.map import Map
 from core.player_tank import PlayerTank
 from core.enemy_tank import EnemyTank
@@ -21,6 +21,13 @@ import random
 
 class GameManager:
     """Manages the core game loop and window."""
+
+    # Enemy spawn points (top of the screen)
+    SPAWN_POINTS = [
+        (3, 1),  # Left spawn
+        (GRID_WIDTH // 2, 1),  # Center spawn
+        (GRID_WIDTH - 4, 1),  # Right spawn
+    ]
 
     def __init__(self):
         """Initialize the game window and basic settings."""
@@ -50,6 +57,10 @@ class GameManager:
 
         # Initialize enemy tanks
         self.enemy_tanks: List[EnemyTank] = []
+        self.total_enemy_spawns = 0
+        self.max_enemy_spawns = 10  # Total number of enemies to spawn per level
+        self.spawn_timer = 0
+        self.spawn_interval = 3.0  # Spawn a new enemy every 3 seconds
         self._spawn_enemy()
 
         # Initialize font
@@ -58,24 +69,33 @@ class GameManager:
         self.small_font = pygame.font.SysFont(None, 24)
 
     def _spawn_enemy(self) -> None:
-        """Spawn a new enemy tank at a random position."""
-        # Find a valid spawn position (not colliding with walls)
-        while True:
-            x = random.randint(1, self.map.width - 2) * self.tile_size
-            y = random.randint(1, self.map.height - 2) * self.tile_size
+        """Spawn a new enemy tank at a random spawn point if under the spawn limit."""
+        if self.total_enemy_spawns >= self.max_enemy_spawns:
+            return
 
-            # Check if the position is valid (not colliding with walls)
-            temp_rect = pygame.Rect(x, y, self.tile_size, self.tile_size)
-            collision = False
-            for map_rect in self.map.get_collidable_tiles():
-                if temp_rect.colliderect(map_rect):
-                    collision = True
-                    break
+        # Choose a random spawn point
+        spawn_x, spawn_y = random.choice(self.SPAWN_POINTS)
+        x = spawn_x * self.tile_size
+        y = spawn_y * self.tile_size
 
-            if not collision:
-                enemy = EnemyTank(x, y, self.tile_size)
-                self.enemy_tanks.append(enemy)
+        # Check if the spawn point is clear
+        temp_rect = pygame.Rect(x, y, self.tile_size, self.tile_size)
+        collision = False
+        for map_rect in self.map.get_collidable_tiles():
+            if temp_rect.colliderect(map_rect):
+                collision = True
                 break
+
+        # Also check for collisions with other tanks
+        for enemy in self.enemy_tanks:
+            if temp_rect.colliderect(enemy.rect):
+                collision = True
+                break
+
+        if not collision:
+            enemy = EnemyTank(x, y, self.tile_size)
+            self.enemy_tanks.append(enemy)
+            self.total_enemy_spawns += 1
 
     def handle_events(self) -> None:
         """Handle pygame events."""
@@ -109,6 +129,12 @@ class GameManager:
         for enemy in self.enemy_tanks[:]:  # Create a copy of the list for iteration
             enemy.update(1.0 / self.fps, map_rects)
 
+        # Update spawn timer and spawn new enemies
+        self.spawn_timer += 1.0 / self.fps
+        if self.spawn_timer >= self.spawn_interval:
+            self._spawn_enemy()
+            self.spawn_timer = 0
+
         # Handle bullet collisions with map tiles and tanks
         self._handle_bullet_collisions()
 
@@ -131,6 +157,12 @@ class GameManager:
                 if player_bullet_rect.colliderect(enemy.rect):
                     if enemy.take_damage():
                         self.enemy_tanks.remove(enemy)
+                        # Check if all enemies are destroyed and no more will spawn
+                        if (
+                            len(self.enemy_tanks) == 0
+                            and self.total_enemy_spawns >= self.max_enemy_spawns
+                        ):
+                            self.state = GameState.VICTORY
                     self.player_tank.bullet.active = False
                     return
 

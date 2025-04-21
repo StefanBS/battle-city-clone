@@ -34,17 +34,17 @@ class Map:
         """Create a simple test map layout."""
         # Add some walls around the border
         for x in range(self.width):
-            self.tiles[0][x].type = TileType.BRICK  # Top wall
-            self.tiles[self.height - 1][x].type = TileType.BRICK  # Bottom wall
+            self.tiles[0][x].type = TileType.STEEL  # Top wall
+            self.tiles[self.height - 1][x].type = TileType.STEEL  # Bottom wall
 
         for y in range(self.height):
-            self.tiles[y][0].type = TileType.BRICK  # Left wall
-            self.tiles[y][self.width - 1].type = TileType.BRICK  # Right wall
+            self.tiles[y][0].type = TileType.STEEL  # Left wall
+            self.tiles[y][self.width - 1].type = TileType.STEEL  # Right wall
 
         # Add some steel blocks
         for x in range(5, 8):
             for y in range(5, 8):
-                self.tiles[y][x].type = TileType.STEEL
+                self.tiles[y][x].type = TileType.BUSH
 
         # Add the base
         self.tiles[self.height - 2][self.width // 2].type = TileType.BASE
