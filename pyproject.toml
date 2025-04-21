@@ -10,4 +10,5 @@ dependencies = [
     "mypy",
     "pygame",
     "pytest",
+    "pytest-cov>=6.1.1",
 ]

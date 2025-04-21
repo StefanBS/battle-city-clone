@@ -27,11 +27,7 @@ battle-city-clone/
 │   │
 │   ├── states/            # Game states
 │   │   ├── __init__.py
-│   │   ├── base_state.py
-│   │   ├── menu_state.py
-│   │   ├── play_state.py
-│   │   ├── pause_state.py
-│   │   └── game_over_state.py
+│   │   └── game_state.py  # Game state enum
 │   │
 │   ├── utils/             # Utility functions and helpers
 │   │   ├── __init__.py
@@ -48,13 +44,10 @@ battle-city-clone/
 │
 ├── tests/                # Test files
 │   ├── __init__.py
-│   ├── test_core/
-│   ├── test_managers/
-│   └── test_states/
-│
-├── docs/                 # Documentation
-│   ├── core-game-mechanics.md
-│   └── technical-architecture.md
+│   ├── core/            # Core component tests
+│   ├── managers/        # Manager tests
+│   ├── integration/     # Integration tests
+│   └── utils/          # Utility tests
 │
 ├── pyproject.toml        # Project configuration and dependencies
 └── README.md            # This file
@@ -86,6 +79,28 @@ uv pip install -e .
 ```bash
 python src/main.py
 ```
+
+## Testing
+
+The project uses pytest for testing. To run the tests:
+
+```bash
+# Run all tests
+pytest
+
+# Run tests with coverage report
+pytest --cov=src
+
+# Run specific test file
+pytest tests/managers/test_game_manager.py
+
+# Run tests matching a pattern
+pytest -k "test_bullet"
+```
+
+Tests are organized into:
+- Unit tests: Test individual components in isolation
+- Integration tests: Test interactions between components
 
 ## Development Guidelines
 
