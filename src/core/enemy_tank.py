@@ -25,7 +25,11 @@ class EnemyTank(Tank):
             sprite: Optional sprite surface
             health: Initial health points
         """
-        super().__init__(x, y, tile_size, sprite, health=health, lives=1)
+        # Ensure x and y are aligned to the grid
+        grid_x = round(x / tile_size) * tile_size
+        grid_y = round(y / tile_size) * tile_size
+        # Initialize with grid-aligned position
+        super().__init__(grid_x, grid_y, tile_size, sprite, health=health, lives=1)
         self.direction = random.choice(["up", "down", "left", "right"])
         self.direction_timer = 0
         self.direction_change_interval = 2.0  # Change direction every 2 seconds

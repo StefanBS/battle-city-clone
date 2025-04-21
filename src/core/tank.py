@@ -136,6 +136,13 @@ class Tank(GameObject):
         target_x = self.x + dx * self.speed
         target_y = self.y + dy * self.speed
 
+        # Ensure alignment to the grid
+        grid_x = round(target_x / self.tile_size) * self.tile_size
+        grid_y = round(target_y / self.tile_size) * self.tile_size
+        # Use the grid-aligned position for movement
+        target_x = grid_x
+        target_y = grid_y
+
         # Create a temporary rect for collision checking
         temp_rect = pygame.Rect(
             target_x,

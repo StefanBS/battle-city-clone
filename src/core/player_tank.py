@@ -23,11 +23,15 @@ class PlayerTank(Tank):
             tile_size: Size of a tile in pixels
             sprite: Optional sprite surface
         """
+        # Ensure x and y are aligned to the grid
+        grid_x = round(x / tile_size) * tile_size
+        grid_y = round(y / tile_size) * tile_size
+        # Initialize with grid-aligned position
         super().__init__(
-            x, y, tile_size, sprite, health=1, lives=3
+            grid_x, grid_y, tile_size, sprite, health=1, lives=3
         )  # Player starts with 3 lives
         self.input_handler = InputHandler()
-        self.initial_position = (x, y)
+        self.initial_position = (grid_x, grid_y)
         self.invincibility_duration = 3.0  # 3 seconds invincibility after respawn
         self.color = (0, 255, 0)  # Green color for player tank
 
