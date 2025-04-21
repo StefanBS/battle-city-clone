@@ -61,8 +61,6 @@ def test_player_tank_respawn_no_lives_left(player_tank):
     """Test respawn does nothing if no lives are left."""
     player_tank.lives = 0
     player_tank.health = 0
-    initial_pos = player_tank.initial_position
-    initial_direction = player_tank.direction
 
     # Attempt respawn
     player_tank.respawn()
@@ -99,7 +97,7 @@ def test_handle_event_invincible(player_tank):
 
     # Methods should not have been called
     player_tank.shoot.assert_not_called()
-    player_tank.input_handler.handle_event.assert_not_called()  # Input handler itself shouldn't be called
+    player_tank.input_handler.handle_event.assert_not_called()
 
 
 def test_update_movement_direction(player_tank):
@@ -161,11 +159,9 @@ def test_update_invincible(player_tank):
         0,
     )  # Try to move right
     player_tank._move = MagicMock()
-
     player_tank.update(dt, map_rects)
 
     player_tank._move.assert_not_called()
-    # Direction should remain unchanged (usually reset during respawn, but test isolation)
     assert player_tank.direction == "up"
 
 
@@ -269,8 +265,8 @@ def test_draw_bullet(mock_draw_rect, player_tank):
 
     # Assert bullet draw is not called if inactive
     # Reset relevant mocks before the next call
-    mock_draw_rect.reset_mock() # Reset the draw rect mock
-    mock_surface.reset_mock() # Reset surface mock if tank drawing happened
+    mock_draw_rect.reset_mock()  # Reset the draw rect mock
+    mock_surface.reset_mock()  # Reset surface mock if tank drawing happened
     mock_bullet.reset_mock()
     mock_bullet.active = False
     player_tank.draw(mock_surface)

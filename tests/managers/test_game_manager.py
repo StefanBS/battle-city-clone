@@ -15,7 +15,6 @@ from utils.constants import (
     GRID_HEIGHT,
     BLACK,
 )
-import random  # Added for mocking
 
 
 class TestGameManager:

@@ -5,11 +5,25 @@ description = "Just a Battle City (NES) clone"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "black",
-    "flake8",
     "mypy",
     "pygame",
     "pytest",
     "pytest-cov>=6.1.1",
     "pytest-mock>=3.14.0",
+    "ruff",
 ]
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F"]
+ignore = []
+
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"

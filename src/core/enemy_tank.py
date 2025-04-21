@@ -1,6 +1,5 @@
 import pygame
 import random
-from typing import Optional
 from .tank import Tank
 
 

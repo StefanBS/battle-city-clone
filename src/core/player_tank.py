@@ -1,5 +1,4 @@
 import pygame
-from typing import Tuple, Optional
 from .tank import Tank
 from managers.input_handler import InputHandler
 

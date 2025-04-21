@@ -1,6 +1,6 @@
 import pygame
 import sys
-from typing import Optional, List, Tuple
+from typing import List
 from core.map import Map
 from core.player_tank import PlayerTank
 from core.enemy_tank import EnemyTank

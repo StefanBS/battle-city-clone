@@ -2,6 +2,7 @@
 """
 Battle City Clone - Main Entry Point
 """
+
 import sys
 import pygame
 from managers.game_manager import GameManager
