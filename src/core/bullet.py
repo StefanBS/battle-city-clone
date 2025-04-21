@@ -6,6 +6,10 @@ from utils.constants import (
     BULLET_WIDTH,
     BULLET_HEIGHT,
     WHITE,
+    GRID_WIDTH,
+    GRID_HEIGHT,
+    TILE_SIZE,
+    FPS,
 )
 
 
@@ -30,7 +34,7 @@ class Bullet(GameObject):
         """
         super().__init__(x, y, BULLET_WIDTH, BULLET_HEIGHT, sprite)
         self.direction = direction
-        self.speed = BULLET_SPEED
+        self.speed = BULLET_SPEED * FPS
         self.active = True
         self.color = WHITE
 
@@ -46,13 +50,23 @@ class Bullet(GameObject):
 
         # Calculate movement based on direction
         if self.direction == "left":
-            self.x -= self.speed
+            self.x -= self.speed * dt
         elif self.direction == "right":
-            self.x += self.speed
+            self.x += self.speed * dt
         elif self.direction == "up":
-            self.y -= self.speed
+            self.y -= self.speed * dt
         elif self.direction == "down":
-            self.y += self.speed
+            self.y += self.speed * dt
+
+        # Check if bullet is out of bounds
+        if (
+            self.x < 0
+            or self.x > GRID_WIDTH * TILE_SIZE
+            or self.y < 0
+            or self.y > GRID_HEIGHT * TILE_SIZE
+        ):
+            self.active = False
+            return
 
         # Update the bullet's rect
         super().update(dt)

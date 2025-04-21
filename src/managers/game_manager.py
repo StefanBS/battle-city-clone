@@ -118,16 +118,6 @@ class GameManager:
         if self.player_tank.bullet is not None and self.player_tank.bullet.active:
             player_bullet_rect = self.player_tank.bullet.rect
 
-            # Check if bullet is out of bounds
-            if (
-                player_bullet_rect.x < 0
-                or player_bullet_rect.x > self.screen_width
-                or player_bullet_rect.y < 0
-                or player_bullet_rect.y > self.screen_height
-            ):
-                self.player_tank.bullet.active = False
-                return
-
             # Check collision with enemy bullets
             for enemy in self.enemy_tanks:
                 if enemy.bullet is not None and enemy.bullet.active:
@@ -167,16 +157,6 @@ class GameManager:
         for enemy in self.enemy_tanks:
             if enemy.bullet is not None and enemy.bullet.active:
                 enemy_bullet_rect = enemy.bullet.rect
-
-                # Check if bullet is out of bounds
-                if (
-                    enemy_bullet_rect.x < 0
-                    or enemy_bullet_rect.x > self.screen_width
-                    or enemy_bullet_rect.y < 0
-                    or enemy_bullet_rect.y > self.screen_height
-                ):
-                    enemy.bullet.active = False
-                    continue
 
                 # Check collision with player bullet
                 if (
