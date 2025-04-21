@@ -82,8 +82,7 @@ class PlayerTank(Tank):
 
     def respawn(self) -> None:
         """Respawn the tank at its initial position."""
-        if self.health > 0:
-            self.health -= 1
+        if self.lives > 0:
             self.x, self.y = self.initial_position
             self.target_position = self.initial_position
             self.is_invincible = True
