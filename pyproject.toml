@@ -11,4 +11,5 @@ dependencies = [
     "pygame",
     "pytest",
     "pytest-cov>=6.1.1",
+    "pytest-mock>=3.14.0",
 ]

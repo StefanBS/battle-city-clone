@@ -50,9 +50,9 @@ class GameManager:
         self.map = Map()
 
         # Initialize the player tank
-        # Start at the bottom center of the screen, within map boundaries
-        start_x = (self.map.width * self.tile_size - self.tile_size) // 2
-        start_y = (self.map.height - 2) * self.tile_size  # Two tiles up from bottom
+        # Start at the bottom center of the screen, aligned to the grid
+        start_x = ((GRID_WIDTH // 2) - 1) * self.tile_size
+        start_y = (GRID_HEIGHT - 2) * self.tile_size
         self.player_tank = PlayerTank(start_x, start_y, self.tile_size)
 
         # Initialize enemy tanks
@@ -74,9 +74,9 @@ class GameManager:
             return
 
         # Choose a random spawn point
-        spawn_x, spawn_y = random.choice(self.SPAWN_POINTS)
-        x = spawn_x * self.tile_size
-        y = spawn_y * self.tile_size
+        spawn_grid_x, spawn_grid_y = random.choice(self.SPAWN_POINTS)
+        x = spawn_grid_x * self.tile_size
+        y = spawn_grid_y * self.tile_size
 
         # Check if the spawn point is clear
         temp_rect = pygame.Rect(x, y, self.tile_size, self.tile_size)
