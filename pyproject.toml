@@ -7,6 +7,11 @@ requires-python = ">=3.12"
 dependencies = [
     "mypy",
     "pygame",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pre-commit",
     "pytest",
     "pytest-cov>=6.1.1",
     "pytest-mock>=3.14.0",
