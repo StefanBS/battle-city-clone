@@ -85,11 +85,11 @@ class TestTank:
         assert tank.lives == 1
 
         # Update with time less than duration
-        tank.update(1.0, [])
+        tank.update(1.0)
         assert tank.is_invincible
 
         # Update with time more than duration
-        tank.update(3.0, [])
+        tank.update(3.0)
         assert not tank.is_invincible
 
     def test_shoot(self, tank):
@@ -107,82 +107,69 @@ class TestTank:
         assert tank.bullet.y == expected_y
 
     def test_move(self, tank):
-        """Test movement functionality."""
-        map_rects = []  # Empty list for no collisions
-
-        # First move should fail due to move_timer
-        assert not tank._move(1, 0, map_rects)
+        """Test movement attempt functionality."""
+        # First move attempt should fail due to move_timer
+        assert not tank._move(1, 0)
         assert tank.x == 0
         assert tank.y == 0
 
         # Advance the move_timer past the delay
         tank.move_timer = tank.move_delay
 
-        # Now movement should succeed
-        assert tank._move(1, 0, map_rects)
-        assert tank.x == TANK_SPEED
+        # Store previous position before moving
+        tank.prev_x = tank.x
+        tank.prev_y = tank.y
+
+        # Now movement attempt should succeed
+        assert tank._move(1, 0)
+        assert tank.x == TILE_SIZE
         assert tank.y == 0
 
         # Reset timer for next move
         tank.move_timer = tank.move_delay
+        tank.prev_x = tank.x
+        tank.prev_y = tank.y
 
         # Test moving down
-        assert tank._move(0, 1, map_rects)
-        assert tank.x == TANK_SPEED
-        assert tank.y == TANK_SPEED
+        assert tank._move(0, 1)
+        assert tank.x == TILE_SIZE
+        assert tank.y == TILE_SIZE
 
     def test_move_edge_cases(self, tank):
-        """Test edge cases for movement."""
-        map_rects = []  # Empty list for no collisions
+        """Test edge cases for movement attempts."""
         tank.move_timer = tank.move_delay
 
         # Test moving with zero delta
-        # Zero movement should succeed but not change position
-        assert tank._move(0, 0, map_rects)
+        # Zero movement attempt should succeed but not change position
+        tank.prev_x = tank.x
+        tank.prev_y = tank.y
+        assert tank._move(0, 0)
         assert tank.x == 0
         assert tank.y == 0
 
-        # Test moving diagonally (should not be allowed)
-        assert not tank._move(1, 1, map_rects)
+        # Test moving diagonally (should return False)
+        tank.prev_x = tank.x
+        tank.prev_y = tank.y
+        assert not tank._move(1, 1)
+        # Position should not change after failed diagonal attempt
         assert tank.x == 0
         assert tank.y == 0
 
-    def test_collision(self, tank):
-        """Test collision detection."""
-        # Create a wall rect that would block movement
-        wall_rect = pygame.Rect(TANK_SPEED, 0, TILE_SIZE, TILE_SIZE)
-        map_rects = [wall_rect]
+    def test_revert_move(self, tank):
+        """Test the revert_move functionality."""
+        initial_x, initial_y = tank.x, tank.y
+        tank.prev_x = initial_x
+        tank.prev_y = initial_y
 
-        # Advance the move_timer past the delay
-        tank.move_timer = tank.move_delay
+        # Simulate a move
+        tank.x = initial_x + TILE_SIZE
+        tank.y = initial_y
+        tank.rect.topleft = (tank.x, tank.y)
 
-        # Try to move right (should be blocked by wall)
-        assert not tank._move(1, 0, map_rects)
-        assert tank.x == 0  # Should not have moved
-        assert tank.y == 0
+        # Revert the move
+        tank.revert_move()
 
-    def test_collision_edge_cases(self, tank):
-        """Test edge cases for collision detection."""
-        # Test collision with tank's own position
-        tank_rect = pygame.Rect(tank.x, tank.y, tank.width, tank.height)
-        map_rects = [tank_rect]
-        tank.move_timer = tank.move_delay
-
-        # Should not collide with own position
-        assert tank._move(1, 0, map_rects)
-        assert tank.x == TANK_SPEED
-
-        # Test collision with multiple walls
-        wall1 = pygame.Rect(TANK_SPEED, 0, TILE_SIZE, TILE_SIZE)
-        wall2 = pygame.Rect(0, TANK_SPEED, TILE_SIZE, TILE_SIZE)
-        map_rects = [wall1, wall2]
-
-        # Reset position
-        tank.x = 0
-        tank.y = 0
-        tank.move_timer = tank.move_delay
-
-        # Should be blocked by first wall
-        assert not tank._move(1, 0, map_rects)
-        assert tank.x == 0
-        assert tank.y == 0
+        # Assert position is back to the stored previous position
+        assert tank.x == initial_x
+        assert tank.y == initial_y
+        assert tank.rect.topleft == (initial_x, initial_y)

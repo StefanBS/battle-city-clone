@@ -29,6 +29,7 @@ class EnemyTank(Tank):
         grid_y = round(y / tile_size) * tile_size
         # Initialize with grid-aligned position
         super().__init__(grid_x, grid_y, tile_size, sprite, health=health, lives=1)
+        self.owner_type = "enemy"
         self.direction = random.choice(["up", "down", "left", "right"])
         self.direction_timer = 0
         self.direction_change_interval = 2.0  # Change direction every 2 seconds
@@ -42,7 +43,7 @@ class EnemyTank(Tank):
         directions.remove(self.direction)  # Remove current direction
         self.direction = random.choice(directions)
 
-    def update(self, dt: float, map_rects: list[pygame.Rect]) -> None:
+    def update(self, dt: float) -> None:
         """
         Update the tank's position and behavior.
 
@@ -50,8 +51,8 @@ class EnemyTank(Tank):
             dt: Time elapsed since last update in seconds
             map_rects: List of rectangles representing collidable map tiles
         """
-        # Update base tank state
-        super().update(dt, map_rects)
+        # Update base tank state (this now stores prev_x/y)
+        super().update(dt)
 
         # Update timers
         self.direction_timer += dt
@@ -79,9 +80,13 @@ class EnemyTank(Tank):
             dy = 1
 
         # Attempt to move
-        if not self._move(dx, dy, map_rects):
-            # If movement failed, change direction
-            self._change_direction()
+        moved = self._move(dx, dy)
+
+        # If movement was attempted but failed (e.g., diagonal input, timer not ready)
+        # or if the move was later reverted (need feedback for this), change direction.
+        # For now, just change if _move returned False and timer *was* ready.
+        if not moved and self.move_timer >= self.move_delay:
+            self._change_direction()  # Stuck or tried diagonal? Change direction.
 
     def draw(self, surface: pygame.Surface) -> None:
         """

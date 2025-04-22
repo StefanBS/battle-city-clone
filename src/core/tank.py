@@ -45,8 +45,12 @@ class Tank(GameObject):
         self.health: int = health
         self.max_health: int = health
         self.lives: int = lives
+        self.owner_type: str = "base_tank"  # Default or abstract type
         self.move_timer: float = 0
         self.move_delay: float = 0.15  # Time between movements in seconds
+        # Store previous position for collision rollback
+        self.prev_x: float = x
+        self.prev_y: float = y
         self.target_position: Tuple[float, float] = (x, y)
         self.is_invincible: bool = False
         self.invincibility_timer: float = 0
@@ -82,10 +86,9 @@ class Tank(GameObject):
     def shoot(self) -> None:
         """Create a new bullet if none exists."""
         if self.bullet is None or not self.bullet.active:
-            # Calculate bullet starting position (center of tank)
             bullet_x = self.x + self.width // 2 - BULLET_WIDTH // 2
             bullet_y = self.y + self.height // 2 - BULLET_HEIGHT // 2
-            self.bullet = Bullet(bullet_x, bullet_y, self.direction)
+            self.bullet = Bullet(bullet_x, bullet_y, self.direction, self.owner_type)
 
     def update(self, dt: float) -> None:
         """
@@ -94,6 +97,10 @@ class Tank(GameObject):
         Args:
             dt: Time elapsed since last update in seconds
         """
+        # Store position before any potential movement this frame
+        self.prev_x = self.x
+        self.prev_y = self.y
+
         # Update invincibility timer
         if self.is_invincible:
             self.invincibility_timer += dt
@@ -105,66 +112,53 @@ class Tank(GameObject):
         # Update movement timer
         self.move_timer += dt
 
-        # Update the tank's rect
+        # Update the tank's rect *before* bullet update if bullet depends on final pos?
+        # Let's keep it here for now, might need adjustment.
         super().update(dt)
 
         # Update bullet if it exists
         if self.bullet is not None:
             self.bullet.update(dt)
 
-    def _move(self, dx: int, dy: int, map_rects: list[pygame.Rect]) -> bool:
+    def _move(self, dx: int, dy: int) -> bool:
         """
-        Attempt to move the tank and return whether the movement was successful.
+        Attempt to move the tank by updating its position.
+        Collision checks are handled externally by GameManager.
 
         Args:
             dx: X movement amount (-1, 0, or 1)
             dy: Y movement amount (-1, 0, or 1)
-            map_rects: List of rectangles representing collidable map tiles
 
         Returns:
-            True if movement was successful, False otherwise
+            True if movement was attempted (timer ready), False otherwise.
         """
         if self.move_timer < self.move_delay:
-            return False
+            return False  # Not ready to move yet
 
-        # Prevent diagonal movement by only allowing one direction at a time
         if dx != 0 and dy != 0:
-            return False
+            return False  # Ignore diagonal movement attempts
 
         # Calculate target position (move by one tile)
-        target_x = self.x + dx * self.speed
-        target_y = self.y + dy * self.speed
+        target_x = self.x + dx * self.tile_size  # Move full tile increments
+        target_y = self.y + dy * self.tile_size
 
-        # Ensure alignment to the grid
-        grid_x = round(target_x / self.tile_size) * self.tile_size
-        grid_y = round(target_y / self.tile_size) * self.tile_size
-        # Use the grid-aligned position for movement
-        target_x = grid_x
-        target_y = grid_y
+        # Apply movement (position will be validated/reverted by GameManager)
+        self.x = target_x
+        self.y = target_y
+        self.target_position = (self.x, self.y)
+        self.move_timer = 0  # Reset timer after movement attempt
 
-        # Create a temporary rect for collision checking
-        temp_rect = pygame.Rect(
-            target_x,
-            target_y,
-            self.width,
-            self.height,
-        )
+        # Update rect immediately after position change
+        self.rect.topleft = (round(self.x), round(self.y))
 
-        # Check for collisions with map tiles
-        collision = False
-        for map_rect in map_rects:
-            if temp_rect.colliderect(map_rect):
-                collision = True
-                break
+        return True  # Movement was attempted
 
-        if not collision:
-            self.x = target_x
-            self.y = target_y
-            self.target_position = (self.x, self.y)
-            self.move_timer = 0
-            return True
-
-        return False
+    def revert_move(self) -> None:
+        """Reverts the tank to its previous position."""
+        self.x = self.prev_x
+        self.y = self.prev_y
+        self.rect.topleft = (round(self.x), round(self.y))
+        self.target_position = (self.x, self.y)
 
     def draw(self, surface: pygame.Surface) -> None:
         """

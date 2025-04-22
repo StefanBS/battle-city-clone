@@ -29,6 +29,7 @@ class PlayerTank(Tank):
         super().__init__(
             grid_x, grid_y, tile_size, sprite, health=1, lives=3
         )  # Player starts with 3 lives
+        self.owner_type = "player"
         self.input_handler = InputHandler()
         self.initial_position = (grid_x, grid_y)
         self.invincibility_duration = 3.0  # 3 seconds invincibility after respawn
@@ -48,16 +49,15 @@ class PlayerTank(Tank):
             if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
                 self.shoot()
 
-    def update(self, dt: float, map_rects: list[pygame.Rect]) -> None:
+    def update(self, dt: float) -> None:
         """
         Update the tank's position based on input and check for collisions.
 
         Args:
             dt: Time elapsed since last update in seconds
-            map_rects: List of rectangles representing collidable map tiles
         """
         # Update base tank state
-        super().update(dt, map_rects)
+        super().update(dt)
 
         if self.is_invincible:
             return  # Don't move or shoot while invincible
@@ -77,7 +77,7 @@ class PlayerTank(Tank):
                 self.direction = "up"
 
             # Attempt to move
-            self._move(dx, dy, map_rects)
+            self._move(dx, dy)
 
     def respawn(self) -> None:
         """Respawn the tank at its initial position."""
