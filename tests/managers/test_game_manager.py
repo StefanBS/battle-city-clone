@@ -155,6 +155,7 @@ class TestGameManager:
         existing_enemy.rect = pygame.Rect(
             spawn_x, spawn_y, game_manager.tile_size, game_manager.tile_size
         )
+        existing_enemy.tank_type = 'basic'
         game_manager.enemy_tanks = [existing_enemy]  # Replace initial enemy
         game_manager.total_enemy_spawns = 1  # Reflect the one enemy
 
@@ -193,7 +194,7 @@ class TestGameManager:
             "player": create_mock_sprite(
                 100, 100, TILE_SIZE, TILE_SIZE, spec=PlayerTank
             ),
-            "enemy": create_mock_sprite(200, 200, TILE_SIZE, TILE_SIZE, spec=EnemyTank),
+            "enemy": create_mock_sprite(200, 200, TILE_SIZE, TILE_SIZE, spec=EnemyTank, tank_type='basic'),
             "player_bullet": create_mock_sprite(
                 110, 110, 5, 5, spec=Bullet, owner_type="player"
             ),
@@ -435,7 +436,7 @@ class TestGameManager:
             2, 2, 5, 5, spec=Bullet, owner_type="player"
         )
         enemy1 = mocks["enemy"]  # Re-use one mock enemy
-        enemy2 = create_mock_sprite(300, 100, TILE_SIZE, TILE_SIZE, spec=EnemyTank)
+        enemy2 = create_mock_sprite(300, 100, TILE_SIZE, TILE_SIZE, spec=EnemyTank, tank_type='basic')
         game_manager.enemy_tanks.append(enemy2)
 
         enemy1.take_damage.return_value = True  # enemy1 dies
@@ -469,6 +470,7 @@ class TestGameManager:
         game_manager.player_tank.update = MagicMock()
         # Use a real list for enemy_tanks for the update loop check
         mock_enemy = MagicMock(spec=EnemyTank)
+        mock_enemy.tank_type = 'basic'
         game_manager.enemy_tanks = [mock_enemy]
         game_manager._spawn_enemy = MagicMock()
         # _process_collisions *is* called before the state check in update

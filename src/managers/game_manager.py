@@ -71,9 +71,9 @@ class GameManager:
         # Enemy tanks
         self.enemy_tanks: List[EnemyTank] = []
         self.total_enemy_spawns: int = 0
-        self.max_enemy_spawns: int = 10
+        self.max_enemy_spawns: int = 5
         self.spawn_timer: float = 0.0
-        self.spawn_interval: float = 3.0
+        self.spawn_interval: float = 5.0
         self._spawn_enemy()  # Initial spawn
 
         # Font
@@ -106,7 +106,8 @@ class GameManager:
                     break
 
         if not collision:
-            enemy = EnemyTank(x, y, self.tile_size)
+            # Always spawn 'basic' type for now
+            enemy = EnemyTank(x, y, self.tile_size, tank_type='basic')
             self.enemy_tanks.append(enemy)
             self.total_enemy_spawns += 1
 

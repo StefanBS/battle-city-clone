@@ -24,6 +24,7 @@ def create_mock_sprite():
         is_invincible=False,
         lives=3,
         tile_type=None,  # Added tile_type back as parameter
+        **kwargs # Accept arbitrary keyword arguments
     ):
         # Using spec for better type checking in tests
         sprite = MagicMock(spec=spec if spec else object)
@@ -60,6 +61,10 @@ def create_mock_sprite():
             sprite.lives = lives
         if hasattr(sprite, "type") and tile_type is not None:
             sprite.type = tile_type  # Allow overriding TileType
+
+        # Assign any additional keyword arguments as attributes
+        for key, value in kwargs.items():
+            setattr(sprite, key, value)
 
         return sprite
 
