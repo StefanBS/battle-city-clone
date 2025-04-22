@@ -1,7 +1,7 @@
 import pytest
 import pygame
-from managers.collision_manager import CollisionManager
-from core.tile import TileType
+from src.managers.collision_manager import CollisionManager
+from src.core.tile import TileType
 
 
 # Define mock classes needed for spec in this file

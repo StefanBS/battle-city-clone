@@ -1,13 +1,13 @@
 import pytest
 import pygame
 from unittest.mock import patch, MagicMock
-from managers.game_manager import GameManager
-from states.game_state import GameState
-from core.player_tank import PlayerTank
-from core.enemy_tank import EnemyTank
-from core.bullet import Bullet
-from core.tile import Tile, TileType
-from utils.constants import (
+from src.managers.game_manager import GameManager
+from src.states.game_state import GameState
+from src.core.player_tank import PlayerTank
+from src.core.enemy_tank import EnemyTank
+from src.core.bullet import Bullet
+from src.core.tile import Tile, TileType
+from src.utils.constants import (
     WINDOW_TITLE,
     FPS,
     TILE_SIZE,
@@ -15,7 +15,7 @@ from utils.constants import (
     GRID_HEIGHT,
     BLACK,
 )
-from managers.collision_manager import CollisionManager
+from src.managers.collision_manager import CollisionManager
 
 
 class TestGameManager:

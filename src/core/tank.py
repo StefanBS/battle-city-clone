@@ -2,7 +2,7 @@ import pygame
 from typing import Optional, Tuple
 from .game_object import GameObject
 from .bullet import Bullet
-from utils.constants import (
+from src.utils.constants import (
     TILE_SIZE,
     TANK_SPEED,
     TANK_WIDTH,
@@ -24,7 +24,7 @@ class Tank(GameObject):
         health: int = 1,
         lives: int = 1,
         speed: float = TANK_SPEED,
-    ):
+    ) -> None:
         """
         Initialize the tank.
 

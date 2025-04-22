@@ -5,10 +5,10 @@ Battle City Clone - Main Entry Point
 
 import sys
 import pygame
-from managers.game_manager import GameManager
+from src.managers.game_manager import GameManager
 
 
-def main():
+def main() -> None:
     """Initialize and run the game."""
     pygame.init()
 
