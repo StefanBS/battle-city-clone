@@ -1,5 +1,5 @@
 import pygame
-from typing import Optional
+from typing import Optional, Tuple
 from .game_object import GameObject
 from .bullet import Bullet
 from utils.constants import (
@@ -17,13 +17,13 @@ class Tank(GameObject):
 
     def __init__(
         self,
-        x: int,
-        y: int,
+        x: float,
+        y: float,
         tile_size: int = TILE_SIZE,
-        sprite: pygame.Surface = None,
+        sprite: Optional[pygame.Surface] = None,
         health: int = 1,
         lives: int = 1,
-        speed: int = TANK_SPEED,
+        speed: float = TANK_SPEED,
     ):
         """
         Initialize the tank.
@@ -42,17 +42,17 @@ class Tank(GameObject):
         self.direction = "up"  # Initial direction
         self.bullet: Optional[Bullet] = None
         self.tile_size = tile_size
-        self.health = health
-        self.max_health = health
-        self.lives = lives
-        self.move_timer = 0
-        self.move_delay = 0.15  # Time between movements in seconds
-        self.target_position = (x, y)
-        self.is_invincible = False
-        self.invincibility_timer = 0
-        self.invincibility_duration = 0
-        self.blink_timer = 0
-        self.blink_interval = 0.2  # Blink every 0.2 seconds during invincibility
+        self.health: int = health
+        self.max_health: int = health
+        self.lives: int = lives
+        self.move_timer: float = 0
+        self.move_delay: float = 0.15  # Time between movements in seconds
+        self.target_position: Tuple[float, float] = (x, y)
+        self.is_invincible: bool = False
+        self.invincibility_timer: float = 0
+        self.invincibility_duration: float = 0
+        self.blink_timer: float = 0
+        self.blink_interval: float = 0.2  # Blink every 0.2 seconds during invincibility
 
     def take_damage(self, amount: int = 1) -> bool:
         """
@@ -87,13 +87,12 @@ class Tank(GameObject):
             bullet_y = self.y + self.height // 2 - BULLET_HEIGHT // 2
             self.bullet = Bullet(bullet_x, bullet_y, self.direction)
 
-    def update(self, dt: float, map_rects: list[pygame.Rect]) -> None:
+    def update(self, dt: float) -> None:
         """
         Update the tank's state.
 
         Args:
             dt: Time elapsed since last update in seconds
-            map_rects: List of rectangles representing collidable map tiles
         """
         # Update invincibility timer
         if self.is_invincible:
@@ -181,9 +180,6 @@ class Tank(GameObject):
         ):
             if self.sprite:
                 surface.blit(self.sprite, self.rect)
-            else:
-                # Draw a simple tank if no sprite is provided
-                pygame.draw.rect(surface, self.color, self.rect)
 
         if self.bullet is not None and self.bullet.active:
             self.bullet.draw(surface)
