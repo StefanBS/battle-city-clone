@@ -164,7 +164,7 @@ class TestGameManager:
         assert len(game_manager.enemy_tanks) == initial_enemies  # Should still be 1
         assert game_manager.total_enemy_spawns == 1  # Spawn count shouldn't increase
 
-    @patch("managers.game_manager.GameManager._spawn_enemy")
+    @patch("src.managers.game_manager.GameManager._spawn_enemy")
     def test_update_calls_spawn_enemy(self, mock_spawn_enemy, game_manager):
         """Test that update calls _spawn_enemy after the spawn interval."""
         game_manager.spawn_timer = 0
