@@ -24,6 +24,7 @@ class Bullet(GameObject):
         x: float,
         y: float,
         direction: str,
+        owner_type: str,
         sprite: Optional[pygame.Surface] = None,
     ):
         """
@@ -33,6 +34,7 @@ class Bullet(GameObject):
             x: Initial x position
             y: Initial y position
             direction: Direction of movement ("up", "down", "left", "right")
+            owner_type: The type of object that fired the bullet ('player' or 'enemy').
             sprite: Optional sprite surface
         """
         super().__init__(x, y, BULLET_WIDTH, BULLET_HEIGHT, sprite)
@@ -40,6 +42,7 @@ class Bullet(GameObject):
         self.speed: float = BULLET_SPEED * FPS
         self.active: bool = True
         self.color: ColorTuple = WHITE
+        self.owner_type: str = owner_type
 
     def update(self, dt: float) -> None:
         """

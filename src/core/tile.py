@@ -1,17 +1,18 @@
-from enum import Enum
+from enum import Enum, auto
 import pygame
 
 
 class TileType(Enum):
     """Types of tiles in the game."""
 
-    EMPTY = 0
-    BRICK = 1
-    STEEL = 2
-    WATER = 3
-    BUSH = 4
-    ICE = 5
-    BASE = 6
+    EMPTY = auto()
+    BRICK = auto()
+    STEEL = auto()
+    WATER = auto()
+    BUSH = auto()  # Tile that can be driven over but hides tanks
+    ICE = auto()
+    BASE = auto()
+    BASE_DESTROYED = auto()  # Added destroyed state
 
 
 class Tile:
@@ -33,6 +34,7 @@ class Tile:
             TileType.BUSH: (0, 100, 0),  # Dark Green
             TileType.ICE: (200, 200, 255),  # Light Blue
             TileType.BASE: (255, 215, 0),  # Gold
+            TileType.BASE_DESTROYED: (139, 69, 19),  # Brown
         }
 
     def draw(self, surface: pygame.Surface) -> None:
@@ -41,4 +43,4 @@ class Tile:
         pygame.draw.rect(surface, color, self.rect)
 
         # Add a border to make tiles more visible
-        # pygame.draw.rect(surface, (50, 50, 50), self.rect, 1)
+        pygame.draw.rect(surface, (50, 50, 50), self.rect, 1)

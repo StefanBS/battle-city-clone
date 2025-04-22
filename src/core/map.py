@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 import pygame
 from .tile import Tile, TileType
 from utils.constants import (
@@ -49,16 +49,33 @@ class Map:
         # Add the base
         self.tiles[self.height - 2][self.width // 2].type = TileType.BASE
 
-    def draw(self, surface) -> None:
+    def draw(self, surface: pygame.Surface) -> None:
         """Draw all tiles on the given surface."""
         for row in self.tiles:
             for tile in row:
                 tile.draw(surface)
 
-    def get_tile_at(self, x: int, y: int) -> Tile:
-        """Get the tile at the specified coordinates."""
-        if 0 <= x < self.width and 0 <= y < self.height:
+    def get_tile_at(self, x: int, y: int) -> Optional[Tile]:
+        """Get the tile at the specified grid coordinates."""
+        if 0 <= y < self.height and 0 <= x < self.width:
             return self.tiles[y][x]
+        return None
+
+    def get_tiles_by_type(self, types: List[TileType]) -> List[Tile]:
+        """Get a list of tiles matching the specified types."""
+        matching_tiles = []
+        for row in self.tiles:
+            for tile in row:
+                if tile.type in types:
+                    matching_tiles.append(tile)
+        return matching_tiles
+
+    def get_base(self) -> Optional[Tile]:
+        """Find and return the player base tile, if it exists."""
+        for row in self.tiles:
+            for tile in row:
+                if tile.type == TileType.BASE:
+                    return tile
         return None
 
     def get_collidable_tiles(self) -> List[pygame.Rect]:
@@ -71,6 +88,11 @@ class Map:
         collidable_rects = []
         for row in self.tiles:
             for tile in row:
-                if tile.type in [TileType.BRICK, TileType.STEEL, TileType.BASE]:
+                if tile.type in [
+                    TileType.BRICK,
+                    TileType.STEEL,
+                    TileType.BASE,
+                    TileType.WATER,
+                ]:
                     collidable_rects.append(tile.rect)
         return collidable_rects
