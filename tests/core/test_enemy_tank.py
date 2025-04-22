@@ -39,9 +39,7 @@ EXPECTED_PROPERTIES = {
 }
 
 # Test cases covering all tank types
-TEST_CASES = [
-    (tank_type, props) for tank_type, props in EXPECTED_PROPERTIES.items()
-]
+TEST_CASES = [(tank_type, props) for tank_type, props in EXPECTED_PROPERTIES.items()]
 
 
 @pytest.mark.parametrize("tank_type, expected", TEST_CASES)
@@ -58,32 +56,41 @@ def test_enemy_tank_initialization_properties(tank_type: TankType, expected: dic
     assert tank.speed == pytest.approx(expected["speed"])
     assert tank.bullet_speed == pytest.approx(expected["bullet_speed"])
     assert tank.health == expected["health"]
-    assert tank.max_health == expected["health"] # Should also be set
+    assert tank.max_health == expected["health"]  # Should also be set
     assert tank.color == expected["color"]
     assert tank.shoot_interval == pytest.approx(expected["shoot_interval"])
-    assert tank.direction_change_interval == pytest.approx(expected["direction_change_interval"])
+    assert tank.direction_change_interval == pytest.approx(
+        expected["direction_change_interval"]
+    )
 
     # Assert other relevant properties
     assert tank.owner_type == "enemy"
-    assert tank.lives == 1 # Enemies should have 1 life
-    assert tank.x == x # Check grid alignment effect is handled if needed (0 should be fine)
+    assert tank.lives == 1  # Enemies should have 1 life
+    assert (
+        tank.x == x
+    )  # Check grid alignment effect is handled if needed (0 should be fine)
     assert tank.y == y
+
 
 def test_enemy_tank_grid_alignment():
     """Test that initial position is aligned to the grid."""
     tile_size = 32
     # Non-aligned positions
     initial_x, initial_y = 15, 40
-    expected_x, expected_y = 0 * tile_size, 1 * tile_size # round(15/32)*32=0, round(40/32)*32=32
+    expected_x, expected_y = (
+        0 * tile_size,
+        1 * tile_size,
+    )  # round(15/32)*32=0, round(40/32)*32=32
 
-    tank = EnemyTank(initial_x, initial_y, tile_size, tank_type='basic')
+    tank = EnemyTank(initial_x, initial_y, tile_size, tank_type="basic")
 
     assert tank.x == expected_x
     assert tank.y == expected_y
     assert tank.rect.x == expected_x
     assert tank.rect.y == expected_y
 
+
 # Potential further tests:
 # - Test _change_direction logic (e.g., doesn't immediately reverse)
 # - Test update method behavior (timers increment, shooting/direction changes occur)
-#   (These would likely require mocking time/dt and random) 
+#   (These would likely require mocking time/dt and random)

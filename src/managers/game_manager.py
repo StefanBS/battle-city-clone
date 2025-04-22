@@ -107,7 +107,7 @@ class GameManager:
 
         if not collision:
             # Always spawn 'basic' type for now
-            enemy = EnemyTank(x, y, self.tile_size, tank_type='basic')
+            enemy = EnemyTank(x, y, self.tile_size, tank_type="basic")
             self.enemy_tanks.append(enemy)
             self.total_enemy_spawns += 1
 

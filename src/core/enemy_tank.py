@@ -1,16 +1,27 @@
 import pygame
 import random
 from .tank import Tank
-from typing import Optional, Literal
+from typing import Optional, Literal, Dict, Tuple, TypedDict
 from src.utils.constants import TANK_SPEED, BULLET_SPEED
 
 TankType = Literal["basic", "fast", "power", "armor"]
+ColorTuple = Tuple[int, int, int]
+
+
+# Define the structure for the properties dictionary
+class TankPropertyDict(TypedDict):
+    speed: float
+    bullet_speed: float
+    health: int
+    color: ColorTuple
+    shoot_interval: float
+    direction_change_interval: float
 
 
 class EnemyTank(Tank):
     """Enemy tank entity with basic AI and type variations."""
 
-    TANK_PROPERTIES = {
+    TANK_PROPERTIES: Dict[TankType, TankPropertyDict] = {
         "basic": {
             "speed": TANK_SPEED * 0.75,
             "bullet_speed": BULLET_SPEED,
@@ -82,7 +93,7 @@ class EnemyTank(Tank):
         )
         self.tank_type = tank_type
         self.owner_type = "enemy"
-        self.color = props["color"]
+        self.color: ColorTuple = props["color"]
         self.direction = random.choice(["up", "down", "left", "right"])
         self.direction_timer: float = 0
         self.direction_change_interval: float = props["direction_change_interval"]
@@ -93,9 +104,16 @@ class EnemyTank(Tank):
         """Randomly change the tank's direction."""
         directions = ["up", "down", "left", "right"]
         # Prevent instantly reversing direction unless stuck (basic logic)
-        opposite_direction = {"up": "down", "down": "up", "left": "right", "right": "left"}
+        opposite_direction = {
+            "up": "down",
+            "down": "up",
+            "left": "right",
+            "right": "left",
+        }
         if len(directions) > 1 and self.direction in opposite_direction:
-            possible_directions = [d for d in directions if d != opposite_direction[self.direction]]
+            possible_directions = [
+                d for d in directions if d != opposite_direction[self.direction]
+            ]
             if possible_directions:
                 self.direction = random.choice(possible_directions)
                 return
@@ -103,7 +121,7 @@ class EnemyTank(Tank):
         # Fallback or if not reversing
         if self.direction in directions:
             directions.remove(self.direction)
-        if directions: # Ensure directions list is not empty
+        if directions:  # Ensure directions list is not empty
             self.direction = random.choice(directions)
 
     def update(self, dt: float) -> None:
@@ -123,12 +141,12 @@ class EnemyTank(Tank):
         # Change direction periodically
         if self.direction_timer >= self.direction_change_interval:
             self._change_direction()
-            self.direction_timer = random.uniform(0, 0.5) # Add small random offset
+            self.direction_timer = random.uniform(0, 0.5)  # Add small random offset
 
         # Shoot periodically
         if self.shoot_timer >= self.shoot_interval:
             self.shoot()
-            self.shoot_timer = random.uniform(0, 0.3) # Add small random offset
+            self.shoot_timer = random.uniform(0, 0.3)  # Add small random offset
 
         # Calculate movement based on current direction
         dx, dy = 0, 0
@@ -148,7 +166,7 @@ class EnemyTank(Tank):
         # or if the move was later reverted, change direction immediately.
         if not moved and self.move_timer >= self.move_delay:
             self._change_direction()
-            self.direction_timer = random.uniform(0, 0.5) # Reset timer too
+            self.direction_timer = random.uniform(0, 0.5)  # Reset timer too
 
     def draw(self, surface: pygame.Surface) -> None:
         """
