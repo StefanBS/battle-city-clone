@@ -11,8 +11,8 @@ class GameObject:
 
     def __init__(
         self,
-        x: int,
-        y: int,
+        x: float,
+        y: float,
         width: int,
         height: int,
         sprite: Optional[pygame.Surface] = None,
