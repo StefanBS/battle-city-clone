@@ -1,5 +1,5 @@
 import pygame
-from typing import Optional
+from typing import Optional, Tuple
 from .game_object import GameObject
 from utils.constants import (
     BULLET_SPEED,
@@ -13,13 +13,16 @@ from utils.constants import (
 )
 
 
+ColorTuple = Tuple[int, int, int]
+
+
 class Bullet(GameObject):
     """Bullet entity that can be fired by tanks."""
 
     def __init__(
         self,
-        x: int,
-        y: int,
+        x: float,
+        y: float,
         direction: str,
         sprite: Optional[pygame.Surface] = None,
     ):
@@ -33,10 +36,10 @@ class Bullet(GameObject):
             sprite: Optional sprite surface
         """
         super().__init__(x, y, BULLET_WIDTH, BULLET_HEIGHT, sprite)
-        self.direction = direction
-        self.speed = BULLET_SPEED * FPS
-        self.active = True
-        self.color = WHITE
+        self.direction: str = direction
+        self.speed: float = BULLET_SPEED * FPS
+        self.active: bool = True
+        self.color: ColorTuple = WHITE
 
     def update(self, dt: float) -> None:
         """
