@@ -1,7 +1,7 @@
 import pygame
 from typing import Optional, Tuple
 from .game_object import GameObject
-from utils.constants import (
+from src.utils.constants import (
     BULLET_SPEED,
     BULLET_WIDTH,
     BULLET_HEIGHT,
@@ -26,7 +26,7 @@ class Bullet(GameObject):
         direction: str,
         owner_type: str,
         sprite: Optional[pygame.Surface] = None,
-    ):
+    ) -> None:
         """
         Initialize the bullet.
 

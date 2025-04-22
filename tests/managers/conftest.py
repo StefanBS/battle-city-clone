@@ -3,10 +3,10 @@ import pygame
 from unittest.mock import MagicMock
 
 # Import necessary types for the helper
-from core.tile import Tile, TileType
-from core.bullet import Bullet
-from core.player_tank import PlayerTank
-from core.enemy_tank import EnemyTank
+from src.core.tile import Tile, TileType
+from src.core.bullet import Bullet
+from src.core.player_tank import PlayerTank
+from src.core.enemy_tank import EnemyTank
 
 
 # Turn the helper into a fixture so it can be injected

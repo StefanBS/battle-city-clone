@@ -1,7 +1,7 @@
 import pytest
 import pygame
-from core.bullet import Bullet
-from utils.constants import BULLET_SPEED, FPS, BULLET_WIDTH, BULLET_HEIGHT
+from src.core.bullet import Bullet
+from src.utils.constants import BULLET_SPEED, FPS, BULLET_WIDTH, BULLET_HEIGHT
 
 
 class TestBullet:

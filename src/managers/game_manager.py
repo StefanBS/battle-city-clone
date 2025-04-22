@@ -1,13 +1,13 @@
 import pygame
 import sys
 from typing import List, Tuple, Optional, Any
-from core.map import Map
-from core.player_tank import PlayerTank
-from core.enemy_tank import EnemyTank
-from core.tile import Tile, TileType
-from core.bullet import Bullet
-from states.game_state import GameState
-from utils.constants import (
+from src.core.map import Map
+from src.core.player_tank import PlayerTank
+from src.core.enemy_tank import EnemyTank
+from src.core.tile import Tile, TileType
+from src.core.bullet import Bullet
+from src.states.game_state import GameState
+from src.utils.constants import (
     WINDOW_TITLE,
     FPS,
     TILE_SIZE,
@@ -18,8 +18,8 @@ from utils.constants import (
     YELLOW,
 )
 import random
-from managers.collision_manager import CollisionManager
-from core.tank import Tank
+from src.managers.collision_manager import CollisionManager
+from src.core.tank import Tank
 
 
 class GameManager:
@@ -34,6 +34,12 @@ class GameManager:
 
     def __init__(self) -> None:
         """Initialize the game window and basic settings."""
+        pygame.init()  # Ensure Pygame is initialized
+        pygame.font.init()
+        self._reset_game()
+
+    def _reset_game(self) -> None:
+        """Resets the game state to the initial configuration."""
         # Display setup
         self.tile_size: int = TILE_SIZE
         self.screen_width: int = GRID_WIDTH * TILE_SIZE
@@ -71,7 +77,6 @@ class GameManager:
         self._spawn_enemy()  # Initial spawn
 
         # Font
-        pygame.font.init()
         self.font: pygame.font.Font = pygame.font.SysFont(None, 48)
         self.small_font: pygame.font.Font = pygame.font.SysFont(None, 24)
 
@@ -114,7 +119,7 @@ class GameManager:
                 if event.key == pygame.K_ESCAPE:
                     self._quit_game()
                 elif event.key == pygame.K_r and self.state != GameState.RUNNING:
-                    self.__init__()  # Restart game
+                    self._reset_game()  # Use the new reset method
 
             # Pass events to the player tank only if game is running
             if self.state == GameState.RUNNING:
@@ -189,7 +194,7 @@ class GameManager:
         reverted_tanks = set()
 
         # Separate lists to manage removals safely
-        enemies_to_remove = []
+        enemies_to_remove: List[EnemyTank] = []
 
         for obj_a, obj_b in events:
             # Prioritize bullet collisions as they often have immediate effects

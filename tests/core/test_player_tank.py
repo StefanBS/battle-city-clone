@@ -1,8 +1,8 @@
 import pytest
 import pygame
 from unittest.mock import MagicMock, patch
-from core.player_tank import PlayerTank
-from utils.constants import TILE_SIZE
+from src.core.player_tank import PlayerTank
+from src.utils.constants import TILE_SIZE
 
 
 @pytest.fixture

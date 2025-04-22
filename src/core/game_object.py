@@ -16,7 +16,7 @@ class GameObject:
         width: int,
         height: int,
         sprite: Optional[pygame.Surface] = None,
-    ):
+    ) -> None:
         """
         Initialize a game object.
 
@@ -32,7 +32,7 @@ class GameObject:
         self.width = width
         self.height = height
         self.sprite = sprite
-        self.rect = pygame.Rect(x, y, width, height)
+        self.rect = pygame.Rect(int(x), int(y), width, height)
 
     def update(self, dt: float) -> None:
         """
@@ -41,8 +41,8 @@ class GameObject:
         Args:
             dt: Time elapsed since last update in seconds
         """
-        self.rect.x = self.x
-        self.rect.y = self.y
+        self.rect.x = int(self.x)
+        self.rect.y = int(self.y)
 
     def draw(self, surface: pygame.Surface) -> None:
         """
@@ -56,7 +56,7 @@ class GameObject:
         else:
             pygame.draw.rect(surface, (255, 0, 0), self.rect)  # Debug red rectangle
 
-    def get_position(self) -> Tuple[int, int]:
+    def get_position(self) -> Tuple[float, float]:
         """Get the current position of the object."""
         return (self.x, self.y)
 
@@ -70,5 +70,5 @@ class GameObject:
         """
         self.x = x
         self.y = y
-        self.rect.x = x
-        self.rect.y = y
+        self.rect.x = int(x)
+        self.rect.y = int(y)

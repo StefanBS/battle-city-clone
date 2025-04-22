@@ -1,8 +1,8 @@
 import pytest
 import pygame
-from core.tank import Tank
-from core.bullet import Bullet
-from utils.constants import TILE_SIZE, TANK_SPEED, BULLET_WIDTH, BULLET_HEIGHT
+from src.core.tank import Tank
+from src.core.bullet import Bullet
+from src.utils.constants import TILE_SIZE, TANK_SPEED, BULLET_WIDTH, BULLET_HEIGHT
 
 
 class TestTank:

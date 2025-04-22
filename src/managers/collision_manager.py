@@ -1,32 +1,30 @@
 import pygame
-from typing import List, Tuple, Optional, TypeVar
+from typing import List, Tuple, Optional, Protocol, runtime_checkable, Sequence
 
-# Define generic sprite types or use specific classes if available
-# Using TypeVar allows flexibility if specific sprite classes aren't defined yet
-# or if you want to accept any object with a 'rect' attribute.
-# Replace with actual classes like PlayerTank, Bullet, Tile if they exist.
-SpriteType = TypeVar(
-    "SpriteType", bound=pygame.sprite.Sprite
-)  # Or any object with a .rect
+
+# Define a protocol for objects that have a rect attribute
+@runtime_checkable
+class Collidable(Protocol):
+    rect: pygame.Rect
 
 
 class CollisionManager:
     """Manages collision detection between game objects."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initializes the CollisionManager."""
         # Stores pairs of objects that have collided
-        self._collision_events: List[Tuple[SpriteType, SpriteType]] = []
+        self._collision_events: List[Tuple[Collidable, Collidable]] = []
 
     def check_collisions(
         self,
-        player_tank: Optional[SpriteType],
-        player_bullets: List[SpriteType],
-        enemy_tanks: List[SpriteType],
-        enemy_bullets: List[SpriteType],
-        destructible_tiles: List[SpriteType],
-        impassable_tiles: List[SpriteType],
-        player_base: Optional[SpriteType],
+        player_tank: Optional[Collidable],
+        player_bullets: Sequence[Collidable],
+        enemy_tanks: Sequence[Collidable],
+        enemy_bullets: Sequence[Collidable],
+        destructible_tiles: Sequence[Collidable],
+        impassable_tiles: Sequence[Collidable],
+        player_base: Optional[Collidable],
     ) -> None:
         """
         Checks for collisions between different groups of game objects.
@@ -43,7 +41,7 @@ class CollisionManager:
         self._collision_events.clear()  # Clear events from previous frame
 
         # Combine tanks, handling potential None for player_tank
-        all_tanks: List[SpriteType] = []
+        all_tanks: List[Collidable] = []
         if player_tank:
             all_tanks.append(player_tank)
         all_tanks.extend(enemy_tanks)
@@ -97,17 +95,17 @@ class CollisionManager:
                 if tank_a.rect.colliderect(tank_b.rect):
                     self._queue_collision(tank_a, tank_b)
 
-    def _queue_collision(self, obj_a: SpriteType, obj_b: SpriteType) -> None:
+    def _queue_collision(self, obj_a: Collidable, obj_b: Collidable) -> None:
         """Adds a collision event to the queue."""
         self._collision_events.append((obj_a, obj_b))
 
-    def get_collision_events(self) -> List[Tuple[SpriteType, SpriteType]]:
+    def get_collision_events(self) -> List[Tuple[Collidable, Collidable]]:
         """Returns the list of detected collision events for this frame."""
         return self._collision_events
 
 
 # Basic Rect object for testing purposes if needed
-# Ensure this mock object matches the SpriteType bound if used for typing
+# Ensure this mock object matches the Collidable protocol if used for typing
 class MockSprite(pygame.sprite.Sprite):  # Inherit from Sprite for type compatibility
     def __init__(self, x, y, w, h):
         super().__init__()  # Initialize the parent Sprite class

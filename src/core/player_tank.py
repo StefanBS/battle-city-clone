@@ -1,6 +1,7 @@
 import pygame
 from .tank import Tank
-from managers.input_handler import InputHandler
+from src.managers.input_handler import InputHandler
+from typing import Optional
 
 
 class PlayerTank(Tank):
@@ -11,8 +12,8 @@ class PlayerTank(Tank):
         x: int,
         y: int,
         tile_size: int,
-        sprite: pygame.Surface = None,
-    ):
+        sprite: Optional[pygame.Surface] = None,
+    ) -> None:
         """
         Initialize the player tank.
 

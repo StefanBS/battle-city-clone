@@ -18,7 +18,7 @@ class TileType(Enum):
 class Tile:
     """Represents a single tile in the game map."""
 
-    def __init__(self, tile_type: TileType, x: int, y: int, size: int = 32):
+    def __init__(self, tile_type: TileType, x: int, y: int, size: int = 32) -> None:
         self.type = tile_type
         self.x = x
         self.y = y

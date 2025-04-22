@@ -1,14 +1,19 @@
 import pygame
-from typing import Tuple
+from typing import Tuple, Dict
 
 
 class InputHandler:
     """Handles keyboard input for the player tank."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the input handler."""
-        self.directions = {"up": False, "down": False, "left": False, "right": False}
-        self.key_mappings = {
+        self.directions: Dict[str, bool] = {
+            "up": False,
+            "down": False,
+            "left": False,
+            "right": False,
+        }
+        self.key_mappings: Dict[int, str] = {
             pygame.K_UP: "up",
             pygame.K_DOWN: "down",
             pygame.K_LEFT: "left",

@@ -1,6 +1,7 @@
 import pygame
 import random
 from .tank import Tank
+from typing import Optional
 
 
 class EnemyTank(Tank):
@@ -11,9 +12,9 @@ class EnemyTank(Tank):
         x: int,
         y: int,
         tile_size: int,
-        sprite: pygame.Surface = None,
+        sprite: Optional[pygame.Surface] = None,
         health: int = 1,
-    ):
+    ) -> None:
         """
         Initialize the enemy tank.
 
@@ -31,10 +32,10 @@ class EnemyTank(Tank):
         super().__init__(grid_x, grid_y, tile_size, sprite, health=health, lives=1)
         self.owner_type = "enemy"
         self.direction = random.choice(["up", "down", "left", "right"])
-        self.direction_timer = 0
-        self.direction_change_interval = 2.0  # Change direction every 2 seconds
-        self.shoot_timer = 0
-        self.shoot_interval = 1.5  # Shoot every 1.5 seconds
+        self.direction_timer: float = 0
+        self.direction_change_interval: float = 2.0  # Change direction every 2 seconds
+        self.shoot_timer: float = 0
+        self.shoot_interval: float = 1.5  # Shoot every 1.5 seconds
         self.color = (255, 0, 0)  # Red color for enemy tank
 
     def _change_direction(self) -> None:

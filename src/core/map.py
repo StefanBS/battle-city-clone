@@ -1,7 +1,7 @@
 from typing import List, Optional
 import pygame
 from .tile import Tile, TileType
-from utils.constants import (
+from src.utils.constants import (
     TILE_SIZE,
     GRID_WIDTH,
     GRID_HEIGHT,
@@ -11,7 +11,7 @@ from utils.constants import (
 class Map:
     """Manages the game map and its tiles."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.width = GRID_WIDTH
         self.height = GRID_HEIGHT
         self.tile_size = TILE_SIZE
