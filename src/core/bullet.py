@@ -26,6 +26,7 @@ class Bullet(GameObject):
         direction: str,
         owner_type: str,
         sprite: Optional[pygame.Surface] = None,
+        speed: float = BULLET_SPEED,
     ) -> None:
         """
         Initialize the bullet.
@@ -36,10 +37,11 @@ class Bullet(GameObject):
             direction: Direction of movement ("up", "down", "left", "right")
             owner_type: The type of object that fired the bullet ('player' or 'enemy').
             sprite: Optional sprite surface
+            speed: Speed of the bullet in pixels per second (adjusted by FPS)
         """
         super().__init__(x, y, BULLET_WIDTH, BULLET_HEIGHT, sprite)
         self.direction: str = direction
-        self.speed: float = BULLET_SPEED * FPS
+        self.speed: float = speed * FPS
         self.active: bool = True
         self.color: ColorTuple = WHITE
         self.owner_type: str = owner_type

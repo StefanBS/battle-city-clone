@@ -9,6 +9,7 @@ from src.utils.constants import (
     TANK_HEIGHT,
     BULLET_WIDTH,
     BULLET_HEIGHT,
+    BULLET_SPEED,
 )
 
 
@@ -24,6 +25,7 @@ class Tank(GameObject):
         health: int = 1,
         lives: int = 1,
         speed: float = TANK_SPEED,
+        bullet_speed: float = BULLET_SPEED,
     ) -> None:
         """
         Initialize the tank.
@@ -36,9 +38,11 @@ class Tank(GameObject):
             health: Initial health points
             lives: Number of lives
             speed: Movement speed multiplier
+            bullet_speed: Speed of bullets fired by this tank
         """
         super().__init__(x, y, TANK_WIDTH, TANK_HEIGHT, sprite)
         self.speed = speed
+        self.bullet_speed = bullet_speed
         self.direction = "up"  # Initial direction
         self.bullet: Optional[Bullet] = None
         self.tile_size = tile_size
@@ -88,7 +92,13 @@ class Tank(GameObject):
         if self.bullet is None or not self.bullet.active:
             bullet_x = self.x + self.width // 2 - BULLET_WIDTH // 2
             bullet_y = self.y + self.height // 2 - BULLET_HEIGHT // 2
-            self.bullet = Bullet(bullet_x, bullet_y, self.direction, self.owner_type)
+            self.bullet = Bullet(
+                bullet_x,
+                bullet_y,
+                self.direction,
+                self.owner_type,
+                speed=self.bullet_speed,
+            )
 
     def update(self, dt: float) -> None:
         """
