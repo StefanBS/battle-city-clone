@@ -1,5 +1,6 @@
 from typing import List, Optional
 import pygame
+from loguru import logger
 from .tile import Tile, TileType
 from src.utils.constants import (
     TILE_SIZE,
@@ -12,6 +13,7 @@ class Map:
     """Manages the game map and its tiles."""
 
     def __init__(self) -> None:
+        logger.info(f"Initializing Map ({GRID_WIDTH}x{GRID_HEIGHT}) with tile size {TILE_SIZE}")
         self.width = GRID_WIDTH
         self.height = GRID_HEIGHT
         self.tile_size = TILE_SIZE
@@ -25,6 +27,7 @@ class Map:
 
     def _initialize_map(self) -> None:
         """Initialize the map with empty tiles."""
+        logger.debug("Initializing map with empty tiles.")
         self.tiles = [
             [Tile(TileType.EMPTY, x, y, self.tile_size) for x in range(self.width)]
             for y in range(self.height)
@@ -32,6 +35,7 @@ class Map:
 
     def _create_test_map(self) -> None:
         """Create a simple test map layout."""
+        logger.debug("Creating test map layout.")
         # Add some walls around the border
         for x in range(self.width):
             self.tiles[0][x].type = TileType.STEEL  # Top wall
@@ -58,8 +62,11 @@ class Map:
     def get_tile_at(self, x: int, y: int) -> Optional[Tile]:
         """Get the tile at the specified grid coordinates."""
         if 0 <= y < self.height and 0 <= x < self.width:
+            logger.trace(f"Getting tile at ({x}, {y})")
             return self.tiles[y][x]
-        return None
+        else:
+            logger.warning(f"Attempted to get tile outside map bounds at ({x}, {y})")
+            return None
 
     def get_tiles_by_type(self, types: List[TileType]) -> List[Tile]:
         """Get a list of tiles matching the specified types."""

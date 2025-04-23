@@ -1,6 +1,7 @@
 import pygame
 import sys
 from typing import List, Tuple, Optional, Any
+from loguru import logger
 from src.core.map import Map
 from src.core.player_tank import PlayerTank
 from src.core.enemy_tank import EnemyTank
@@ -34,12 +35,14 @@ class GameManager:
 
     def __init__(self) -> None:
         """Initialize the game window and basic settings."""
+        logger.info("Initializing GameManager...")
         pygame.init()  # Ensure Pygame is initialized
         pygame.font.init()
         self._reset_game()
 
     def _reset_game(self) -> None:
         """Resets the game state to the initial configuration."""
+        logger.info("Resetting game state...")
         # Display setup
         self.tile_size: int = TILE_SIZE
         self.screen_width: int = GRID_WIDTH * TILE_SIZE
@@ -79,10 +82,12 @@ class GameManager:
         # Font
         self.font: pygame.font.Font = pygame.font.SysFont(None, 48)
         self.small_font: pygame.font.Font = pygame.font.SysFont(None, 24)
+        logger.info("Game reset complete.")
 
     def _spawn_enemy(self) -> None:
         """Spawn a new enemy tank at a random spawn point if under the spawn limit."""
         if self.total_enemy_spawns >= self.max_enemy_spawns:
+            logger.trace("Max enemy spawns reached, skipping spawn.")
             return
 
         # Get a random spawn point
@@ -110,16 +115,23 @@ class GameManager:
             enemy = EnemyTank(x, y, self.tile_size, tank_type="basic")
             self.enemy_tanks.append(enemy)
             self.total_enemy_spawns += 1
+            logger.debug(f"Spawned enemy {self.total_enemy_spawns}/{self.max_enemy_spawns} at ({x}, {y})")
+        else:
+            logger.warning(f"Spawn point ({x}, {y}) was blocked.")
 
     def handle_events(self) -> None:
         """Handle pygame events."""
         for event in pygame.event.get():
+            logger.trace(f"Handling event: {event}")
             if event.type == pygame.QUIT:
+                logger.info("Quit event received.")
                 self._quit_game()
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
+                    logger.info("Escape key pressed, quitting game.")
                     self._quit_game()
                 elif event.key == pygame.K_r and self.state != GameState.RUNNING:
+                    logger.info("R key pressed, resetting game.")
                     self._reset_game()  # Use the new reset method
 
             # Pass events to the player tank only if game is running
@@ -131,6 +143,7 @@ class GameManager:
         if self.state != GameState.RUNNING:
             return
 
+        logger.trace("Starting game update...")
         dt: float = 1.0 / self.fps
 
         # --- Prepare data for Collision Manager ---
@@ -163,6 +176,7 @@ class GameManager:
         # --- Enemy Spawning ---
         self.spawn_timer += dt
         if self.spawn_timer >= self.spawn_interval:
+            logger.trace("Spawn timer triggered.")
             self._spawn_enemy()
             self.spawn_timer = 0
         # --- End Enemy Spawning ---
@@ -182,10 +196,15 @@ class GameManager:
         # --- Process Collisions ---
         self._process_collisions()
         # --- End Process Collisions ---
+        logger.trace("Game update finished.")
 
     def _process_collisions(self) -> None:
         """Process the collision events detected by the CollisionManager."""
         events: List[Tuple[Any, Any]] = self.collision_manager.get_collision_events()
+        if not events:
+            return
+
+        logger.trace(f"Processing {len(events)} collision events...")
         processed_bullets = set()
         # Keep track of tanks whose moves were reverted to avoid double-reverting
         reverted_tanks = set()
@@ -237,7 +256,9 @@ class GameManager:
 
         # Check for win condition after potential enemy removals
         if not self.enemy_tanks and self.total_enemy_spawns >= self.max_enemy_spawns:
+            logger.info("All enemies defeated. Victory!")
             self.state = GameState.VICTORY  # Assuming VICTORY state exists
+        logger.trace("Finished processing collisions.")
 
     def _handle_bullet_collision(
         self, bullet: Bullet, other: Any, enemies_to_remove: List[EnemyTank]
@@ -252,6 +273,7 @@ class GameManager:
         Returns:
             True if the bullet should be considered processed (i.e., deactivated)
         """
+        logger.trace(f"Handling bullet collision: {type(bullet).__name__} vs {type(other).__name__}")
         if not bullet.active:
             return False  # Bullet already inactive
 
@@ -259,22 +281,27 @@ class GameManager:
 
         # --- Bullet vs Enemy Tank ---
         if isinstance(other, EnemyTank) and bullet.owner_type == "player":
+            logger.debug(f"Player bullet hit enemy tank (type: {other.tank_type})")
             bullet.active = False
             processed = True
             # Avoid damaging the same tank multiple times in one frame from different
             #  events if other not in processed_tanks:
-            if other.take_damage():
-                if other not in enemies_to_remove:
-                    enemies_to_remove.append(other)
+            destroyed = other.take_damage()
+            if destroyed:
+                logger.info(f"Enemy tank (type: {other.tank_type}) destroyed.")
+                enemies_to_remove.append(other)
             # processed_tanks.add(other)
 
         # --- Bullet vs Player Tank ---
         elif isinstance(other, PlayerTank) and bullet.owner_type == "enemy":
+            logger.debug("Enemy bullet hit player tank.")
             bullet.active = False
             processed = True
             if not other.is_invincible:
                 # if other not in processed_tanks:
-                if other.take_damage():
+                destroyed = other.take_damage()
+                if destroyed:
+                    logger.info("Player tank destroyed.")
                     self.state = GameState.GAME_OVER
                 else:
                     other.respawn()  # Player lost a life but has more
@@ -283,16 +310,19 @@ class GameManager:
         # --- Bullet vs Tile ---
         elif isinstance(other, Tile):
             if other.type == TileType.BRICK:
+                logger.debug(f"Bullet hit brick tile at ({other.x}, {other.y})")
                 bullet.active = False
                 other.type = TileType.EMPTY  # Destroy brick
                 # Potentially update map collision data if needed
                 processed = True
             elif other.type == TileType.STEEL:
+                logger.debug(f"Bullet hit steel tile at ({other.x}, {other.y})")
                 bullet.active = False  # Bullet stops at steel
                 processed = True
             elif other.type == TileType.BASE:
+                logger.critical(f"Bullet hit player base at ({other.x}, {other.y})! Game Over.")
                 bullet.active = False
-                other.type = TileType.BASE_DESTROYED  # Optional: Change sprite
+                other.type = TileType.BASE_DESTROYED  # Change base appearance
                 self.state = GameState.GAME_OVER  # Game over
                 processed = True
 
@@ -300,6 +330,7 @@ class GameManager:
         elif isinstance(other, Bullet) and other.active:
             # Ensure they are not the same bullet instance if logic allows
             if bullet != other:
+                logger.debug("Bullet hit bullet. Both deactivated.")
                 bullet.active = False
                 other.active = False
                 processed = True  # Mark this bullet as processed
@@ -313,6 +344,7 @@ class GameManager:
         Returns:
             True if movement was reverted for at least one tank, False otherwise.
         """
+        logger.debug(f"Tank collision detected: {tank_a.owner_type} vs {tank_b.owner_type}")
         # Simple reversion: If two tanks collide, revert both their moves.
         # More sophisticated logic could try to revert only one based on direction etc.
         tank_a.revert_move()
@@ -329,6 +361,10 @@ class GameManager:
         impassable_types = [TileType.STEEL, TileType.WATER, TileType.BASE]
 
         if tile.type in impassable_types:
+            logger.debug(
+                f"Tank ({tank.owner_type}) collision with impassable tile "
+                f"({tile.type.name}) at ({tile.x}, {tile.y}). Reverting move."
+            )
             tank.revert_move()
 
             # Special case for EnemyTank: If it hit a wall, encourage changing direction
@@ -342,6 +378,7 @@ class GameManager:
 
     def _draw_game_over(self) -> None:
         """Draw the game over screen."""
+        logger.debug("Drawing Game Over screen.")
         overlay = pygame.Surface(
             (self.screen_width, self.screen_height), pygame.SRCALPHA
         )
@@ -364,6 +401,7 @@ class GameManager:
 
     def _draw_victory(self) -> None:  # Added method
         """Draw the victory screen."""
+        logger.debug("Drawing Victory screen.")
         overlay = pygame.Surface(
             (self.screen_width, self.screen_height), pygame.SRCALPHA
         )
@@ -430,20 +468,25 @@ class GameManager:
 
     def run(self) -> None:
         """Main game loop."""
-        try:
-            while (
-                True
-            ):  # Changed from 'running' flag as handle_events now calls _quit_game
-                self.handle_events()
-                self.update()
-                self.render()
-                self.clock.tick(self.fps)
-        except SystemExit:
-            print("Game exited normally.")
-        finally:
-            pygame.quit()
+        logger.info("Starting main game loop.")
+        running = True
+        while running:
+            self.handle_events()
+            self.update()
+            self.render()
+
+            # Cap the frame rate
+            self.clock.tick(self.fps)
+
+            # Check if state changed to EXIT
+            if self.state == GameState.EXIT:
+                running = False
+
+        logger.info("Exiting main game loop.")
 
     def _quit_game(self) -> None:
         """Cleanly exit the game."""
+        logger.info("Setting game state to EXIT.")
+        self.state = GameState.EXIT
         pygame.quit()
         sys.exit()

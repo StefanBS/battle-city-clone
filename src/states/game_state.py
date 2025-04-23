@@ -7,3 +7,4 @@ class GameState(Enum):
     RUNNING = 0
     GAME_OVER = 1
     VICTORY = 2
+    EXIT = 3

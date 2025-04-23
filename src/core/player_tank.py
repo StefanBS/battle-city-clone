@@ -1,4 +1,5 @@
 import pygame
+from loguru import logger
 from .tank import Tank
 from src.managers.input_handler import InputHandler
 from typing import Optional
@@ -26,6 +27,7 @@ class PlayerTank(Tank):
         # Ensure x and y are aligned to the grid
         grid_x = round(x / tile_size) * tile_size
         grid_y = round(y / tile_size) * tile_size
+        logger.debug(f"Creating PlayerTank at initial grid ({grid_x}, {grid_y})")
         # Initialize with grid-aligned position
         super().__init__(
             grid_x, grid_y, tile_size, sprite, health=1, lives=3
@@ -48,7 +50,10 @@ class PlayerTank(Tank):
 
             # Handle shooting
             if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                logger.debug("Player attempting to shoot.")
                 self.shoot()
+        else:
+            logger.trace("Player input ignored (invincible).")
 
     def update(self, dt: float) -> None:
         """
@@ -83,6 +88,9 @@ class PlayerTank(Tank):
     def respawn(self) -> None:
         """Respawn the tank at its initial position."""
         if self.lives > 0:
+            logger.info(
+                f"Player respawning at {self.initial_position}. Lives: {self.lives}"
+            )
             self.x, self.y = self.initial_position
             self.target_position = self.initial_position
             self.is_invincible = True

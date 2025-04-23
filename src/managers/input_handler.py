@@ -1,5 +1,6 @@
 import pygame
 from typing import Tuple, Dict
+from loguru import logger
 
 
 class InputHandler:
@@ -29,10 +30,16 @@ class InputHandler:
         """
         if event.type == pygame.KEYDOWN:
             if event.key in self.key_mappings:
-                self.directions[self.key_mappings[event.key]] = True
+                direction = self.key_mappings[event.key]
+                if not self.directions[direction]:
+                    logger.trace(f"Key down: {direction}")
+                    self.directions[direction] = True
         elif event.type == pygame.KEYUP:
             if event.key in self.key_mappings:
-                self.directions[self.key_mappings[event.key]] = False
+                direction = self.key_mappings[event.key]
+                if self.directions[direction]:
+                    logger.trace(f"Key up: {direction}")
+                    self.directions[direction] = False
 
     def get_movement_direction(self) -> Tuple[int, int]:
         """

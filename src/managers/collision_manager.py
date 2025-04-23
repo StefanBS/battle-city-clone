@@ -1,5 +1,6 @@
 import pygame
 from typing import List, Tuple, Optional, Protocol, runtime_checkable, Sequence
+from loguru import logger # Import loguru
 
 
 # Define a protocol for objects that have a rect attribute
@@ -39,6 +40,7 @@ class CollisionManager:
             player_base: The player's base object, or None if not present.
         """
         self._collision_events.clear()  # Clear events from previous frame
+        logger.trace("Collision check started. Cleared previous events.")
 
         # Combine tanks, handling potential None for player_tank
         all_tanks: List[Collidable] = []
@@ -107,8 +109,14 @@ class CollisionManager:
                 if tank_a.rect.colliderect(tank_b.rect):
                     self._queue_collision(tank_a, tank_b)
 
+        logger.trace(f"Collision check finished. Found {len(self._collision_events)} events.")
+
     def _queue_collision(self, obj_a: Collidable, obj_b: Collidable) -> None:
         """Adds a collision event to the queue."""
+        # Basic type checking for logging purposes
+        type_a = type(obj_a).__name__
+        type_b = type(obj_b).__name__
+        logger.debug(f"Collision detected between {type_a} and {type_b}")
         self._collision_events.append((obj_a, obj_b))
 
     def get_collision_events(self) -> List[Tuple[Collidable, Collidable]]:

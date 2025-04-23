@@ -1,5 +1,6 @@
 import pygame
 from typing import Optional, Tuple
+from loguru import logger  # Import loguru
 from .game_object import GameObject
 from .bullet import Bullet
 from src.utils.constants import (
@@ -40,6 +41,7 @@ class Tank(GameObject):
             speed: Movement speed multiplier
             bullet_speed: Speed of bullets fired by this tank
         """
+        logger.debug(f"Creating Tank at ({x}, {y})")
         super().__init__(x, y, TANK_WIDTH, TANK_HEIGHT, sprite)
         self.speed = speed
         self.bullet_speed = bullet_speed
@@ -72,7 +74,9 @@ class Tank(GameObject):
         Returns:
             True if the tank was destroyed, False otherwise
         """
+        logger.debug(f"Tank {self.owner_type} at ({self.x}, {self.y}) taking {amount} damage.")
         if self.is_invincible:
+            logger.debug("Tank is invincible, ignoring damage.")
             return False
 
         # Ensure we don't go below 0 health
@@ -81,15 +85,20 @@ class Tank(GameObject):
         # If health reaches 0, lose a life and reset health
         if self.health <= 0:
             self.lives -= 1
+            logger.info(f"Tank {self.owner_type} health reached 0. Lives left: {self.lives}")
             if self.lives > 0:
                 self.health = self.max_health
+                logger.info(f"Tank {self.owner_type} respawning with {self.health} health.")
                 return False
+            logger.info(f"Tank {self.owner_type} destroyed (no lives left).")
             return True
+        logger.debug(f"Tank {self.owner_type} health now {self.health}.")
         return False
 
     def shoot(self) -> None:
         """Create a new bullet if none exists."""
         if self.bullet is None or not self.bullet.active:
+            logger.debug(f"Tank {self.owner_type} at ({self.x}, {self.y}) shooting in direction {self.direction}.")
             bullet_x = self.x + self.width // 2 - BULLET_WIDTH // 2
             bullet_y = self.y + self.height // 2 - BULLET_HEIGHT // 2
             self.bullet = Bullet(
@@ -99,6 +108,8 @@ class Tank(GameObject):
                 self.owner_type,
                 speed=self.bullet_speed,
             )
+        else:
+            logger.trace(f"Tank {self.owner_type} at ({self.x}, {self.y}) tried to shoot, but bullet is active.")
 
     def update(self, dt: float) -> None:
         """
@@ -143,6 +154,7 @@ class Tank(GameObject):
             True if movement was attempted (timer ready), False otherwise.
         """
         if self.move_timer < self.move_delay:
+            logger.trace(f"Tank {self.owner_type} move skipped (timer not ready: {self.move_timer:.2f}/{self.move_delay:.2f})")
             return False  # Not ready to move yet
 
         if dx != 0 and dy != 0:
@@ -151,6 +163,8 @@ class Tank(GameObject):
         # Calculate target position (move by one tile)
         target_x = self.x + dx * self.tile_size  # Move full tile increments
         target_y = self.y + dy * self.tile_size
+
+        logger.debug(f"Tank {self.owner_type} attempting move from ({self.x}, {self.y}) to ({target_x}, {target_y})")
 
         # Apply movement (position will be validated/reverted by GameManager)
         self.x = target_x
@@ -165,6 +179,7 @@ class Tank(GameObject):
 
     def revert_move(self) -> None:
         """Reverts the tank to its previous position."""
+        logger.debug(f"Tank {self.owner_type} reverting move from ({self.x}, {self.y}) to ({self.prev_x}, {self.prev_y})")
         self.x = self.prev_x
         self.y = self.prev_y
         self.rect.topleft = (round(self.x), round(self.y))

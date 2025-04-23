@@ -1,5 +1,6 @@
 from enum import Enum, auto
 import pygame
+from loguru import logger
 
 
 class TileType(Enum):
@@ -19,6 +20,7 @@ class Tile:
     """Represents a single tile in the game map."""
 
     def __init__(self, tile_type: TileType, x: int, y: int, size: int = 32) -> None:
+        logger.trace(f"Creating Tile ({tile_type.name}) at grid ({x}, {y})")
         self.type = tile_type
         self.x = x
         self.y = y

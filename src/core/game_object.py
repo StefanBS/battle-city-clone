@@ -4,6 +4,7 @@ Base GameObject class for all game entities.
 
 from typing import Tuple, Optional
 import pygame
+from loguru import logger
 
 
 class GameObject:
@@ -27,6 +28,7 @@ class GameObject:
             height: Height of the object
             sprite: Optional sprite surface
         """
+        logger.debug(f"Creating GameObject at ({x}, {y}) with size {width}x{height}")
         self.x = x
         self.y = y
         self.width = width

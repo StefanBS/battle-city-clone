@@ -1,5 +1,6 @@
 import pygame
 import random
+from loguru import logger
 from .tank import Tank
 from typing import Optional, Literal, Dict, Tuple, TypedDict
 from src.utils.constants import TANK_SPEED, BULLET_SPEED
@@ -80,6 +81,8 @@ class EnemyTank(Tank):
         grid_x = round(x / tile_size) * tile_size
         grid_y = round(y / tile_size) * tile_size
 
+        logger.debug(f"Creating EnemyTank (type: {tank_type}) at grid ({grid_x}, {grid_y})")
+
         # Initialize with grid-aligned position and type-specific properties
         super().__init__(
             grid_x,
@@ -99,6 +102,12 @@ class EnemyTank(Tank):
         self.direction_change_interval: float = props["direction_change_interval"]
         self.shoot_timer: float = 0
         self.shoot_interval: float = props["shoot_interval"]
+        logger.debug(
+            f"EnemyTank ({tank_type}) properties: speed={self.speed:.2f}, "
+            f"bullet_speed={self.bullet_speed:.2f}, health={self.health}, "
+            f"dir_interval={self.direction_change_interval:.2f}, "
+            f"shoot_interval={self.shoot_interval:.2f}"
+        )
 
     def _change_direction(self) -> None:
         """Randomly change the tank's direction."""
@@ -122,7 +131,9 @@ class EnemyTank(Tank):
         if self.direction in directions:
             directions.remove(self.direction)
         if directions:  # Ensure directions list is not empty
+            old_direction = self.direction
             self.direction = random.choice(directions)
+            logger.trace(f"EnemyTank ({self.tank_type}) changing direction from {old_direction} to {self.direction}")
 
     def update(self, dt: float) -> None:
         """
@@ -140,11 +151,13 @@ class EnemyTank(Tank):
 
         # Change direction periodically
         if self.direction_timer >= self.direction_change_interval:
+            logger.trace(f"EnemyTank ({self.tank_type}) direction timer triggered.")
             self._change_direction()
             self.direction_timer = random.uniform(0, 0.5)  # Add small random offset
 
         # Shoot periodically
         if self.shoot_timer >= self.shoot_interval:
+            logger.trace(f"EnemyTank ({self.tank_type}) shoot timer triggered.")
             self.shoot()
             self.shoot_timer = random.uniform(0, 0.3)  # Add small random offset
 
@@ -164,7 +177,11 @@ class EnemyTank(Tank):
 
         # If movement was attempted but failed (e.g., diagonal input, timer not ready)
         # or if the move was later reverted, change direction immediately.
-        if not moved and self.move_timer >= self.move_delay:
+        # Note: Revert happens *after* this update in GameManager, so we check prev pos
+        if (not moved and self.move_timer >= self.move_delay) or (
+            self.x == self.prev_x and self.y == self.prev_y and (dx != 0 or dy != 0)
+        ):
+            logger.debug(f"EnemyTank ({self.tank_type}) movement blocked or reverted, changing direction.")
             self._change_direction()
             self.direction_timer = random.uniform(0, 0.5)  # Reset timer too
 
