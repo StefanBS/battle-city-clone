@@ -74,7 +74,9 @@ class Tank(GameObject):
         Returns:
             True if the tank was destroyed, False otherwise
         """
-        logger.debug(f"Tank {self.owner_type} at ({self.x}, {self.y}) taking {amount} damage.")
+        logger.debug(
+            f"Tank {self.owner_type} at ({self.x}, {self.y}) taking {amount} damage."
+        )
         if self.is_invincible:
             logger.debug("Tank is invincible, ignoring damage.")
             return False
@@ -85,10 +87,14 @@ class Tank(GameObject):
         # If health reaches 0, lose a life and reset health
         if self.health <= 0:
             self.lives -= 1
-            logger.info(f"Tank {self.owner_type} health reached 0. Lives left: {self.lives}")
+            logger.info(
+                f"Tank {self.owner_type} health reached 0. Lives left: {self.lives}"
+            )
             if self.lives > 0:
                 self.health = self.max_health
-                logger.info(f"Tank {self.owner_type} respawning with {self.health} health.")
+                logger.info(
+                    f"Tank {self.owner_type} respawning with {self.health} health."
+                )
                 return False
             logger.info(f"Tank {self.owner_type} destroyed (no lives left).")
             return True
@@ -98,7 +104,12 @@ class Tank(GameObject):
     def shoot(self) -> None:
         """Create a new bullet if none exists."""
         if self.bullet is None or not self.bullet.active:
-            logger.debug(f"Tank {self.owner_type} at ({self.x}, {self.y}) shooting in direction {self.direction}.")
+            logger.debug(
+                (
+                    f"Tank {self.owner_type} at ({self.x}, {self.y}) shooting "
+                    f"in direction {self.direction}."
+                )
+            )
             bullet_x = self.x + self.width // 2 - BULLET_WIDTH // 2
             bullet_y = self.y + self.height // 2 - BULLET_HEIGHT // 2
             self.bullet = Bullet(
@@ -109,7 +120,12 @@ class Tank(GameObject):
                 speed=self.bullet_speed,
             )
         else:
-            logger.trace(f"Tank {self.owner_type} at ({self.x}, {self.y}) tried to shoot, but bullet is active.")
+            logger.trace(
+                (
+                    f"Tank {self.owner_type} at ({self.x}, {self.y}) tried to shoot, "
+                    f"but bullet is active."
+                )
+            )
 
     def update(self, dt: float) -> None:
         """
@@ -154,7 +170,12 @@ class Tank(GameObject):
             True if movement was attempted (timer ready), False otherwise.
         """
         if self.move_timer < self.move_delay:
-            logger.trace(f"Tank {self.owner_type} move skipped (timer not ready: {self.move_timer:.2f}/{self.move_delay:.2f})")
+            logger.trace(
+                (
+                    f"Tank {self.owner_type} move skipped (timer not ready: "
+                    f"{self.move_timer:.2f}/{self.move_delay:.2f})"
+                )
+            )
             return False  # Not ready to move yet
 
         if dx != 0 and dy != 0:
@@ -164,7 +185,12 @@ class Tank(GameObject):
         target_x = self.x + dx * self.tile_size  # Move full tile increments
         target_y = self.y + dy * self.tile_size
 
-        logger.debug(f"Tank {self.owner_type} attempting move from ({self.x}, {self.y}) to ({target_x}, {target_y})")
+        logger.debug(
+            (
+                f"Tank {self.owner_type} attempting move from ({self.x}, {self.y}) "
+                f"to ({target_x}, {target_y})"
+            )
+        )
 
         # Apply movement (position will be validated/reverted by GameManager)
         self.x = target_x
@@ -179,7 +205,12 @@ class Tank(GameObject):
 
     def revert_move(self) -> None:
         """Reverts the tank to its previous position."""
-        logger.debug(f"Tank {self.owner_type} reverting move from ({self.x}, {self.y}) to ({self.prev_x}, {self.prev_y})")
+        logger.debug(
+            (
+                f"Tank {self.owner_type} reverting move from ({self.x}, {self.y}) "
+                f"to ({self.prev_x}, {self.prev_y})"
+            )
+        )
         self.x = self.prev_x
         self.y = self.prev_y
         self.rect.topleft = (round(self.x), round(self.y))

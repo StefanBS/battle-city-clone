@@ -46,7 +46,9 @@ class Bullet(GameObject):
         self.active: bool = True
         self.color: ColorTuple = WHITE
         self.owner_type: str = owner_type
-        logger.trace(f"Created bullet for {owner_type} at ({x:.1f}, {y:.1f}) moving {direction}")
+        logger.trace(
+            f"Created bullet for {owner_type} at ({x:.1f}, {y:.1f}) moving {direction}"
+        )
 
     def update(self, dt: float) -> None:
         """
@@ -75,7 +77,9 @@ class Bullet(GameObject):
             or self.y < 0
             or self.y > GRID_HEIGHT * TILE_SIZE
         ):
-            logger.trace(f"Bullet deactivated (out of bounds) at ({self.x:.1f}, {self.y:.1f})")
+            logger.trace(
+                f"Bullet deactivated (out of bounds) at ({self.x:.1f}, {self.y:.1f})"
+            )
             self.active = False
             return
 

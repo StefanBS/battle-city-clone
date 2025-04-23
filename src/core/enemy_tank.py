@@ -81,7 +81,9 @@ class EnemyTank(Tank):
         grid_x = round(x / tile_size) * tile_size
         grid_y = round(y / tile_size) * tile_size
 
-        logger.debug(f"Creating EnemyTank (type: {tank_type}) at grid ({grid_x}, {grid_y})")
+        logger.debug(
+            f"Creating EnemyTank (type: {tank_type}) at grid ({grid_x}, {grid_y})"
+        )
 
         # Initialize with grid-aligned position and type-specific properties
         super().__init__(
@@ -133,7 +135,12 @@ class EnemyTank(Tank):
         if directions:  # Ensure directions list is not empty
             old_direction = self.direction
             self.direction = random.choice(directions)
-            logger.trace(f"EnemyTank ({self.tank_type}) changing direction from {old_direction} to {self.direction}")
+            logger.trace(
+                (
+                    f"EnemyTank ({self.tank_type}) changing direction "
+                    f"from {old_direction} to {self.direction}"
+                )
+            )
 
     def update(self, dt: float) -> None:
         """
@@ -181,7 +188,12 @@ class EnemyTank(Tank):
         if (not moved and self.move_timer >= self.move_delay) or (
             self.x == self.prev_x and self.y == self.prev_y and (dx != 0 or dy != 0)
         ):
-            logger.debug(f"EnemyTank ({self.tank_type}) movement blocked or reverted, changing direction.")
+            logger.debug(
+                (
+                    f"EnemyTank ({self.tank_type}) movement blocked or reverted, "
+                    f"changing direction."
+                )
+            )
             self._change_direction()
             self.direction_timer = random.uniform(0, 0.5)  # Reset timer too
 

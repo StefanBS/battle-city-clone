@@ -13,6 +13,7 @@ logger.remove()  # Remove default stderr handler
 logger.add(sys.stdout, level="INFO")  # Add stdout handler with INFO level
 logger.add("game.log", rotation="10 MB", level="INFO")  # Keep file handler
 
+
 def main() -> None:
     """Initialize and run the game."""
     logger.info("Initializing Pygame...")

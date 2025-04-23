@@ -115,7 +115,12 @@ class GameManager:
             enemy = EnemyTank(x, y, self.tile_size, tank_type="basic")
             self.enemy_tanks.append(enemy)
             self.total_enemy_spawns += 1
-            logger.debug(f"Spawned enemy {self.total_enemy_spawns}/{self.max_enemy_spawns} at ({x}, {y})")
+            logger.debug(
+                (
+                    f"Spawned enemy {self.total_enemy_spawns}/{self.max_enemy_spawns} "
+                    f"at ({x}, {y})"
+                )
+            )
         else:
             logger.warning(f"Spawn point ({x}, {y}) was blocked.")
 
@@ -273,7 +278,12 @@ class GameManager:
         Returns:
             True if the bullet should be considered processed (i.e., deactivated)
         """
-        logger.trace(f"Handling bullet collision: {type(bullet).__name__} vs {type(other).__name__}")
+        logger.trace(
+            (
+                f"Handling bullet collision: {type(bullet).__name__} vs "
+                f"{type(other).__name__}"
+            )
+        )
         if not bullet.active:
             return False  # Bullet already inactive
 
@@ -320,7 +330,9 @@ class GameManager:
                 bullet.active = False  # Bullet stops at steel
                 processed = True
             elif other.type == TileType.BASE:
-                logger.critical(f"Bullet hit player base at ({other.x}, {other.y})! Game Over.")
+                logger.critical(
+                    f"Bullet hit player base at ({other.x}, {other.y})! Game Over."
+                )
                 bullet.active = False
                 other.type = TileType.BASE_DESTROYED  # Change base appearance
                 self.state = GameState.GAME_OVER  # Game over
@@ -344,7 +356,9 @@ class GameManager:
         Returns:
             True if movement was reverted for at least one tank, False otherwise.
         """
-        logger.debug(f"Tank collision detected: {tank_a.owner_type} vs {tank_b.owner_type}")
+        logger.debug(
+            f"Tank collision detected: {tank_a.owner_type} vs {tank_b.owner_type}"
+        )
         # Simple reversion: If two tanks collide, revert both their moves.
         # More sophisticated logic could try to revert only one based on direction etc.
         tank_a.revert_move()

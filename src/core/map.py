@@ -13,7 +13,9 @@ class Map:
     """Manages the game map and its tiles."""
 
     def __init__(self) -> None:
-        logger.info(f"Initializing Map ({GRID_WIDTH}x{GRID_HEIGHT}) with tile size {TILE_SIZE}")
+        logger.info(
+            f"Initializing Map ({GRID_WIDTH}x{GRID_HEIGHT}) with tile size {TILE_SIZE}"
+        )
         self.width = GRID_WIDTH
         self.height = GRID_HEIGHT
         self.tile_size = TILE_SIZE
