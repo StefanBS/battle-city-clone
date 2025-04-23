@@ -134,8 +134,6 @@ class GameManager:
         dt: float = 1.0 / self.fps
 
         # --- Prepare data for Collision Manager ---
-        # Assuming Map methods return appropriate types
-        # TODO: Verify/Implement Map methods: get_tiles_by_type, get_base
         destructible_tiles: List[Tile] = self.map.get_tiles_by_type([TileType.BRICK])
         impassable_tiles: List[Tile] = self.map.get_tiles_by_type(
             [TileType.STEEL, TileType.WATER]
@@ -170,8 +168,6 @@ class GameManager:
         # --- End Enemy Spawning ---
 
         # --- Check Collisions ---
-        # Ensure types passed match CollisionManager expectations (SpriteType)
-        # We pass specific types here, but CollisionManager uses TypeVar
         self.collision_manager.check_collisions(
             player_tank=self.player_tank,
             player_bullets=player_bullets,

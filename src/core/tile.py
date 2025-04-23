@@ -41,6 +41,3 @@ class Tile:
         """Draw the tile on the given surface."""
         color = self.colors.get(self.type, (0, 0, 0))
         pygame.draw.rect(surface, color, self.rect)
-
-        # Add a border to make tiles more visible
-        pygame.draw.rect(surface, (50, 50, 50), self.rect, 1)

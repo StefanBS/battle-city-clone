@@ -289,3 +289,41 @@ class TestCollisionManager:
             player_base=None,
         )
         assert len(collision_manager.get_collision_events()) == 0
+
+    def test_player_bullet_vs_impassable_tile(self, collision_manager, mock_objects):
+        """Test collision between player bullet and steel tile."""
+        p_bullet = mock_objects["p_bullets"][0]
+        steel = mock_objects["steel"][0]
+        p_bullet.rect = steel.rect.copy()
+
+        collision_manager.check_collisions(
+            player_tank=None,
+            player_bullets=[p_bullet],
+            enemy_tanks=[],
+            enemy_bullets=[],
+            destructible_tiles=[],
+            impassable_tiles=[steel],
+            player_base=None,
+        )
+        events = collision_manager.get_collision_events()
+        assert len(events) == 1
+        assert (p_bullet, steel) in events or (steel, p_bullet) in events
+
+    def test_enemy_bullet_vs_impassable_tile(self, collision_manager, mock_objects):
+        """Test collision between enemy bullet and steel tile."""
+        e_bullet = mock_objects["e_bullets"][0]
+        steel = mock_objects["steel"][0]
+        e_bullet.rect = steel.rect.copy()
+
+        collision_manager.check_collisions(
+            player_tank=None,
+            player_bullets=[],
+            enemy_tanks=[],
+            enemy_bullets=[e_bullet],
+            destructible_tiles=[],
+            impassable_tiles=[steel],
+            player_base=None,
+        )
+        events = collision_manager.get_collision_events()
+        assert len(events) == 1
+        assert (e_bullet, steel) in events or (steel, e_bullet) in events

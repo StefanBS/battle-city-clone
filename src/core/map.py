@@ -44,7 +44,7 @@ class Map:
         # Add some steel blocks
         for x in range(5, 8):
             for y in range(5, 8):
-                self.tiles[y][x].type = TileType.BUSH
+                self.tiles[y][x].type = TileType.WATER
 
         # Add the base
         self.tiles[self.height - 2][self.width // 2].type = TileType.BASE

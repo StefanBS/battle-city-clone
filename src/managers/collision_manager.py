@@ -64,6 +64,12 @@ class CollisionManager:
                 if p_bullet.rect.colliderect(e_bullet.rect):
                     self._queue_collision(p_bullet, e_bullet)
 
+        # Player bullets vs Impassable tiles
+        for bullet in player_bullets:
+            for tile in impassable_tiles:
+                if bullet.rect.colliderect(tile.rect):
+                    self._queue_collision(bullet, tile)
+
         # Enemy bullets vs Player base
         if player_base:
             for bullet in enemy_bullets:
@@ -79,6 +85,12 @@ class CollisionManager:
         # Enemy bullets vs Destructible tiles
         for bullet in enemy_bullets:
             for tile in destructible_tiles:
+                if bullet.rect.colliderect(tile.rect):
+                    self._queue_collision(bullet, tile)
+
+        # Enemy bullets vs Impassable tiles
+        for bullet in enemy_bullets:
+            for tile in impassable_tiles:
                 if bullet.rect.colliderect(tile.rect):
                     self._queue_collision(bullet, tile)
 
