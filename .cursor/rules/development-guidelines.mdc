@@ -10,5 +10,6 @@ alwaysApply: true
 - Use type hints for better code documentation
 - Write docstrings for all public functions and classes
 - Keep functions and classes focused on a single responsibility
+- Add logging when needed
 - Write tests for new features
 - Update documentation when making significant changes
