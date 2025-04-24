@@ -70,7 +70,7 @@ uv pip install -e .
 
 4. Run the game:
 ```bash
-python src/main.py
+python main.py
 ```
 
 ## Testing
@@ -79,16 +79,16 @@ The project uses pytest for testing. To run the tests:
 
 ```bash
 # Run all tests
-pytest
+python -m pytest
 
 # Run tests with coverage report
-pytest --cov=src
+python -m pytest --cov=src
 
 # Run specific test file
-pytest tests/managers/test_game_manager.py
+python -m pytest tests/managers/test_game_manager.py
 
 # Run tests matching a pattern
-pytest -k "test_bullet"
+python -m pytest -k "test_bullet"
 ```
 
 Tests are organized into:

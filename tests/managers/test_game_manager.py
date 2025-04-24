@@ -213,6 +213,14 @@ class TestGameManager:
         mocks["steel_tile"].type = TileType.STEEL
         mocks["base_tile"].type = TileType.BASE
 
+        # Explicitly set grid coordinates (x, y) for mock tiles
+        mocks["brick_tile"].x = mocks["brick_tile"].rect.x // TILE_SIZE
+        mocks["brick_tile"].y = mocks["brick_tile"].rect.y // TILE_SIZE
+        mocks["steel_tile"].x = mocks["steel_tile"].rect.x // TILE_SIZE
+        mocks["steel_tile"].y = mocks["steel_tile"].rect.y // TILE_SIZE
+        mocks["base_tile"].x = mocks["base_tile"].rect.x // TILE_SIZE
+        mocks["base_tile"].y = mocks["base_tile"].rect.y // TILE_SIZE
+
         # Assign mocks to game manager instance
         game_manager.player_tank = mocks["player"]
         game_manager.enemy_tanks = [mocks["enemy"]]
