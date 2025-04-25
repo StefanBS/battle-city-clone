@@ -2,11 +2,11 @@ import pygame
 import random
 from loguru import logger
 from .tank import Tank
-from typing import Optional, Literal, Dict, Tuple, TypedDict
+from typing import Literal, Dict, TypedDict
 from src.utils.constants import TANK_SPEED, BULLET_SPEED
+from src.managers.texture_manager import TextureManager
 
 TankType = Literal["basic", "fast", "power", "armor"]
-ColorTuple = Tuple[int, int, int]
 
 
 # Define the structure for the properties dictionary
@@ -14,7 +14,6 @@ class TankPropertyDict(TypedDict):
     speed: float
     bullet_speed: float
     health: int
-    color: ColorTuple
     shoot_interval: float
     direction_change_interval: float
 
@@ -27,7 +26,6 @@ class EnemyTank(Tank):
             "speed": TANK_SPEED * 0.75,
             "bullet_speed": BULLET_SPEED,
             "health": 1,
-            "color": (128, 128, 128),  # Gray
             "shoot_interval": 2.0,
             "direction_change_interval": 2.5,
         },
@@ -35,7 +33,6 @@ class EnemyTank(Tank):
             "speed": TANK_SPEED * 1.5,
             "bullet_speed": BULLET_SPEED,
             "health": 1,
-            "color": (100, 100, 255),  # Light Blue
             "shoot_interval": 1.8,
             "direction_change_interval": 1.5,
         },
@@ -43,7 +40,6 @@ class EnemyTank(Tank):
             "speed": TANK_SPEED,
             "bullet_speed": BULLET_SPEED * 1.5,
             "health": 1,
-            "color": (255, 165, 0),  # Orange
             "shoot_interval": 1.0,
             "direction_change_interval": 2.0,
         },
@@ -51,7 +47,6 @@ class EnemyTank(Tank):
             "speed": TANK_SPEED,
             "bullet_speed": BULLET_SPEED,
             "health": 4,
-            "color": (0, 128, 0),  # Green
             "shoot_interval": 1.5,
             "direction_change_interval": 2.0,
         },
@@ -62,8 +57,8 @@ class EnemyTank(Tank):
         x: int,
         y: int,
         tile_size: int,
+        texture_manager: TextureManager,
         tank_type: TankType,
-        sprite: Optional[pygame.Surface] = None,
     ) -> None:
         """
         Initialize the enemy tank based on its type.
@@ -72,8 +67,8 @@ class EnemyTank(Tank):
             x: Initial x position
             y: Initial y position
             tile_size: Size of a tile in pixels
+            texture_manager: Instance of TextureManager
             tank_type: The type of enemy tank ('basic', 'fast', 'power', 'armor')
-            sprite: Optional sprite surface
         """
         props = self.TANK_PROPERTIES[tank_type]
 
@@ -89,8 +84,9 @@ class EnemyTank(Tank):
         super().__init__(
             grid_x,
             grid_y,
+            texture_manager,
             tile_size,
-            sprite,
+            None,
             health=props["health"],
             lives=1,
             speed=props["speed"],
@@ -98,12 +94,12 @@ class EnemyTank(Tank):
         )
         self.tank_type = tank_type
         self.owner_type = "enemy"
-        self.color: ColorTuple = props["color"]
         self.direction = random.choice(["up", "down", "left", "right"])
         self.direction_timer: float = 0
         self.direction_change_interval: float = props["direction_change_interval"]
         self.shoot_timer: float = 0
         self.shoot_interval: float = props["shoot_interval"]
+        self._update_sprite()
         logger.debug(
             f"EnemyTank ({tank_type}) properties: speed={self.speed:.2f}, "
             f"bullet_speed={self.bullet_speed:.2f}, health={self.health}, "
@@ -112,34 +108,47 @@ class EnemyTank(Tank):
         )
 
     def _change_direction(self) -> None:
-        """Randomly change the tank's direction."""
+        """Randomly change the tank's direction and update its sprite."""
+        old_direction = self.direction
+        new_direction = old_direction  # Start with the current direction
         directions = ["up", "down", "left", "right"]
-        # Prevent instantly reversing direction unless stuck (basic logic)
+
+        # Try to avoid reversing first
         opposite_direction = {
             "up": "down",
             "down": "up",
             "left": "right",
             "right": "left",
         }
-        if len(directions) > 1 and self.direction in opposite_direction:
+        if len(directions) > 1 and old_direction in opposite_direction:
             possible_directions = [
-                d for d in directions if d != opposite_direction[self.direction]
+                d for d in directions if d != opposite_direction[old_direction]
             ]
             if possible_directions:
-                self.direction = random.choice(possible_directions)
-                return
+                new_direction = random.choice(possible_directions)
+            # else: If only reversing is possible, let the fallback handle it
 
-        # Fallback or if not reversing
-        if self.direction in directions:
-            directions.remove(self.direction)
-        if directions:  # Ensure directions list is not empty
-            old_direction = self.direction
-            self.direction = random.choice(directions)
+        # If direction didn't change above, or if reversing was the only option,
+        # pick a different direction randomly (fallback).
+        if new_direction == old_direction:
+            possible_directions = [d for d in directions if d != old_direction]
+            if possible_directions:
+                new_direction = random.choice(possible_directions)
+            # else: If tank is somehow stuck in a 1-way path, direction won't change.
+
+        # Only update sprite if the direction actually changed
+        if new_direction != old_direction:
+            self.direction = new_direction
             logger.trace(
                 (
                     f"EnemyTank ({self.tank_type}) changing direction "
                     f"from {old_direction} to {self.direction}"
                 )
+            )
+            self._update_sprite()
+        else:
+            logger.trace(
+                f"EnemyTank ({self.tank_type}) direction remained {old_direction}."
             )
 
     def update(self, dt: float) -> None:
@@ -179,23 +188,7 @@ class EnemyTank(Tank):
         elif self.direction == "down":
             dy = 1
 
-        # Attempt to move
-        moved = self._move(dx, dy)
-
-        # If movement was attempted but failed (e.g., diagonal input, timer not ready)
-        # or if the move was later reverted, change direction immediately.
-        # Note: Revert happens *after* this update in GameManager, so we check prev pos
-        if (not moved and self.move_timer >= self.move_delay) or (
-            self.x == self.prev_x and self.y == self.prev_y and (dx != 0 or dy != 0)
-        ):
-            logger.debug(
-                (
-                    f"EnemyTank ({self.tank_type}) movement blocked or reverted, "
-                    f"changing direction."
-                )
-            )
-            self._change_direction()
-            self.direction_timer = random.uniform(0, 0.5)  # Reset timer too
+        self._move(dx, dy)
 
     def draw(self, surface: pygame.Surface) -> None:
         """
@@ -204,12 +197,12 @@ class EnemyTank(Tank):
         Args:
             surface: Surface to draw on
         """
-        # Use self.color defined in __init__ based on type
         if self.sprite:
-            # TODO: Implement sprite rotation based on direction if needed
             surface.blit(self.sprite, self.rect)
         else:
-            pygame.draw.rect(surface, self.color, self.rect)
+            # Fallback: Draw a simple gray rectangle if sprite is missing
+            pygame.draw.rect(surface, (128, 128, 128), self.rect)
+            logger.warning("Enemy tank sprite is missing, drawing fallback rect.")
 
         if self.bullet is not None and self.bullet.active:
             self.bullet.draw(surface)

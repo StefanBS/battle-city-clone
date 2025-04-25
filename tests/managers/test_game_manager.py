@@ -7,13 +7,14 @@ from src.core.player_tank import PlayerTank
 from src.core.enemy_tank import EnemyTank
 from src.core.bullet import Bullet
 from src.core.tile import Tile, TileType
+from src.managers.texture_manager import TextureManager
 from src.utils.constants import (
     WINDOW_TITLE,
     FPS,
     TILE_SIZE,
-    GRID_WIDTH,
-    GRID_HEIGHT,
     BLACK,
+    WINDOW_WIDTH,
+    WINDOW_HEIGHT,
 )
 from src.managers.collision_manager import CollisionManager
 
@@ -25,11 +26,56 @@ class TestGameManager:
     def game_manager(self):
         """Create a game manager instance for testing."""
         pygame.init()
-        # Mock display and font initialization to avoid errors in headless environment
-        with patch("pygame.display.set_mode"), patch("pygame.font.SysFont"):
+        # Mock display, font, and TextureManager *before* GameManager is created
+        with patch("pygame.display.set_mode"), \
+             patch("pygame.font.SysFont"), \
+             patch("src.managers.game_manager.TextureManager") as MockTextureManager:
+
+            # Configure the mock TextureManager instance that GameManager will create
+            mock_tm_instance = MockTextureManager.return_value
+            mock_tm_instance.get_sprite.return_value = MagicMock(spec=pygame.Surface)
+
             manager = GameManager()
         yield manager
         pygame.quit()
+
+    # Helper fixture to create mock sprites with essential attributes
+    @pytest.fixture
+    def create_mock_sprite(self, game_manager): # Needs game_manager for tile_size and mock TM
+        def _create(x, y, width, height, spec, owner_type=None, tank_type=None, tile_type=None):
+            mock_sprite = MagicMock(spec=spec)
+            mock_sprite.rect = pygame.Rect(x, y, width, height)
+            mock_sprite.x = x # Store original x/y if needed
+            mock_sprite.y = y
+            mock_sprite.width = width
+            mock_sprite.height = height
+            mock_sprite.active = True # Bullets need this
+            mock_sprite.is_invincible = False # Tanks need this
+            mock_sprite.owner_type = owner_type # Bullets and Tanks
+            mock_sprite.take_damage = MagicMock(return_value=False) # Default: survive damage
+            mock_sprite.respawn = MagicMock()
+
+            # --- Type/Spec specific setup ---
+            if spec == Tile:
+                mock_sprite.type = tile_type
+                # Add grid coordinates for tile identification if needed by map logic
+                mock_sprite.grid_x = x // game_manager.tile_size
+                mock_sprite.grid_y = y // game_manager.tile_size
+            elif spec in [PlayerTank, EnemyTank]:
+                mock_sprite.owner_type = owner_type if owner_type else ("player" if spec == PlayerTank else "enemy")
+                mock_sprite.tank_type = tank_type # For EnemyTank
+                # Assign the mocked texture manager from GameManager
+                mock_sprite.texture_manager = game_manager.texture_manager
+                # Mock the sprite update method to prevent errors
+                mock_sprite._update_sprite = MagicMock()
+                # Call it once to potentially set an initial mock sprite if needed by draw logic
+                # mock_sprite._update_sprite()
+                mock_sprite.bullet = None # Ensure bullet starts as None
+            elif spec == Bullet:
+                mock_sprite.owner_type = owner_type
+
+            return mock_sprite
+        return _create
 
     def test_initialization(self, game_manager):
         """Test that the game manager initializes correctly."""
@@ -37,23 +83,28 @@ class TestGameManager:
         assert game_manager.background_color == BLACK
         assert game_manager.fps == FPS
         assert game_manager.tile_size == TILE_SIZE
-        assert game_manager.screen_width == GRID_WIDTH * TILE_SIZE
-        assert game_manager.screen_height == GRID_HEIGHT * TILE_SIZE
+        # Assert against constants used in GameManager init
+        assert game_manager.screen_width == WINDOW_WIDTH
+        assert game_manager.screen_height == WINDOW_HEIGHT
         assert pygame.display.get_caption()[0] == WINDOW_TITLE
 
     def test_handle_events_quit(self, game_manager):
-        """Test handling quit event."""
-        with pytest.raises(SystemExit):
-            event = pygame.event.Event(pygame.QUIT)
-            pygame.event.post(event)
-            game_manager.handle_events()
+        """Test handling quit event sets state to EXIT."""
+        # with pytest.raises(SystemExit): # Should not raise SystemExit anymore
+        event = pygame.event.Event(pygame.QUIT)
+        pygame.event.post(event)
+        game_manager.handle_events()
+        # Check if state is set to EXIT
+        assert game_manager.state == GameState.EXIT
 
     def test_handle_events_escape(self, game_manager):
-        """Test handling escape key event."""
-        with pytest.raises(SystemExit):
-            event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_ESCAPE)
-            pygame.event.post(event)
-            game_manager.handle_events()
+        """Test handling escape key event sets state to EXIT."""
+        # with pytest.raises(SystemExit): # Should not raise SystemExit anymore
+        event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_ESCAPE)
+        pygame.event.post(event)
+        game_manager.handle_events()
+        # Check if state is set to EXIT
+        assert game_manager.state == GameState.EXIT
 
     def test_handle_events_restart(self, game_manager):
         """Test handling restart key event."""
@@ -190,12 +241,14 @@ class TestGameManager:
     @pytest.fixture
     def collision_mocks(self, game_manager, create_mock_sprite):
         """Provides mock objects for collision testing."""
+        # mock_tm = game_manager.texture_manager # This variable is unused
+
         mocks = {
             "player": create_mock_sprite(
-                100, 100, TILE_SIZE, TILE_SIZE, spec=PlayerTank
+                100, 100, TILE_SIZE, TILE_SIZE, spec=PlayerTank, owner_type="player"
             ),
             "enemy": create_mock_sprite(
-                200, 200, TILE_SIZE, TILE_SIZE, spec=EnemyTank, tank_type="basic"
+                200, 200, TILE_SIZE, TILE_SIZE, spec=EnemyTank, owner_type="enemy", tank_type="basic"
             ),
             "player_bullet": create_mock_sprite(
                 110, 110, 5, 5, spec=Bullet, owner_type="player"
@@ -203,23 +256,16 @@ class TestGameManager:
             "enemy_bullet": create_mock_sprite(
                 210, 210, 5, 5, spec=Bullet, owner_type="enemy"
             ),
-            # Create tile mocks with spec=Tile
-            "brick_tile": create_mock_sprite(300, 300, TILE_SIZE, TILE_SIZE, spec=Tile),
-            "steel_tile": create_mock_sprite(350, 350, TILE_SIZE, TILE_SIZE, spec=Tile),
-            "base_tile": create_mock_sprite(400, 400, TILE_SIZE, TILE_SIZE, spec=Tile),
+            "brick_tile": create_mock_sprite(
+                300, 300, TILE_SIZE, TILE_SIZE, spec=Tile, tile_type=TileType.BRICK
+            ),
+            "steel_tile": create_mock_sprite(
+                350, 350, TILE_SIZE, TILE_SIZE, spec=Tile, tile_type=TileType.STEEL
+            ),
+            "base_tile": create_mock_sprite(
+                400, 400, TILE_SIZE, TILE_SIZE, spec=Tile, tile_type=TileType.BASE
+            ),
         }
-        # Explicitly set the .type attribute for Tile mocks AFTER creation
-        mocks["brick_tile"].type = TileType.BRICK
-        mocks["steel_tile"].type = TileType.STEEL
-        mocks["base_tile"].type = TileType.BASE
-
-        # Explicitly set grid coordinates (x, y) for mock tiles
-        mocks["brick_tile"].x = mocks["brick_tile"].rect.x // TILE_SIZE
-        mocks["brick_tile"].y = mocks["brick_tile"].rect.y // TILE_SIZE
-        mocks["steel_tile"].x = mocks["steel_tile"].rect.x // TILE_SIZE
-        mocks["steel_tile"].y = mocks["steel_tile"].rect.y // TILE_SIZE
-        mocks["base_tile"].x = mocks["base_tile"].rect.x // TILE_SIZE
-        mocks["base_tile"].y = mocks["base_tile"].rect.y // TILE_SIZE
 
         # Assign mocks to game manager instance
         game_manager.player_tank = mocks["player"]
@@ -230,9 +276,15 @@ class TestGameManager:
 
         # Default mocks for map methods used in update but not in collision processing
         game_manager.map = MagicMock()
-        game_manager.map.get_tiles_by_type.return_value = []
-        game_manager.map.get_base.return_value = None
-        game_manager.map.get_collidable_tiles.return_value = []
+        # Setup map mocks used by CollisionManager and _process_collisions
+        mock_all_tiles = list(mocks.values()) # Simplistic; adjust if non-tile mocks exist
+        game_manager.map.get_all_tiles.return_value = [t for t in mock_all_tiles if isinstance(t, MagicMock) and hasattr(t, 'type')]
+        game_manager.map.get_collidable_tiles.return_value = [ # Return tiles that block movement/bullets
+            t for t in game_manager.map.get_all_tiles.return_value
+            if t.type in [TileType.BRICK, TileType.STEEL, TileType.WATER, TileType.BASE]
+        ]
+        game_manager.map.get_base.return_value = mocks["base_tile"]
+        game_manager.map.update_tile = MagicMock() # Mock method used when tiles are destroyed
 
         return game_manager, mocks
 
@@ -445,22 +497,20 @@ class TestGameManager:
         player_bullet2 = create_mock_sprite(
             2, 2, 5, 5, spec=Bullet, owner_type="player"
         )
-        enemy1 = mocks["enemy"]  # Re-use one mock enemy
+        enemy1 = mocks["enemy"]
         enemy2 = create_mock_sprite(
-            300, 100, TILE_SIZE, TILE_SIZE, spec=EnemyTank, tank_type="basic"
+            300, 100, TILE_SIZE, TILE_SIZE, spec=EnemyTank, owner_type="enemy", tank_type="basic"
         )
         game_manager.enemy_tanks.append(enemy2)
 
-        enemy1.take_damage.return_value = True  # enemy1 dies
-        enemy2.take_damage.return_value = False  # enemy2 lives
-        game_manager.total_enemy_spawns = (
-            game_manager.max_enemy_spawns
-        )  # No more spawns
+        enemy1.take_damage.return_value = True
+        enemy2.take_damage.return_value = False
+        game_manager.total_enemy_spawns = game_manager.max_enemy_spawns
 
-        game_manager.collision_manager.get_collision_events.return_value = [
+        game_manager.collision_manager.get_collision_events = MagicMock(return_value=[
             (player_bullet1, enemy1),
             (player_bullet2, enemy2),
-        ]
+        ])
 
         game_manager._process_collisions()
 
@@ -470,7 +520,7 @@ class TestGameManager:
         enemy2.take_damage.assert_called_once()
         assert enemy1 not in game_manager.enemy_tanks
         assert enemy2 in game_manager.enemy_tanks
-        assert game_manager.state == GameState.RUNNING  # Not victory yet
+        assert game_manager.state == GameState.RUNNING
 
     # --- Game State Tests (mostly unchanged) --- #
 

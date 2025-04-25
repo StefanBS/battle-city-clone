@@ -1,5 +1,8 @@
 import pytest
+from unittest.mock import MagicMock
+import pygame
 from src.core.enemy_tank import EnemyTank, TankType
+from src.managers.texture_manager import TextureManager
 from src.utils.constants import TILE_SIZE, TANK_SPEED, BULLET_SPEED
 
 # Define expected properties based on EnemyTank.TANK_PROPERTIES for easier assertion
@@ -8,7 +11,6 @@ EXPECTED_PROPERTIES = {
         "speed": TANK_SPEED * 0.75,
         "bullet_speed": BULLET_SPEED,
         "health": 1,
-        "color": (128, 128, 128),
         "shoot_interval": 2.0,
         "direction_change_interval": 2.5,
     },
@@ -16,7 +18,6 @@ EXPECTED_PROPERTIES = {
         "speed": TANK_SPEED * 1.5,
         "bullet_speed": BULLET_SPEED,
         "health": 1,
-        "color": (100, 100, 255),
         "shoot_interval": 1.8,
         "direction_change_interval": 1.5,
     },
@@ -24,7 +25,6 @@ EXPECTED_PROPERTIES = {
         "speed": TANK_SPEED,
         "bullet_speed": BULLET_SPEED * 1.5,
         "health": 1,
-        "color": (255, 165, 0),
         "shoot_interval": 1.0,
         "direction_change_interval": 2.0,
     },
@@ -32,7 +32,6 @@ EXPECTED_PROPERTIES = {
         "speed": TANK_SPEED,
         "bullet_speed": BULLET_SPEED,
         "health": 4,
-        "color": (0, 128, 0),
         "shoot_interval": 1.5,
         "direction_change_interval": 2.0,
     },
@@ -41,15 +40,23 @@ EXPECTED_PROPERTIES = {
 # Test cases covering all tank types
 TEST_CASES = [(tank_type, props) for tank_type, props in EXPECTED_PROPERTIES.items()]
 
+@pytest.fixture(scope="module")
+def mock_texture_manager():
+    """Create a module-scoped mock TextureManager."""
+    pygame.init()
+    mock_tm = MagicMock(spec=TextureManager)
+    mock_tm.get_sprite.return_value = MagicMock(spec=pygame.Surface)
+    yield mock_tm
+    pygame.quit()
 
 @pytest.mark.parametrize("tank_type, expected", TEST_CASES)
-def test_enemy_tank_initialization_properties(tank_type: TankType, expected: dict):
+def test_enemy_tank_initialization_properties(mock_texture_manager, tank_type: TankType, expected: dict):
     """Test that EnemyTank initializes with correct properties for each type."""
     # Minimal required positional args for EnemyTank
     x, y = 0, 0
     tile_size = TILE_SIZE
 
-    tank = EnemyTank(x, y, tile_size, tank_type)
+    tank = EnemyTank(x, y, tile_size, mock_texture_manager, tank_type)
 
     # Assert core properties set by the type
     assert tank.tank_type == tank_type
@@ -57,7 +64,6 @@ def test_enemy_tank_initialization_properties(tank_type: TankType, expected: dic
     assert tank.bullet_speed == pytest.approx(expected["bullet_speed"])
     assert tank.health == expected["health"]
     assert tank.max_health == expected["health"]  # Should also be set
-    assert tank.color == expected["color"]
     assert tank.shoot_interval == pytest.approx(expected["shoot_interval"])
     assert tank.direction_change_interval == pytest.approx(
         expected["direction_change_interval"]
@@ -72,7 +78,7 @@ def test_enemy_tank_initialization_properties(tank_type: TankType, expected: dic
     assert tank.y == y
 
 
-def test_enemy_tank_grid_alignment():
+def test_enemy_tank_grid_alignment(mock_texture_manager):
     """Test that initial position is aligned to the grid."""
     tile_size = 32
     # Non-aligned positions
@@ -82,7 +88,7 @@ def test_enemy_tank_grid_alignment():
         1 * tile_size,
     )  # round(15/32)*32=0, round(40/32)*32=32
 
-    tank = EnemyTank(initial_x, initial_y, tile_size, tank_type="basic")
+    tank = EnemyTank(initial_x, initial_y, tile_size, mock_texture_manager, tank_type="basic")
 
     assert tank.x == expected_x
     assert tank.y == expected_y

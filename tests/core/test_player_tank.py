@@ -2,35 +2,42 @@ import pytest
 import pygame
 from unittest.mock import MagicMock, patch
 from src.core.player_tank import PlayerTank
+from src.managers.texture_manager import TextureManager
 from src.utils.constants import TILE_SIZE
 
 
-@pytest.fixture
-def player_tank():
-    """Fixture to create a PlayerTank instance."""
+@pytest.fixture(scope="module")
+def mock_texture_manager():
+    """Create a module-scoped mock TextureManager."""
     pygame.init()
-    # Mock the InputHandler to avoid direct input dependency
-    with patch("managers.input_handler.InputHandler") as MockInputHandler:
+    mock_tm = MagicMock(spec=TextureManager)
+    mock_tm.get_sprite.return_value = MagicMock(spec=pygame.Surface)
+    yield mock_tm
+    pygame.quit()
+
+
+@pytest.fixture
+def player_tank(mock_texture_manager):
+    """Fixture to create a PlayerTank instance."""
+    with patch("src.managers.input_handler.InputHandler") as MockInputHandler:
         mock_input_handler = MockInputHandler.return_value
         mock_input_handler.get_movement_direction.return_value = (
             0,
             0,
         )  # Default no movement
-        tank = PlayerTank(5, 12, TILE_SIZE)  # Use non-grid-aligned coords
-        tank.input_handler = mock_input_handler  # Inject mock
-        yield tank  # Use yield to ensure pygame.quit() is called if needed
-    pygame.quit()
+        tank = PlayerTank(5, 12, TILE_SIZE, mock_texture_manager)
+        tank.input_handler = mock_input_handler
+        yield tank
 
 
 def test_player_tank_initialization(player_tank):
     """Test PlayerTank initialization aligns to grid and sets correct defaults."""
-    assert player_tank.x == 0  # Should align to 0 * TILE_SIZE
-    assert player_tank.y == 0  # Should align to 0 * TILE_SIZE (round(12/32) = 0)
+    assert player_tank.x == 0
+    assert player_tank.y == 0
     assert player_tank.initial_position == (0, 0)
     assert player_tank.lives == 3
     assert player_tank.health == 1
     assert player_tank.invincibility_duration == 3.0
-    assert player_tank.color == (0, 255, 0)
     assert not player_tank.is_invincible  # Should not start invincible
 
 
@@ -172,7 +179,7 @@ def test_draw_no_sprite_not_invincible(mock_draw_rect, player_tank):
     player_tank.draw(mock_surface)
 
     mock_draw_rect.assert_called_once_with(
-        mock_surface, player_tank.color, player_tank.rect
+        mock_surface, (0, 255, 0), player_tank.rect
     )
 
 
@@ -213,7 +220,7 @@ def test_draw_invincible_visible_phase(mock_draw_rect, player_tank):
     player_tank.sprite = None
     player_tank.draw(mock_surface)
     mock_draw_rect.assert_called_once_with(
-        mock_surface, player_tank.color, player_tank.rect
+        mock_surface, (0, 255, 0), player_tank.rect
     )
     # Assert no call on mock_surface
     mock_surface.blit.assert_not_called()

@@ -2,7 +2,7 @@ import pygame
 from loguru import logger
 from .tank import Tank
 from src.managers.input_handler import InputHandler
-from typing import Optional
+from src.managers.texture_manager import TextureManager
 
 
 class PlayerTank(Tank):
@@ -13,7 +13,7 @@ class PlayerTank(Tank):
         x: int,
         y: int,
         tile_size: int,
-        sprite: Optional[pygame.Surface] = None,
+        texture_manager: TextureManager,
     ) -> None:
         """
         Initialize the player tank.
@@ -22,7 +22,7 @@ class PlayerTank(Tank):
             x: Initial x position
             y: Initial y position
             tile_size: Size of a tile in pixels
-            sprite: Optional sprite surface
+            texture_manager: Instance of TextureManager
         """
         # Ensure x and y are aligned to the grid
         grid_x = round(x / tile_size) * tile_size
@@ -30,13 +30,13 @@ class PlayerTank(Tank):
         logger.debug(f"Creating PlayerTank at initial grid ({grid_x}, {grid_y})")
         # Initialize with grid-aligned position
         super().__init__(
-            grid_x, grid_y, tile_size, sprite, health=1, lives=3
-        )  # Player starts with 3 lives
+            grid_x, grid_y, texture_manager, tile_size, None, health=1, lives=3
+        )
         self.owner_type = "player"
         self.input_handler = InputHandler()
         self.initial_position = (grid_x, grid_y)
         self.invincibility_duration = 3.0  # 3 seconds invincibility after respawn
-        self.color = (0, 255, 0)  # Green color for player tank
+        self._update_sprite()
 
     def handle_event(self, event: pygame.event.Event) -> None:
         """
@@ -73,14 +73,19 @@ class PlayerTank(Tank):
 
         # Update direction based on movement
         if dx != 0 or dy != 0:
+            new_direction = self.direction
             if dx > 0:
-                self.direction = "right"
+                new_direction = "right"
             elif dx < 0:
-                self.direction = "left"
+                new_direction = "left"
             elif dy > 0:
-                self.direction = "down"
+                new_direction = "down"
             elif dy < 0:
-                self.direction = "up"
+                new_direction = "up"
+
+            if new_direction != self.direction:
+                self.direction = new_direction
+                self._update_sprite()
 
             # Attempt to move
             self._move(dx, dy)
@@ -98,6 +103,7 @@ class PlayerTank(Tank):
             self.blink_timer = 0
             self.direction = "up"  # Reset direction
             self.move_timer = 0
+            self._update_sprite()
 
     def draw(self, surface: pygame.Surface) -> None:
         """
@@ -106,7 +112,6 @@ class PlayerTank(Tank):
         Args:
             surface: Surface to draw on
         """
-        # Only draw if not invincible or during visible phase of blinking
         if (
             not self.is_invincible
             or self.blink_timer % (self.blink_interval * 2) < self.blink_interval
@@ -114,8 +119,8 @@ class PlayerTank(Tank):
             if self.sprite:
                 surface.blit(self.sprite, self.rect)
             else:
-                # Draw a simple green tank if no sprite is provided
-                pygame.draw.rect(surface, self.color, self.rect)
+                pygame.draw.rect(surface, (0, 255, 0), self.rect)
+                logger.warning("Player tank sprite is missing, drawing fallback rect.")
 
         if self.bullet is not None and self.bullet.active:
             self.bullet.draw(surface)

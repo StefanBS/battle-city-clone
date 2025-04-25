@@ -4,16 +4,20 @@ Game constants and configuration values.
 
 from typing import Tuple
 
+# Scale factor
+SCALE: int = 2
+
 # Window settings
-WINDOW_WIDTH: int = 800
-WINDOW_HEIGHT: int = 600
+WINDOW_WIDTH: int = 800 * SCALE
+WINDOW_HEIGHT: int = 600 * SCALE
 WINDOW_TITLE: str = "Battle City Clone"
 FPS: int = 60
 
 # Grid settings
-TILE_SIZE: int = 32
-GRID_WIDTH: int = 26  # Number of tiles horizontally
-GRID_HEIGHT: int = 26  # Number of tiles vertically
+SOURCE_TILE_SIZE: int = 32  # Original size for loading sprites
+TILE_SIZE: int = SOURCE_TILE_SIZE * SCALE
+GRID_WIDTH: int = 16  # Number of tiles horizontally
+GRID_HEIGHT: int = 16  # Number of tiles vertically
 
 # Colors
 BLACK: Tuple[int, int, int] = (0, 0, 0)
@@ -24,16 +28,17 @@ BLUE: Tuple[int, int, int] = (0, 0, 255)
 YELLOW: Tuple[int, int, int] = (255, 255, 0)
 
 # Tank settings
-TANK_SPEED: int = TILE_SIZE  # Move exactly one tile per movement
+TANK_SPEED: float = TILE_SIZE * 0.25
 TANK_WIDTH: int = TILE_SIZE
 TANK_HEIGHT: int = TILE_SIZE
-PLAYER_HEALTH: int = 3  # Player starts with 3 health points
-ENEMY_HEALTH: int = 1  # Basic enemy tanks have 1 health point
+PLAYER_HEALTH: int = 3
+ENEMY_HEALTH: int = 1
 
 # Bullet settings
-BULLET_SPEED: int = 4
-BULLET_WIDTH: int = 8
-BULLET_HEIGHT: int = 8
+# Base bullet speed needs to be scaled, adjust multiplier if needed
+BULLET_SPEED: float = 4 * SCALE  # Speed in pixels per second
+BULLET_WIDTH: int = 8 * SCALE
+BULLET_HEIGHT: int = 8 * SCALE
 
 # Power-up types
 POWER_UP_INVINCIBLE: str = "invincible"

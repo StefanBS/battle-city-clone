@@ -1,5 +1,4 @@
 import pygame
-import sys
 from typing import List, Tuple, Optional, Any
 from loguru import logger
 from src.core.map import Map
@@ -17,9 +16,12 @@ from src.utils.constants import (
     BLACK,
     WHITE,
     YELLOW,
+    WINDOW_WIDTH,
+    WINDOW_HEIGHT,
 )
 import random
 from src.managers.collision_manager import CollisionManager
+from src.managers.texture_manager import TextureManager
 from src.core.tank import Tank
 
 
@@ -36,8 +38,6 @@ class GameManager:
     def __init__(self) -> None:
         """Initialize the game window and basic settings."""
         logger.info("Initializing GameManager...")
-        pygame.init()  # Ensure Pygame is initialized
-        pygame.font.init()
         self._reset_game()
 
     def _reset_game(self) -> None:
@@ -45,12 +45,19 @@ class GameManager:
         logger.info("Resetting game state...")
         # Display setup
         self.tile_size: int = TILE_SIZE
-        self.screen_width: int = GRID_WIDTH * TILE_SIZE
-        self.screen_height: int = GRID_HEIGHT * TILE_SIZE
+        self.screen_width: int = WINDOW_WIDTH
+        self.screen_height: int = WINDOW_HEIGHT
         self.screen: pygame.Surface = pygame.display.set_mode(
             (self.screen_width, self.screen_height)
         )
         pygame.display.set_caption(WINDOW_TITLE)
+
+        # --- Initialize Managers AFTER display mode is set ---
+        logger.info("Initializing TextureManager...")
+        self.texture_manager = TextureManager("assets/sprites/texture.png")
+        logger.info("Initializing CollisionManager...")
+        self.collision_manager: CollisionManager = CollisionManager()
+        # --- End Initialize Managers ---
 
         # Game clock
         self.clock: pygame.time.Clock = pygame.time.Clock()
@@ -63,13 +70,12 @@ class GameManager:
         # Map
         self.map: Map = Map()
 
-        # Collision Manager
-        self.collision_manager: CollisionManager = CollisionManager()
-
         # Player tank
         start_x: int = ((GRID_WIDTH // 2) - 1) * self.tile_size
         start_y: int = (GRID_HEIGHT - 2) * self.tile_size
-        self.player_tank: PlayerTank = PlayerTank(start_x, start_y, self.tile_size)
+        self.player_tank: PlayerTank = PlayerTank(
+            start_x, start_y, self.tile_size, self.texture_manager
+        )
 
         # Enemy tanks
         self.enemy_tanks: List[EnemyTank] = []
@@ -112,7 +118,9 @@ class GameManager:
 
         if not collision:
             # Always spawn 'basic' type for now
-            enemy = EnemyTank(x, y, self.tile_size, tank_type="basic")
+            enemy = EnemyTank(
+                x, y, self.tile_size, self.texture_manager, tank_type="basic"
+            )
             self.enemy_tanks.append(enemy)
             self.total_enemy_spawns += 1
             logger.debug(
@@ -502,5 +510,3 @@ class GameManager:
         """Cleanly exit the game."""
         logger.info("Setting game state to EXIT.")
         self.state = GameState.EXIT
-        pygame.quit()
-        sys.exit()

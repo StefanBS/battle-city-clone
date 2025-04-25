@@ -1,8 +1,9 @@
 import pygame
 from typing import Optional, Tuple
-from loguru import logger  # Import loguru
+from loguru import logger
 from .game_object import GameObject
 from .bullet import Bullet
+from src.managers.texture_manager import TextureManager
 from src.utils.constants import (
     TILE_SIZE,
     TANK_SPEED,
@@ -21,6 +22,7 @@ class Tank(GameObject):
         self,
         x: float,
         y: float,
+        texture_manager: TextureManager,
         tile_size: int = TILE_SIZE,
         sprite: Optional[pygame.Surface] = None,
         health: int = 1,
@@ -34,6 +36,7 @@ class Tank(GameObject):
         Args:
             x: Initial x position
             y: Initial y position
+            texture_manager: TextureManager instance
             tile_size: Size of a tile in pixels
             sprite: Optional sprite surface
             health: Initial health points
@@ -43,6 +46,7 @@ class Tank(GameObject):
         """
         logger.debug(f"Creating Tank at ({x}, {y})")
         super().__init__(x, y, TANK_WIDTH, TANK_HEIGHT, sprite)
+        self.texture_manager = texture_manager
         self.speed = speed
         self.bullet_speed = bullet_speed
         self.direction = "up"  # Initial direction
@@ -63,6 +67,26 @@ class Tank(GameObject):
         self.invincibility_duration: float = 0
         self.blink_timer: float = 0
         self.blink_interval: float = 0.2  # Blink every 0.2 seconds during invincibility
+        self.animation_frame: int = 1  # Start with frame 1
+
+    def _update_sprite(self) -> None:
+        """Updates the tank's sprite based on direction and animation frame."""
+
+        base_sprite_name = f"{self.owner_type}_tank"
+
+        if self.owner_type.startswith("enemy"):
+            base_sprite_name = "enemy_tank"
+
+        sprite_name = f"{base_sprite_name}_{self.direction}_{self.animation_frame}"
+        try:
+            self.sprite = self.texture_manager.get_sprite(sprite_name)
+            logger.trace(f"Set sprite to {sprite_name}")
+        except KeyError:
+            logger.error(
+                f"Sprite '{sprite_name}' not found for {self.owner_type} tank."
+            )
+            # Optionally keep the old sprite or use a fallback
+            # self.sprite = self.texture_manager.get_sprite("fallback_sprite") # Example
 
     def take_damage(self, amount: int = 1) -> bool:
         """
@@ -181,9 +205,9 @@ class Tank(GameObject):
         if dx != 0 and dy != 0:
             return False  # Ignore diagonal movement attempts
 
-        # Calculate target position (move by one tile)
-        target_x = self.x + dx * self.tile_size  # Move full tile increments
-        target_y = self.y + dy * self.tile_size
+        # Calculate target position
+        target_x = self.x + dx * self.speed
+        target_y = self.y + dy * self.speed
 
         logger.debug(
             (
@@ -197,6 +221,10 @@ class Tank(GameObject):
         self.y = target_y
         self.target_position = (self.x, self.y)
         self.move_timer = 0  # Reset timer after movement attempt
+
+        # Toggle animation frame and update sprite
+        self.animation_frame = 3 - self.animation_frame  # Toggle between 1 and 2
+        self._update_sprite()  # Update sprite after toggling frame
 
         # Update rect immediately after position change
         self.rect.topleft = (round(self.x), round(self.y))

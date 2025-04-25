@@ -79,16 +79,16 @@ The project uses pytest for testing. To run the tests:
 
 ```bash
 # Run all tests
-python -m pytest
+pytest
 
 # Run tests with coverage report
-python -m pytest --cov=src
+pytest --cov=src
 
 # Run specific test file
-python -m pytest tests/managers/test_game_manager.py
+pytest tests/managers/test_game_manager.py
 
 # Run tests matching a pattern
-python -m pytest -k "test_bullet"
+pytest -k "test_bullet"
 ```
 
 Tests are organized into:
