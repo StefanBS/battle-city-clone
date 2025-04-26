@@ -58,6 +58,28 @@ class TextureManager:
             )
             self.sprites[name] = scaled_sprite
 
+        # Load water tile (composed of two half-tiles)
+        water_x, water_y = 29, 5
+        half_tile_width = SOURCE_TILE_SIZE // 2
+        half_water_rect = pygame.Rect(
+            water_x * SOURCE_TILE_SIZE,
+            water_y * SOURCE_TILE_SIZE,
+            half_tile_width,
+            SOURCE_TILE_SIZE,
+        )
+        half_water_tile = self.texture_atlas.subsurface(half_water_rect)
+
+        full_water_sprite = pygame.Surface(
+            (SOURCE_TILE_SIZE, SOURCE_TILE_SIZE), pygame.SRCALPHA
+        )
+        full_water_sprite.blit(half_water_tile, (0, 0))
+        full_water_sprite.blit(half_water_tile, (half_tile_width, 0))
+
+        scaled_water_sprite = pygame.transform.scale(
+            full_water_sprite, (TILE_SIZE, TILE_SIZE)
+        )
+        self.sprites["water"] = scaled_water_sprite
+
     def get_sprite(self, name: str) -> pygame.Surface:
         """
         Retrieves a specific sprite by name.

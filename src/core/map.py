@@ -2,6 +2,7 @@ from typing import List, Optional
 import pygame
 from loguru import logger
 from .tile import Tile, TileType
+from src.managers.texture_manager import TextureManager
 from src.utils.constants import (
     TILE_SIZE,
     GRID_WIDTH,
@@ -12,7 +13,7 @@ from src.utils.constants import (
 class Map:
     """Manages the game map and its tiles."""
 
-    def __init__(self) -> None:
+    def __init__(self, texture_manager: TextureManager) -> None:
         logger.info(
             f"Initializing Map ({GRID_WIDTH}x{GRID_HEIGHT}) with tile size {TILE_SIZE}"
         )
@@ -20,6 +21,7 @@ class Map:
         self.height = GRID_HEIGHT
         self.tile_size = TILE_SIZE
         self.tiles: List[List[Tile]] = []
+        self.texture_manager = texture_manager
 
         # Initialize empty map
         self._initialize_map()
@@ -59,7 +61,7 @@ class Map:
         """Draw all tiles on the given surface."""
         for row in self.tiles:
             for tile in row:
-                tile.draw(surface)
+                tile.draw(surface, self.texture_manager)
 
     def get_tile_at(self, x: int, y: int) -> Optional[Tile]:
         """Get the tile at the specified grid coordinates."""

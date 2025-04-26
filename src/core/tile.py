@@ -1,6 +1,7 @@
 from enum import Enum, auto
 import pygame
 from loguru import logger
+from src.managers.texture_manager import TextureManager
 from src.utils.constants import TILE_SIZE
 
 
@@ -42,7 +43,16 @@ class Tile:
             TileType.BASE_DESTROYED: (139, 69, 19),  # Brown
         }
 
-    def draw(self, surface: pygame.Surface) -> None:
+    def draw(self, surface: pygame.Surface, texture_manager: TextureManager) -> None:
         """Draw the tile on the given surface."""
-        color = self.colors.get(self.type, (0, 0, 0))
-        pygame.draw.rect(surface, color, self.rect)
+        if self.type == TileType.WATER:
+            try:
+                water_sprite = texture_manager.get_sprite("water")
+                surface.blit(water_sprite, self.rect.topleft)
+            except KeyError:
+                logger.error("Water sprite not found in TextureManager. Drawing fallback color.")
+                # Fallback to drawing a color if sprite is missing
+                pygame.draw.rect(surface, (0, 0, 255), self.rect) # Blue fallback
+        else:
+            color = self.colors.get(self.type, (0, 0, 0))
+            pygame.draw.rect(surface, color, self.rect)

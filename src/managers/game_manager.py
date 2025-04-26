@@ -68,7 +68,7 @@ class GameManager:
         self.background_color: Tuple[int, int, int] = BLACK
 
         # Map
-        self.map: Map = Map()
+        self.map: Map = Map(self.texture_manager)
 
         # Player tank
         start_x: int = ((GRID_WIDTH // 2) - 1) * self.tile_size
