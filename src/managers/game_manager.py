@@ -50,6 +50,13 @@ class GameManager:
         self.screen: pygame.Surface = pygame.display.set_mode(
             (self.screen_width, self.screen_height)
         )
+        # --- Create logical game surface ---
+        self.logical_width: int = GRID_WIDTH * self.tile_size
+        self.logical_height: int = GRID_HEIGHT * self.tile_size
+        self.game_surface: pygame.Surface = pygame.Surface(
+            (self.logical_width, self.logical_height)
+        )
+        # --- End Create logical game surface ---
         pygame.display.set_caption(WINDOW_TITLE)
 
         # --- Initialize Managers AFTER display mode is set ---
@@ -90,11 +97,15 @@ class GameManager:
         self.small_font: pygame.font.Font = pygame.font.SysFont(None, 24)
         logger.info("Game reset complete.")
 
-    def _spawn_enemy(self) -> None:
-        """Spawn a new enemy tank at a random spawn point if under the spawn limit."""
+    def _spawn_enemy(self) -> bool:
+        """Spawn a new enemy tank at a random spawn point if under the spawn limit.
+
+        Returns:
+            True if an enemy was successfully spawned, False otherwise.
+        """
         if self.total_enemy_spawns >= self.max_enemy_spawns:
             logger.trace("Max enemy spawns reached, skipping spawn.")
-            return
+            return False
 
         # Get a random spawn point
         spawn_grid_x, spawn_grid_y = random.choice(self.SPAWN_POINTS)
@@ -109,6 +120,12 @@ class GameManager:
             if temp_rect.colliderect(map_rect):
                 collision = True
                 break
+
+        # Check against player tank
+        if not collision and self.player_tank:
+            if temp_rect.colliderect(self.player_tank.rect):
+                logger.debug(f"Spawn point ({x}, {y}) blocked by player tank.")
+                collision = True
 
         if not collision:
             for enemy in self.enemy_tanks:
@@ -129,8 +146,10 @@ class GameManager:
                     f"at ({x}, {y})"
                 )
             )
+            return True
         else:
             logger.warning(f"Spawn point ({x}, {y}) was blocked.")
+            return False
 
     def handle_events(self) -> None:
         """Handle pygame events."""
@@ -176,25 +195,21 @@ class GameManager:
                 enemy_bullets.append(enemy.bullet)
         # --- End Prepare data ---
 
-        # --- Update Game Objects ---
-
-        # Update player tank
+        self.map.update(dt)
         self.player_tank.update(dt)
 
         # Iterate over a copy for safe removal
         for enemy in self.enemy_tanks[:]:
             enemy.update(dt)
-        # --- End Update Game Objects ---
 
-        # --- Enemy Spawning ---
         self.spawn_timer += dt
         if self.spawn_timer >= self.spawn_interval:
             logger.trace("Spawn timer triggered.")
-            self._spawn_enemy()
-            self.spawn_timer = 0
-        # --- End Enemy Spawning ---
+            # Reset timer only if spawn was successful
+            if self._spawn_enemy():
+                self.spawn_timer = 0
+            # else: Timer keeps ticking if spawn failed (e.g., blocked)
 
-        # --- Check Collisions ---
         self.collision_manager.check_collisions(
             player_tank=self.player_tank,
             player_bullets=player_bullets,
@@ -204,11 +219,17 @@ class GameManager:
             impassable_tiles=impassable_tiles,
             player_base=player_base,
         )
-        # --- End Check Collisions ---
 
-        # --- Process Collisions ---
         self._process_collisions()
-        # --- End Process Collisions ---
+
+        if self.state == GameState.RUNNING:
+            if (
+                not self.enemy_tanks
+                and self.total_enemy_spawns >= self.max_enemy_spawns
+            ):
+                logger.info("All enemies defeated. Victory!")
+                self.state = GameState.VICTORY
+
         logger.trace("Game update finished.")
 
     def _process_collisions(self) -> None:
@@ -267,12 +288,6 @@ class GameManager:
             if enemy in self.enemy_tanks:
                 self.enemy_tanks.remove(enemy)
 
-        # Check for win condition after potential enemy removals
-        if not self.enemy_tanks and self.total_enemy_spawns >= self.max_enemy_spawns:
-            logger.info("All enemies defeated. Victory!")
-            self.state = GameState.VICTORY  # Assuming VICTORY state exists
-        logger.trace("Finished processing collisions.")
-
     def _handle_bullet_collision(
         self, bullet: Bullet, other: Any, enemies_to_remove: List[EnemyTank]
     ) -> bool:
@@ -323,7 +338,6 @@ class GameManager:
                     self.state = GameState.GAME_OVER
                 else:
                     other.respawn()  # Player lost a life but has more
-                # processed_tanks.add(other)
 
         # --- Bullet vs Tile ---
         elif isinstance(other, Tile):
@@ -335,12 +349,10 @@ class GameManager:
                 processed = True
             elif other.type == TileType.STEEL:
                 logger.debug(f"Bullet hit steel tile at ({other.x}, {other.y})")
-                bullet.active = False  # Bullet stops at steel
+                bullet.active = False
                 processed = True
             elif other.type == TileType.BASE:
-                logger.critical(
-                    f"Bullet hit player base at ({other.x}, {other.y})! Game Over."
-                )
+                logger.debug(f"Bullet hit base tile at ({other.x}, {other.y})")
                 bullet.active = False
                 other.type = TileType.BASE_DESTROYED  # Change base appearance
                 self.state = GameState.GAME_OVER  # Game over
@@ -401,56 +413,60 @@ class GameManager:
     def _draw_game_over(self) -> None:
         """Draw the game over screen."""
         logger.debug("Drawing Game Over screen.")
+        # Create overlay on the logical surface
         overlay = pygame.Surface(
-            (self.screen_width, self.screen_height), pygame.SRCALPHA
+            (self.logical_width, self.logical_height), pygame.SRCALPHA
         )
         overlay.fill((0, 0, 0, 128))  # Black with 50% opacity
-        self.screen.blit(overlay, (0, 0))
+        self.game_surface.blit(overlay, (0, 0))
 
-        # Draw game over text
+        # Draw game over text centered on logical surface
         text = self.font.render("GAME OVER", True, (255, 0, 0))
         text_rect = text.get_rect(
-            center=(self.screen_width // 2, self.screen_height // 2)
+            center=(self.logical_width // 2, self.logical_height // 2)
         )
-        self.screen.blit(text, text_rect)
+        self.game_surface.blit(text, text_rect)
 
-        # Draw restart text
+        # Draw restart text centered on logical surface
         restart_text = self.font.render("Press R to Restart", True, WHITE)
         restart_rect = restart_text.get_rect(
-            center=(self.screen_width // 2, self.screen_height // 2 + 50)
+            center=(self.logical_width // 2, self.logical_height // 2 + 50)
         )
-        self.screen.blit(restart_text, restart_rect)
+        self.game_surface.blit(restart_text, restart_rect)
 
     def _draw_victory(self) -> None:  # Added method
         """Draw the victory screen."""
         logger.debug("Drawing Victory screen.")
+        # Create overlay on the logical surface
         overlay = pygame.Surface(
-            (self.screen_width, self.screen_height), pygame.SRCALPHA
+            (self.logical_width, self.logical_height), pygame.SRCALPHA
         )
         overlay.fill((0, 0, 0, 128))
-        self.screen.blit(overlay, (0, 0))
+        self.game_surface.blit(overlay, (0, 0))
 
+        # Draw victory text centered on logical surface
         text = self.font.render("VICTORY!", True, (0, 255, 0))
         text_rect = text.get_rect(
-            center=(self.screen_width // 2, self.screen_height // 2)
+            center=(self.logical_width // 2, self.logical_height // 2)
         )
-        self.screen.blit(text, text_rect)
+        self.game_surface.blit(text, text_rect)
 
+        # Draw restart text centered on logical surface
         restart_text = self.font.render("Press R to Play Again", True, WHITE)
         restart_rect = restart_text.get_rect(
-            center=(self.screen_width // 2, self.screen_height // 2 + 50)
+            center=(self.logical_width // 2, self.logical_height // 2 + 50)
         )
-        self.screen.blit(restart_text, restart_rect)
+        self.game_surface.blit(restart_text, restart_rect)
 
     def _draw_hud(self) -> None:
         """Draw the heads-up display."""
-        # Draw lives
+        # Draw lives onto the logical surface
         lives_text = self.small_font.render(
             f"Lives: {self.player_tank.lives}", True, WHITE
         )
-        self.screen.blit(lives_text, (10, 10))
+        self.game_surface.blit(lives_text, (10, 10))
 
-        # Draw invincibility timer if active
+        # Draw invincibility timer if active onto the logical surface
         if self.player_tank.is_invincible:
             remaining_time = max(
                 0,
@@ -460,32 +476,40 @@ class GameManager:
             invincible_text = self.small_font.render(
                 f"Invincible: {remaining_time:.1f}s", True, YELLOW
             )
-            self.screen.blit(invincible_text, (10, 40))
+            self.game_surface.blit(invincible_text, (10, 40))
 
     def render(self) -> None:
         """Render the game state."""
-        # Clear the screen
-        self.screen.fill(self.background_color)
+        # Clear the logical game surface
+        self.game_surface.fill(self.background_color)
 
-        # Draw the map
-        self.map.draw(self.screen)
+        # Draw the map onto the logical surface
+        self.map.draw(self.game_surface)
 
-        # Draw the player tank
-        self.player_tank.draw(self.screen)
+        # Draw the player tank onto the logical surface
+        self.player_tank.draw(self.game_surface)
 
-        # Draw enemy tanks
+        # Draw enemy tanks onto the logical surface
         for enemy in self.enemy_tanks:
-            enemy.draw(self.screen)
+            enemy.draw(self.game_surface)
 
-        # Draw HUD
-        self._draw_hud()
+        # Draw HUD onto the logical surface
+        self._draw_hud()  # Make sure HUD uses self.game_surface if drawing directly
 
-        # Draw game over screen if needed
+        # Draw game over/victory screen if needed onto logical surface
+        # NOTE: These draw methods might need adjustment if they assume self.screen size
         if self.state == GameState.GAME_OVER:
             self._draw_game_over()
-        elif self.state == GameState.VICTORY:  # Added victory check
+        elif self.state == GameState.VICTORY:
             self._draw_victory()
 
+        # Scale the logical surface to the main screen
+        scaled_surface = pygame.transform.scale(
+            self.game_surface, (self.screen_width, self.screen_height)
+        )
+        self.screen.blit(scaled_surface, (0, 0))
+
+        # Update the display
         pygame.display.flip()
 
     def run(self) -> None:

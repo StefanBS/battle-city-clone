@@ -72,6 +72,12 @@ class CollisionManager:
                 if bullet.rect.colliderect(tile.rect):
                     self._queue_collision(bullet, tile)
 
+        # Player bullets vs Player base
+        if player_base:
+            for bullet in player_bullets:
+                if bullet.rect.colliderect(player_base.rect):
+                    self._queue_collision(bullet, player_base)
+
         # Enemy bullets vs Player base
         if player_base:
             for bullet in enemy_bullets:

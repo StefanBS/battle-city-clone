@@ -40,6 +40,7 @@ EXPECTED_PROPERTIES = {
 # Test cases covering all tank types
 TEST_CASES = [(tank_type, props) for tank_type, props in EXPECTED_PROPERTIES.items()]
 
+
 @pytest.fixture(scope="module")
 def mock_texture_manager():
     """Create a module-scoped mock TextureManager."""
@@ -49,8 +50,11 @@ def mock_texture_manager():
     yield mock_tm
     pygame.quit()
 
+
 @pytest.mark.parametrize("tank_type, expected", TEST_CASES)
-def test_enemy_tank_initialization_properties(mock_texture_manager, tank_type: TankType, expected: dict):
+def test_enemy_tank_initialization_properties(
+    mock_texture_manager, tank_type: TankType, expected: dict
+):
     """Test that EnemyTank initializes with correct properties for each type."""
     # Minimal required positional args for EnemyTank
     x, y = 0, 0
@@ -88,7 +92,9 @@ def test_enemy_tank_grid_alignment(mock_texture_manager):
         1 * tile_size,
     )  # round(15/32)*32=0, round(40/32)*32=32
 
-    tank = EnemyTank(initial_x, initial_y, tile_size, mock_texture_manager, tank_type="basic")
+    tank = EnemyTank(
+        initial_x, initial_y, tile_size, mock_texture_manager, tank_type="basic"
+    )
 
     assert tank.x == expected_x
     assert tank.y == expected_y
