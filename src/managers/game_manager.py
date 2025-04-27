@@ -97,11 +97,15 @@ class GameManager:
         self.small_font: pygame.font.Font = pygame.font.SysFont(None, 24)
         logger.info("Game reset complete.")
 
-    def _spawn_enemy(self) -> None:
-        """Spawn a new enemy tank at a random spawn point if under the spawn limit."""
+    def _spawn_enemy(self) -> bool:
+        """Spawn a new enemy tank at a random spawn point if under the spawn limit.
+
+        Returns:
+            True if an enemy was successfully spawned, False otherwise.
+        """
         if self.total_enemy_spawns >= self.max_enemy_spawns:
             logger.trace("Max enemy spawns reached, skipping spawn.")
-            return
+            return False
 
         # Get a random spawn point
         spawn_grid_x, spawn_grid_y = random.choice(self.SPAWN_POINTS)
@@ -116,6 +120,12 @@ class GameManager:
             if temp_rect.colliderect(map_rect):
                 collision = True
                 break
+
+        # Check against player tank
+        if not collision and self.player_tank:
+            if temp_rect.colliderect(self.player_tank.rect):
+                logger.debug(f"Spawn point ({x}, {y}) blocked by player tank.")
+                collision = True
 
         if not collision:
             for enemy in self.enemy_tanks:
@@ -136,8 +146,10 @@ class GameManager:
                     f"at ({x}, {y})"
                 )
             )
+            return True
         else:
             logger.warning(f"Spawn point ({x}, {y}) was blocked.")
+            return False
 
     def handle_events(self) -> None:
         """Handle pygame events."""
@@ -183,26 +195,21 @@ class GameManager:
                 enemy_bullets.append(enemy.bullet)
         # --- End Prepare data ---
 
-        # --- Update Game Objects ---
-        self.map.update(dt) # Update map/tile animations
-
-        # Update player tank
+        self.map.update(dt)
         self.player_tank.update(dt)
 
         # Iterate over a copy for safe removal
         for enemy in self.enemy_tanks[:]:
             enemy.update(dt)
-        # --- End Update Game Objects ---
 
-        # --- Enemy Spawning ---
         self.spawn_timer += dt
         if self.spawn_timer >= self.spawn_interval:
             logger.trace("Spawn timer triggered.")
-            self._spawn_enemy()
-            self.spawn_timer = 0
-        # --- End Enemy Spawning ---
+            # Reset timer only if spawn was successful
+            if self._spawn_enemy():
+                self.spawn_timer = 0
+            # else: Timer keeps ticking if spawn failed (e.g., blocked)
 
-        # --- Check Collisions ---
         self.collision_manager.check_collisions(
             player_tank=self.player_tank,
             player_bullets=player_bullets,
@@ -212,11 +219,17 @@ class GameManager:
             impassable_tiles=impassable_tiles,
             player_base=player_base,
         )
-        # --- End Check Collisions ---
 
-        # --- Process Collisions ---
         self._process_collisions()
-        # --- End Process Collisions ---
+
+        if self.state == GameState.RUNNING:
+            if (
+                not self.enemy_tanks
+                and self.total_enemy_spawns >= self.max_enemy_spawns
+            ):
+                logger.info("All enemies defeated. Victory!")
+                self.state = GameState.VICTORY
+
         logger.trace("Game update finished.")
 
     def _process_collisions(self) -> None:
@@ -275,12 +288,6 @@ class GameManager:
             if enemy in self.enemy_tanks:
                 self.enemy_tanks.remove(enemy)
 
-        # Check for win condition after potential enemy removals
-        if not self.enemy_tanks and self.total_enemy_spawns >= self.max_enemy_spawns:
-            logger.info("All enemies defeated. Victory!")
-            self.state = GameState.VICTORY  # Assuming VICTORY state exists
-        logger.trace("Finished processing collisions.")
-
     def _handle_bullet_collision(
         self, bullet: Bullet, other: Any, enemies_to_remove: List[EnemyTank]
     ) -> bool:
@@ -331,7 +338,6 @@ class GameManager:
                     self.state = GameState.GAME_OVER
                 else:
                     other.respawn()  # Player lost a life but has more
-                # processed_tanks.add(other)
 
         # --- Bullet vs Tile ---
         elif isinstance(other, Tile):
@@ -343,12 +349,10 @@ class GameManager:
                 processed = True
             elif other.type == TileType.STEEL:
                 logger.debug(f"Bullet hit steel tile at ({other.x}, {other.y})")
-                bullet.active = False  # Bullet stops at steel
+                bullet.active = False
                 processed = True
             elif other.type == TileType.BASE:
-                logger.critical(
-                    f"Bullet hit player base at ({other.x}, {other.y})! Game Over."
-                )
+                logger.debug(f"Bullet hit base tile at ({other.x}, {other.y})")
                 bullet.active = False
                 other.type = TileType.BASE_DESTROYED  # Change base appearance
                 self.state = GameState.GAME_OVER  # Game over
@@ -490,17 +494,19 @@ class GameManager:
             enemy.draw(self.game_surface)
 
         # Draw HUD onto the logical surface
-        self._draw_hud() # Make sure HUD uses self.game_surface if drawing directly
+        self._draw_hud()  # Make sure HUD uses self.game_surface if drawing directly
 
         # Draw game over/victory screen if needed onto logical surface
         # NOTE: These draw methods might need adjustment if they assume self.screen size
         if self.state == GameState.GAME_OVER:
-            self._draw_game_over() # Check this method
+            self._draw_game_over()
         elif self.state == GameState.VICTORY:
-            self._draw_victory()   # Check this method
+            self._draw_victory()
 
         # Scale the logical surface to the main screen
-        scaled_surface = pygame.transform.scale(self.game_surface, (self.screen_width, self.screen_height))
+        scaled_surface = pygame.transform.scale(
+            self.game_surface, (self.screen_width, self.screen_height)
+        )
         self.screen.blit(scaled_surface, (0, 0))
 
         # Update the display

@@ -37,11 +37,11 @@ class Map:
 
         # Initialize grid structure first if not already done
         if not self.tiles or not self.tiles[0]:
-             self.tiles = [[None for _ in range(self.width)] for _ in range(self.height)]
+            self.tiles = [[None for _ in range(self.width)] for _ in range(self.height)]
 
         for y in range(self.height):
             for x in range(self.width):
-                tile_type = TileType.EMPTY # Default to EMPTY
+                tile_type = TileType.EMPTY  # Default to EMPTY
 
                 # Determine type based on position (example logic from previous version)
                 is_border_top = y == 0
@@ -49,7 +49,12 @@ class Map:
                 is_border_left = x == 0
                 is_border_right = x == self.width - 1
 
-                if is_border_top or is_border_bottom or is_border_left or is_border_right:
+                if (
+                    is_border_top
+                    or is_border_bottom
+                    or is_border_left
+                    or is_border_right
+                ):
                     tile_type = TileType.STEEL
                 elif 5 <= x < 8 and 5 <= y < 8:
                     tile_type = TileType.WATER

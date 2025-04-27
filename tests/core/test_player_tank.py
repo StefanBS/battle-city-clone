@@ -178,9 +178,7 @@ def test_draw_no_sprite_not_invincible(mock_draw_rect, player_tank):
 
     player_tank.draw(mock_surface)
 
-    mock_draw_rect.assert_called_once_with(
-        mock_surface, (0, 255, 0), player_tank.rect
-    )
+    mock_draw_rect.assert_called_once_with(mock_surface, (0, 255, 0), player_tank.rect)
 
 
 def test_draw_with_sprite_not_invincible(player_tank):
@@ -219,9 +217,7 @@ def test_draw_invincible_visible_phase(mock_draw_rect, player_tank):
     mock_draw_rect.reset_mock()
     player_tank.sprite = None
     player_tank.draw(mock_surface)
-    mock_draw_rect.assert_called_once_with(
-        mock_surface, (0, 255, 0), player_tank.rect
-    )
+    mock_draw_rect.assert_called_once_with(mock_surface, (0, 255, 0), player_tank.rect)
     # Assert no call on mock_surface
     mock_surface.blit.assert_not_called()
 

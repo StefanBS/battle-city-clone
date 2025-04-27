@@ -7,7 +7,6 @@ from src.core.player_tank import PlayerTank
 from src.core.enemy_tank import EnemyTank
 from src.core.bullet import Bullet
 from src.core.tile import Tile, TileType
-from src.managers.texture_manager import TextureManager
 from src.utils.constants import (
     WINDOW_TITLE,
     FPS,
@@ -17,6 +16,7 @@ from src.utils.constants import (
     WINDOW_HEIGHT,
 )
 from src.managers.collision_manager import CollisionManager
+from loguru import logger
 
 
 class TestGameManager:
@@ -27,10 +27,11 @@ class TestGameManager:
         """Create a game manager instance for testing."""
         pygame.init()
         # Mock display, font, and TextureManager *before* GameManager is created
-        with patch("pygame.display.set_mode"), \
-             patch("pygame.font.SysFont"), \
-             patch("src.managers.game_manager.TextureManager") as MockTextureManager:
-
+        with (
+            patch("pygame.display.set_mode"),
+            patch("pygame.font.SysFont"),
+            patch("src.managers.game_manager.TextureManager") as MockTextureManager,
+        ):
             # Configure the mock TextureManager instance that GameManager will create
             mock_tm_instance = MockTextureManager.return_value
             mock_tm_instance.get_sprite.return_value = MagicMock(spec=pygame.Surface)
@@ -41,18 +42,24 @@ class TestGameManager:
 
     # Helper fixture to create mock sprites with essential attributes
     @pytest.fixture
-    def create_mock_sprite(self, game_manager): # Needs game_manager for tile_size and mock TM
-        def _create(x, y, width, height, spec, owner_type=None, tank_type=None, tile_type=None):
+    def create_mock_sprite(
+        self, game_manager
+    ):  # Needs game_manager for tile_size and mock TM
+        def _create(
+            x, y, width, height, spec, owner_type=None, tank_type=None, tile_type=None
+        ):
             mock_sprite = MagicMock(spec=spec)
             mock_sprite.rect = pygame.Rect(x, y, width, height)
-            mock_sprite.x = x # Store original x/y if needed
+            mock_sprite.x = x  # Store original x/y if needed
             mock_sprite.y = y
             mock_sprite.width = width
             mock_sprite.height = height
-            mock_sprite.active = True # Bullets need this
-            mock_sprite.is_invincible = False # Tanks need this
-            mock_sprite.owner_type = owner_type # Bullets and Tanks
-            mock_sprite.take_damage = MagicMock(return_value=False) # Default: survive damage
+            mock_sprite.active = True  # Bullets need this
+            mock_sprite.is_invincible = False  # Tanks need this
+            mock_sprite.owner_type = owner_type  # Bullets and Tanks
+            mock_sprite.take_damage = MagicMock(
+                return_value=False
+            )  # Default: survive damage
             mock_sprite.respawn = MagicMock()
 
             # --- Type/Spec specific setup ---
@@ -62,19 +69,24 @@ class TestGameManager:
                 mock_sprite.grid_x = x // game_manager.tile_size
                 mock_sprite.grid_y = y // game_manager.tile_size
             elif spec in [PlayerTank, EnemyTank]:
-                mock_sprite.owner_type = owner_type if owner_type else ("player" if spec == PlayerTank else "enemy")
-                mock_sprite.tank_type = tank_type # For EnemyTank
+                mock_sprite.owner_type = (
+                    owner_type
+                    if owner_type
+                    else ("player" if spec == PlayerTank else "enemy")
+                )
+                mock_sprite.tank_type = tank_type  # For EnemyTank
                 # Assign the mocked texture manager from GameManager
                 mock_sprite.texture_manager = game_manager.texture_manager
                 # Mock the sprite update method to prevent errors
                 mock_sprite._update_sprite = MagicMock()
-                # Call it once to potentially set an initial mock sprite if needed by draw logic
-                # mock_sprite._update_sprite()
-                mock_sprite.bullet = None # Ensure bullet starts as None
+                # Call it once to potentially set an initial mock sprite if
+                # needed by draw logic mock_sprite._update_sprite()
+                mock_sprite.bullet = None  # Ensure bullet starts as None
             elif spec == Bullet:
                 mock_sprite.owner_type = owner_type
 
             return mock_sprite
+
         return _create
 
     def test_initialization(self, game_manager):
@@ -217,17 +229,66 @@ class TestGameManager:
         assert game_manager.total_enemy_spawns == 1  # Spawn count shouldn't increase
 
     @patch("src.managers.game_manager.GameManager._spawn_enemy")
-    def test_update_calls_spawn_enemy(self, mock_spawn_enemy, game_manager):
-        """Test that update calls _spawn_enemy after the spawn interval."""
-        game_manager.spawn_timer = 0
-        # Simulate time passing just enough to trigger spawn
-        num_updates = int(game_manager.spawn_interval * game_manager.fps) + 1
+    def test_update_calls_spawn_enemy_on_interval(self, mock_spawn_enemy, game_manager):
+        """Test update calls _spawn_enemy when the timer reaches the interval."""
+        dt = 1.0 / game_manager.fps
 
-        for _ in range(num_updates):
-            game_manager.update()
+        # 1. Test just below interval -> NO call
+        logger.debug("Testing spawn timer just below interval...")
+        # Set timer more than 1 dt below interval to account for dt increment
+        game_manager.spawn_timer = game_manager.spawn_interval - (dt * 1.1)
+        mock_spawn_enemy.reset_mock()
+        game_manager.update()
+        mock_spawn_enemy.assert_not_called()
+        logger.debug("Verified: No spawn call below interval.")
+
+        # 2. Test exactly at interval -> CALL and reset timer on success
+        logger.debug("Testing spawn timer exactly at interval...")
+        game_manager.spawn_timer = game_manager.spawn_interval
+        mock_spawn_enemy.reset_mock()
+        mock_spawn_enemy.return_value = True  # Assume spawn succeeds
+        game_manager.update()
+        mock_spawn_enemy.assert_called_once()
+        assert game_manager.spawn_timer == pytest.approx(0), (
+            "Timer not reset after spawn"
+        )
+        logger.debug("Verified: Spawn called at interval, timer reset.")
+
+        # 3. Test significantly above interval -> CALL and reset timer on success
+        logger.debug("Testing spawn timer significantly above interval...")
+        game_manager.spawn_timer = game_manager.spawn_interval + 10.0  # Well above
+        mock_spawn_enemy.reset_mock()
+        mock_spawn_enemy.return_value = True  # Assume spawn succeeds
+        game_manager.update()
+        mock_spawn_enemy.assert_called_once()
+        assert game_manager.spawn_timer == pytest.approx(0), (
+            "Timer not reset when starting above interval"
+        )
+        logger.debug("Verified: Spawn called above interval, timer reset.")
+
+    @patch("src.managers.game_manager.GameManager._spawn_enemy")
+    def test_update_spawn_timer_not_reset_on_failed_spawn(
+        self, mock_spawn_enemy, game_manager
+    ):
+        """Test update does not reset spawn timer if _spawn_enemy returns False."""
+        logger.debug("Testing spawn timer behavior on failed spawn...")
+        initial_timer_value = game_manager.spawn_interval
+        game_manager.spawn_timer = initial_timer_value
+        mock_spawn_enemy.reset_mock()
+        mock_spawn_enemy.return_value = False  # Simulate failed spawn
+
+        game_manager.update()
 
         mock_spawn_enemy.assert_called_once()
-        assert game_manager.spawn_timer == pytest.approx(0)  # Timer should reset
+        # Timer should NOT have been reset because spawn failed
+        # It should have incremented by dt during the update
+        dt = 1.0 / game_manager.fps
+        expected_timer_value = initial_timer_value + dt
+        assert game_manager.spawn_timer == pytest.approx(expected_timer_value), (
+            f"Timer incorrect after failed spawn. "
+            f"Expected ~{expected_timer_value:.4f}, Got {game_manager.spawn_timer:.4f}"
+        )
+        logger.debug("Verified: Timer not reset after failed spawn.")
 
     def test_update_does_not_call_spawn_before_interval(self, game_manager):
         """Test that update doesn't call _spawn_enemy before the interval."""
@@ -248,7 +309,13 @@ class TestGameManager:
                 100, 100, TILE_SIZE, TILE_SIZE, spec=PlayerTank, owner_type="player"
             ),
             "enemy": create_mock_sprite(
-                200, 200, TILE_SIZE, TILE_SIZE, spec=EnemyTank, owner_type="enemy", tank_type="basic"
+                200,
+                200,
+                TILE_SIZE,
+                TILE_SIZE,
+                spec=EnemyTank,
+                owner_type="enemy",
+                tank_type="basic",
             ),
             "player_bullet": create_mock_sprite(
                 110, 110, 5, 5, spec=Bullet, owner_type="player"
@@ -277,14 +344,21 @@ class TestGameManager:
         # Default mocks for map methods used in update but not in collision processing
         game_manager.map = MagicMock()
         # Setup map mocks used by CollisionManager and _process_collisions
-        mock_all_tiles = list(mocks.values()) # Simplistic; adjust if non-tile mocks exist
-        game_manager.map.get_all_tiles.return_value = [t for t in mock_all_tiles if isinstance(t, MagicMock) and hasattr(t, 'type')]
-        game_manager.map.get_collidable_tiles.return_value = [ # Return tiles that block movement/bullets
-            t for t in game_manager.map.get_all_tiles.return_value
-            if t.type in [TileType.BRICK, TileType.STEEL, TileType.WATER, TileType.BASE]
+        mock_all_tiles = list(
+            mocks.values()
+        )  # Simplistic; adjust if non-tile mocks exist
+        game_manager.map.get_all_tiles.return_value = [
+            t for t in mock_all_tiles if isinstance(t, MagicMock) and hasattr(t, "type")
+        ]
+        game_manager.map.get_collidable_tiles.return_value = [
+            t
+            for t in game_manager.map.get_all_tiles.return_value
+            if t.type in (TileType.STEEL, TileType.WATER, TileType.BRICK, TileType.BASE)
         ]
         game_manager.map.get_base.return_value = mocks["base_tile"]
-        game_manager.map.update_tile = MagicMock() # Mock method used when tiles are destroyed
+        game_manager.map.update_tile = (
+            MagicMock()
+        )  # Mock method used when tiles are destroyed
 
         return game_manager, mocks
 
@@ -321,7 +395,7 @@ class TestGameManager:
             (player_bullet, enemy)
         ]
 
-        game_manager._process_collisions()
+        game_manager.update()
 
         enemy.take_damage.assert_called_once()
         assert not player_bullet.active
@@ -499,7 +573,13 @@ class TestGameManager:
         )
         enemy1 = mocks["enemy"]
         enemy2 = create_mock_sprite(
-            300, 100, TILE_SIZE, TILE_SIZE, spec=EnemyTank, owner_type="enemy", tank_type="basic"
+            300,
+            100,
+            TILE_SIZE,
+            TILE_SIZE,
+            spec=EnemyTank,
+            owner_type="enemy",
+            tank_type="basic",
         )
         game_manager.enemy_tanks.append(enemy2)
 
@@ -507,10 +587,12 @@ class TestGameManager:
         enemy2.take_damage.return_value = False
         game_manager.total_enemy_spawns = game_manager.max_enemy_spawns
 
-        game_manager.collision_manager.get_collision_events = MagicMock(return_value=[
-            (player_bullet1, enemy1),
-            (player_bullet2, enemy2),
-        ])
+        game_manager.collision_manager.get_collision_events = MagicMock(
+            return_value=[
+                (player_bullet1, enemy1),
+                (player_bullet2, enemy2),
+            ]
+        )
 
         game_manager._process_collisions()
 

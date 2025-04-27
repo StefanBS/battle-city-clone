@@ -14,7 +14,9 @@ class TextureManager:
             texture_path: Path to the main texture atlas file.
         """
         try:
-            self.texture_atlas: pygame.Surface = pygame.image.load(texture_path).convert_alpha()
+            self.texture_atlas: pygame.Surface = pygame.image.load(
+                texture_path
+            ).convert_alpha()
         except pygame.error as e:
             logger.error(f"Error loading texture atlas: {e}")
             # Handle error appropriately, maybe raise an exception or exit
@@ -49,14 +51,14 @@ class TextureManager:
         # --- Add Tile Coordinates Here ---
         # Coordinates based on 16x16 grid
         tile_coords = {
-            "brick": (58, 0),            # Placeholder
-            "steel": (58, 2),            # Placeholder
-            "bush": (58, 4),             # Placeholder
-            "ice": (58, 6),              # Placeholder
+            "brick": (58, 0),  # Placeholder
+            "steel": (58, 2),  # Placeholder
+            "bush": (58, 4),  # Placeholder
+            "ice": (58, 6),  # Placeholder
             "base": (59, 0),
             "base_destroyed": (59, 2),
-            "water_1": (58, 10), # Water frame 1
-            "water_2": (58, 11), # Water frame 2
+            "water_1": (58, 10),  # Water frame 1
+            "water_2": (58, 11),  # Water frame 2
         }
 
         sprite_coords.update(tile_coords)
@@ -68,19 +70,21 @@ class TextureManager:
 
             # Determine the source dimensions based on sprite name
             if "tank" in name or name in ["base", "base_destroyed"]:
-                src_width = SOURCE_TILE_SIZE * 2 # 32 pixels
-                src_height = SOURCE_TILE_SIZE * 2 # 32 pixels
-            elif name in []: # This condition is now empty
-                src_width = SOURCE_TILE_SIZE # 16 pixels
-                src_height = SOURCE_TILE_SIZE * 2 # 32 pixels
+                src_width = SOURCE_TILE_SIZE * 2  # 32 pixels
+                src_height = SOURCE_TILE_SIZE * 2  # 32 pixels
+            elif name in []:  # This condition is now empty
+                src_width = SOURCE_TILE_SIZE  # 16 pixels
+                src_height = SOURCE_TILE_SIZE * 2  # 32 pixels
             elif name in ["steel", "bush", "ice", "brick", "water_1", "water_2"]:
-                src_width = SOURCE_TILE_SIZE # 16 pixels
-                src_height = SOURCE_TILE_SIZE # 16 pixels
+                src_width = SOURCE_TILE_SIZE  # 16 pixels
+                src_height = SOURCE_TILE_SIZE  # 16 pixels
             else:
                 # Default assumption for any other unforeseen sprites
                 src_width = SOURCE_TILE_SIZE
                 src_height = SOURCE_TILE_SIZE
-                logger.warning(f"Assuming 16x16 source size for unrecognized sprite '{name}'")
+                logger.warning(
+                    f"Assuming 16x16 source size for unrecognized sprite '{name}'"
+                )
 
             rect = pygame.Rect(src_x, src_y, src_width, src_height)
 
@@ -92,9 +96,12 @@ class TextureManager:
                 )
                 self.sprites[name] = scaled_sprite
             except ValueError as e:
-                logger.error(f"Error loading sprite '{name}' with rect {rect}: {e}. Check coordinates and atlas dimensions.")
-                # Optionally add a fallback/placeholder sprite here
-                # self.sprites[name] = self.create_fallback_sprite()
+                logger.error(
+                    f"Error loading sprite '{name}' with rect {rect}: {e}. "
+                    f"Check coordinates and atlas dimensions."
+                )
+
+                return None
 
     def get_sprite(self, name: str) -> pygame.Surface:
         """

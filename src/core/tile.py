@@ -43,16 +43,23 @@ class Tile:
             self.is_animated = True
             self.animation_frames = ["water_1", "water_2"]
 
-    def update(self, dt: float) -> None:
+    def update(self, dt: float) -> bool:
         """Update tile animation state."""
         if not self.is_animated:
-            return
+            return False
 
         self.animation_timer += dt
         if self.animation_timer >= self.animation_interval:
             self.animation_timer -= self.animation_interval
-            self.current_frame_index = (self.current_frame_index + 1) % len(self.animation_frames)
-            logger.trace(f"Tile ({self.x},{self.y}) animation frame updated to index {self.current_frame_index}")
+            self.current_frame_index = (self.current_frame_index + 1) % len(
+                self.animation_frames
+            )
+            logger.trace(
+                f"Tile ({self.x},{self.y}) animation frame updated to index "
+                f"{self.current_frame_index}"
+            )
+            return True
+        return False
 
     def draw(self, surface: pygame.Surface, texture_manager: TextureManager) -> None:
         """Draw the tile on the given surface using textures if available."""
