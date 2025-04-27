@@ -1,8 +1,9 @@
 from enum import Enum, auto
+from typing import List, Optional
 import pygame
 from loguru import logger
 from src.managers.texture_manager import TextureManager
-from src.utils.constants import TILE_SIZE
+from src.utils.constants import TILE_SIZE, TILE_ANIMATION_INTERVAL
 
 
 class TileType(Enum):
@@ -15,7 +16,7 @@ class TileType(Enum):
     BUSH = auto()  # Tile that can be driven over but hides tanks
     ICE = auto()
     BASE = auto()
-    BASE_DESTROYED = auto()  # Added destroyed state
+    BASE_DESTROYED = auto()
 
 
 class Tile:
@@ -31,28 +32,49 @@ class Tile:
         self.size = size
         self.rect = pygame.Rect(x * size, y * size, size, size)
 
-        # Define colors for different tile types
-        self.colors = {
-            TileType.EMPTY: (0, 0, 0),  # Black
-            TileType.BRICK: (139, 69, 19),  # Brown
-            TileType.STEEL: (128, 128, 128),  # Gray
-            TileType.WATER: (0, 0, 255),  # Blue
-            TileType.BUSH: (0, 100, 0),  # Dark Green
-            TileType.ICE: (200, 200, 255),  # Light Blue
-            TileType.BASE: (255, 215, 0),  # Gold
-            TileType.BASE_DESTROYED: (139, 69, 19),  # Brown
-        }
+        # Animation attributes
+        self.is_animated: bool = False
+        self.animation_frames: List[str] = []
+        self.current_frame_index: int = 0
+        self.animation_timer: float = 0.0
+        self.animation_interval: float = TILE_ANIMATION_INTERVAL
+
+        if self.type == TileType.WATER:
+            self.is_animated = True
+            self.animation_frames = ["water_1", "water_2"]
+
+    def update(self, dt: float) -> None:
+        """Update tile animation state."""
+        if not self.is_animated:
+            return
+
+        self.animation_timer += dt
+        if self.animation_timer >= self.animation_interval:
+            self.animation_timer -= self.animation_interval
+            self.current_frame_index = (self.current_frame_index + 1) % len(self.animation_frames)
+            logger.trace(f"Tile ({self.x},{self.y}) animation frame updated to index {self.current_frame_index}")
 
     def draw(self, surface: pygame.Surface, texture_manager: TextureManager) -> None:
-        """Draw the tile on the given surface."""
-        if self.type == TileType.WATER:
-            try:
-                water_sprite = texture_manager.get_sprite("water")
-                surface.blit(water_sprite, self.rect.topleft)
-            except KeyError:
-                logger.error("Water sprite not found in TextureManager. Drawing fallback color.")
-                # Fallback to drawing a color if sprite is missing
-                pygame.draw.rect(surface, (0, 0, 255), self.rect) # Blue fallback
+        """Draw the tile on the given surface using textures if available."""
+        sprite_name: Optional[str] = None
+
+        if self.is_animated:
+            if self.animation_frames:
+                sprite_name = self.animation_frames[self.current_frame_index]
         else:
-            color = self.colors.get(self.type, (0, 0, 0))
-            pygame.draw.rect(surface, color, self.rect)
+            # Static sprite mapping (excluding animated types)
+            sprite_name_map = {
+                TileType.EMPTY: None,
+                TileType.BRICK: "brick",
+                TileType.STEEL: "steel",
+                TileType.BUSH: "bush",
+                TileType.ICE: "ice",
+                TileType.BASE: "base",
+                TileType.BASE_DESTROYED: "base_destroyed",
+            }
+            sprite_name = sprite_name_map.get(self.type)
+
+        if sprite_name:
+            # No fallback color drawing - if sprite is missing, let KeyError propagate
+            sprite = texture_manager.get_sprite(sprite_name)
+            surface.blit(sprite, self.rect.topleft)

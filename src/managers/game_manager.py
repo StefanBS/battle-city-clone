@@ -50,6 +50,13 @@ class GameManager:
         self.screen: pygame.Surface = pygame.display.set_mode(
             (self.screen_width, self.screen_height)
         )
+        # --- Create logical game surface ---
+        self.logical_width: int = GRID_WIDTH * self.tile_size
+        self.logical_height: int = GRID_HEIGHT * self.tile_size
+        self.game_surface: pygame.Surface = pygame.Surface(
+            (self.logical_width, self.logical_height)
+        )
+        # --- End Create logical game surface ---
         pygame.display.set_caption(WINDOW_TITLE)
 
         # --- Initialize Managers AFTER display mode is set ---
@@ -177,6 +184,7 @@ class GameManager:
         # --- End Prepare data ---
 
         # --- Update Game Objects ---
+        self.map.update(dt) # Update map/tile animations
 
         # Update player tank
         self.player_tank.update(dt)
@@ -401,56 +409,60 @@ class GameManager:
     def _draw_game_over(self) -> None:
         """Draw the game over screen."""
         logger.debug("Drawing Game Over screen.")
+        # Create overlay on the logical surface
         overlay = pygame.Surface(
-            (self.screen_width, self.screen_height), pygame.SRCALPHA
+            (self.logical_width, self.logical_height), pygame.SRCALPHA
         )
         overlay.fill((0, 0, 0, 128))  # Black with 50% opacity
-        self.screen.blit(overlay, (0, 0))
+        self.game_surface.blit(overlay, (0, 0))
 
-        # Draw game over text
+        # Draw game over text centered on logical surface
         text = self.font.render("GAME OVER", True, (255, 0, 0))
         text_rect = text.get_rect(
-            center=(self.screen_width // 2, self.screen_height // 2)
+            center=(self.logical_width // 2, self.logical_height // 2)
         )
-        self.screen.blit(text, text_rect)
+        self.game_surface.blit(text, text_rect)
 
-        # Draw restart text
+        # Draw restart text centered on logical surface
         restart_text = self.font.render("Press R to Restart", True, WHITE)
         restart_rect = restart_text.get_rect(
-            center=(self.screen_width // 2, self.screen_height // 2 + 50)
+            center=(self.logical_width // 2, self.logical_height // 2 + 50)
         )
-        self.screen.blit(restart_text, restart_rect)
+        self.game_surface.blit(restart_text, restart_rect)
 
     def _draw_victory(self) -> None:  # Added method
         """Draw the victory screen."""
         logger.debug("Drawing Victory screen.")
+        # Create overlay on the logical surface
         overlay = pygame.Surface(
-            (self.screen_width, self.screen_height), pygame.SRCALPHA
+            (self.logical_width, self.logical_height), pygame.SRCALPHA
         )
         overlay.fill((0, 0, 0, 128))
-        self.screen.blit(overlay, (0, 0))
+        self.game_surface.blit(overlay, (0, 0))
 
+        # Draw victory text centered on logical surface
         text = self.font.render("VICTORY!", True, (0, 255, 0))
         text_rect = text.get_rect(
-            center=(self.screen_width // 2, self.screen_height // 2)
+            center=(self.logical_width // 2, self.logical_height // 2)
         )
-        self.screen.blit(text, text_rect)
+        self.game_surface.blit(text, text_rect)
 
+        # Draw restart text centered on logical surface
         restart_text = self.font.render("Press R to Play Again", True, WHITE)
         restart_rect = restart_text.get_rect(
-            center=(self.screen_width // 2, self.screen_height // 2 + 50)
+            center=(self.logical_width // 2, self.logical_height // 2 + 50)
         )
-        self.screen.blit(restart_text, restart_rect)
+        self.game_surface.blit(restart_text, restart_rect)
 
     def _draw_hud(self) -> None:
         """Draw the heads-up display."""
-        # Draw lives
+        # Draw lives onto the logical surface
         lives_text = self.small_font.render(
             f"Lives: {self.player_tank.lives}", True, WHITE
         )
-        self.screen.blit(lives_text, (10, 10))
+        self.game_surface.blit(lives_text, (10, 10))
 
-        # Draw invincibility timer if active
+        # Draw invincibility timer if active onto the logical surface
         if self.player_tank.is_invincible:
             remaining_time = max(
                 0,
@@ -460,32 +472,38 @@ class GameManager:
             invincible_text = self.small_font.render(
                 f"Invincible: {remaining_time:.1f}s", True, YELLOW
             )
-            self.screen.blit(invincible_text, (10, 40))
+            self.game_surface.blit(invincible_text, (10, 40))
 
     def render(self) -> None:
         """Render the game state."""
-        # Clear the screen
-        self.screen.fill(self.background_color)
+        # Clear the logical game surface
+        self.game_surface.fill(self.background_color)
 
-        # Draw the map
-        self.map.draw(self.screen)
+        # Draw the map onto the logical surface
+        self.map.draw(self.game_surface)
 
-        # Draw the player tank
-        self.player_tank.draw(self.screen)
+        # Draw the player tank onto the logical surface
+        self.player_tank.draw(self.game_surface)
 
-        # Draw enemy tanks
+        # Draw enemy tanks onto the logical surface
         for enemy in self.enemy_tanks:
-            enemy.draw(self.screen)
+            enemy.draw(self.game_surface)
 
-        # Draw HUD
-        self._draw_hud()
+        # Draw HUD onto the logical surface
+        self._draw_hud() # Make sure HUD uses self.game_surface if drawing directly
 
-        # Draw game over screen if needed
+        # Draw game over/victory screen if needed onto logical surface
+        # NOTE: These draw methods might need adjustment if they assume self.screen size
         if self.state == GameState.GAME_OVER:
-            self._draw_game_over()
-        elif self.state == GameState.VICTORY:  # Added victory check
-            self._draw_victory()
+            self._draw_game_over() # Check this method
+        elif self.state == GameState.VICTORY:
+            self._draw_victory()   # Check this method
 
+        # Scale the logical surface to the main screen
+        scaled_surface = pygame.transform.scale(self.game_surface, (self.screen_width, self.screen_height))
+        self.screen.blit(scaled_surface, (0, 0))
+
+        # Update the display
         pygame.display.flip()
 
     def run(self) -> None:
