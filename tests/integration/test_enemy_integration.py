@@ -1,10 +1,13 @@
 import pytest
 from loguru import logger
+from unittest.mock import patch
 from src.utils.constants import FPS, TILE_SIZE
 from src.core.tile import Tile, TileType
 from src.core.enemy_tank import EnemyTank
+import random
 
 # Tests related to enemy behavior: spawning, movement, shooting
+
 
 def test_enemy_spawning_rules(game_manager_fixture):
     """Test enemy spawning location, count, and limits."""
@@ -91,9 +94,7 @@ def test_enemy_spawning_rules(game_manager_fixture):
             )
 
     # Assert final counts after the while loop finishes
-    assert len(game_manager.enemy_tanks) <= max_spawns, (
-        "Exceeded max on-screen enemies"
-    )
+    assert len(game_manager.enemy_tanks) <= max_spawns, "Exceeded max on-screen enemies"
     assert game_manager.total_enemy_spawns == max_spawns, (
         f"Expected total spawns {max_spawns} after filling limit, but got "
         f"{game_manager.total_enemy_spawns}"
@@ -106,14 +107,15 @@ def test_enemy_spawning_rules(game_manager_fixture):
     # Assert counts did NOT change and spawn failed
     assert not spawn_success, "Spawn succeeded unexpectedly beyond max limit."
     assert len(game_manager.enemy_tanks) <= max_spawns, (
-        f"Enemy count changed when spawning beyond limit. Expected <= {max_spawns}, got "
-        f"{len(game_manager.enemy_tanks)}"
+        f"Enemy count changed when spawning beyond limit. Expected <= {max_spawns}, "
+        f"got {len(game_manager.enemy_tanks)}"
     )
     assert game_manager.total_enemy_spawns == max_spawns, (
-        f"Total spawn count changed when spawning beyond limit. Expected {max_spawns}, "
-        f"got {game_manager.total_enemy_spawns}"
+        f"Total spawn count changed when spawning beyond limit. "
+        f"Expected {max_spawns}, got {game_manager.total_enemy_spawns}"
     )
     logger.info("Maximum spawn limit verified.")
+
 
 def test_enemy_spawn_blocked(game_manager_fixture):
     """Test that enemies do not spawn on a blocked spawn point."""
@@ -201,7 +203,16 @@ def test_enemy_spawn_blocked(game_manager_fixture):
     )
     logger.info("Blocked spawn point test completed.")
 
-def test_enemy_movement_and_direction_change(game_manager_fixture):
+
+# Keep the original random.choice before patching
+original_random_choice = random.choice
+
+
+@patch("src.core.enemy_tank.random.choice")
+@patch("src.core.enemy_tank.random.uniform", return_value=0.0)
+def test_enemy_movement_and_direction_change(
+    mock_uniform, mock_choice, game_manager_fixture
+):
     """Test that enemies move and change direction over time."""
     game_manager = game_manager_fixture
 
@@ -213,59 +224,87 @@ def test_enemy_movement_and_direction_change(game_manager_fixture):
     start_x = start_x_grid * TILE_SIZE
     start_y = start_y_grid * TILE_SIZE
 
+    # Use the original random.choice via side_effect for the __init__ call
+    mock_choice.side_effect = lambda x: original_random_choice(x)
     enemy_tank = EnemyTank(
         start_x, start_y, TILE_SIZE, game_manager.texture_manager, enemy_type
     )
+    initial_direction = enemy_tank.direction  # Capture initial direction
+
+    # Set the mock_choice to return a different direction for the _change_direction call
+    possible_directions = ["up", "down", "left", "right"]
+    forced_new_direction = next(
+        d for d in possible_directions if d != initial_direction
+    )
+    mock_choice.side_effect = None  # Clear the side_effect
+    mock_choice.return_value = forced_new_direction
+    logger.debug(
+        f"Initial direction: {initial_direction}, "
+        f"Mock forced direction: {forced_new_direction}"
+    )
+
     game_manager.enemy_tanks.append(enemy_tank)
-    game_manager.total_enemy_spawns = 1  # Reflect the added enemy
+    game_manager.total_enemy_spawns = 1
     logger.debug(
         f"Spawned single enemy at ({start_x_grid}, {start_y_grid}) for movement test."
     )
     # --- End Spawn --- #
 
     initial_pos = enemy_tank.get_position()
-    initial_direction = enemy_tank.direction
-    observed_directions = {initial_direction}  # Store initial direction
+    observed_directions = {initial_direction}
 
     # --- Simulate Game Time --- #
-    # Duration should be longer than typical direction_change_interval (2.5s for basic)
-    # plus the random reset offset (up to 0.5s). Simulate for longer to be safe.
     dt = 1.0 / FPS
     direction_change_interval = enemy_tank.direction_change_interval
-    simulation_duration = direction_change_interval + 1.0  # Add ample buffer
+    simulation_duration = direction_change_interval + 0.1
     num_updates = int(simulation_duration / dt)
     logger.info(
         f"Simulating {simulation_duration:.1f}s ({num_updates} updates), "
-        f"expecting direction change after ~{direction_change_interval:.1f}s..."
+        f"expecting direction change to {forced_new_direction} after "
+        f"{direction_change_interval:.1f}s (mocked)..."
     )
 
     direction_changed = False
-    for _ in range(num_updates):
+    actual_new_direction = None
+    for i in range(num_updates):
         game_manager.update()
-        observed_directions.add(enemy_tank.direction)  # Record direction each frame
-        if len(observed_directions) > 1:
+        current_direction = enemy_tank.direction
+        observed_directions.add(current_direction)
+        if current_direction != initial_direction and not direction_changed:
+            logger.info(
+                f"Direction changed from {initial_direction} to {current_direction} "
+                f"after {i + 1} updates."
+            )
             direction_changed = True
-            logger.info(f"Direction changed after {_ + 1} updates.")
-            break  # Stop simulation once direction change is observed
+            actual_new_direction = current_direction
+            break
 
     # --- Assertions --- #
     final_pos = enemy_tank.get_position()
 
-    # 1. Verify movement occurred (position changed)
+    # 1. Verify movement occurred
     assert final_pos != initial_pos, (
         f"Enemy tank did not move. Start: {initial_pos}, End: {final_pos}"
     )
 
-    # 2. Verify direction changed at least once during the simulation
+    # 2. Verify direction changed
     assert direction_changed, (
         f"Enemy direction did not change. Initial: {initial_direction}, "
         f"Observed: {observed_directions}"
     )
 
+    # 3. Verify the direction changed to the one forced by the mock
+    assert actual_new_direction == forced_new_direction, (
+        f"Enemy changed direction, but not to the mocked value. "
+        f"Expected: {forced_new_direction}, Got: {actual_new_direction}"
+    )
+
     logger.info(
         f"Enemy moved from {initial_pos} to {final_pos}. "
+        f"Direction changed to {actual_new_direction} as expected. "
         f"Observed directions: {observed_directions}"
     )
+
 
 @pytest.mark.parametrize(
     "blocking_tile_type",
@@ -380,6 +419,7 @@ def test_enemy_movement_blocked_by_tile(
         f"and remained at {final_pos}. Final dir: {enemy_tank.direction}"
     )
 
+
 def test_enemy_shooting(game_manager_fixture):
     """Test that enemies shoot periodically and their bullets travel correctly."""
     game_manager = game_manager_fixture
@@ -481,4 +521,4 @@ def test_enemy_shooting(game_manager_fixture):
     assert bullet_fired, (
         f"Enemy did not fire a bullet within {simulation_duration}s "
         f"({num_updates} updates)"
-    ) 
+    )

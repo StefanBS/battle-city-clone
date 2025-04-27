@@ -10,6 +10,7 @@ from src.core.enemy_tank import EnemyTank
 
 # Tests related to game state transitions and initial state verification
 
+
 def test_initial_game_state(game_manager_fixture):
     """Test the initial state of the GameManager after initialization."""
     game_manager = game_manager_fixture
@@ -59,6 +60,7 @@ def test_initial_game_state(game_manager_fixture):
 
     logger.info("Initial game state verified.")
 
+
 def test_player_game_over_on_zero_lives():
     """Test game state changes to GAME_OVER when player takes fatal damage."""
     # Use a fresh instance as we are mocking methods
@@ -105,6 +107,7 @@ def test_player_game_over_on_zero_lives():
         "Game state did not change to GAME_OVER after player's final death was "
         "processed."
     )
+
 
 def test_player_bullet_hits_base(game_manager_fixture):
     """Test that a player bullet hitting the base destroys it and causes game over."""
@@ -188,6 +191,7 @@ def test_player_bullet_hits_base(game_manager_fixture):
     assert game_manager.state == GameState.GAME_OVER, (
         f"Game state did not change to GAME_OVER. Is: {game_manager.state.name}"
     )
+
 
 def test_enemy_bullet_destroys_base_game_over(game_manager_fixture):
     """Test enemy bullet hitting the base destroys it and causes game over."""
@@ -282,6 +286,7 @@ def test_enemy_bullet_destroys_base_game_over(game_manager_fixture):
         f"Game state did not change to GAME_OVER. Is: {game_manager.state.name}"
     )
 
+
 def test_victory_condition(game_manager_fixture):
     """Test that game state changes to VICTORY when all enemies are gone
     and the total spawn count has reached the maximum."""
@@ -312,4 +317,4 @@ def test_victory_condition(game_manager_fixture):
         f"Game state did not change to VICTORY. Is: {game_manager.state.name}"
     )
 
-    logger.info("Victory condition verified.") 
+    logger.info("Victory condition verified.")

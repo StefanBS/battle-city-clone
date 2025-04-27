@@ -7,6 +7,7 @@ from src.core.tile import Tile, TileType
 
 # Tests related to player actions: movement, shooting, respawn
 
+
 @pytest.mark.parametrize(
     "key, axis, direction_sign, expected_direction",
     [
@@ -60,6 +61,7 @@ def test_player_movement(key, axis, direction_sign, expected_direction):
 
     # Assert the tank's direction is correct
     assert player_tank.direction == expected_direction
+
 
 @pytest.mark.parametrize(
     "blocking_tile_type",
@@ -154,6 +156,7 @@ def test_player_movement_blocked_by_tile(
         f"Expected {move_direction}, got {player_tank.direction}"
     )
 
+
 def test_player_shooting():
     """Test player shooting mechanics."""
     # Use fresh instance
@@ -196,6 +199,7 @@ def test_player_shooting():
         "is active."
     )
     assert player_tank.bullet.active, "Original bullet should still be active."
+
 
 @pytest.mark.parametrize(
     "direction_str, axis_index, direction_sign",
@@ -253,6 +257,7 @@ def test_player_bullet_movement(direction_str, axis_index, direction_sign):
         f"Bullet moved unexpectedly along axis {other_axis_index}. "
         f"Start: {initial_pos[other_axis_index]}, End: {final_pos[other_axis_index]}"
     )
+
 
 def test_player_respawn():
     """Test player respawn mechanics after taking lethal damage with lives remaining."""
@@ -328,4 +333,4 @@ def test_player_respawn():
             )
             break
 
-    assert not player_tank.is_invincible, "Player invincibility did not wear off." 
+    assert not player_tank.is_invincible, "Player invincibility did not wear off."

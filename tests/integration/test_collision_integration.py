@@ -7,6 +7,7 @@ from src.core.enemy_tank import EnemyTank
 
 # Tests related to collision interactions between different game objects
 
+
 @pytest.mark.parametrize(
     "tile_to_place, expected_bullet_active, expected_tile_type",
     [
@@ -86,6 +87,7 @@ def test_player_bullet_vs_tile(
         f"Expected: {expected_tile_type.name}, Got: {final_tile.type.name}"
     )
 
+
 def test_player_bullet_destroys_enemy_tank(game_manager_fixture):
     """Test player bullet hitting and destroying a basic enemy tank."""
     game_manager = game_manager_fixture
@@ -150,6 +152,7 @@ def test_player_bullet_destroys_enemy_tank(game_manager_fixture):
     assert len(game_manager.enemy_tanks) == initial_enemy_count - 1, (
         "Enemy count did not decrease by one."
     )
+
 
 @pytest.mark.parametrize(
     "player_initial_lives, player_is_invincible, expected_game_state, "
@@ -296,6 +299,7 @@ def test_enemy_bullet_hits_player_tank(
             "Player lost invincibility after being hit while invincible."
         )
 
+
 def test_enemy_bullet_hits_other_enemy(game_manager_fixture):
     """Test that an enemy bullet has no effect on another enemy tank."""
     game_manager = game_manager_fixture
@@ -371,6 +375,7 @@ def test_enemy_bullet_hits_other_enemy(game_manager_fixture):
         f"Got: {len(game_manager.enemy_tanks)}"
     )
 
+
 def test_enemy_bullets_collide(game_manager_fixture):
     """Test that two enemy bullets pass through each other."""
     game_manager = game_manager_fixture
@@ -435,15 +440,19 @@ def test_enemy_bullets_collide(game_manager_fixture):
         game_manager.update()
         # Check if bullets became inactive unexpectedly
         if not bullet1.active and initial_bullet1_active:
-            logger.warning(f"Bullet 1 became inactive unexpectedly on update {i+1}")
+            logger.warning(f"Bullet 1 became inactive unexpectedly on update {i + 1}")
             # Allow simulation to continue to check bullet 2
         if not bullet2.active and initial_bullet2_active:
-            logger.warning(f"Bullet 2 became inactive unexpectedly on update {i+1}")
+            logger.warning(f"Bullet 2 became inactive unexpectedly on update {i + 1}")
             # Allow simulation to continue to check bullet 1
 
     # --- Assertions --- #
     # Bullets should still be active after passing each other's paths
-    assert bullet1.active, "Enemy1 bullet should still be active after passing enemy2 bullet."
-    assert bullet2.active, "Enemy2 bullet should still be active after passing enemy1 bullet."
+    assert bullet1.active, (
+        "Enemy1 bullet should still be active after passing enemy2 bullet."
+    )
+    assert bullet2.active, (
+        "Enemy2 bullet should still be active after passing enemy1 bullet."
+    )
 
-    logger.info("Enemy bullets correctly remained active after passing each other.") 
+    logger.info("Enemy bullets correctly remained active after passing each other.")
