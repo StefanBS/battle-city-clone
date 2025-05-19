@@ -120,10 +120,20 @@ def test_player_movement_blocked_by_tile(
             f"bounds for target ({target_x_grid}, {target_y_grid}). Skipping."
         )
 
+    # Clear the starting tile for the player to ensure no self-collision issue
+    game_map.tiles[start_grid_y][start_grid_x] = Tile(
+        TileType.EMPTY, start_grid_x, start_grid_y, TILE_SIZE
+    )
+    logger.debug(
+        f"Set player starting tile ({start_grid_x}, {start_grid_y}) to EMPTY."
+    )
+
     # Place player
     player_tank.set_position(start_x, start_y)
     player_tank.target_position = (start_x, start_y)
     player_tank.prev_x, player_tank.prev_y = start_x, start_y
+    # Capture the initial rect based on rounded initial float positions
+    initial_player_rect = pygame.Rect(round(start_x), round(start_y), player_tank.width, player_tank.height)
 
     initial_pos = player_tank.get_position()
     dt = 1.0 / FPS
@@ -138,17 +148,55 @@ def test_player_movement_blocked_by_tile(
     for _ in range(num_updates):
         game_manager.update()
 
-    # Simulate key release (optional, but good practice)
+    # Simulate key release
     key_up_event = pygame.event.Event(pygame.KEYUP, key=key)
     game_manager.player_tank.handle_event(key_up_event)
 
-    final_pos = player_tank.get_position()
+    final_player_rect = player_tank.rect
+    colliding_tile_rect = game_map.tiles[target_y_grid][target_x_grid].rect
 
-    # Assert position has NOT changed
-    assert final_pos == initial_pos, (
-        f"Tank moved into {blocking_tile_type.name} when moving {move_direction}. "
-        f"Start: {initial_pos}, End: {final_pos}"
+    # Assert position has changed from initial (due to snapping) but is now flush
+    # The core idea is that the tank should be touching the obstacle.
+    # The exact final float (x,y) might vary slightly due to float arithmetic,
+    # but the rounded rect should be perfectly aligned.
+
+    expected_message_base = (
+        f"Tank not properly snapped to {blocking_tile_type.name} "
+        f"when moving {move_direction}. Player Rect: {final_player_rect}, "
+        f"Tile Rect: {colliding_tile_rect}."
     )
+
+    if move_direction == "right":
+        assert final_player_rect.right == colliding_tile_rect.left, (
+            f"{expected_message_base} Expected player.right == tile.left."
+        )
+        # Also ensure it didn't overshoot on the other axis
+        assert final_player_rect.top == initial_player_rect.top, (
+            f"{expected_message_base} Player y-position changed unexpectedly. Expected top {initial_player_rect.top}, got {final_player_rect.top}."
+        )
+    elif move_direction == "left":
+        assert final_player_rect.left == colliding_tile_rect.right, (
+            f"{expected_message_base} Expected player.left == tile.right."
+        )
+        assert final_player_rect.top == initial_player_rect.top, (
+            f"{expected_message_base} Player y-position changed unexpectedly. Expected top {initial_player_rect.top}, got {final_player_rect.top}."
+        )
+    elif move_direction == "down":
+        assert final_player_rect.bottom == colliding_tile_rect.top, (
+            f"{expected_message_base} Expected player.bottom == tile.top."
+        )
+        assert final_player_rect.left == initial_player_rect.left, (
+            f"{expected_message_base} Player x-position changed unexpectedly. Expected left {initial_player_rect.left}, got {final_player_rect.left}."
+        )
+    elif move_direction == "up":
+        assert final_player_rect.top == colliding_tile_rect.bottom, (
+            f"{expected_message_base} Expected player.top == tile.bottom."
+        )
+        assert final_player_rect.left == initial_player_rect.left, (
+            f"{expected_message_base} Player x-position changed unexpectedly. Expected left {initial_player_rect.left}, got {final_player_rect.left}."
+        )
+    else:
+        pytest.fail(f"Unknown move_direction: {move_direction}")
 
     # Assert the tank's direction is correct (it should face the obstacle)
     assert player_tank.direction == move_direction, (
