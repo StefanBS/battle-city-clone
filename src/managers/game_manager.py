@@ -61,7 +61,7 @@ class GameManager:
 
         # --- Initialize Managers AFTER display mode is set ---
         logger.info("Initializing TextureManager...")
-        self.texture_manager = TextureManager("assets/sprites/texture.png")
+        self.texture_manager = TextureManager("assets/sprites/sprites.png")
         logger.info("Initializing CollisionManager...")
         self.collision_manager: CollisionManager = CollisionManager()
         # --- End Initialize Managers ---
@@ -181,7 +181,7 @@ class GameManager:
         # --- Prepare data for Collision Manager ---
         destructible_tiles: List[Tile] = self.map.get_tiles_by_type([TileType.BRICK])
         impassable_tiles: List[Tile] = self.map.get_tiles_by_type(
-            [TileType.STEEL, TileType.WATER]
+            [TileType.STEEL, TileType.WATER, TileType.BASE, TileType.BRICK]
         )
         player_base: Optional[Tile] = self.map.get_base()
 
@@ -392,7 +392,7 @@ class GameManager:
             True if movement was reverted, False otherwise.
         """
         # Define which tile types block tank movement
-        impassable_types = [TileType.STEEL, TileType.WATER, TileType.BASE]
+        impassable_types = [TileType.STEEL, TileType.WATER, TileType.BASE, TileType.BRICK]
 
         if tile.type in impassable_types:
             logger.debug(

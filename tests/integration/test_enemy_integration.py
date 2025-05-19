@@ -311,8 +311,8 @@ def test_enemy_movement_and_direction_change(
     [
         TileType.STEEL,
         TileType.WATER,
-        # TileType.BRICK, # Could add if needed
-        # TileType.BASE, # Base also blocks tanks
+        TileType.BRICK,
+        TileType.BASE,
     ],
 )
 @pytest.mark.parametrize(

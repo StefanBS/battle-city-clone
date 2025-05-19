@@ -2,7 +2,7 @@ import pytest
 import pygame
 from loguru import logger
 from src.managers.game_manager import GameManager
-from src.utils.constants import FPS, TILE_SIZE
+from src.utils.constants import FPS, TILE_SIZE, BULLET_WIDTH, BULLET_HEIGHT
 from src.core.tile import Tile, TileType
 
 # Tests related to player actions: movement, shooting, respawn
@@ -162,10 +162,6 @@ def test_player_shooting():
     # Use fresh instance
     game_manager = GameManager()
     player_tank = game_manager.player_tank
-
-    # Constants from src/utils/constants.py (or get dynamically)
-    BULLET_WIDTH = 8  # 4 * SCALE (assuming SCALE=2)
-    BULLET_HEIGHT = 8  # 4 * SCALE (assuming SCALE=2)
 
     # 1. Initial state: No bullet
     assert player_tank.bullet is None, "Player should not have a bullet initially."
