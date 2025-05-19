@@ -399,16 +399,16 @@ class GameManager:
                 f"Tank ({tank.owner_type}) collision with impassable tile "
                 f"({tile.type.name}) at ({tile.x}, {tile.y}). Reverting move."
             )
-            tank.revert_move()
+            tank.revert_move(tile.rect)
 
             # Special case for EnemyTank: If it hit a wall, encourage changing direction
             if isinstance(tank, EnemyTank):
                 tank._change_direction()
                 tank.direction_timer = 0  # Reset timer to avoid immediate change back
 
-            return True  # Indicated reversion occurred
+            return True
 
-        return False  # Tile was not impassable, no reversion needed
+        return False
 
     def _draw_game_over(self) -> None:
         """Draw the game over screen."""

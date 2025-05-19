@@ -231,16 +231,46 @@ class Tank(GameObject):
 
         return True  # Movement was attempted
 
-    def revert_move(self) -> None:
-        """Reverts the tank to its previous position."""
-        logger.debug(
-            (
-                f"Tank {self.owner_type} reverting move from ({self.x}, {self.y}) "
-                f"to ({self.prev_x}, {self.prev_y})"
+    def revert_move(self, obstacle_rect: Optional[pygame.Rect] = None) -> None:
+        """
+        Reverts the tank to its previous position or snaps it to an obstacle.
+        If obstacle_rect is provided, snaps to it based on self.direction.
+        Otherwise, reverts to self.prev_x, self.prev_y.
+        """
+        if obstacle_rect:
+            logger.debug(
+                f"Tank {self.owner_type} snapping to obstacle {obstacle_rect} due to "
+                f"collision. Direction: {self.direction}"
             )
-        )
-        self.x = self.prev_x
-        self.y = self.prev_y
+            # Start with current (collided) position as a basis for snapping
+            snapped_x, snapped_y = self.x, self.y
+
+            if self.direction == "right":
+
+                snapped_x = float(obstacle_rect.left - self.width)
+            elif self.direction == "left":
+                snapped_x = float(obstacle_rect.right)
+            elif self.direction == "down":
+                snapped_y = float(obstacle_rect.top - self.height)
+            elif self.direction == "up":
+                snapped_y = float(obstacle_rect.bottom)
+
+            self.x = snapped_x
+            self.y = snapped_y
+            logger.debug(
+                f"Tank {self.owner_type} snapped to ({self.x:.2f}, {self.y:.2f})"
+            )
+
+        else:  # Fallback to previous position if no obstacle_rect is given
+            logger.debug(
+                (
+                    f"Tank {self.owner_type} reverting move from ({self.x:.2f}, {self.y:.2f}) "
+                    f"to ({self.prev_x:.2f}, {self.prev_y:.2f}) (no obstacle for snapping)"
+                )
+            )
+            self.x = self.prev_x
+            self.y = self.prev_y
+
         self.rect.topleft = (round(self.x), round(self.y))
         self.target_position = (self.x, self.y)
 

@@ -43,8 +43,8 @@ class GameObject:
         Args:
             dt: Time elapsed since last update in seconds
         """
-        self.rect.x = int(self.x)
-        self.rect.y = int(self.y)
+        self.rect.x = round(self.x)
+        self.rect.y = round(self.y)
 
     def draw(self, surface: pygame.Surface) -> None:
         """
@@ -72,5 +72,5 @@ class GameObject:
         """
         self.x = x
         self.y = y
-        self.rect.x = int(x)
-        self.rect.y = int(y)
+        self.rect.x = round(x)
+        self.rect.y = round(y)
