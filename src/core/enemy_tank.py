@@ -1,4 +1,3 @@
-import pygame
 import random
 from loguru import logger
 from .tank import Tank
@@ -189,20 +188,3 @@ class EnemyTank(Tank):
             dy = 1
 
         self._move(dx, dy, dt)
-
-    def draw(self, surface: pygame.Surface) -> None:
-        """
-        Draw the tank and its bullet on the given surface.
-
-        Args:
-            surface: Surface to draw on
-        """
-        if self.sprite:
-            surface.blit(self.sprite, self.rect)
-        else:
-            # Fallback: Draw a simple gray rectangle if sprite is missing
-            pygame.draw.rect(surface, (128, 128, 128), self.rect)
-            logger.warning("Enemy tank sprite is missing, drawing fallback rect.")
-
-        if self.bullet is not None and self.bullet.active:
-            self.bullet.draw(surface)
