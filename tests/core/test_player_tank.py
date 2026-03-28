@@ -92,7 +92,7 @@ def test_handle_event_movement_input(player_tank):
 
 
 def test_handle_event_invincible(player_tank):
-    """Test that events are ignored when invincible."""
+    """Test that events are still processed when invincible."""
     player_tank.is_invincible = True
     player_tank.shoot = MagicMock()
     shoot_event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_SPACE)
@@ -102,9 +102,22 @@ def test_handle_event_invincible(player_tank):
     player_tank.handle_event(shoot_event)
     player_tank.handle_event(move_event)
 
-    # Methods should not have been called
-    player_tank.shoot.assert_not_called()
-    player_tank.input_handler.handle_event.assert_not_called()
+    # Events should still be processed during invincibility
+    player_tank.shoot.assert_called_once()
+    player_tank.input_handler.handle_event.assert_called_with(move_event)
+
+
+def test_keyup_during_invincibility_clears_direction(player_tank):
+    """Test that KEYUP events during invincibility reach InputHandler (issue #7)."""
+    # Simulate: player is holding RIGHT, then becomes invincible
+    player_tank.is_invincible = True
+
+    # Send KEYUP for RIGHT while invincible
+    keyup_event = pygame.event.Event(pygame.KEYUP, key=pygame.K_RIGHT)
+    player_tank.handle_event(keyup_event)
+
+    # KEYUP should have reached InputHandler
+    player_tank.input_handler.handle_event.assert_called_with(keyup_event)
 
 
 def test_update_movement_direction(player_tank):
@@ -155,7 +168,7 @@ def test_update_no_movement_input(player_tank):
 
 
 def test_update_invincible(player_tank):
-    """Test that update does nothing (movement/shooting) when invincible."""
+    """Test that update processes movement when invincible."""
     player_tank.is_invincible = True
     dt = 0.1
     player_tank.input_handler.get_movement_direction.return_value = (
@@ -165,8 +178,8 @@ def test_update_invincible(player_tank):
     player_tank._move = MagicMock()
     player_tank.update(dt)
 
-    player_tank._move.assert_not_called()
-    assert player_tank.direction == "up"
+    player_tank._move.assert_called_once_with(1, 0)
+    assert player_tank.direction == "right"
 
 
 @patch("pygame.draw.rect")
