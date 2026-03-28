@@ -40,11 +40,12 @@ YELLOW: Tuple[int, int, int] = (255, 255, 0)
 TILE_ANIMATION_INTERVAL: float = 0.5  # Seconds between frames
 
 # Tank settings
-TANK_SPEED: float = 12
+TANK_SPEED: float = 80  # pixels per second (was 12 px/step)
 TANK_WIDTH: int = TILE_SIZE
 TANK_HEIGHT: int = TILE_SIZE
+TANK_ANIMATION_DISTANCE: float = 4  # pixels traveled between animation frame toggles
 
 # Bullet settings
-BULLET_SPEED: float = 3
+BULLET_SPEED: float = 180  # pixels per second (was 3, multiplied by FPS internally)
 BULLET_WIDTH: int = 2
 BULLET_HEIGHT: int = 2
