@@ -391,9 +391,6 @@ def test_enemy_movement_blocked_by_tile(
     # Force initial direction towards the obstacle
     enemy_tank.direction = move_direction
     enemy_tank.direction_timer = 0  # Prevent immediate random change
-    enemy_tank.move_timer = (
-        enemy_tank.move_delay
-    )  # Ensure it tries to move on first update
     game_manager.enemy_tanks.append(enemy_tank)
     game_manager.total_enemy_spawns = 1
     logger.debug(
@@ -405,10 +402,10 @@ def test_enemy_movement_blocked_by_tile(
     initial_pos = enemy_tank.get_position()
 
     # --- Simulate Game Time --- #
-    num_updates = 2
-
-    for _ in range(num_updates):
-        game_manager.update()
+    # One update: the tank attempts movement and gets snapped back by collision.
+    # A second update would trigger _change_direction() away from the obstacle,
+    # so we only check after a single update.
+    game_manager.update()
 
     # --- Assertions --- #
     final_pos = enemy_tank.get_position()
