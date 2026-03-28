@@ -4,9 +4,6 @@ Game constants and configuration values.
 
 from typing import Tuple
 
-# Scale factor
-SCALE: int = 1
-
 # Window settings
 WINDOW_WIDTH: int = 1024  # Logical width (16*32) * 2
 WINDOW_HEIGHT: int = 1024  # Logical height (16*32) * 2
@@ -31,12 +28,11 @@ YELLOW: Tuple[int, int, int] = (255, 255, 0)
 TILE_ANIMATION_INTERVAL: float = 0.5  # Seconds between frames
 
 # Tank settings
-TANK_SPEED: float = 12 * SCALE
+TANK_SPEED: float = 12
 TANK_WIDTH: int = TILE_SIZE
 TANK_HEIGHT: int = TILE_SIZE
 
 # Bullet settings
-# Base bullet speed needs to be scaled, adjust multiplier if needed
-BULLET_SPEED: float = 3 * SCALE  # Speed in pixels per second
-BULLET_WIDTH: int = 2 * SCALE
-BULLET_HEIGHT: int = 2 * SCALE
+BULLET_SPEED: float = 3
+BULLET_WIDTH: int = 2
+BULLET_HEIGHT: int = 2
