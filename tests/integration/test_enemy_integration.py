@@ -1,7 +1,7 @@
 import pytest
 from loguru import logger
 from unittest.mock import patch
-from src.utils.constants import FPS, TILE_SIZE
+from src.utils.constants import Direction, FPS, TILE_SIZE
 from src.core.tile import Tile, TileType
 from src.core.enemy_tank import EnemyTank
 import random
@@ -232,7 +232,7 @@ def test_enemy_movement_and_direction_change(
     initial_direction = enemy_tank.direction  # Capture initial direction
 
     # Set the mock_choice to return a different direction for the _change_direction call
-    possible_directions = ["up", "down", "left", "right"]
+    possible_directions = list(Direction)
     forced_new_direction = next(
         d for d in possible_directions if d != initial_direction
     )
@@ -318,10 +318,10 @@ def test_enemy_movement_and_direction_change(
 @pytest.mark.parametrize(
     "move_direction, start_pos_offset",
     [
-        ("up", (0, 1)),  # Try moving UP, start 1 tile below
-        ("down", (0, -1)),  # Try moving DOWN, start 1 tile above
-        ("left", (1, 0)),  # Try moving LEFT, start 1 tile right
-        ("right", (-1, 0)),  # Try moving RIGHT, start 1 tile left
+        (Direction.UP, (0, 1)),  # Try moving UP, start 1 tile below
+        (Direction.DOWN, (0, -1)),  # Try moving DOWN, start 1 tile above
+        (Direction.LEFT, (1, 0)),  # Try moving LEFT, start 1 tile right
+        (Direction.RIGHT, (-1, 0)),  # Try moving RIGHT, start 1 tile left
     ],
 )
 def test_enemy_movement_blocked_by_tile(
@@ -436,7 +436,7 @@ def test_enemy_shooting(game_manager_fixture):
         start_x, start_y, TILE_SIZE, game_manager.texture_manager, enemy_type
     )
     # Set a known initial direction to predict bullet path
-    initial_enemy_direction = "right"
+    initial_enemy_direction = Direction.RIGHT
     enemy_tank.direction = initial_enemy_direction
     enemy_tank.shoot_timer = 0  # Reset shoot timer for predictable firing
     game_manager.enemy_tanks.append(enemy_tank)
@@ -496,19 +496,19 @@ def test_enemy_shooting(game_manager_fixture):
 
             # Basic check: Ensure movement is roughly in the correct direction
             # (A more precise check would calculate expected position based on speed/dt)
-            if bullet_start_dir == "right":
+            if bullet_start_dir == Direction.RIGHT:
                 assert current_bullet_pos[0] > bullet_start_pos[0], (
                     "Bullet not moving right"
                 )
-            elif bullet_start_dir == "left":
+            elif bullet_start_dir == Direction.LEFT:
                 assert current_bullet_pos[0] < bullet_start_pos[0], (
                     "Bullet not moving left"
                 )
-            elif bullet_start_dir == "down":
+            elif bullet_start_dir == Direction.DOWN:
                 assert current_bullet_pos[1] > bullet_start_pos[1], (
                     "Bullet not moving down"
                 )
-            elif bullet_start_dir == "up":
+            elif bullet_start_dir == Direction.UP:
                 assert current_bullet_pos[1] < bullet_start_pos[1], (
                     "Bullet not moving up"
                 )

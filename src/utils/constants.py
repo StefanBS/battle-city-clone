@@ -2,7 +2,19 @@
 Game constants and configuration values.
 """
 
+from enum import Enum
 from typing import Tuple
+
+
+class Direction(str, Enum):
+    UP = "up"
+    DOWN = "down"
+    LEFT = "left"
+    RIGHT = "right"
+
+    def __str__(self) -> str:
+        return self.value
+
 
 # Window settings
 WINDOW_WIDTH: int = 1024  # Logical width (16*32) * 2

@@ -1,6 +1,6 @@
 import pytest
 from loguru import logger
-from src.utils.constants import FPS, TILE_SIZE
+from src.utils.constants import Direction, FPS, TILE_SIZE
 from src.states.game_state import GameState
 from src.core.tile import Tile, TileType
 from src.core.enemy_tank import EnemyTank
@@ -53,7 +53,7 @@ def test_player_bullet_vs_tile(
     player_tank.prev_x, player_tank.prev_y = player_start_x, player_start_y
 
     # Aim up and shoot
-    player_tank.direction = "up"
+    player_tank.direction = Direction.UP
     player_tank.shoot()
 
     assert player_tank.bullet is not None, "Bullet failed to spawn."
@@ -124,7 +124,7 @@ def test_player_bullet_destroys_enemy_tank(game_manager_fixture, mocker):
     player_tank.prev_x, player_tank.prev_y = player_start_x, player_start_y
 
     # Aim up and shoot
-    player_tank.direction = "up"
+    player_tank.direction = Direction.UP
     player_tank.shoot()
 
     assert player_tank.bullet is not None, "Bullet failed to spawn."
@@ -246,7 +246,7 @@ def test_enemy_bullet_hits_player_tank(
         game_manager.texture_manager,
         enemy_type,
     )
-    enemy_tank.direction = "down"  # Aim at player
+    enemy_tank.direction = Direction.DOWN  # Aim at player
     game_manager.enemy_tanks = [enemy_tank]  # Replace default enemies
     logger.debug(
         f"Manually added {enemy_type} enemy at ({enemy_x_grid}, {enemy_y_grid}) "
@@ -382,7 +382,7 @@ def test_enemy_bullet_hits_other_enemy(game_manager_fixture, mocker):
         game_manager.texture_manager,
         enemy_type,
     )
-    enemy1.direction = "down"  # Aim at enemy2
+    enemy1.direction = Direction.DOWN  # Aim at enemy2
 
     enemy2 = EnemyTank(
         enemy2_start_x,
@@ -459,7 +459,7 @@ def test_enemy_bullets_collide(game_manager_fixture, mocker):
         game_manager.texture_manager,
         enemy_type,
     )
-    enemy1.direction = "right"  # Aim at enemy2
+    enemy1.direction = Direction.RIGHT  # Aim at enemy2
 
     enemy2 = EnemyTank(
         enemy2_start_x,
@@ -468,7 +468,7 @@ def test_enemy_bullets_collide(game_manager_fixture, mocker):
         game_manager.texture_manager,
         enemy_type,
     )
-    enemy2.direction = "left"  # Aim at enemy1
+    enemy2.direction = Direction.LEFT  # Aim at enemy1
 
     game_manager.enemy_tanks = [enemy1, enemy2]  # Set the enemies
     logger.debug(f"Spawned enemy1 at ({enemy1_x_grid}, {enemy1_y_grid}) aiming right.")

@@ -3,7 +3,7 @@ import pygame
 from unittest.mock import MagicMock, patch
 from src.core.player_tank import PlayerTank
 from src.managers.texture_manager import TextureManager
-from src.utils.constants import TILE_SIZE
+from src.utils.constants import Direction, TILE_SIZE
 
 
 @pytest.fixture(scope="module")
@@ -61,7 +61,7 @@ def test_player_tank_respawn(player_tank):
     assert player_tank.is_invincible
     assert player_tank.invincibility_timer == 0
     assert player_tank.blink_timer == 0
-    assert player_tank.direction == "up"  # Should reset direction
+    assert player_tank.direction == Direction.UP  # Should reset direction
 
 
 def test_player_tank_respawn_no_lives_left(player_tank):
@@ -129,25 +129,25 @@ def test_update_movement_direction(player_tank):
     player_tank._move = MagicMock(return_value=True)
 
     player_tank.update(dt)
-    assert player_tank.direction == "right"
+    assert player_tank.direction == Direction.RIGHT
     player_tank._move.assert_called_once_with(1, 0)
 
     player_tank.input_handler.get_movement_direction.return_value = (-1, 0)  # Move left
     player_tank._move.reset_mock()
     player_tank.update(dt)
-    assert player_tank.direction == "left"
+    assert player_tank.direction == Direction.LEFT
     player_tank._move.assert_called_once_with(-1, 0)
 
     player_tank.input_handler.get_movement_direction.return_value = (0, 1)  # Move down
     player_tank._move.reset_mock()
     player_tank.update(dt)
-    assert player_tank.direction == "down"
+    assert player_tank.direction == Direction.DOWN
     player_tank._move.assert_called_once_with(0, 1)
 
     player_tank.input_handler.get_movement_direction.return_value = (0, -1)  # Move up
     player_tank._move.reset_mock()
     player_tank.update(dt)
-    assert player_tank.direction == "up"
+    assert player_tank.direction == Direction.UP
     player_tank._move.assert_called_once_with(0, -1)
 
 
@@ -179,7 +179,7 @@ def test_update_invincible(player_tank):
     player_tank.update(dt)
 
     player_tank._move.assert_called_once_with(1, 0)
-    assert player_tank.direction == "right"
+    assert player_tank.direction == Direction.RIGHT
 
 
 @patch("pygame.draw.rect")

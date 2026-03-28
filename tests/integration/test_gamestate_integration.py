@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import MagicMock
 from loguru import logger
 from src.managers.game_manager import GameManager
-from src.utils.constants import FPS, TILE_SIZE, GRID_WIDTH, GRID_HEIGHT
+from src.utils.constants import Direction, FPS, TILE_SIZE, GRID_WIDTH, GRID_HEIGHT
 from src.states.game_state import GameState
 from src.core.bullet import Bullet
 from src.core.tile import TileType
@@ -145,7 +145,7 @@ def test_player_bullet_hits_base(game_manager_fixture):
     player_tank.prev_x, player_tank.prev_y = player_start_x, player_start_y
 
     # Aim DOWN and shoot
-    player_tank.direction = "down"  # Aim down towards base
+    player_tank.direction = Direction.DOWN  # Aim down towards base
     player_tank.shoot()
 
     assert player_tank.bullet is not None, "Player bullet failed to spawn."
@@ -231,7 +231,7 @@ def test_enemy_bullet_destroys_base_game_over(game_manager_fixture):
         game_manager.texture_manager,
         enemy_type,
     )
-    enemy_tank.direction = "down"  # Aim at base
+    enemy_tank.direction = Direction.DOWN  # Aim at base
     game_manager.enemy_tanks = [enemy_tank]  # Replace default enemies
     logger.debug(
         f"Manually added {enemy_type} enemy at ({enemy_x_grid}, {enemy_y_grid}) "

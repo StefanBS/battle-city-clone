@@ -5,6 +5,7 @@ from .game_object import GameObject
 from .bullet import Bullet
 from src.managers.texture_manager import TextureManager
 from src.utils.constants import (
+    Direction,
     TILE_SIZE,
     TANK_SPEED,
     TANK_WIDTH,
@@ -51,7 +52,7 @@ class Tank(GameObject):
         self.texture_manager = texture_manager
         self.speed = speed
         self.bullet_speed = bullet_speed
-        self.direction = "up"  # Initial direction
+        self.direction = Direction.UP  # Initial direction
         self.bullet: Optional[Bullet] = None
         self.tile_size = tile_size
         self.health: int = health
@@ -250,14 +251,14 @@ class Tank(GameObject):
             # Start with current (collided) position as a basis for snapping
             snapped_x, snapped_y = self.x, self.y
 
-            if self.direction == "right":
+            if self.direction == Direction.RIGHT:
 
                 snapped_x = float(obstacle_rect.left - self.width)
-            elif self.direction == "left":
+            elif self.direction == Direction.LEFT:
                 snapped_x = float(obstacle_rect.right)
-            elif self.direction == "down":
+            elif self.direction == Direction.DOWN:
                 snapped_y = float(obstacle_rect.top - self.height)
-            elif self.direction == "up":
+            elif self.direction == Direction.UP:
                 snapped_y = float(obstacle_rect.bottom)
 
             self.x = snapped_x
