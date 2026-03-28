@@ -16,6 +16,7 @@ class CollisionManager:
         """Initializes the CollisionManager."""
         # Stores pairs of objects that have collided
         self._collision_events: List[Tuple[Collidable, Collidable]] = []
+        self._seen_pairs: set[tuple[int, int]] = set()
 
     def check_collisions(
         self,
@@ -40,6 +41,7 @@ class CollisionManager:
             player_base: The player's base object, or None if not present.
         """
         self._collision_events.clear()  # Clear events from previous frame
+        self._seen_pairs.clear()
         logger.trace("Collision check started. Cleared previous events.")
 
         # Combine tanks, handling potential None for player_tank
@@ -120,8 +122,13 @@ class CollisionManager:
         )
 
     def _queue_collision(self, obj_a: Collidable, obj_b: Collidable) -> None:
-        """Adds a collision event to the queue."""
-        # Basic type checking for logging purposes
+        """Adds a collision event to the queue, deduplicating pairs."""
+        pair_key = (id(obj_a), id(obj_b))
+        reverse_key = (id(obj_b), id(obj_a))
+        if pair_key in self._seen_pairs or reverse_key in self._seen_pairs:
+            return
+        self._seen_pairs.add(pair_key)
+
         type_a = type(obj_a).__name__
         type_b = type(obj_b).__name__
         logger.debug(f"Collision detected between {type_a} and {type_b}")

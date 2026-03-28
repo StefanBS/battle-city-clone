@@ -12,6 +12,8 @@ from src.utils.constants import (
     BULLET_WIDTH,
     BULLET_HEIGHT,
     BULLET_SPEED,
+    GRID_WIDTH,
+    GRID_HEIGHT,
 )
 
 
@@ -205,6 +207,9 @@ class Tank(GameObject):
         if dx != 0 and dy != 0:
             return False  # Ignore diagonal movement attempts
 
+        if dx == 0 and dy == 0:
+            return False  # No movement requested
+
         # Calculate target position
         target_x = self.x + dx * self.speed
         target_y = self.y + dy * self.speed
@@ -257,6 +262,13 @@ class Tank(GameObject):
 
             self.x = snapped_x
             self.y = snapped_y
+
+            # Clamp to map bounds
+            max_x = float(GRID_WIDTH * TILE_SIZE - self.width)
+            max_y = float(GRID_HEIGHT * TILE_SIZE - self.height)
+            self.x = max(0.0, min(self.x, max_x))
+            self.y = max(0.0, min(self.y, max_y))
+
             logger.debug(
                 f"Tank {self.owner_type} snapped to ({self.x:.2f}, {self.y:.2f})"
             )

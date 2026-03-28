@@ -327,3 +327,26 @@ class TestCollisionManager:
         events = collision_manager.get_collision_events()
         assert len(events) == 1
         assert (e_bullet, steel) in events or (steel, e_bullet) in events
+
+    def test_duplicate_brick_collision_deduplicated(
+        self, collision_manager, mock_objects
+    ):
+        """Test BRICK in both tile lists produces one event."""
+        p_bullet = mock_objects["p_bullets"][0]
+        brick = mock_objects["bricks"][0]
+        p_bullet.rect = brick.rect.copy()  # Force collision
+
+        # Pass brick in BOTH destructible and impassable lists (as game_manager does)
+        collision_manager.check_collisions(
+            player_tank=None,
+            player_bullets=[p_bullet],
+            enemy_tanks=[],
+            enemy_bullets=[],
+            destructible_tiles=[brick],
+            impassable_tiles=[brick],
+            player_base=None,
+        )
+        events = collision_manager.get_collision_events()
+        # Should only have ONE event, not two
+        assert len(events) == 1
+        assert (p_bullet, brick) in events or (brick, p_bullet) in events
