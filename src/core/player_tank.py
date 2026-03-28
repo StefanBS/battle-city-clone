@@ -99,22 +99,3 @@ class PlayerTank(Tank):
             self.direction = Direction.UP  # Reset direction
             self._update_sprite()
 
-    def draw(self, surface: pygame.Surface) -> None:
-        """
-        Draw the tank and its bullet on the given surface.
-
-        Args:
-            surface: Surface to draw on
-        """
-        if (
-            not self.is_invincible
-            or self.blink_timer % (self.blink_interval * 2) < self.blink_interval
-        ):
-            if self.sprite:
-                surface.blit(self.sprite, self.rect)
-            else:
-                pygame.draw.rect(surface, (0, 255, 0), self.rect)
-                logger.warning("Player tank sprite is missing, drawing fallback rect.")
-
-        if self.bullet is not None and self.bullet.active:
-            self.bullet.draw(surface)
