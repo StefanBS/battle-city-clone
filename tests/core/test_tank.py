@@ -4,7 +4,14 @@ from unittest.mock import MagicMock
 from src.core.tank import Tank
 from src.core.bullet import Bullet
 from src.managers.texture_manager import TextureManager
-from src.utils.constants import TILE_SIZE, TANK_SPEED, BULLET_WIDTH, BULLET_HEIGHT, GRID_WIDTH, GRID_HEIGHT
+from src.utils.constants import (
+    TILE_SIZE,
+    TANK_SPEED,
+    BULLET_WIDTH,
+    BULLET_HEIGHT,
+    GRID_WIDTH,
+    GRID_HEIGHT,
+)
 
 
 class TestTank:
@@ -195,7 +202,8 @@ class TestTank:
         tank.direction = "left"
         tank.x = 5.0
         tank.y = 100.0
-        obstacle = pygame.Rect(-40, 100, 32, 32)  # right edge = -8, produces negative snap
+        # right edge = -8, produces negative snap
+        obstacle = pygame.Rect(-40, 100, 32, 32)
         tank.revert_move(obstacle)
         assert tank.x >= 0, f"Tank x={tank.x} should be >= 0"
 
@@ -203,7 +211,8 @@ class TestTank:
         tank.direction = "up"
         tank.x = 100.0
         tank.y = 5.0
-        obstacle = pygame.Rect(100, -40, 32, 32)  # bottom edge = -8, produces negative snap
+        # bottom edge = -8, produces negative snap
+        obstacle = pygame.Rect(100, -40, 32, 32)
         tank.revert_move(obstacle)
         assert tank.y >= 0, f"Tank y={tank.y} should be >= 0"
 
@@ -211,7 +220,7 @@ class TestTank:
         tank.direction = "right"
         tank.x = map_width - 10
         tank.y = 100.0
-        obstacle = pygame.Rect(map_width + 10, 100, 32, 32)  # Obstacle beyond right edge
+        obstacle = pygame.Rect(map_width + 10, 100, 32, 32)
         tank.revert_move(obstacle)
         assert tank.x <= map_width - tank.width, (
             f"Tank x={tank.x} should be <= {map_width - tank.width}"
@@ -221,7 +230,7 @@ class TestTank:
         tank.direction = "down"
         tank.x = 100.0
         tank.y = map_height - 10
-        obstacle = pygame.Rect(100, map_height + 10, 32, 32)  # Obstacle beyond bottom edge
+        obstacle = pygame.Rect(100, map_height + 10, 32, 32)
         tank.revert_move(obstacle)
         assert tank.y <= map_height - tank.height, (
             f"Tank y={tank.y} should be <= {map_height - tank.height}"

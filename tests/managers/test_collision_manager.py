@@ -331,7 +331,7 @@ class TestCollisionManager:
     def test_duplicate_brick_collision_deduplicated(
         self, collision_manager, mock_objects
     ):
-        """Test that BRICK in both destructible and impassable lists produces one event."""
+        """Test BRICK in both tile lists produces one event."""
         p_bullet = mock_objects["p_bullets"][0]
         brick = mock_objects["bricks"][0]
         p_bullet.rect = brick.rect.copy()  # Force collision
