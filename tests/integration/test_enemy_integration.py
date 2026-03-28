@@ -344,7 +344,7 @@ def test_enemy_movement_blocked_by_tile(
         )
 
         target_tile = Tile(blocking_tile_type, target_x_grid, target_y_grid, TILE_SIZE)
-        game_map.tiles[target_y_grid][target_x_grid] = target_tile
+        game_map.place_tile(target_x_grid, target_y_grid, target_tile)
         logger.debug(
             f"Placed blocking {blocking_tile_type.name} tile at "
             f"({target_x_grid}, {target_y_grid})"

@@ -96,7 +96,7 @@ def test_player_movement_blocked_by_tile(
     # Manually place the specified tile type at the target location
     if 0 <= target_y_grid < game_map.height and 0 <= target_x_grid < game_map.width:
         target_tile = Tile(blocking_tile_type, target_x_grid, target_y_grid, TILE_SIZE)
-        game_map.tiles[target_y_grid][target_x_grid] = target_tile
+        game_map.place_tile(target_x_grid, target_y_grid, target_tile)
         logger.debug(
             f"Placed {blocking_tile_type.name} tile at "
             f"({target_x_grid}, {target_y_grid})"
@@ -121,8 +121,10 @@ def test_player_movement_blocked_by_tile(
         )
 
     # Clear the starting tile for the player to ensure no self-collision issue
-    game_map.tiles[start_grid_y][start_grid_x] = Tile(
-        TileType.EMPTY, start_grid_x, start_grid_y, TILE_SIZE
+    game_map.place_tile(
+        start_grid_x,
+        start_grid_y,
+        Tile(TileType.EMPTY, start_grid_x, start_grid_y, TILE_SIZE),
     )
     logger.debug(
         f"Set player starting tile ({start_grid_x}, {start_grid_y}) to EMPTY."

@@ -23,10 +23,15 @@ class Map:
         self.tiles: List[List[Optional[Tile]]] = []
         self.texture_manager = texture_manager
         self._animated_tiles: List[Tile] = []
+        self._tile_cache_dirty: bool = True
+        self._cached_tiles_by_type: dict = {}
+        self._cached_collidable_rects: List[pygame.Rect] = []
+        self._cached_base: Optional[Tile] = None
 
         # Create a simple test map
         self._create_test_map()
         self._build_animated_tiles()
+        self._rebuild_tile_caches()
 
     def _initialize_map(self) -> None:
         # Initialize grid structure with None
@@ -96,38 +101,64 @@ class Map:
             logger.warning(f"Attempted to get tile outside map bounds at ({x}, {y})")
             return None
 
-    def get_tiles_by_type(self, types: List[TileType]) -> List[Tile]:
-        """Get a list of tiles matching the specified types."""
-        matching_tiles = []
+    def set_tile_type(self, tile: Tile, new_type: TileType) -> None:
+        """Change a tile's type and invalidate caches."""
+        tile.type = new_type
+        self._tile_cache_dirty = True
+
+    def place_tile(self, x: int, y: int, tile: Tile) -> None:
+        """Place a tile at grid coordinates and invalidate caches."""
+        self.tiles[y][x] = tile
+        self._tile_cache_dirty = True
+
+    def _rebuild_tile_caches(self) -> None:
+        """Rebuild all cached tile lists from the grid."""
+        self._cached_tiles_by_type = {}
+        collidable_types = {
+            TileType.BRICK,
+            TileType.STEEL,
+            TileType.BASE,
+            TileType.WATER,
+        }
+        collidable_rects = []
+        base = None
+
         for row in self.tiles:
             for tile in row:
-                if tile and tile.type in types:
-                    matching_tiles.append(tile)
-        return matching_tiles
+                if not tile:
+                    continue
+                tt = tile.type
+                if tt not in self._cached_tiles_by_type:
+                    self._cached_tiles_by_type[tt] = []
+                self._cached_tiles_by_type[tt].append(tile)
+                if tt in collidable_types:
+                    collidable_rects.append(tile.rect)
+                if tt == TileType.BASE:
+                    base = tile
+
+        self._cached_collidable_rects = collidable_rects
+        self._cached_base = base
+        self._tile_cache_dirty = False
+
+    def _ensure_cache(self) -> None:
+        """Rebuild caches if dirty."""
+        if self._tile_cache_dirty:
+            self._rebuild_tile_caches()
+
+    def get_tiles_by_type(self, types: List[TileType]) -> List[Tile]:
+        """Get a list of tiles matching the specified types."""
+        self._ensure_cache()
+        result = []
+        for tt in types:
+            result.extend(self._cached_tiles_by_type.get(tt, []))
+        return result
 
     def get_base(self) -> Optional[Tile]:
         """Find and return the player base tile, if it exists."""
-        for row in self.tiles:
-            for tile in row:
-                if tile and tile.type == TileType.BASE:
-                    return tile
-        return None
+        self._ensure_cache()
+        return self._cached_base
 
     def get_collidable_tiles(self) -> List[pygame.Rect]:
-        """
-        Get a list of rectangles for all collidable tiles.
-
-        Returns:
-            A list of pygame.Rect objects representing collidable tiles
-        """
-        collidable_rects = []
-        for row in self.tiles:
-            for tile in row:
-                if tile and tile.type in [
-                    TileType.BRICK,
-                    TileType.STEEL,
-                    TileType.BASE,
-                    TileType.WATER,
-                ]:
-                    collidable_rects.append(tile.rect)
-        return collidable_rects
+        """Get a list of rectangles for all collidable tiles."""
+        self._ensure_cache()
+        return list(self._cached_collidable_rects)

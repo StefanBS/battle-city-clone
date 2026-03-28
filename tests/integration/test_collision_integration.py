@@ -35,7 +35,7 @@ def test_player_bullet_vs_tile(
     # Manually place the specified tile type at the target location
     if 0 <= target_y_grid < game_map.height and 0 <= target_x_grid < game_map.width:
         target_tile = Tile(tile_to_place, target_x_grid, target_y_grid, TILE_SIZE)
-        game_map.tiles[target_y_grid][target_x_grid] = target_tile
+        game_map.place_tile(target_x_grid, target_y_grid, target_tile)
         logger.debug(
             f"Placed {tile_to_place.name} tile at ({target_x_grid}, {target_y_grid})"
         )
