@@ -45,7 +45,7 @@ class Tank(GameObject):
             sprite: Optional sprite surface
             health: Initial health points
             lives: Number of lives
-            speed: Movement speed multiplier
+            speed: Movement speed in pixels per second
             bullet_speed: Speed of bullets fired by this tank
         """
         logger.debug(f"Creating Tank at ({x}, {y})")
