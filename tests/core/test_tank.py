@@ -1,9 +1,7 @@
 import pytest
 import pygame
-from unittest.mock import MagicMock
 from src.core.tank import Tank
 from src.core.bullet import Bullet
-from src.managers.texture_manager import TextureManager
 from src.utils.constants import (
     Direction,
     TILE_SIZE,
@@ -19,28 +17,18 @@ class TestTank:
     """Test cases for the Tank class."""
 
     @pytest.fixture
-    def mock_texture_manager(self):
-        """Create a mock TextureManager."""
-        mock_tm = MagicMock(spec=TextureManager)
-        mock_tm.get_sprite.return_value = MagicMock(spec=pygame.Surface)
-        return mock_tm
-
-    @pytest.fixture
     def tank(self, mock_texture_manager):
         """Create a tank instance for testing."""
-        pygame.init()
         return Tank(0, 0, mock_texture_manager, tile_size=TILE_SIZE)
 
     @pytest.fixture
     def tank_two_lives(self, mock_texture_manager):
         """Create a tank instance with two lives for testing."""
-        pygame.init()
         return Tank(0, 0, mock_texture_manager, tile_size=TILE_SIZE, lives=2)
 
     @pytest.fixture
     def tank_two_health(self, mock_texture_manager):
         """Create a tank instance with two health for testing."""
-        pygame.init()
         return Tank(0, 0, mock_texture_manager, tile_size=TILE_SIZE, health=2)
 
     @pytest.mark.parametrize(

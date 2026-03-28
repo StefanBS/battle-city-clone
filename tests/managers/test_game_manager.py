@@ -356,9 +356,9 @@ class TestGameManager:
             if t.type in (TileType.STEEL, TileType.WATER, TileType.BRICK, TileType.BASE)
         ]
         game_manager.map.get_base.return_value = mocks["base_tile"]
-        game_manager.map.update_tile = (
-            MagicMock()
-        )  # Mock method used when tiles are destroyed
+        game_manager.map.set_tile_type = MagicMock(
+            side_effect=lambda tile, new_type: setattr(tile, "type", new_type)
+        )
 
         return game_manager, mocks
 

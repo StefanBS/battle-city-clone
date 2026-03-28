@@ -22,6 +22,16 @@ class TileType(Enum):
 class Tile:
     """Represents a single tile in the game map."""
 
+    SPRITE_NAME_MAP = {
+        TileType.EMPTY: None,
+        TileType.BRICK: "brick",
+        TileType.STEEL: "steel",
+        TileType.BUSH: "bush",
+        TileType.ICE: "ice",
+        TileType.BASE: "base",
+        TileType.BASE_DESTROYED: "base_destroyed",
+    }
+
     def __init__(
         self, tile_type: TileType, x: int, y: int, size: int = TILE_SIZE
     ) -> None:
@@ -69,17 +79,7 @@ class Tile:
             if self.animation_frames:
                 sprite_name = self.animation_frames[self.current_frame_index]
         else:
-            # Static sprite mapping (excluding animated types)
-            sprite_name_map = {
-                TileType.EMPTY: None,
-                TileType.BRICK: "brick",
-                TileType.STEEL: "steel",
-                TileType.BUSH: "bush",
-                TileType.ICE: "ice",
-                TileType.BASE: "base",
-                TileType.BASE_DESTROYED: "base_destroyed",
-            }
-            sprite_name = sprite_name_map.get(self.type)
+            sprite_name = self.SPRITE_NAME_MAP.get(self.type)
 
         if sprite_name:
             # No fallback color drawing - if sprite is missing, let KeyError propagate

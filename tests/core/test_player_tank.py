@@ -2,18 +2,7 @@ import pytest
 import pygame
 from unittest.mock import MagicMock, patch
 from src.core.player_tank import PlayerTank
-from src.managers.texture_manager import TextureManager
 from src.utils.constants import Direction, TILE_SIZE
-
-
-@pytest.fixture(scope="module")
-def mock_texture_manager():
-    """Create a module-scoped mock TextureManager."""
-    pygame.init()
-    mock_tm = MagicMock(spec=TextureManager)
-    mock_tm.get_sprite.return_value = MagicMock(spec=pygame.Surface)
-    yield mock_tm
-    pygame.quit()
 
 
 @pytest.fixture

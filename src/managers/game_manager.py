@@ -344,7 +344,7 @@ class GameManager:
             if other.type == TileType.BRICK:
                 logger.debug(f"Bullet hit brick tile at ({other.x}, {other.y})")
                 bullet.active = False
-                other.type = TileType.EMPTY  # Destroy brick
+                self.map.set_tile_type(other, TileType.EMPTY)
                 # Potentially update map collision data if needed
                 processed = True
             elif other.type == TileType.STEEL:
@@ -354,7 +354,7 @@ class GameManager:
             elif other.type == TileType.BASE:
                 logger.debug(f"Bullet hit base tile at ({other.x}, {other.y})")
                 bullet.active = False
-                other.type = TileType.BASE_DESTROYED  # Change base appearance
+                self.map.set_tile_type(other, TileType.BASE_DESTROYED)
                 self.state = GameState.GAME_OVER  # Game over
                 processed = True
 

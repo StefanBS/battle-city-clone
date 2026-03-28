@@ -1,8 +1,5 @@
 import pytest
-from unittest.mock import MagicMock
-import pygame
 from src.core.enemy_tank import EnemyTank, TankType
-from src.managers.texture_manager import TextureManager
 from src.utils.constants import TILE_SIZE, TANK_SPEED, BULLET_SPEED
 
 # Define expected properties based on EnemyTank.TANK_PROPERTIES for easier assertion
@@ -39,16 +36,6 @@ EXPECTED_PROPERTIES = {
 
 # Test cases covering all tank types
 TEST_CASES = [(tank_type, props) for tank_type, props in EXPECTED_PROPERTIES.items()]
-
-
-@pytest.fixture(scope="module")
-def mock_texture_manager():
-    """Create a module-scoped mock TextureManager."""
-    pygame.init()
-    mock_tm = MagicMock(spec=TextureManager)
-    mock_tm.get_sprite.return_value = MagicMock(spec=pygame.Surface)
-    yield mock_tm
-    pygame.quit()
 
 
 @pytest.mark.parametrize("tank_type, expected", TEST_CASES)

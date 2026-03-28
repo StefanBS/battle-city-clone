@@ -243,6 +243,10 @@ def test_enemy_movement_and_direction_change(
         f"Mock forced direction: {forced_new_direction}"
     )
 
+    # Prevent enemy from shooting so bullets don't hit the base
+    # and cause GAME_OVER before the direction change timer fires
+    enemy_tank.shoot = lambda: None
+
     game_manager.enemy_tanks.append(enemy_tank)
     game_manager.total_enemy_spawns = 1
     logger.debug(
@@ -344,7 +348,7 @@ def test_enemy_movement_blocked_by_tile(
         )
 
         target_tile = Tile(blocking_tile_type, target_x_grid, target_y_grid, TILE_SIZE)
-        game_map.tiles[target_y_grid][target_x_grid] = target_tile
+        game_map.place_tile(target_x_grid, target_y_grid, target_tile)
         logger.debug(
             f"Placed blocking {blocking_tile_type.name} tile at "
             f"({target_x_grid}, {target_y_grid})"
