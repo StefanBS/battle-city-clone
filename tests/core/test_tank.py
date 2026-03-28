@@ -148,13 +148,16 @@ class TestTank:
         """Test edge cases for movement attempts."""
         tank.move_timer = tank.move_delay
 
-        # Test moving with zero delta
-        # Zero movement attempt should succeed but not change position
+        # Test moving with zero delta — should return False and not change state
         tank.prev_x = tank.x
         tank.prev_y = tank.y
-        assert tank._move(0, 0)
+        initial_timer = tank.move_timer
+        initial_frame = tank.animation_frame
+        assert not tank._move(0, 0)
         assert tank.x == 0
         assert tank.y == 0
+        assert tank.move_timer == initial_timer
+        assert tank.animation_frame == initial_frame
 
         # Test moving diagonally (should return False)
         tank.prev_x = tank.x

@@ -205,6 +205,9 @@ class Tank(GameObject):
         if dx != 0 and dy != 0:
             return False  # Ignore diagonal movement attempts
 
+        if dx == 0 and dy == 0:
+            return False  # No movement requested
+
         # Calculate target position
         target_x = self.x + dx * self.speed
         target_y = self.y + dy * self.speed
