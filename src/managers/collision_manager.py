@@ -137,11 +137,3 @@ class CollisionManager:
     def get_collision_events(self) -> List[Tuple[Collidable, Collidable]]:
         """Returns the list of detected collision events for this frame."""
         return self._collision_events
-
-
-# Basic Rect object for testing purposes if needed
-# Ensure this mock object matches the Collidable protocol if used for typing
-class MockSprite(pygame.sprite.Sprite):  # Inherit from Sprite for type compatibility
-    def __init__(self, x, y, w, h):
-        super().__init__()  # Initialize the parent Sprite class
-        self.rect = pygame.Rect(x, y, w, h)
