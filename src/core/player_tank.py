@@ -83,7 +83,7 @@ class PlayerTank(Tank):
                 self._update_sprite()
 
             # Attempt to move
-            self._move(dx, dy)
+            self._move(dx, dy, dt)
 
     def respawn(self) -> None:
         """Respawn the tank at its initial position."""
@@ -97,7 +97,6 @@ class PlayerTank(Tank):
             self.invincibility_timer = 0
             self.blink_timer = 0
             self.direction = Direction.UP  # Reset direction
-            self.move_timer = 0
             self._update_sprite()
 
     def draw(self, surface: pygame.Surface) -> None:
