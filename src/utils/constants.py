@@ -34,19 +34,9 @@ TILE_ANIMATION_INTERVAL: float = 0.5  # Seconds between frames
 TANK_SPEED: float = 12 * SCALE
 TANK_WIDTH: int = TILE_SIZE
 TANK_HEIGHT: int = TILE_SIZE
-PLAYER_HEALTH: int = 3
-ENEMY_HEALTH: int = 1
 
 # Bullet settings
 # Base bullet speed needs to be scaled, adjust multiplier if needed
 BULLET_SPEED: float = 3 * SCALE  # Speed in pixels per second
 BULLET_WIDTH: int = 2 * SCALE
 BULLET_HEIGHT: int = 2 * SCALE
-
-# Power-up types
-POWER_UP_INVINCIBLE: str = "invincible"
-POWER_UP_FREEZE: str = "freeze"
-POWER_UP_WEAPON: str = "weapon"
-POWER_UP_FORTIFY: str = "fortify"
-POWER_UP_LIFE: str = "life"
-POWER_UP_DESTROY_ALL: str = "destroy_all"
