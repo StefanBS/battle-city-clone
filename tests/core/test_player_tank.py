@@ -171,18 +171,6 @@ def test_update_invincible(player_tank):
     assert player_tank.direction == Direction.RIGHT
 
 
-@patch("pygame.draw.rect")
-def test_draw_no_sprite_not_invincible(mock_draw_rect, player_tank):
-    """Test drawing without sprite when not invincible."""
-    mock_surface = MagicMock(spec=pygame.Surface)
-    player_tank.is_invincible = False
-    player_tank.sprite = None  # Ensure no sprite
-
-    player_tank.draw(mock_surface)
-
-    mock_draw_rect.assert_called_once_with(mock_surface, (0, 255, 0), player_tank.rect)
-
-
 def test_draw_with_sprite_not_invincible(player_tank):
     """Test drawing with sprite when not invincible."""
     mock_surface = MagicMock(spec=pygame.Surface)
@@ -192,68 +180,51 @@ def test_draw_with_sprite_not_invincible(player_tank):
 
     player_tank.draw(mock_surface)
 
-    # Assert that blit was called on the mock_surface instance
     mock_surface.blit.assert_called_once_with(mock_sprite, player_tank.rect)
 
 
-@patch("pygame.draw.rect")
-def test_draw_invincible_visible_phase(mock_draw_rect, player_tank):
+def test_draw_no_sprite_not_invincible(player_tank):
+    """Test drawing without sprite when not invincible does nothing."""
+    mock_surface = MagicMock(spec=pygame.Surface)
+    player_tank.is_invincible = False
+    player_tank.sprite = None
+
+    player_tank.draw(mock_surface)
+
+    mock_surface.blit.assert_not_called()
+
+
+def test_draw_invincible_visible_phase(player_tank):
     """Test drawing when invincible during the visible phase of blinking."""
     mock_surface = MagicMock(spec=pygame.Surface)
+    mock_sprite = MagicMock(spec=pygame.Surface)
     player_tank.is_invincible = True
     player_tank.blink_timer = (
         player_tank.blink_interval * 0.5
     )  # Middle of visible phase
-
-    # Test with sprite
-    mock_sprite = MagicMock(spec=pygame.Surface)
     player_tank.sprite = mock_sprite
+
     player_tank.draw(mock_surface)
-    # Assert call on mock_surface
+
     mock_surface.blit.assert_called_once_with(mock_sprite, player_tank.rect)
-    mock_draw_rect.assert_not_called()
-
-    # Test without sprite
-    # Reset mock_surface for the next call check
-    mock_surface.reset_mock()
-    mock_draw_rect.reset_mock()
-    player_tank.sprite = None
-    player_tank.draw(mock_surface)
-    mock_draw_rect.assert_called_once_with(mock_surface, (0, 255, 0), player_tank.rect)
-    # Assert no call on mock_surface
-    mock_surface.blit.assert_not_called()
 
 
-@patch("pygame.draw.rect")
-def test_draw_invincible_invisible_phase(mock_draw_rect, player_tank):
+def test_draw_invincible_invisible_phase(player_tank):
     """Test drawing when invincible during the invisible phase of blinking."""
     mock_surface = MagicMock(spec=pygame.Surface)
+    mock_sprite = MagicMock(spec=pygame.Surface)
     player_tank.is_invincible = True
     player_tank.blink_timer = (
         player_tank.blink_interval * 1.5
     )  # Middle of invisible phase
-
-    # Test with sprite
-    mock_sprite = MagicMock(spec=pygame.Surface)
     player_tank.sprite = mock_sprite
-    player_tank.draw(mock_surface)
-    # Assert no call on mock_surface
-    mock_surface.blit.assert_not_called()  # Should not draw sprite
-    mock_draw_rect.assert_not_called()  # Should not draw rect
 
-    # Test without sprite
-    # Reset mocks for the next call check
-    mock_surface.reset_mock()
-    mock_draw_rect.reset_mock()
-    player_tank.sprite = None
     player_tank.draw(mock_surface)
-    # Assert no call on mock_surface
+
     mock_surface.blit.assert_not_called()
-    mock_draw_rect.assert_not_called()
 
 
-@patch("pygame.draw.rect")
-def test_draw_bullet(mock_draw_rect, player_tank):
+def test_draw_bullet(player_tank):
     """Test that the bullet's draw method is called."""
     mock_surface = MagicMock(spec=pygame.Surface)
     mock_bullet = MagicMock()
@@ -262,13 +233,10 @@ def test_draw_bullet(mock_draw_rect, player_tank):
 
     player_tank.draw(mock_surface)
 
-    # Assert bullet draw was called (assuming tank itself is drawn)
     mock_bullet.draw.assert_called_once_with(mock_surface)
 
     # Assert bullet draw is not called if inactive
-    # Reset relevant mocks before the next call
-    mock_draw_rect.reset_mock()  # Reset the draw rect mock
-    mock_surface.reset_mock()  # Reset surface mock if tank drawing happened
+    mock_surface.reset_mock()
     mock_bullet.reset_mock()
     mock_bullet.active = False
     player_tank.draw(mock_surface)
