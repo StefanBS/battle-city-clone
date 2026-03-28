@@ -45,15 +45,12 @@ class PlayerTank(Tank):
         Args:
             event: The pygame event to handle
         """
-        if not self.is_invincible:  # Only handle input if not invincible
-            self.input_handler.handle_event(event)
+        self.input_handler.handle_event(event)
 
-            # Handle shooting
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                logger.debug("Player attempting to shoot.")
-                self.shoot()
-        else:
-            logger.trace("Player input ignored (invincible).")
+        # Handle shooting
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+            logger.debug("Player attempting to shoot.")
+            self.shoot()
 
     def update(self, dt: float) -> None:
         """
@@ -64,9 +61,6 @@ class PlayerTank(Tank):
         """
         # Update base tank state
         super().update(dt)
-
-        if self.is_invincible:
-            return  # Don't move or shoot while invincible
 
         # Get movement direction from input
         dx, dy = self.input_handler.get_movement_direction()
