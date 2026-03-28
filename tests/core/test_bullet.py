@@ -1,7 +1,13 @@
 import pytest
 import pygame
 from src.core.bullet import Bullet
-from src.utils.constants import BULLET_SPEED, FPS, BULLET_WIDTH, BULLET_HEIGHT
+from src.utils.constants import (
+    Direction,
+    BULLET_SPEED,
+    FPS,
+    BULLET_WIDTH,
+    BULLET_HEIGHT,
+)
 
 
 class TestBullet:
@@ -11,13 +17,13 @@ class TestBullet:
     def bullet(self):
         """Create a bullet instance for testing."""
         pygame.init()
-        return Bullet(0, 0, "up", owner_type="test")
+        return Bullet(0, 0, Direction.UP, owner_type="test")
 
     def test_initialization(self, bullet):
         """Test bullet initialization."""
         assert bullet.x == 0
         assert bullet.y == 0
-        assert bullet.direction == "up"
+        assert bullet.direction == Direction.UP
         assert bullet.speed == BULLET_SPEED * FPS
         assert bullet.active
         assert bullet.owner_type == "test"
@@ -27,10 +33,10 @@ class TestBullet:
     @pytest.mark.parametrize(
         "direction,expected_x,expected_y",
         [
-            ("up", 0, -(BULLET_SPEED * FPS)),
-            ("down", 0, BULLET_SPEED * FPS),
-            ("left", -(BULLET_SPEED * FPS), 0),
-            ("right", BULLET_SPEED * FPS, 0),
+            (Direction.UP, 0, -(BULLET_SPEED * FPS)),
+            (Direction.DOWN, 0, BULLET_SPEED * FPS),
+            (Direction.LEFT, -(BULLET_SPEED * FPS), 0),
+            (Direction.RIGHT, BULLET_SPEED * FPS, 0),
         ],
     )
     def test_update(self, bullet, direction, expected_x, expected_y):

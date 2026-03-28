@@ -3,6 +3,7 @@ from loguru import logger
 from .tank import Tank
 from src.managers.input_handler import InputHandler
 from src.managers.texture_manager import TextureManager
+from src.utils.constants import Direction
 
 
 class PlayerTank(Tank):
@@ -69,13 +70,13 @@ class PlayerTank(Tank):
         if dx != 0 or dy != 0:
             new_direction = self.direction
             if dx > 0:
-                new_direction = "right"
+                new_direction = Direction.RIGHT
             elif dx < 0:
-                new_direction = "left"
+                new_direction = Direction.LEFT
             elif dy > 0:
-                new_direction = "down"
+                new_direction = Direction.DOWN
             elif dy < 0:
-                new_direction = "up"
+                new_direction = Direction.UP
 
             if new_direction != self.direction:
                 self.direction = new_direction
@@ -95,7 +96,7 @@ class PlayerTank(Tank):
             self.is_invincible = True
             self.invincibility_timer = 0
             self.blink_timer = 0
-            self.direction = "up"  # Reset direction
+            self.direction = Direction.UP  # Reset direction
             self.move_timer = 0
             self._update_sprite()
 

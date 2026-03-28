@@ -2,7 +2,7 @@ import pytest
 import pygame
 from loguru import logger
 from src.managers.game_manager import GameManager
-from src.utils.constants import FPS, TILE_SIZE, BULLET_WIDTH, BULLET_HEIGHT
+from src.utils.constants import Direction, FPS, TILE_SIZE, BULLET_WIDTH, BULLET_HEIGHT
 from src.core.tile import Tile, TileType
 
 # Tests related to player actions: movement, shooting, respawn
@@ -11,10 +11,10 @@ from src.core.tile import Tile, TileType
 @pytest.mark.parametrize(
     "key, axis, direction_sign, expected_direction",
     [
-        (pygame.K_UP, 1, -1, "up"),  # UP: axis=1 (y), direction=-1 (decrease)
-        (pygame.K_DOWN, 1, 1, "down"),  # DOWN: axis=1 (y), direction=1 (increase)
-        (pygame.K_LEFT, 0, -1, "left"),  # LEFT: axis=0 (x), direction=-1 (decrease)
-        (pygame.K_RIGHT, 0, 1, "right"),  # RIGHT: axis=0 (x), direction=1 (increase)
+        (pygame.K_UP, 1, -1, Direction.UP),  # UP: y-axis, negative
+        (pygame.K_DOWN, 1, 1, Direction.DOWN),  # DOWN: y-axis, positive
+        (pygame.K_LEFT, 0, -1, Direction.LEFT),  # LEFT: x-axis, negative
+        (pygame.K_RIGHT, 0, 1, Direction.RIGHT),  # RIGHT: x-axis, positive
     ],
 )
 def test_player_movement(key, axis, direction_sign, expected_direction):
@@ -75,10 +75,10 @@ def test_player_movement(key, axis, direction_sign, expected_direction):
 @pytest.mark.parametrize(
     "move_direction, key, start_pos_offset",
     [
-        ("up", pygame.K_UP, (0, 1)),  # Try moving UP, start 1 tile below
-        ("down", pygame.K_DOWN, (0, -1)),  # Try moving DOWN, start 1 tile above
-        ("left", pygame.K_LEFT, (1, 0)),  # Try moving LEFT, start 1 tile right
-        ("right", pygame.K_RIGHT, (-1, 0)),  # Try moving RIGHT, start 1 tile left
+        (Direction.UP, pygame.K_UP, (0, 1)),  # UP: start 1 tile below
+        (Direction.DOWN, pygame.K_DOWN, (0, -1)),  # DOWN: start 1 tile above
+        (Direction.LEFT, pygame.K_LEFT, (1, 0)),  # LEFT: start 1 tile right
+        (Direction.RIGHT, pygame.K_RIGHT, (-1, 0)),  # RIGHT: start 1 tile left
     ],
 )
 def test_player_movement_blocked_by_tile(
@@ -166,34 +166,38 @@ def test_player_movement_blocked_by_tile(
         f"Tile Rect: {colliding_tile_rect}."
     )
 
-    if move_direction == "right":
+    if move_direction == Direction.RIGHT:
         assert final_player_rect.right == colliding_tile_rect.left, (
             f"{expected_message_base} Expected player.right == tile.left."
         )
         # Also ensure it didn't overshoot on the other axis
         assert final_player_rect.top == initial_player_rect.top, (
-            f"{expected_message_base} Player y-position changed unexpectedly. Expected top {initial_player_rect.top}, got {final_player_rect.top}."
+            f"{expected_message_base} Player y-position changed unexpectedly. "
+            f"Expected top {initial_player_rect.top}, got {final_player_rect.top}."
         )
-    elif move_direction == "left":
+    elif move_direction == Direction.LEFT:
         assert final_player_rect.left == colliding_tile_rect.right, (
             f"{expected_message_base} Expected player.left == tile.right."
         )
         assert final_player_rect.top == initial_player_rect.top, (
-            f"{expected_message_base} Player y-position changed unexpectedly. Expected top {initial_player_rect.top}, got {final_player_rect.top}."
+            f"{expected_message_base} Player y-position changed unexpectedly. "
+            f"Expected top {initial_player_rect.top}, got {final_player_rect.top}."
         )
-    elif move_direction == "down":
+    elif move_direction == Direction.DOWN:
         assert final_player_rect.bottom == colliding_tile_rect.top, (
             f"{expected_message_base} Expected player.bottom == tile.top."
         )
         assert final_player_rect.left == initial_player_rect.left, (
-            f"{expected_message_base} Player x-position changed unexpectedly. Expected left {initial_player_rect.left}, got {final_player_rect.left}."
+            f"{expected_message_base} Player x-position changed unexpectedly. "
+            f"Expected left {initial_player_rect.left}, got {final_player_rect.left}."
         )
-    elif move_direction == "up":
+    elif move_direction == Direction.UP:
         assert final_player_rect.top == colliding_tile_rect.bottom, (
             f"{expected_message_base} Expected player.top == tile.bottom."
         )
         assert final_player_rect.left == initial_player_rect.left, (
-            f"{expected_message_base} Player x-position changed unexpectedly. Expected left {initial_player_rect.left}, got {final_player_rect.left}."
+            f"{expected_message_base} Player x-position changed unexpectedly. "
+            f"Expected left {initial_player_rect.left}, got {final_player_rect.left}."
         )
     else:
         pytest.fail(f"Unknown move_direction: {move_direction}")
@@ -215,13 +219,15 @@ def test_player_shooting():
     assert player_tank.bullet is None, "Player should not have a bullet initially."
 
     # 2. Fire the first bullet
-    player_tank.direction = "right"  # Set a known direction
+    player_tank.direction = Direction.RIGHT  # Set a known direction
     player_tank.shoot()
 
     # 3. Verify bullet creation and properties
     assert player_tank.bullet is not None, "Bullet object was not created."
     assert player_tank.bullet.active, "Bullet should be active after shooting."
-    assert player_tank.bullet.direction == "right", "Bullet direction is incorrect."
+    assert player_tank.bullet.direction == Direction.RIGHT, (
+        "Bullet direction is incorrect."
+    )
     assert player_tank.bullet.owner_type == "player", "Bullet owner type is incorrect."
 
     # 4. Verify bullet initial position (centered on tank)
@@ -248,10 +254,10 @@ def test_player_shooting():
 @pytest.mark.parametrize(
     "direction_str, axis_index, direction_sign",
     [
-        ("up", 1, -1),  # UP: axis=1 (y), sign=-1 (decrease)
-        ("down", 1, 1),  # DOWN: axis=1 (y), sign=1 (increase)
-        ("left", 0, -1),  # LEFT: axis=0 (x), sign=-1 (decrease)
-        ("right", 0, 1),  # RIGHT: axis=0 (x), sign=1 (increase)
+        (Direction.UP, 1, -1),  # UP: axis=1 (y), sign=-1 (decrease)
+        (Direction.DOWN, 1, 1),  # DOWN: axis=1 (y), sign=1 (increase)
+        (Direction.LEFT, 0, -1),  # LEFT: axis=0 (x), sign=-1 (decrease)
+        (Direction.RIGHT, 0, 1),  # RIGHT: axis=0 (x), sign=1 (increase)
     ],
 )
 def test_player_bullet_movement(direction_str, axis_index, direction_sign):

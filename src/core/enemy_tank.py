@@ -3,7 +3,7 @@ import random
 from loguru import logger
 from .tank import Tank
 from typing import Literal, Dict, TypedDict
-from src.utils.constants import TANK_SPEED, BULLET_SPEED
+from src.utils.constants import Direction, TANK_SPEED, BULLET_SPEED
 from src.managers.texture_manager import TextureManager
 
 TankType = Literal["basic", "fast", "power", "armor"]
@@ -94,7 +94,7 @@ class EnemyTank(Tank):
         )
         self.tank_type = tank_type
         self.owner_type = "enemy"
-        self.direction = random.choice(["up", "down", "left", "right"])
+        self.direction = random.choice(list(Direction))
         self.direction_timer: float = 0
         self.direction_change_interval: float = props["direction_change_interval"]
         self.shoot_timer: float = 0
@@ -111,14 +111,14 @@ class EnemyTank(Tank):
         """Randomly change the tank's direction and update its sprite."""
         old_direction = self.direction
         new_direction = old_direction  # Start with the current direction
-        directions = ["up", "down", "left", "right"]
+        directions = list(Direction)
 
         # Try to avoid reversing first
         opposite_direction = {
-            "up": "down",
-            "down": "up",
-            "left": "right",
-            "right": "left",
+            Direction.UP: Direction.DOWN,
+            Direction.DOWN: Direction.UP,
+            Direction.LEFT: Direction.RIGHT,
+            Direction.RIGHT: Direction.LEFT,
         }
         if len(directions) > 1 and old_direction in opposite_direction:
             possible_directions = [
@@ -179,13 +179,13 @@ class EnemyTank(Tank):
 
         # Calculate movement based on current direction
         dx, dy = 0, 0
-        if self.direction == "left":
+        if self.direction == Direction.LEFT:
             dx = -1
-        elif self.direction == "right":
+        elif self.direction == Direction.RIGHT:
             dx = 1
-        elif self.direction == "up":
+        elif self.direction == Direction.UP:
             dy = -1
-        elif self.direction == "down":
+        elif self.direction == Direction.DOWN:
             dy = 1
 
         self._move(dx, dy)

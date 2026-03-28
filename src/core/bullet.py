@@ -3,6 +3,7 @@ from typing import Optional, Tuple
 from loguru import logger
 from .game_object import GameObject
 from src.utils.constants import (
+    Direction,
     BULLET_SPEED,
     BULLET_WIDTH,
     BULLET_HEIGHT,
@@ -61,13 +62,13 @@ class Bullet(GameObject):
             return
 
         # Calculate movement based on direction
-        if self.direction == "left":
+        if self.direction == Direction.LEFT:
             self.x -= self.speed * dt
-        elif self.direction == "right":
+        elif self.direction == Direction.RIGHT:
             self.x += self.speed * dt
-        elif self.direction == "up":
+        elif self.direction == Direction.UP:
             self.y -= self.speed * dt
-        elif self.direction == "down":
+        elif self.direction == Direction.DOWN:
             self.y += self.speed * dt
 
         # Check if bullet is out of bounds

@@ -5,6 +5,7 @@ from src.core.tank import Tank
 from src.core.bullet import Bullet
 from src.managers.texture_manager import TextureManager
 from src.utils.constants import (
+    Direction,
     TILE_SIZE,
     TANK_SPEED,
     BULLET_WIDTH,
@@ -42,7 +43,10 @@ class TestTank:
         pygame.init()
         return Tank(0, 0, mock_texture_manager, tile_size=TILE_SIZE, health=2)
 
-    @pytest.mark.parametrize("direction", ["up", "right", "down", "left"])
+    @pytest.mark.parametrize(
+        "direction",
+        [Direction.UP, Direction.RIGHT, Direction.DOWN, Direction.LEFT],
+    )
     def test_shoot_direction(self, tank, direction):
         """Test shooting in different directions."""
         # Set direction and shoot
@@ -60,7 +64,7 @@ class TestTank:
         assert tank.width == TILE_SIZE
         assert tank.height == TILE_SIZE
         assert tank.speed == TANK_SPEED
-        assert tank.direction == "up"
+        assert tank.direction == Direction.UP
         assert tank.bullet is None
         assert tank.health == 1
         assert tank.lives == 1
@@ -199,7 +203,7 @@ class TestTank:
         map_height = GRID_HEIGHT * TILE_SIZE
 
         # Simulate tank moving left at left edge — obstacle snaps to negative x
-        tank.direction = "left"
+        tank.direction = Direction.LEFT
         tank.x = 5.0
         tank.y = 100.0
         # right edge = -8, produces negative snap
@@ -208,7 +212,7 @@ class TestTank:
         assert tank.x >= 0, f"Tank x={tank.x} should be >= 0"
 
         # Simulate tank moving up at top edge — obstacle snaps to negative y
-        tank.direction = "up"
+        tank.direction = Direction.UP
         tank.x = 100.0
         tank.y = 5.0
         # bottom edge = -8, produces negative snap
@@ -217,7 +221,7 @@ class TestTank:
         assert tank.y >= 0, f"Tank y={tank.y} should be >= 0"
 
         # Simulate tank moving right at right edge — obstacle snaps past right bound
-        tank.direction = "right"
+        tank.direction = Direction.RIGHT
         tank.x = map_width - 10
         tank.y = 100.0
         obstacle = pygame.Rect(map_width + 10, 100, 32, 32)
@@ -227,7 +231,7 @@ class TestTank:
         )
 
         # Simulate tank moving down at bottom edge — obstacle snaps past bottom bound
-        tank.direction = "down"
+        tank.direction = Direction.DOWN
         tank.x = 100.0
         tank.y = map_height - 10
         obstacle = pygame.Rect(100, map_height + 10, 32, 32)
