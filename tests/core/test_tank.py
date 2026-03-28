@@ -10,6 +10,7 @@ from src.utils.constants import (
     BULLET_HEIGHT,
     GRID_WIDTH,
     GRID_HEIGHT,
+    FPS,
 )
 
 
@@ -115,53 +116,42 @@ class TestTank:
         assert tank.bullet.y == expected_y
 
     def test_move(self, tank):
-        """Test movement attempt functionality."""
-        # First move attempt should fail due to move_timer
-        assert not tank._move(1, 0)
-        assert tank.x == 0
-        assert tank.y == 0
-
-        # Advance the move_timer past the delay
-        tank.move_timer = tank.move_delay
+        """Test continuous movement functionality."""
+        dt = 1.0 / FPS
 
         # Store previous position before moving
         tank.prev_x = tank.x
         tank.prev_y = tank.y
 
-        # Now movement attempt should succeed
-        assert tank._move(1, 0)
-        assert tank.x == TANK_SPEED
+        # Movement should succeed immediately (no timer gating)
+        assert tank._move(1, 0, dt)
+        assert tank.x == pytest.approx(TANK_SPEED * dt)
         assert tank.y == 0
 
-        # Reset timer for next move
-        tank.move_timer = tank.move_delay
+        # Move again without any timer reset needed
         tank.prev_x = tank.x
         tank.prev_y = tank.y
-
-        # Test moving down
-        assert tank._move(0, 1)
-        assert tank.x == TANK_SPEED
-        assert tank.y == TANK_SPEED
+        assert tank._move(0, 1, dt)
+        assert tank.x == pytest.approx(TANK_SPEED * dt)
+        assert tank.y == pytest.approx(TANK_SPEED * dt)
 
     def test_move_edge_cases(self, tank):
         """Test edge cases for movement attempts."""
-        tank.move_timer = tank.move_delay
+        dt = 1.0 / FPS
 
         # Test moving with zero delta — should return False and not change state
         tank.prev_x = tank.x
         tank.prev_y = tank.y
-        initial_timer = tank.move_timer
         initial_frame = tank.animation_frame
-        assert not tank._move(0, 0)
+        assert not tank._move(0, 0, dt)
         assert tank.x == 0
         assert tank.y == 0
-        assert tank.move_timer == initial_timer
         assert tank.animation_frame == initial_frame
 
         # Test moving diagonally (should return False)
         tank.prev_x = tank.x
         tank.prev_y = tank.y
-        assert not tank._move(1, 1)
+        assert not tank._move(1, 1, dt)
         # Position should not change after failed diagonal attempt
         assert tank.x == 0
         assert tank.y == 0

@@ -10,6 +10,7 @@ from src.utils.constants import (
     TANK_SPEED,
     TANK_WIDTH,
     TANK_HEIGHT,
+    TANK_ANIMATION_DISTANCE,
     BULLET_WIDTH,
     BULLET_HEIGHT,
     BULLET_SPEED,
@@ -59,8 +60,7 @@ class Tank(GameObject):
         self.max_health: int = health
         self.lives: int = lives
         self.owner_type: str = "base_tank"  # Default or abstract type
-        self.move_timer: float = 0
-        self.move_delay: float = 0.15  # Time between movements in seconds
+        self.distance_since_last_toggle: float = 0
         # Store previous position for collision rollback
         self.prev_x: float = x
         self.prev_y: float = y
@@ -173,9 +173,6 @@ class Tank(GameObject):
                 self.is_invincible = False
                 self.invincibility_timer = 0
 
-        # Update movement timer
-        self.move_timer += dt
-
         # Update the tank's rect *before* bullet update if bullet depends on final pos?
         # Let's keep it here for now, might need adjustment.
         super().update(dt)
@@ -184,7 +181,7 @@ class Tank(GameObject):
         if self.bullet is not None:
             self.bullet.update(dt)
 
-    def _move(self, dx: int, dy: int) -> bool:
+    def _move(self, dx: int, dy: int, dt: float) -> bool:
         """
         Attempt to move the tank by updating its position.
         Collision checks are handled externally by GameManager.
@@ -192,19 +189,11 @@ class Tank(GameObject):
         Args:
             dx: X movement amount (-1, 0, or 1)
             dy: Y movement amount (-1, 0, or 1)
+            dt: Time elapsed since last update in seconds
 
         Returns:
-            True if movement was attempted (timer ready), False otherwise.
+            True if movement was attempted, False otherwise.
         """
-        if self.move_timer < self.move_delay:
-            logger.trace(
-                (
-                    f"Tank {self.owner_type} move skipped (timer not ready: "
-                    f"{self.move_timer:.2f}/{self.move_delay:.2f})"
-                )
-            )
-            return False  # Not ready to move yet
-
         if dx != 0 and dy != 0:
             return False  # Ignore diagonal movement attempts
 
@@ -212,8 +201,8 @@ class Tank(GameObject):
             return False  # No movement requested
 
         # Calculate target position
-        target_x = self.x + dx * self.speed
-        target_y = self.y + dy * self.speed
+        target_x = self.x + dx * self.speed * dt
+        target_y = self.y + dy * self.speed * dt
 
         logger.debug(
             (
@@ -226,11 +215,14 @@ class Tank(GameObject):
         self.x = target_x
         self.y = target_y
         self.target_position = (self.x, self.y)
-        self.move_timer = 0  # Reset timer after movement attempt
 
-        # Toggle animation frame and update sprite
-        self.animation_frame = 3 - self.animation_frame  # Toggle between 1 and 2
-        self._update_sprite()  # Update sprite after toggling frame
+        # Distance-based animation toggle
+        distance = abs(dx * self.speed * dt) + abs(dy * self.speed * dt)
+        self.distance_since_last_toggle += distance
+        if self.distance_since_last_toggle >= TANK_ANIMATION_DISTANCE:
+            self.distance_since_last_toggle -= TANK_ANIMATION_DISTANCE
+            self.animation_frame = 3 - self.animation_frame  # Toggle between 1 and 2
+            self._update_sprite()
 
         # Update rect immediately after position change
         self.rect.topleft = (round(self.x), round(self.y))
