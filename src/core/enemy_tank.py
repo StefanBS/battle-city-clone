@@ -188,7 +188,7 @@ class EnemyTank(Tank):
         elif self.direction == Direction.DOWN:
             dy = 1
 
-        self._move(dx, dy)
+        self._move(dx, dy, dt)
 
     def draw(self, surface: pygame.Surface) -> None:
         """

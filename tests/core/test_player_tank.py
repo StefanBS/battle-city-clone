@@ -119,25 +119,25 @@ def test_update_movement_direction(player_tank):
 
     player_tank.update(dt)
     assert player_tank.direction == Direction.RIGHT
-    player_tank._move.assert_called_once_with(1, 0)
+    player_tank._move.assert_called_once_with(1, 0, dt)
 
     player_tank.input_handler.get_movement_direction.return_value = (-1, 0)  # Move left
     player_tank._move.reset_mock()
     player_tank.update(dt)
     assert player_tank.direction == Direction.LEFT
-    player_tank._move.assert_called_once_with(-1, 0)
+    player_tank._move.assert_called_once_with(-1, 0, dt)
 
     player_tank.input_handler.get_movement_direction.return_value = (0, 1)  # Move down
     player_tank._move.reset_mock()
     player_tank.update(dt)
     assert player_tank.direction == Direction.DOWN
-    player_tank._move.assert_called_once_with(0, 1)
+    player_tank._move.assert_called_once_with(0, 1, dt)
 
     player_tank.input_handler.get_movement_direction.return_value = (0, -1)  # Move up
     player_tank._move.reset_mock()
     player_tank.update(dt)
     assert player_tank.direction == Direction.UP
-    player_tank._move.assert_called_once_with(0, -1)
+    player_tank._move.assert_called_once_with(0, -1, dt)
 
 
 def test_update_no_movement_input(player_tank):
@@ -167,7 +167,7 @@ def test_update_invincible(player_tank):
     player_tank._move = MagicMock()
     player_tank.update(dt)
 
-    player_tank._move.assert_called_once_with(1, 0)
+    player_tank._move.assert_called_once_with(1, 0, dt)
     assert player_tank.direction == Direction.RIGHT
 
 
