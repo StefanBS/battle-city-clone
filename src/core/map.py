@@ -22,9 +22,11 @@ class Map:
         self.tile_size = TILE_SIZE
         self.tiles: List[List[Optional[Tile]]] = []
         self.texture_manager = texture_manager
+        self._animated_tiles: List[Tile] = []
 
         # Create a simple test map
         self._create_test_map()
+        self._build_animated_tiles()
 
     def _initialize_map(self) -> None:
         # Initialize grid structure with None
@@ -64,12 +66,19 @@ class Map:
                 # Create the Tile object with the determined type
                 self.tiles[y][x] = Tile(tile_type, x, y, self.tile_size)
 
+    def _build_animated_tiles(self) -> None:
+        """Build the list of animated tiles."""
+        self._animated_tiles = [
+            tile
+            for row in self.tiles
+            for tile in row
+            if tile and tile.is_animated
+        ]
+
     def update(self, dt: float) -> None:
-        """Update all tiles in the map (e.g., for animations)."""
-        for row in self.tiles:
-            for tile in row:
-                if tile:
-                    tile.update(dt)
+        """Update animated tiles only."""
+        for tile in self._animated_tiles:
+            tile.update(dt)
 
     def draw(self, surface: pygame.Surface) -> None:
         """Draw all tiles on the given surface."""
