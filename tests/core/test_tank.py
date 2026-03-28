@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 from src.core.tank import Tank
 from src.core.bullet import Bullet
 from src.managers.texture_manager import TextureManager
-from src.utils.constants import TILE_SIZE, TANK_SPEED, BULLET_WIDTH, BULLET_HEIGHT
+from src.utils.constants import TILE_SIZE, TANK_SPEED, BULLET_WIDTH, BULLET_HEIGHT, GRID_WIDTH, GRID_HEIGHT
 
 
 class TestTank:
@@ -185,3 +185,44 @@ class TestTank:
         assert tank.x == initial_x
         assert tank.y == initial_y
         assert tank.rect.topleft == (initial_x, initial_y)
+
+    def test_revert_move_clamps_to_map_bounds(self, tank):
+        """Test that revert_move clamps position within map bounds."""
+        map_width = GRID_WIDTH * TILE_SIZE
+        map_height = GRID_HEIGHT * TILE_SIZE
+
+        # Simulate tank moving left at left edge — obstacle snaps to negative x
+        tank.direction = "left"
+        tank.x = 5.0
+        tank.y = 100.0
+        obstacle = pygame.Rect(-40, 100, 32, 32)  # right edge = -8, produces negative snap
+        tank.revert_move(obstacle)
+        assert tank.x >= 0, f"Tank x={tank.x} should be >= 0"
+
+        # Simulate tank moving up at top edge — obstacle snaps to negative y
+        tank.direction = "up"
+        tank.x = 100.0
+        tank.y = 5.0
+        obstacle = pygame.Rect(100, -40, 32, 32)  # bottom edge = -8, produces negative snap
+        tank.revert_move(obstacle)
+        assert tank.y >= 0, f"Tank y={tank.y} should be >= 0"
+
+        # Simulate tank moving right at right edge — obstacle snaps past right bound
+        tank.direction = "right"
+        tank.x = map_width - 10
+        tank.y = 100.0
+        obstacle = pygame.Rect(map_width + 10, 100, 32, 32)  # Obstacle beyond right edge
+        tank.revert_move(obstacle)
+        assert tank.x <= map_width - tank.width, (
+            f"Tank x={tank.x} should be <= {map_width - tank.width}"
+        )
+
+        # Simulate tank moving down at bottom edge — obstacle snaps past bottom bound
+        tank.direction = "down"
+        tank.x = 100.0
+        tank.y = map_height - 10
+        obstacle = pygame.Rect(100, map_height + 10, 32, 32)  # Obstacle beyond bottom edge
+        tank.revert_move(obstacle)
+        assert tank.y <= map_height - tank.height, (
+            f"Tank y={tank.y} should be <= {map_height - tank.height}"
+        )
