@@ -108,6 +108,8 @@ def test_player_bullet_destroys_enemy_tank(game_manager_fixture, mocker):
         game_manager.texture_manager,
         enemy_type,
     )
+    # Prevent enemy from shooting so its bullets don't interfere
+    enemy_tank.shoot = lambda: None
     # Replace existing enemies with just this one for a clean test
     game_manager.enemy_tanks = [enemy_tank]
     initial_enemy_count = len(game_manager.enemy_tanks)

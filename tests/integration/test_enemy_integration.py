@@ -243,6 +243,10 @@ def test_enemy_movement_and_direction_change(
         f"Mock forced direction: {forced_new_direction}"
     )
 
+    # Prevent enemy from shooting so bullets don't hit the base
+    # and cause GAME_OVER before the direction change timer fires
+    enemy_tank.shoot = lambda: None
+
     game_manager.enemy_tanks.append(enemy_tank)
     game_manager.total_enemy_spawns = 1
     logger.debug(

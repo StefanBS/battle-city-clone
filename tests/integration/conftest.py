@@ -18,8 +18,9 @@ except pygame.error as e:
 def game_manager_fixture():
     """Fixture to provide a standard GameManager instance for integration tests."""
     logger.debug("Creating GameManager instance via fixture...")
-    # Simply create and return a new GameManager
-    # Tests that need specific map setups will modify it directly.
+    # Ensure pygame is initialized (other test modules may have called quit)
+    pygame.init()
+    pygame.display.set_mode((1, 1), pygame.NOFRAME)
     manager = GameManager()
     logger.debug("GameManager instance created.")
     return manager
