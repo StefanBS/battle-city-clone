@@ -8,6 +8,7 @@ from src.core.enemy_tank import EnemyTank
 from src.core.map import Map
 from src.core.player_tank import PlayerTank
 from src.managers.texture_manager import TextureManager
+from src.utils.level_data import STAGE_ENEMIES
 
 
 class SpawnManager:
@@ -18,7 +19,7 @@ class SpawnManager:
         tile_size: int,
         texture_manager: TextureManager,
         spawn_points: List[Tuple[int, int]],
-        max_spawns: int,
+        stage: int,
         spawn_interval: float,
         player_tank: PlayerTank,
         game_map: Map,
@@ -31,7 +32,7 @@ class SpawnManager:
             tile_size: Size of each tile in pixels.
             texture_manager: TextureManager for loading enemy sprites.
             spawn_points: List of (grid_x, grid_y) spawn locations.
-            max_spawns: Maximum number of enemies to spawn in total.
+            stage: Current stage number (1-35, clamped for higher values).
             spawn_interval: Seconds between spawn attempts.
             player_tank: The player tank (for collision checking on initial spawn).
             game_map: The game map (for collision checking on initial spawn).
@@ -41,7 +42,8 @@ class SpawnManager:
         self.tile_size = tile_size
         self.texture_manager = texture_manager
         self.spawn_points = spawn_points
-        self.max_enemy_spawns = max_spawns
+        self._spawn_queue: List[str] = self._build_spawn_queue(stage)
+        self.max_enemy_spawns: int = len(self._spawn_queue)
         self.spawn_interval = spawn_interval
         self.map_width_px = map_width_px
         self.map_height_px = map_height_px
@@ -50,6 +52,26 @@ class SpawnManager:
         self.spawn_timer: float = 0.0
         # Initial spawn
         self.spawn_enemy(player_tank, game_map)
+
+    def _build_spawn_queue(self, stage: int) -> List[str]:
+        """Build a shuffled list of enemy types for the given stage.
+
+        Args:
+            stage: Stage number (1-based). Clamped to valid range.
+
+        Returns:
+            Shuffled list of enemy type strings.
+        """
+        index = min(stage - 1, len(STAGE_ENEMIES) - 1)
+        basic, fast, power, armor = STAGE_ENEMIES[index]
+        queue = (
+            ["basic"] * basic
+            + ["fast"] * fast
+            + ["power"] * power
+            + ["armor"] * armor
+        )
+        random.shuffle(queue)
+        return queue
 
     def spawn_enemy(self, player_tank: PlayerTank, game_map: Map) -> bool:
         """Spawn a new enemy tank at a random spawn point if under the spawn limit.
@@ -92,13 +114,13 @@ class SpawnManager:
                     break
 
         if not collision:
-            # Always spawn 'basic' type for now
+            tank_type = self._spawn_queue.pop()
             enemy = EnemyTank(
                 x,
                 y,
                 self.tile_size,
                 self.texture_manager,
-                tank_type="basic",
+                tank_type=tank_type,
                 map_width_px=self.map_width_px,
                 map_height_px=self.map_height_px,
             )
@@ -107,7 +129,7 @@ class SpawnManager:
             logger.debug(
                 (
                     f"Spawned enemy {self.total_enemy_spawns}/{self.max_enemy_spawns} "
-                    f"at ({x}, {y})"
+                    f"at ({x}, {y}) type={tank_type}"
                 )
             )
             return True
@@ -130,14 +152,17 @@ class SpawnManager:
             if self.spawn_enemy(player_tank, game_map):
                 self.spawn_timer = 0
 
-    def reset(self, player_tank: PlayerTank, game_map: Map) -> None:
+    def reset(self, stage: int, player_tank: PlayerTank, game_map: Map) -> None:
         """Reset spawn state and perform initial spawn.
 
         Args:
+            stage: Stage number for rebuilding the spawn queue.
             player_tank: The player tank (for collision checking on initial spawn).
             game_map: The game map (for collision checking on initial spawn).
         """
         self.enemy_tanks = []
         self.total_enemy_spawns = 0
         self.spawn_timer = 0.0
+        self._spawn_queue = self._build_spawn_queue(stage)
+        self.max_enemy_spawns = len(self._spawn_queue)
         self.spawn_enemy(player_tank, game_map)
