@@ -1,7 +1,5 @@
-import pygame
 from loguru import logger
 from .tank import Tank
-from src.managers.input_handler import InputHandler
 from src.managers.texture_manager import TextureManager
 from src.utils.constants import Direction
 
@@ -25,77 +23,68 @@ class PlayerTank(Tank):
             tile_size: Size of a tile in pixels
             texture_manager: Instance of TextureManager
         """
-        # Ensure x and y are aligned to the grid
         grid_x = round(x / tile_size) * tile_size
         grid_y = round(y / tile_size) * tile_size
         logger.debug(f"Creating PlayerTank at initial grid ({grid_x}, {grid_y})")
-        # Initialize with grid-aligned position
         super().__init__(
             grid_x, grid_y, texture_manager, tile_size, None, health=1, lives=3
         )
         self.owner_type = "player"
-        self.input_handler = InputHandler()
         self.initial_position = (grid_x, grid_y)
-        self.invincibility_duration = 3.0  # 3 seconds invincibility after respawn
+        self.invincibility_duration = 3.0
         self._update_sprite()
 
-    def handle_event(self, event: pygame.event.Event) -> None:
+    def move(self, dx: int, dy: int, dt: float) -> None:
         """
-        Handle a pygame event.
+        Move the tank in the given direction.
+
+        Sets the direction, updates the sprite, and calls _move().
+        This is the public interface for external controllers (GameManager).
 
         Args:
-            event: The pygame event to handle
+            dx: X movement amount (-1, 0, or 1)
+            dy: Y movement amount (-1, 0, or 1)
+            dt: Time elapsed since last update in seconds
         """
-        self.input_handler.handle_event(event)
+        if dx == 0 and dy == 0:
+            return
 
-        # Handle shooting
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-            logger.debug("Player attempting to shoot.")
-            self.shoot()
+        new_direction = self.direction
+        if dx > 0:
+            new_direction = Direction.RIGHT
+        elif dx < 0:
+            new_direction = Direction.LEFT
+        elif dy > 0:
+            new_direction = Direction.DOWN
+        elif dy < 0:
+            new_direction = Direction.UP
+
+        if new_direction != self.direction:
+            self.direction = new_direction
+            self._update_sprite()
+
+        self._move(dx, dy, dt)
 
     def update(self, dt: float) -> None:
         """
-        Update the tank's position based on input and check for collisions.
+        Update the tank's state.
 
         Args:
             dt: Time elapsed since last update in seconds
         """
-        # Update base tank state
         super().update(dt)
-
-        # Get movement direction from input
-        dx, dy = self.input_handler.get_movement_direction()
-
-        # Update direction based on movement
-        if dx != 0 or dy != 0:
-            new_direction = self.direction
-            if dx > 0:
-                new_direction = Direction.RIGHT
-            elif dx < 0:
-                new_direction = Direction.LEFT
-            elif dy > 0:
-                new_direction = Direction.DOWN
-            elif dy < 0:
-                new_direction = Direction.UP
-
-            if new_direction != self.direction:
-                self.direction = new_direction
-                self._update_sprite()
-
-            # Attempt to move
-            self._move(dx, dy, dt)
 
     def respawn(self) -> None:
         """Respawn the tank at its initial position."""
         if self.lives > 0:
             logger.info(
-                f"Player respawning at {self.initial_position}. Lives: {self.lives}"
+                f"Player respawning at {self.initial_position}. "
+                f"Lives: {self.lives}"
             )
             self.x, self.y = self.initial_position
             self.target_position = self.initial_position
             self.is_invincible = True
             self.invincibility_timer = 0
             self.blink_timer = 0
-            self.direction = Direction.UP  # Reset direction
+            self.direction = Direction.UP
             self._update_sprite()
-

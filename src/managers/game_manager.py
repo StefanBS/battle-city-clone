@@ -22,6 +22,7 @@ from src.utils.constants import (
 import random
 from src.managers.collision_manager import CollisionManager
 from src.managers.texture_manager import TextureManager
+from src.managers.input_handler import InputHandler
 from src.core.tank import Tank
 
 
@@ -64,6 +65,7 @@ class GameManager:
         self.texture_manager = TextureManager("assets/sprites/sprites.png")
         logger.info("Initializing CollisionManager...")
         self.collision_manager: CollisionManager = CollisionManager()
+        self.input_handler: InputHandler = InputHandler()
         # --- End Initialize Managers ---
 
         # Game clock
@@ -166,9 +168,9 @@ class GameManager:
                     logger.info("R key pressed, resetting game.")
                     self._reset_game()  # Use the new reset method
 
-            # Pass events to the player tank only if game is running
+            # Pass events to input handler only if game is running
             if self.state == GameState.RUNNING:
-                self.player_tank.handle_event(event)
+                self.input_handler.handle_event(event)
 
     def update(self) -> None:
         """Update game state."""
@@ -196,6 +198,12 @@ class GameManager:
         # --- End Prepare data ---
 
         self.map.update(dt)
+        # Drive player tank from input
+        dx, dy = self.input_handler.get_movement_direction()
+        if dx != 0 or dy != 0:
+            self.player_tank.move(dx, dy, dt)
+        if self.input_handler.consume_shoot():
+            self.player_tank.shoot()
         self.player_tank.update(dt)
 
         # Iterate over a copy for safe removal
