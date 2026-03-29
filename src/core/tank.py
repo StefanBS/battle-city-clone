@@ -88,7 +88,7 @@ class Tank(GameObject):
         sprite_name = f"{base_sprite_name}_{self.direction}_{self.animation_frame}"
         try:
             self.sprite = self.texture_manager.get_sprite(sprite_name)
-            logger.trace(f"Set sprite to {sprite_name}")
+
         except KeyError:
             logger.error(
                 f"Sprite '{sprite_name}' not found for {self.owner_type} tank."
@@ -202,13 +202,6 @@ class Tank(GameObject):
         target_x = self.x + dx * self.speed * dt
         target_y = self.y + dy * self.speed * dt
 
-        logger.debug(
-            (
-                f"Tank {self.owner_type} attempting move from ({self.x}, {self.y}) "
-                f"to ({target_x}, {target_y})"
-            )
-        )
-
         # Apply movement (position will be validated/reverted by GameManager)
         self.x = target_x
         self.y = target_y
@@ -234,10 +227,6 @@ class Tank(GameObject):
         Otherwise, reverts to self.prev_x, self.prev_y.
         """
         if obstacle_rect:
-            logger.debug(
-                f"Tank {self.owner_type} snapping to obstacle {obstacle_rect} due to "
-                f"collision. Direction: {self.direction}"
-            )
             # Start with current (collided) position as a basis for snapping
             snapped_x, snapped_y = self.x, self.y
 
@@ -260,17 +249,7 @@ class Tank(GameObject):
             self.x = max(0.0, min(self.x, max_x))
             self.y = max(0.0, min(self.y, max_y))
 
-            logger.debug(
-                f"Tank {self.owner_type} snapped to ({self.x:.2f}, {self.y:.2f})"
-            )
-
         else:  # Fallback to previous position if no obstacle_rect is given
-            logger.debug(
-                (
-                    f"Tank {self.owner_type} reverting move from ({self.x:.2f}, {self.y:.2f}) "
-                    f"to ({self.prev_x:.2f}, {self.prev_y:.2f}) (no obstacle for snapping)"
-                )
-            )
             self.x = self.prev_x
             self.y = self.prev_y
 

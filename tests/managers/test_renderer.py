@@ -36,7 +36,9 @@ class TestRendererInitialization:
         assert renderer.screen is mock_screen
         assert renderer.logical_width == 512
         assert renderer.logical_height == 512
-        mock_surface_cls.assert_called_once_with((512, 512))
+        assert mock_surface_cls.call_count == 2
+        mock_surface_cls.assert_any_call((512, 512))
+        mock_surface_cls.assert_any_call((1024, 1024))
         assert renderer.background_color == (0, 0, 0)
         assert renderer.font is not None
         assert renderer.small_font is not None
@@ -152,6 +154,8 @@ class TestRendererRender:
             mock_scale.return_value = mock_scaled
             renderer.render(mock_map, mock_player, [], [], GameState.RUNNING)
 
-        mock_scale.assert_called_once_with(renderer.game_surface, (1024, 1024))
-        renderer.screen.blit.assert_called_once_with(mock_scaled, (0, 0))
+        mock_scale.assert_called_once_with(
+            renderer.game_surface, (1024, 1024), renderer._scaled_surface
+        )
+        renderer.screen.blit.assert_called_once_with(renderer._scaled_surface, (0, 0))
         mock_flip.assert_called_once()

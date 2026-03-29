@@ -110,7 +110,6 @@ class GameManager:
     def handle_events(self) -> None:
         """Handle pygame events."""
         for event in pygame.event.get():
-            logger.trace(f"Handling event: {event}")
             if event.type == pygame.QUIT:
                 logger.info("Quit event received.")
                 self._quit_game()
@@ -131,7 +130,6 @@ class GameManager:
         if self.state != GameState.RUNNING:
             return
 
-        logger.trace("Starting game update...")
         dt: float = 1.0 / self.fps
 
         # --- Prepare data for Collision Manager ---
@@ -199,8 +197,6 @@ class GameManager:
                 logger.info("All enemies defeated. Victory!")
                 self.state = GameState.VICTORY
                 self.current_stage += 1
-
-        logger.trace("Game update finished.")
 
     def _try_shoot(self, tank) -> None:
         """Attempt to fire a bullet for the given tank, respecting max_bullets."""

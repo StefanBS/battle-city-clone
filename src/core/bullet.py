@@ -76,9 +76,6 @@ class Bullet(GameObject):
             or self.y < 0
             or self.y > self.owner.map_height_px
         ):
-            logger.trace(
-                f"Bullet deactivated (out of bounds) at ({self.x:.1f}, {self.y:.1f})"
-            )
             self.active = False
             return
 
