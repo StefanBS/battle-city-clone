@@ -38,13 +38,11 @@ class TestTank:
     )
     def test_shoot_direction(self, tank, direction):
         """Test shooting in different directions."""
-        # Set direction and shoot
         tank.direction = direction
-        tank.shoot()
+        bullet = tank.shoot()
 
-        # Verify bullet direction
-        assert tank.bullet is not None
-        assert tank.bullet.direction == direction
+        assert bullet is not None
+        assert bullet.direction == direction
 
     def test_initialization(self, tank):
         """Test tank initialization."""
@@ -54,7 +52,8 @@ class TestTank:
         assert tank.height == TILE_SIZE
         assert tank.speed == TANK_SPEED
         assert tank.direction == Direction.UP
-        assert tank.bullet is None
+        assert not hasattr(tank, "bullet")
+        assert tank.max_bullets == 1
         assert tank.health == 1
         assert tank.lives == 1
         assert not tank.is_invincible
@@ -103,17 +102,18 @@ class TestTank:
 
     def test_shoot(self, tank):
         """Test shooting functionality."""
-        # Test shooting
-        tank.shoot()
-        assert tank.bullet is not None
-        assert isinstance(tank.bullet, Bullet)
-        assert tank.bullet.active
+        bullet = tank.shoot()
+        assert bullet is not None
+        assert isinstance(bullet, Bullet)
+        assert bullet.active
 
-        # Test bullet position (should be centered on tank)
         expected_x = tank.x + tank.width // 2 - BULLET_WIDTH // 2
         expected_y = tank.y + tank.height // 2 - BULLET_HEIGHT // 2
-        assert tank.bullet.x == expected_x
-        assert tank.bullet.y == expected_y
+        assert bullet.x == expected_x
+        assert bullet.y == expected_y
+
+        assert bullet.owner is tank
+        assert bullet.owner_type == tank.owner_type
 
     def test_move(self, tank):
         """Test continuous movement functionality."""

@@ -54,7 +54,7 @@ class Tank(GameObject):
         self.speed = speed
         self.bullet_speed = bullet_speed
         self.direction = Direction.UP  # Initial direction
-        self.bullet: Optional[Bullet] = None
+        self.max_bullets: int = 1
         self.tile_size = tile_size
         self.health: int = health
         self.max_health: int = health
@@ -128,31 +128,27 @@ class Tank(GameObject):
         logger.debug(f"Tank {self.owner_type} health now {self.health}.")
         return False
 
-    def shoot(self) -> None:
-        """Create a new bullet if none exists."""
-        if self.bullet is None or not self.bullet.active:
-            logger.debug(
-                (
-                    f"Tank {self.owner_type} at ({self.x}, {self.y}) shooting "
-                    f"in direction {self.direction}."
-                )
+    def shoot(self) -> Optional[Bullet]:
+        """Create and return a new bullet.
+
+        Returns:
+            A new Bullet instance, or None if creation fails.
+        """
+        logger.debug(
+            (
+                f"Tank {self.owner_type} at ({self.x}, {self.y}) shooting "
+                f"in direction {self.direction}."
             )
-            bullet_x = self.x + self.width // 2 - BULLET_WIDTH // 2
-            bullet_y = self.y + self.height // 2 - BULLET_HEIGHT // 2
-            self.bullet = Bullet(
-                bullet_x,
-                bullet_y,
-                self.direction,
-                self.owner_type,
-                speed=self.bullet_speed,
-            )
-        else:
-            logger.trace(
-                (
-                    f"Tank {self.owner_type} at ({self.x}, {self.y}) tried to shoot, "
-                    f"but bullet is active."
-                )
-            )
+        )
+        bullet_x = self.x + self.width // 2 - BULLET_WIDTH // 2
+        bullet_y = self.y + self.height // 2 - BULLET_HEIGHT // 2
+        return Bullet(
+            bullet_x,
+            bullet_y,
+            self.direction,
+            owner=self,
+            speed=self.bullet_speed,
+        )
 
     def update(self, dt: float) -> None:
         """
@@ -177,9 +173,6 @@ class Tank(GameObject):
         # Let's keep it here for now, might need adjustment.
         super().update(dt)
 
-        # Update bullet if it exists
-        if self.bullet is not None:
-            self.bullet.update(dt)
 
     def _move(self, dx: int, dy: int, dt: float) -> bool:
         """
@@ -281,7 +274,7 @@ class Tank(GameObject):
 
     def draw(self, surface: pygame.Surface) -> None:
         """
-        Draw the tank and its bullet on the given surface.
+        Draw the tank on the given surface.
 
         Args:
             surface: Surface to draw on
@@ -293,6 +286,3 @@ class Tank(GameObject):
         ):
             if self.sprite:
                 surface.blit(self.sprite, self.rect)
-
-        if self.bullet is not None and self.bullet.active:
-            self.bullet.draw(surface)
