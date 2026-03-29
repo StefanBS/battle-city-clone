@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="13" height="13" tilewidth="16" tileheight="16" infinite="0" nextlayerid="3" nextobjectid="5">
+ <tileset firstgid="1" source="../sprites/sprites.tsx"/>
+ <layer id="1" name="Tile Layer 1" width="13" height="13">
+  <data encoding="csv">
+22,22,22,22,22,22,22,22,22,22,22,22,22,
+22,17,22,17,22,17,22,17,22,17,22,17,22,
+22,17,22,17,22,17,22,17,22,17,22,17,22,
+22,17,22,17,22,17,42,17,22,17,22,17,22,
+22,17,22,17,22,21,22,21,22,17,22,17,22,
+22,21,22,21,22,19,22,19,22,21,22,21,22,
+19,22,19,19,22,21,22,21,22,19,19,22,19,
+46,22,21,21,22,19,22,19,22,21,21,22,46,
+22,22,22,22,22,17,17,17,22,22,22,22,22,
+22,17,22,17,22,17,22,17,22,17,22,17,22,
+22,17,22,17,22,21,22,21,22,17,22,17,22,
+22,17,22,17,22,22,19,22,22,17,22,17,22,
+22,22,22,22,22,18,22,20,22,22,22,22,22
+</data>
+ </layer>
+ <objectgroup id="2" name="spawn_points">
+  <object id="1" name="enemy_spawn" x="16" y="16" width="0" height="0"/>
+  <object id="2" name="enemy_spawn" x="96" y="16" width="0" height="0"/>
+  <object id="3" name="enemy_spawn" x="176" y="16" width="0" height="0"/>
+  <object id="4" name="player_spawn" x="80" y="176" width="0" height="0"/>
+ </objectgroup>
+</map>
