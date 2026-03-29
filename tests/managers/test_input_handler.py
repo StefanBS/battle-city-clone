@@ -150,7 +150,7 @@ def test_ignore_unmapped_keys(
     initial_directions = handler.directions.copy()
     initial_movement = handler.get_movement_direction()
 
-    handler.handle_event(key_down_event(pygame.K_SPACE))  # Unmapped key
+    handler.handle_event(key_down_event(pygame.K_a))  # Unmapped key
     handler.handle_event(key_up_event(pygame.K_a))  # Unmapped key
 
     assert handler.directions == initial_directions
@@ -195,3 +195,26 @@ def test_repeated_keyup(handler: InputHandler, key_down_event, key_up_event) -> 
     # Handle the same KEYUP event again
     handler.handle_event(key_up_event(pygame.K_UP))
     assert handler.directions == direction_after_first  # State should not change
+
+
+def test_shoot_key_default(handler: InputHandler, key_down_event) -> None:
+    """Test that space bar triggers shoot_pressed."""
+    assert not handler.shoot_pressed
+    handler.handle_event(key_down_event(pygame.K_SPACE))
+    assert handler.shoot_pressed
+
+
+def test_consume_shoot(handler: InputHandler, key_down_event) -> None:
+    """Test that consume_shoot returns True once then resets."""
+    handler.handle_event(key_down_event(pygame.K_SPACE))
+    assert handler.consume_shoot() is True
+    assert handler.consume_shoot() is False
+    assert not handler.shoot_pressed
+
+
+def test_shoot_key_not_triggered_by_movement(
+    handler: InputHandler, key_down_event
+) -> None:
+    """Test that movement keys don't trigger shoot."""
+    handler.handle_event(key_down_event(pygame.K_UP))
+    assert not handler.shoot_pressed
