@@ -1,6 +1,6 @@
 import pytest
-from src.core.enemy_tank import EnemyTank, TankType
-from src.utils.constants import TILE_SIZE, TANK_SPEED, BULLET_SPEED
+from src.core.enemy_tank import EnemyTank
+from src.utils.constants import TILE_SIZE, TANK_SPEED, BULLET_SPEED, TankType
 
 # Define expected properties based on EnemyTank.TANK_PROPERTIES for easier assertion
 EXPECTED_PROPERTIES = {
