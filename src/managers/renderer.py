@@ -1,11 +1,7 @@
 import pygame
 from typing import List, Tuple
-from loguru import logger
 from src.states.game_state import GameState
-
-WHITE: Tuple[int, int, int] = (255, 255, 255)
-YELLOW: Tuple[int, int, int] = (255, 255, 0)
-BLACK: Tuple[int, int, int] = (0, 0, 0)
+from src.utils.constants import WHITE, YELLOW, BLACK, RED, GREEN
 
 
 class Renderer:
@@ -119,48 +115,33 @@ class Renderer:
 
     def _draw_game_over(self) -> None:
         """Draw the game over screen."""
-        logger.debug("Drawing Game Over screen.")
-        # Create overlay on the logical surface
-        overlay = pygame.Surface(
-            (self.logical_width, self.logical_height), pygame.SRCALPHA
-        )
-        overlay.fill((0, 0, 0, 128))  # Black with 50% opacity
-        self.game_surface.blit(overlay, (0, 0))
-
-        # Draw game over text centered on logical surface
-        text = self.font.render("GAME OVER", True, (255, 0, 0))
-        text_rect = text.get_rect(
-            center=(self.logical_width // 2, self.logical_height // 2)
-        )
-        self.game_surface.blit(text, text_rect)
-
-        # Draw restart text centered on logical surface
-        restart_text = self.font.render("Press R to Restart", True, WHITE)
-        restart_rect = restart_text.get_rect(
-            center=(self.logical_width // 2, self.logical_height // 2 + 50)
-        )
-        self.game_surface.blit(restart_text, restart_rect)
+        self._draw_overlay_screen("GAME OVER", RED, "Press R to Restart")
 
     def _draw_victory(self) -> None:
         """Draw the victory screen."""
-        logger.debug("Drawing Victory screen.")
-        # Create overlay on the logical surface
+        self._draw_overlay_screen("VICTORY!", GREEN, "Press R to Play Again")
+
+    def _draw_overlay_screen(
+        self,
+        title: str,
+        title_color: Tuple[int, int, int],
+        subtitle: str,
+    ) -> None:
+        """Draw a semi-transparent overlay with centered title and subtitle."""
         overlay = pygame.Surface(
             (self.logical_width, self.logical_height), pygame.SRCALPHA
         )
         overlay.fill((0, 0, 0, 128))
         self.game_surface.blit(overlay, (0, 0))
 
-        # Draw victory text centered on logical surface
-        text = self.font.render("VICTORY!", True, (0, 255, 0))
+        text = self.font.render(title, True, title_color)
         text_rect = text.get_rect(
             center=(self.logical_width // 2, self.logical_height // 2)
         )
         self.game_surface.blit(text, text_rect)
 
-        # Draw restart text centered on logical surface
-        restart_text = self.font.render("Press R to Play Again", True, WHITE)
-        restart_rect = restart_text.get_rect(
+        subtitle_text = self.font.render(subtitle, True, WHITE)
+        subtitle_rect = subtitle_text.get_rect(
             center=(self.logical_width // 2, self.logical_height // 2 + 50)
         )
-        self.game_surface.blit(restart_text, restart_rect)
+        self.game_surface.blit(subtitle_text, subtitle_rect)
