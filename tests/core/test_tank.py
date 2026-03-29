@@ -23,27 +23,41 @@ class TestTank:
     def tank(self, mock_texture_manager):
         """Create a tank instance for testing."""
         return Tank(
-            0, 0, mock_texture_manager, tile_size=TILE_SIZE,
+            0,
+            0,
+            mock_texture_manager,
+            tile_size=TILE_SIZE,
             owner_type=OwnerType.PLAYER,
-            map_width_px=MAP_WIDTH_PX, map_height_px=MAP_HEIGHT_PX,
+            map_width_px=MAP_WIDTH_PX,
+            map_height_px=MAP_HEIGHT_PX,
         )
 
     @pytest.fixture
     def tank_two_lives(self, mock_texture_manager):
         """Create a tank instance with two lives for testing."""
         return Tank(
-            0, 0, mock_texture_manager, tile_size=TILE_SIZE, lives=2,
+            0,
+            0,
+            mock_texture_manager,
+            tile_size=TILE_SIZE,
+            lives=2,
             owner_type=OwnerType.PLAYER,
-            map_width_px=MAP_WIDTH_PX, map_height_px=MAP_HEIGHT_PX,
+            map_width_px=MAP_WIDTH_PX,
+            map_height_px=MAP_HEIGHT_PX,
         )
 
     @pytest.fixture
     def tank_two_health(self, mock_texture_manager):
         """Create a tank instance with two health for testing."""
         return Tank(
-            0, 0, mock_texture_manager, tile_size=TILE_SIZE, health=2,
+            0,
+            0,
+            mock_texture_manager,
+            tile_size=TILE_SIZE,
+            health=2,
             owner_type=OwnerType.PLAYER,
-            map_width_px=MAP_WIDTH_PX, map_height_px=MAP_HEIGHT_PX,
+            map_width_px=MAP_WIDTH_PX,
+            map_height_px=MAP_HEIGHT_PX,
         )
 
     @pytest.mark.parametrize(
@@ -244,10 +258,14 @@ class TestTank:
         """Test that shoot() creates a bullet with the tank's bullet_speed."""
         custom_speed = 999.0
         tank = Tank(
-            0, 0, mock_texture_manager, tile_size=TILE_SIZE,
+            0,
+            0,
+            mock_texture_manager,
+            tile_size=TILE_SIZE,
             bullet_speed=custom_speed,
             owner_type=OwnerType.PLAYER,
-            map_width_px=512, map_height_px=512,
+            map_width_px=512,
+            map_height_px=512,
         )
         bullet = tank.shoot()
         assert bullet.speed == custom_speed

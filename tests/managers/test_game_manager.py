@@ -25,9 +25,7 @@ class TestGameManager:
             patch("src.managers.game_manager.Map") as MockMap,
         ):
             mock_tm_instance = MockTM.return_value
-            mock_tm_instance.get_sprite.return_value = MagicMock(
-                spec=pygame.Surface
-            )
+            mock_tm_instance.get_sprite.return_value = MagicMock(spec=pygame.Surface)
 
             mock_map_instance = MockMap.return_value
             mock_map_instance.width = 16
@@ -114,4 +112,3 @@ class TestGameManager:
         mock_enemy.update.assert_not_called()
         game_manager.spawn_manager.update.assert_not_called()
         game_manager.collision_response_handler.process_collisions.assert_not_called()
-
