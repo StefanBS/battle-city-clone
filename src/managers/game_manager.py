@@ -1,5 +1,5 @@
 import pygame
-from typing import List, Tuple, Optional, Any
+from typing import List, Tuple, Optional
 from loguru import logger
 from src.core.map import Map
 from src.core.player_tank import PlayerTank
@@ -21,9 +21,9 @@ from src.utils.constants import (
 )
 import random
 from src.managers.collision_manager import CollisionManager
+from src.managers.collision_response_handler import CollisionResponseHandler
 from src.managers.texture_manager import TextureManager
 from src.managers.input_handler import InputHandler
-from src.core.tank import Tank
 
 
 class GameManager:
@@ -78,6 +78,14 @@ class GameManager:
 
         # Map
         self.map: Map = Map(self.texture_manager)
+
+        # Collision response handler
+        self.collision_response_handler: CollisionResponseHandler = (
+            CollisionResponseHandler(
+                game_map=self.map,
+                set_game_state=self._set_game_state,
+            )
+        )
 
         # Player tank
         start_x: int = ((GRID_WIDTH // 2) - 1) * self.tile_size
@@ -228,7 +236,13 @@ class GameManager:
             player_base=player_base,
         )
 
-        self._process_collisions()
+        events = self.collision_manager.get_collision_events()
+        enemies_to_remove = self.collision_response_handler.process_collisions(
+            events
+        )
+        for enemy in enemies_to_remove:
+            if enemy in self.enemy_tanks:
+                self.enemy_tanks.remove(enemy)
 
         if self.state == GameState.RUNNING:
             if (
@@ -240,182 +254,9 @@ class GameManager:
 
         logger.trace("Game update finished.")
 
-    def _process_collisions(self) -> None:
-        """Process the collision events detected by the CollisionManager."""
-        events: List[Tuple[Any, Any]] = self.collision_manager.get_collision_events()
-        if not events:
-            return
-
-        logger.trace(f"Processing {len(events)} collision events...")
-        processed_bullets = set()
-        # Keep track of tanks whose moves were reverted to avoid double-reverting
-        reverted_tanks = set()
-
-        # Separate lists to manage removals safely
-        enemies_to_remove: List[EnemyTank] = []
-
-        for obj_a, obj_b in events:
-            # Prioritize bullet collisions as they often have immediate effects
-            bullet = None
-            other_for_bullet = None
-            if isinstance(obj_a, Bullet) and obj_a not in processed_bullets:
-                bullet = obj_a
-                other_for_bullet = obj_b
-            elif isinstance(obj_b, Bullet) and obj_b not in processed_bullets:
-                bullet = obj_b
-                other_for_bullet = obj_a
-
-            if bullet:
-                if self._handle_bullet_collision(
-                    bullet, other_for_bullet, enemies_to_remove
-                ):
-                    processed_bullets.add(bullet)
-                    if isinstance(other_for_bullet, Bullet):
-                        processed_bullets.add(other_for_bullet)
-                continue  # Processed this pair as bullet collision
-
-            # Handle tank collisions if not already reverted
-            # Tank vs Tank
-            if isinstance(obj_a, Tank) and isinstance(obj_b, Tank):
-                if obj_a not in reverted_tanks or obj_b not in reverted_tanks:
-                    if self._handle_tank_tank_collision(obj_a, obj_b):
-                        reverted_tanks.add(obj_a)
-                        reverted_tanks.add(obj_b)
-            # Tank vs Tile
-            elif isinstance(obj_a, Tank) and isinstance(obj_b, Tile):
-                if obj_a not in reverted_tanks:
-                    if self._handle_tank_tile_collision(obj_a, obj_b):
-                        reverted_tanks.add(obj_a)
-            elif isinstance(obj_b, Tank) and isinstance(obj_a, Tile):
-                if obj_b not in reverted_tanks:
-                    if self._handle_tank_tile_collision(obj_b, obj_a):
-                        reverted_tanks.add(obj_b)
-
-        # Remove destroyed enemies after processing all collisions for the frame
-        for enemy in enemies_to_remove:
-            if enemy in self.enemy_tanks:
-                self.enemy_tanks.remove(enemy)
-
-    def _handle_bullet_collision(
-        self, bullet: Bullet, other: Any, enemies_to_remove: List[EnemyTank]
-    ) -> bool:
-        """Handles the outcome of a bullet colliding with another object.
-
-        Args:
-            bullet: The bullet involved in the collision.
-            other: The other object the bullet collided with.
-            enemies_to_remove: A list to append enemies that should be removed.
-
-        Returns:
-            True if the bullet should be considered processed (i.e., deactivated)
-        """
-        logger.trace(
-            (
-                f"Handling bullet collision: {type(bullet).__name__} vs "
-                f"{type(other).__name__}"
-            )
-        )
-        if not bullet.active:
-            return False  # Bullet already inactive
-
-        processed = False
-
-        # --- Bullet vs Enemy Tank ---
-        if isinstance(other, EnemyTank) and bullet.owner_type == "player":
-            logger.debug(f"Player bullet hit enemy tank (type: {other.tank_type})")
-            bullet.active = False
-            processed = True
-            # Avoid damaging the same tank multiple times in one frame from different
-            #  events if other not in processed_tanks:
-            destroyed = other.take_damage()
-            if destroyed:
-                logger.info(f"Enemy tank (type: {other.tank_type}) destroyed.")
-                enemies_to_remove.append(other)
-            # processed_tanks.add(other)
-
-        # --- Bullet vs Player Tank ---
-        elif isinstance(other, PlayerTank) and bullet.owner_type == "enemy":
-            logger.debug("Enemy bullet hit player tank.")
-            bullet.active = False
-            processed = True
-            if not other.is_invincible:
-                # if other not in processed_tanks:
-                destroyed = other.take_damage()
-                if destroyed:
-                    logger.info("Player tank destroyed.")
-                    self.state = GameState.GAME_OVER
-                else:
-                    other.respawn()  # Player lost a life but has more
-
-        # --- Bullet vs Tile ---
-        elif isinstance(other, Tile):
-            if other.type == TileType.BRICK:
-                logger.debug(f"Bullet hit brick tile at ({other.x}, {other.y})")
-                bullet.active = False
-                self.map.set_tile_type(other, TileType.EMPTY)
-                # Potentially update map collision data if needed
-                processed = True
-            elif other.type == TileType.STEEL:
-                logger.debug(f"Bullet hit steel tile at ({other.x}, {other.y})")
-                bullet.active = False
-                processed = True
-            elif other.type == TileType.BASE:
-                logger.debug(f"Bullet hit base tile at ({other.x}, {other.y})")
-                bullet.active = False
-                self.map.set_tile_type(other, TileType.BASE_DESTROYED)
-                self.state = GameState.GAME_OVER  # Game over
-                processed = True
-
-        # --- Bullet vs Bullet ---
-        elif isinstance(other, Bullet) and other.active:
-            # Ensure they are not the same bullet instance if logic allows
-            if bullet != other:
-                logger.debug("Bullet hit bullet. Both deactivated.")
-                bullet.active = False
-                other.active = False
-                processed = True  # Mark this bullet as processed
-                # The outer loop will mark the 'other' bullet as processed too
-
-        return processed
-
-    def _handle_tank_tank_collision(self, tank_a: Tank, tank_b: Tank) -> bool:
-        """Handles Tank vs Tank collisions by reverting movement.
-
-        Returns:
-            True if movement was reverted for at least one tank, False otherwise.
-        """
-        logger.debug(
-            f"Tank collision detected: {tank_a.owner_type} vs {tank_b.owner_type}"
-        )
-        # Simple reversion: If two tanks collide, revert both their moves.
-        # More sophisticated logic could try to revert only one based on direction etc.
-        tank_a.revert_move()
-        tank_b.revert_move()
-        return True  # Indicated reversion occurred
-
-    def _handle_tank_tile_collision(self, tank: Tank, tile: Tile) -> bool:
-        """Handles Tank vs Tile collisions. Reverts tank movement if needed.
-
-        Returns:
-            True if movement was reverted, False otherwise.
-        """
-        # Define which tile types block tank movement
-        impassable_types = [TileType.STEEL, TileType.WATER, TileType.BASE, TileType.BRICK]
-
-        if tile.type in impassable_types:
-            logger.debug(
-                f"Tank ({tank.owner_type}) collision with impassable tile "
-                f"({tile.type.name}) at ({tile.x}, {tile.y}). Reverting move."
-            )
-            tank.revert_move(tile.rect)
-
-            # Special case for EnemyTank: If it hit a wall, encourage changing direction
-            if isinstance(tank, EnemyTank):
-                tank.on_wall_hit()
-
-            return True
-
-        return False
+    def _set_game_state(self, state: GameState) -> None:
+        """Set the game state."""
+        self.state = state
 
     def _draw_game_over(self) -> None:
         """Draw the game over screen."""

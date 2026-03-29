@@ -95,8 +95,9 @@ def test_player_game_over_on_zero_lives():
     )
     # --- End Mocks --- #
 
-    # Execute the collision processing logic
-    game_manager._process_collisions()
+    # Execute the collision processing logic via the new handler
+    events = game_manager.collision_manager.get_collision_events()
+    game_manager.collision_response_handler.process_collisions(events)
 
     # --- Assertions --- #
     # 1. Verify take_damage was called
