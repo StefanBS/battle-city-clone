@@ -50,7 +50,7 @@ class TestSpawnManager:
             tile_size=TILE_SIZE,
             texture_manager=mock_texture_manager,
             spawn_points=self.SPAWN_POINTS,
-            max_spawns=5,
+            stage=1,
             spawn_interval=5.0,
             player_tank=mock_player_tank,
             game_map=mock_game_map,
@@ -211,9 +211,105 @@ class TestSpawnManager:
         spawn_manager.spawn_timer = 4.5
         spawn_manager.enemy_tanks = [MagicMock(), MagicMock()]
 
-        spawn_manager.reset(mock_player_tank, mock_game_map)
+        spawn_manager.reset(
+            stage=1, player_tank=mock_player_tank, game_map=mock_game_map
+        )
 
         assert spawn_manager.spawn_timer == 0.0
         # reset does initial spawn, so should have 1 enemy and 1 spawn count
         assert len(spawn_manager.enemy_tanks) == 1
         assert spawn_manager.total_enemy_spawns == 1
+
+    def test_spawn_queue_built_from_stage(
+        self, mock_texture_manager, mock_player_tank, mock_game_map
+    ):
+        """Test that spawn queue is built from stage data."""
+        pygame.init()
+        manager = SpawnManager(
+            tile_size=TILE_SIZE,
+            texture_manager=mock_texture_manager,
+            spawn_points=self.SPAWN_POINTS,
+            stage=1,
+            spawn_interval=5.0,
+            player_tank=mock_player_tank,
+            game_map=mock_game_map,
+            map_width_px=512,
+            map_height_px=512,
+        )
+        # Stage 1: (18, 2, 0, 0) = 20 total
+        assert manager.max_enemy_spawns == 20
+        assert manager.total_enemy_spawns == 1  # initial spawn
+        pygame.quit()
+
+    def test_spawn_uses_queue_types(
+        self, mock_texture_manager, mock_player_tank, mock_game_map
+    ):
+        """Test that spawn_enemy uses types from the queue, not always 'basic'."""
+        pygame.init()
+        # Stage 4 has: (2, 5, 10, 3) — mix of all types
+        manager = SpawnManager(
+            tile_size=TILE_SIZE,
+            texture_manager=mock_texture_manager,
+            spawn_points=self.SPAWN_POINTS,
+            stage=4,
+            spawn_interval=5.0,
+            player_tank=mock_player_tank,
+            game_map=mock_game_map,
+            map_width_px=512,
+            map_height_px=512,
+        )
+        # Spawn several enemies and collect their types
+        types_seen = set()
+        # Collect the type from initial spawn
+        for enemy in manager.enemy_tanks:
+            types_seen.add(enemy.tank_type)
+        for _ in range(19):  # 19 remaining after initial spawn
+            manager.enemy_tanks = []  # clear to avoid collision
+            manager.spawn_enemy(mock_player_tank, mock_game_map)
+            for enemy in manager.enemy_tanks:
+                types_seen.add(enemy.tank_type)
+        # Stage 4 has basic, fast, power, armor — should see multiple types
+        assert len(types_seen) > 1
+        pygame.quit()
+
+    def test_spawn_stops_when_queue_empty(
+        self, mock_texture_manager, mock_player_tank, mock_game_map
+    ):
+        """Test that spawning stops when the queue is depleted."""
+        pygame.init()
+        manager = SpawnManager(
+            tile_size=TILE_SIZE,
+            texture_manager=mock_texture_manager,
+            spawn_points=self.SPAWN_POINTS,
+            stage=1,
+            spawn_interval=5.0,
+            player_tank=mock_player_tank,
+            game_map=mock_game_map,
+            map_width_px=512,
+            map_height_px=512,
+        )
+        # Exhaust all 20 spawns
+        for _ in range(25):  # more than 20 to test stop
+            manager.enemy_tanks = []  # clear to avoid collision
+            manager.spawn_enemy(mock_player_tank, mock_game_map)
+        assert manager.total_enemy_spawns == 20
+        pygame.quit()
+
+    def test_stage_clamped_above_35(
+        self, mock_texture_manager, mock_player_tank, mock_game_map
+    ):
+        """Test that stages > 35 use stage 35 data."""
+        pygame.init()
+        manager = SpawnManager(
+            tile_size=TILE_SIZE,
+            texture_manager=mock_texture_manager,
+            spawn_points=self.SPAWN_POINTS,
+            stage=99,
+            spawn_interval=5.0,
+            player_tank=mock_player_tank,
+            game_map=mock_game_map,
+            map_width_px=512,
+            map_height_px=512,
+        )
+        assert manager.max_enemy_spawns == 20
+        pygame.quit()
