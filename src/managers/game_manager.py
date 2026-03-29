@@ -3,7 +3,7 @@ from typing import List, Optional
 from loguru import logger
 from src.core.map import Map
 from src.core.player_tank import PlayerTank
-from src.core.tile import Tile, TileType
+from src.core.tile import Tile, TileType, IMPASSABLE_TILE_TYPES
 from src.core.bullet import Bullet
 from src.states.game_state import GameState
 from src.utils.constants import (
@@ -135,7 +135,7 @@ class GameManager:
         # --- Prepare data for Collision Manager ---
         destructible_tiles: List[Tile] = self.map.get_tiles_by_type([TileType.BRICK])
         impassable_tiles: List[Tile] = self.map.get_tiles_by_type(
-            [TileType.STEEL, TileType.WATER, TileType.BASE, TileType.BRICK]
+            list(IMPASSABLE_TILE_TYPES)
         )
         player_base: Optional[Tile] = self.map.get_base()
 

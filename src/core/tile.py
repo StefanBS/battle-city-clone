@@ -19,6 +19,12 @@ class TileType(Enum):
     BASE_DESTROYED = auto()
 
 
+# Tile types that block tank movement
+IMPASSABLE_TILE_TYPES = frozenset(
+    {TileType.BRICK, TileType.STEEL, TileType.WATER, TileType.BASE}
+)
+
+
 class Tile:
     """Represents a single tile in the game map."""
 

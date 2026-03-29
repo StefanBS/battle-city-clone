@@ -3,7 +3,7 @@ import pygame
 import pytmx
 from pytmx.util_pygame import load_pygame
 from loguru import logger
-from .tile import Tile, TileType
+from .tile import Tile, TileType, IMPASSABLE_TILE_TYPES
 from src.managers.texture_manager import TextureManager
 from src.utils.constants import TILE_SIZE
 
@@ -146,12 +146,7 @@ class Map:
     def _rebuild_tile_caches(self) -> None:
         """Rebuild all cached tile lists from the grid."""
         self._cached_tiles_by_type = {}
-        collidable_types = {
-            TileType.BRICK,
-            TileType.STEEL,
-            TileType.BASE,
-            TileType.WATER,
-        }
+        collidable_types = IMPASSABLE_TILE_TYPES
         collidable_rects = []
         base = None
 
