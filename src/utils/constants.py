@@ -16,6 +16,14 @@ class Direction(str, Enum):
         return self.value
 
 
+class OwnerType(str, Enum):
+    PLAYER = "player"
+    ENEMY = "enemy"
+
+    def __str__(self) -> str:
+        return self.value
+
+
 # Window settings
 WINDOW_WIDTH: int = 1024  # Logical width (16*32) * 2
 WINDOW_HEIGHT: int = 1024  # Logical height (16*32) * 2

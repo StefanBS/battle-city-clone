@@ -6,6 +6,7 @@ from .bullet import Bullet
 from src.managers.texture_manager import TextureManager
 from src.utils.constants import (
     Direction,
+    OwnerType,
     TILE_SIZE,
     TANK_SPEED,
     TANK_WIDTH,
@@ -64,7 +65,7 @@ class Tank(GameObject):
         self.health: int = health
         self.max_health: int = health
         self.lives: int = lives
-        self.owner_type: str = "base_tank"  # Default or abstract type
+        self.owner_type: OwnerType = OwnerType.PLAYER
         self.distance_since_last_toggle: float = 0
         # Store previous position for collision rollback
         self.prev_x: float = x
@@ -80,12 +81,7 @@ class Tank(GameObject):
     def _update_sprite(self) -> None:
         """Updates the tank's sprite based on direction and animation frame."""
 
-        base_sprite_name = f"{self.owner_type}_tank"
-
-        if self.owner_type.startswith("enemy"):
-            base_sprite_name = "enemy_tank"
-
-        sprite_name = f"{base_sprite_name}_{self.direction}_{self.animation_frame}"
+        sprite_name = f"{self.owner_type}_tank_{self.direction}_{self.animation_frame}"
         try:
             self.sprite = self.texture_manager.get_sprite(sprite_name)
 

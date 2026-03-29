@@ -4,6 +4,7 @@ from loguru import logger
 from .game_object import GameObject
 from src.utils.constants import (
     Direction,
+    OwnerType,
     BULLET_SPEED,
     BULLET_WIDTH,
     BULLET_HEIGHT,
@@ -21,7 +22,7 @@ class Bullet(GameObject):
         self,
         x: float,
         y: float,
-        direction: str,
+        direction: Direction,
         owner,
         sprite: Optional[pygame.Surface] = None,
         speed: float = BULLET_SPEED,
@@ -38,12 +39,12 @@ class Bullet(GameObject):
             speed: Speed of the bullet in pixels per second
         """
         super().__init__(x, y, BULLET_WIDTH, BULLET_HEIGHT, sprite)
-        self.direction: str = direction
+        self.direction: Direction = direction
         self.speed: float = speed
         self.active: bool = True
         self.color: ColorTuple = WHITE
         self.owner = owner
-        self.owner_type: str = owner.owner_type
+        self.owner_type: OwnerType = owner.owner_type
         logger.trace(
             f"Created bullet for {self.owner_type} "
             f"at ({x:.1f}, {y:.1f}) moving {direction}"
