@@ -4,6 +4,7 @@ from src.core.tank import Tank
 from src.core.bullet import Bullet
 from src.utils.constants import (
     Direction,
+    OwnerType,
     TILE_SIZE,
     TANK_SPEED,
     BULLET_WIDTH,
@@ -23,6 +24,7 @@ class TestTank:
         """Create a tank instance for testing."""
         return Tank(
             0, 0, mock_texture_manager, tile_size=TILE_SIZE,
+            owner_type=OwnerType.PLAYER,
             map_width_px=MAP_WIDTH_PX, map_height_px=MAP_HEIGHT_PX,
         )
 
@@ -31,6 +33,7 @@ class TestTank:
         """Create a tank instance with two lives for testing."""
         return Tank(
             0, 0, mock_texture_manager, tile_size=TILE_SIZE, lives=2,
+            owner_type=OwnerType.PLAYER,
             map_width_px=MAP_WIDTH_PX, map_height_px=MAP_HEIGHT_PX,
         )
 
@@ -39,6 +42,7 @@ class TestTank:
         """Create a tank instance with two health for testing."""
         return Tank(
             0, 0, mock_texture_manager, tile_size=TILE_SIZE, health=2,
+            owner_type=OwnerType.PLAYER,
             map_width_px=MAP_WIDTH_PX, map_height_px=MAP_HEIGHT_PX,
         )
 
