@@ -180,8 +180,8 @@ class CollisionResponseHandler:
 
     def _handle_tank_vs_tank(
         self,
-        tank_a: Any,
-        tank_b: Any,
+        tank_a: Tank,
+        tank_b: Tank,
         enemies_to_remove: List[EnemyTank],
     ) -> bool:
         tank_a.revert_move()
@@ -190,7 +190,7 @@ class CollisionResponseHandler:
 
     def _handle_tank_vs_tile(
         self,
-        tank: Any,
+        tank: Tank,
         tile: Tile,
         enemies_to_remove: List[EnemyTank],
     ) -> bool:

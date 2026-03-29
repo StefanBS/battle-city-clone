@@ -164,17 +164,3 @@ class SpawnManager:
             and self.total_enemy_spawns >= self.max_enemy_spawns
         )
 
-    def reset(self, stage: int, player_tank: PlayerTank, game_map: Map) -> None:
-        """Reset spawn state and perform initial spawn.
-
-        Args:
-            stage: Stage number for rebuilding the spawn queue.
-            player_tank: The player tank (for collision checking on initial spawn).
-            game_map: The game map (for collision checking on initial spawn).
-        """
-        self.enemy_tanks = []
-        self.total_enemy_spawns = 0
-        self.spawn_timer = 0.0
-        self._spawn_queue = self._build_spawn_queue(stage)
-        self.max_enemy_spawns = len(self._spawn_queue)
-        self.spawn_enemy(player_tank, game_map)

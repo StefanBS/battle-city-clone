@@ -12,9 +12,6 @@ from src.utils.constants import (
 )
 
 
-ColorTuple = Tuple[int, int, int]
-
-
 class Bullet(GameObject):
     """Bullet entity that can be fired by tanks."""
 
@@ -42,7 +39,7 @@ class Bullet(GameObject):
         self.direction: Direction = direction
         self.speed: float = speed
         self.active: bool = True
-        self.color: ColorTuple = WHITE
+        self.color: Tuple[int, int, int] = WHITE
         self.owner = owner
         self.owner_type: OwnerType = owner.owner_type
         self.map_width_px: int = owner.map_width_px

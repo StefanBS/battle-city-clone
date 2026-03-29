@@ -172,10 +172,7 @@ class Tank(GameObject):
                 self.is_invincible = False
                 self.invincibility_timer = 0
 
-        # Update the tank's rect *before* bullet update if bullet depends on final pos?
-        # Let's keep it here for now, might need adjustment.
         super().update(dt)
-
 
     def on_wall_hit(self) -> None:
         """Called when the tank collides with a wall tile. No-op by default."""

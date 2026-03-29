@@ -65,7 +65,6 @@ BLACK: Tuple[int, int, int] = (0, 0, 0)
 WHITE: Tuple[int, int, int] = (255, 255, 255)
 RED: Tuple[int, int, int] = (255, 0, 0)
 GREEN: Tuple[int, int, int] = (0, 255, 0)
-BLUE: Tuple[int, int, int] = (0, 0, 255)
 YELLOW: Tuple[int, int, int] = (255, 255, 0)
 
 # Tile settings

@@ -204,22 +204,6 @@ class TestSpawnManager:
             spawn_manager.update(0.1, mock_player_tank, mock_game_map)
             mock_spawn.assert_not_called()
 
-    def test_reset(self, spawn_manager, mock_player_tank, mock_game_map):
-        """Test that reset clears state and does an initial spawn."""
-        # Simulate some state accumulation
-        spawn_manager.total_enemy_spawns = 3
-        spawn_manager.spawn_timer = 4.5
-        spawn_manager.enemy_tanks = [MagicMock(), MagicMock()]
-
-        spawn_manager.reset(
-            stage=1, player_tank=mock_player_tank, game_map=mock_game_map
-        )
-
-        assert spawn_manager.spawn_timer == 0.0
-        # reset does initial spawn, so should have 1 enemy and 1 spawn count
-        assert len(spawn_manager.enemy_tanks) == 1
-        assert spawn_manager.total_enemy_spawns == 1
-
     def test_spawn_queue_built_from_stage(
         self, mock_texture_manager, mock_player_tank, mock_game_map
     ):

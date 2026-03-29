@@ -112,7 +112,7 @@ class GameManager:
                     self._quit_game()
                 elif event.key == pygame.K_r and self.state != GameState.RUNNING:
                     logger.info("R key pressed, resetting game.")
-                    self._reset_game()  # Use the new reset method
+                    self._reset_game()
 
             # Pass events to input handler only if game is running
             if self.state == GameState.RUNNING:
