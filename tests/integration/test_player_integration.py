@@ -22,11 +22,24 @@ def test_player_movement(key, axis, direction_sign, expected_direction):
     # Use fresh instance to avoid side effects from other tests
     game_manager = GameManager()
     player_tank = game_manager.player_tank
+    game_map = game_manager.map
 
     # Manually set position to an open space (grid 8, 8)
     start_grid_x, start_grid_y = 8, 8
     new_x = start_grid_x * TILE_SIZE
     new_y = start_grid_y * TILE_SIZE
+
+    # Clear surrounding tiles to ensure movement in all directions
+    for dy in range(-1, 2):
+        for dx in range(-1, 2):
+            nx, ny = start_grid_x + dx, start_grid_y + dy
+            if 0 <= nx < game_map.width and 0 <= ny < game_map.height:
+                tile = game_map.get_tile_at(nx, ny)
+                if tile and tile.type != TileType.EMPTY:
+                    game_map.place_tile(
+                        nx, ny, Tile(TileType.EMPTY, nx, ny, TILE_SIZE)
+                    )
+
     player_tank.set_position(new_x, new_y)
     player_tank.target_position = (new_x, new_y)  # Ensure target is also updated
     player_tank.prev_x, player_tank.prev_y = new_x, new_y  # Sync previous position

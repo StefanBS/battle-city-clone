@@ -14,8 +14,6 @@ from src.utils.constants import (
     BULLET_WIDTH,
     BULLET_HEIGHT,
     BULLET_SPEED,
-    GRID_WIDTH,
-    GRID_HEIGHT,
 )
 
 
@@ -33,6 +31,9 @@ class Tank(GameObject):
         lives: int = 1,
         speed: float = TANK_SPEED,
         bullet_speed: float = BULLET_SPEED,
+        *,
+        map_width_px: int,
+        map_height_px: int,
     ) -> None:
         """
         Initialize the tank.
@@ -47,12 +48,16 @@ class Tank(GameObject):
             lives: Number of lives
             speed: Movement speed in pixels per second
             bullet_speed: Speed of bullets fired by this tank
+            map_width_px: Map width in pixels (for boundary clamping)
+            map_height_px: Map height in pixels (for boundary clamping)
         """
         logger.debug(f"Creating Tank at ({x}, {y})")
         super().__init__(x, y, TANK_WIDTH, TANK_HEIGHT, sprite)
         self.texture_manager = texture_manager
         self.speed = speed
         self.bullet_speed = bullet_speed
+        self.map_width_px = map_width_px
+        self.map_height_px = map_height_px
         self.direction = Direction.UP  # Initial direction
         self.max_bullets: int = 1
         self.tile_size = tile_size
@@ -250,8 +255,8 @@ class Tank(GameObject):
             self.y = snapped_y
 
             # Clamp to map bounds
-            max_x = float(GRID_WIDTH * TILE_SIZE - self.width)
-            max_y = float(GRID_HEIGHT * TILE_SIZE - self.height)
+            max_x = float(self.map_width_px - self.width)
+            max_y = float(self.map_height_px - self.height)
             self.x = max(0.0, min(self.x, max_x))
             self.y = max(0.0, min(self.y, max_y))
 

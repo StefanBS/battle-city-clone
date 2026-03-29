@@ -224,10 +224,30 @@ def test_enemy_movement_and_direction_change(
     start_x = start_x_grid * TILE_SIZE
     start_y = start_y_grid * TILE_SIZE
 
+    # Clear tiles around starting position so enemy can move in any direction
+    game_map = game_manager.map
+    for dy in range(-2, 3):
+        for dx in range(-2, 3):
+            nx, ny = start_x_grid + dx, start_y_grid + dy
+            if 0 <= nx < game_map.width and 0 <= ny < game_map.height:
+                tile = game_map.get_tile_at(nx, ny)
+                if tile and tile.type != TileType.EMPTY:
+                    game_map.place_tile(
+                        nx, ny, Tile(TileType.EMPTY, nx, ny, TILE_SIZE)
+                    )
+
     # Use the original random.choice via side_effect for the __init__ call
     mock_choice.side_effect = lambda x: original_random_choice(x)
+    map_w_px = game_manager.map.width * TILE_SIZE
+    map_h_px = game_manager.map.height * TILE_SIZE
     enemy_tank = EnemyTank(
-        start_x, start_y, TILE_SIZE, game_manager.texture_manager, enemy_type
+        start_x,
+        start_y,
+        TILE_SIZE,
+        game_manager.texture_manager,
+        enemy_type,
+        map_width_px=map_w_px,
+        map_height_px=map_h_px,
     )
     initial_direction = enemy_tank.direction  # Capture initial direction
 
@@ -377,16 +397,28 @@ def test_enemy_movement_blocked_by_tile(
             f"is out of bounds. Skipping."
         )
     start_tile = game_map.get_tile_at(start_grid_x, start_grid_y)
-    # Ensure start tile exists and is EMPTY
-    assert start_tile is not None and start_tile.type == TileType.EMPTY, (
-        f"Calculated enemy start pos ({start_grid_x}, {start_grid_y}) is not "
-        f"EMPTY ({start_tile.type.name if start_tile else 'None'}). "
-        f"Cannot start test."
-    )
+    # Ensure start tile is EMPTY (clear it if not, since we control the test area)
+    if start_tile is not None and start_tile.type != TileType.EMPTY:
+        game_map.place_tile(
+            start_grid_x,
+            start_grid_y,
+            Tile(TileType.EMPTY, start_grid_x, start_grid_y, TILE_SIZE),
+        )
+        logger.debug(
+            f"Cleared start tile ({start_grid_x}, {start_grid_y}) to EMPTY."
+        )
 
     # Spawn the enemy
+    map_w_px = game_manager.map.width * TILE_SIZE
+    map_h_px = game_manager.map.height * TILE_SIZE
     enemy_tank = EnemyTank(
-        start_x, start_y, TILE_SIZE, game_manager.texture_manager, tank_type="basic"
+        start_x,
+        start_y,
+        TILE_SIZE,
+        game_manager.texture_manager,
+        tank_type="basic",
+        map_width_px=map_w_px,
+        map_height_px=map_h_px,
     )
     # Force initial direction towards the obstacle
     enemy_tank.direction = move_direction
@@ -433,8 +465,16 @@ def test_enemy_shooting(game_manager_fixture):
     start_x = start_x_grid * TILE_SIZE
     start_y = start_y_grid * TILE_SIZE
 
+    map_w_px = game_manager.map.width * TILE_SIZE
+    map_h_px = game_manager.map.height * TILE_SIZE
     enemy_tank = EnemyTank(
-        start_x, start_y, TILE_SIZE, game_manager.texture_manager, enemy_type
+        start_x,
+        start_y,
+        TILE_SIZE,
+        game_manager.texture_manager,
+        enemy_type,
+        map_width_px=map_w_px,
+        map_height_px=map_h_px,
     )
     # Set a known initial direction to predict bullet path
     initial_enemy_direction = Direction.RIGHT

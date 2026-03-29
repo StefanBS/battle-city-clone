@@ -8,10 +8,11 @@ from src.utils.constants import (
     TANK_SPEED,
     BULLET_WIDTH,
     BULLET_HEIGHT,
-    GRID_WIDTH,
-    GRID_HEIGHT,
     FPS,
 )
+
+MAP_WIDTH_PX = 512
+MAP_HEIGHT_PX = 512
 
 
 class TestTank:
@@ -20,17 +21,26 @@ class TestTank:
     @pytest.fixture
     def tank(self, mock_texture_manager):
         """Create a tank instance for testing."""
-        return Tank(0, 0, mock_texture_manager, tile_size=TILE_SIZE)
+        return Tank(
+            0, 0, mock_texture_manager, tile_size=TILE_SIZE,
+            map_width_px=MAP_WIDTH_PX, map_height_px=MAP_HEIGHT_PX,
+        )
 
     @pytest.fixture
     def tank_two_lives(self, mock_texture_manager):
         """Create a tank instance with two lives for testing."""
-        return Tank(0, 0, mock_texture_manager, tile_size=TILE_SIZE, lives=2)
+        return Tank(
+            0, 0, mock_texture_manager, tile_size=TILE_SIZE, lives=2,
+            map_width_px=MAP_WIDTH_PX, map_height_px=MAP_HEIGHT_PX,
+        )
 
     @pytest.fixture
     def tank_two_health(self, mock_texture_manager):
         """Create a tank instance with two health for testing."""
-        return Tank(0, 0, mock_texture_manager, tile_size=TILE_SIZE, health=2)
+        return Tank(
+            0, 0, mock_texture_manager, tile_size=TILE_SIZE, health=2,
+            map_width_px=MAP_WIDTH_PX, map_height_px=MAP_HEIGHT_PX,
+        )
 
     @pytest.mark.parametrize(
         "direction",
@@ -177,8 +187,8 @@ class TestTank:
 
     def test_revert_move_clamps_to_map_bounds(self, tank):
         """Test that revert_move clamps position within map bounds."""
-        map_width = GRID_WIDTH * TILE_SIZE
-        map_height = GRID_HEIGHT * TILE_SIZE
+        map_width = MAP_WIDTH_PX
+        map_height = MAP_HEIGHT_PX
 
         # Simulate tank moving left at left edge — obstacle snaps to negative x
         tank.direction = Direction.LEFT

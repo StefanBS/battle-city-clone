@@ -26,10 +26,18 @@ class TestGameManager:
             patch("src.managers.game_manager.TextureManager") as MockTextureManager,
             patch("src.managers.game_manager.Renderer"),
             patch("src.managers.game_manager.SpawnManager"),
+            patch("src.managers.game_manager.Map") as MockMap,
         ):
             # Configure the mock TextureManager instance that GameManager will create
             mock_tm_instance = MockTextureManager.return_value
             mock_tm_instance.get_sprite.return_value = MagicMock(spec=pygame.Surface)
+
+            # Configure the mock Map instance
+            mock_map_instance = MockMap.return_value
+            mock_map_instance.width = 16
+            mock_map_instance.height = 16
+            mock_map_instance.player_spawn = (4, 12)
+            mock_map_instance.spawn_points = [(3, 1), (8, 1), (12, 1)]
 
             manager = GameManager()
         yield manager

@@ -19,6 +19,8 @@ class TestBullet:
         pygame.init()
         mock_owner = MagicMock()
         mock_owner.owner_type = "test"
+        mock_owner.map_width_px = 512
+        mock_owner.map_height_px = 512
         return Bullet(0, 0, Direction.UP, owner=mock_owner)
 
     def test_initialization(self, bullet):

@@ -13,6 +13,9 @@ class PlayerTank(Tank):
         y: int,
         tile_size: int,
         texture_manager: TextureManager,
+        *,
+        map_width_px: int,
+        map_height_px: int,
     ) -> None:
         """
         Initialize the player tank.
@@ -22,12 +25,22 @@ class PlayerTank(Tank):
             y: Initial y position
             tile_size: Size of a tile in pixels
             texture_manager: Instance of TextureManager
+            map_width_px: Map width in pixels (for boundary clamping)
+            map_height_px: Map height in pixels (for boundary clamping)
         """
         grid_x = round(x / tile_size) * tile_size
         grid_y = round(y / tile_size) * tile_size
         logger.debug(f"Creating PlayerTank at initial grid ({grid_x}, {grid_y})")
         super().__init__(
-            grid_x, grid_y, texture_manager, tile_size, None, health=1, lives=3
+            grid_x,
+            grid_y,
+            texture_manager,
+            tile_size,
+            None,
+            health=1,
+            lives=3,
+            map_width_px=map_width_px,
+            map_height_px=map_height_px,
         )
         self.owner_type = "player"
         self.initial_position = (grid_x, grid_y)

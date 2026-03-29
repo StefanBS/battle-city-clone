@@ -8,9 +8,6 @@ from src.utils.constants import (
     BULLET_WIDTH,
     BULLET_HEIGHT,
     WHITE,
-    GRID_WIDTH,
-    GRID_HEIGHT,
-    TILE_SIZE,
 )
 
 
@@ -75,9 +72,9 @@ class Bullet(GameObject):
         # Check if bullet is out of bounds
         if (
             self.x < 0
-            or self.x > GRID_WIDTH * TILE_SIZE
+            or self.x > self.owner.map_width_px
             or self.y < 0
-            or self.y > GRID_HEIGHT * TILE_SIZE
+            or self.y > self.owner.map_height_px
         ):
             logger.trace(
                 f"Bullet deactivated (out of bounds) at ({self.x:.1f}, {self.y:.1f})"

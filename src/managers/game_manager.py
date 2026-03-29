@@ -10,8 +10,6 @@ from src.utils.constants import (
     WINDOW_TITLE,
     FPS,
     TILE_SIZE,
-    GRID_WIDTH,
-    GRID_HEIGHT,
     WINDOW_WIDTH,
     WINDOW_HEIGHT,
 )
@@ -59,7 +57,11 @@ class GameManager:
         self.state: GameState = GameState.RUNNING
 
         # Map
-        self.map: Map = Map(self.texture_manager)
+        self.map: Map = Map("assets/maps/level_01.tmx", self.texture_manager)
+
+        # Compute map pixel dimensions
+        map_width_px: int = self.map.width * self.tile_size
+        map_height_px: int = self.map.height * self.tile_size
 
         # Collision response handler
         self.collision_response_handler: CollisionResponseHandler = (
@@ -70,15 +72,20 @@ class GameManager:
         )
 
         # Player tank
-        start_x: int = ((GRID_WIDTH // 2) - 1) * self.tile_size
-        start_y: int = (GRID_HEIGHT - 2) * self.tile_size
+        start_x: int = self.map.player_spawn[0] * self.tile_size
+        start_y: int = self.map.player_spawn[1] * self.tile_size
         self.player_tank: PlayerTank = PlayerTank(
-            start_x, start_y, self.tile_size, self.texture_manager
+            start_x,
+            start_y,
+            self.tile_size,
+            self.texture_manager,
+            map_width_px=map_width_px,
+            map_height_px=map_height_px,
         )
 
         # Renderer
-        logical_width: int = GRID_WIDTH * self.tile_size
-        logical_height: int = GRID_HEIGHT * self.tile_size
+        logical_width: int = map_width_px
+        logical_height: int = map_height_px
         self.renderer: Renderer = Renderer(
             self.screen, logical_width, logical_height
         )
@@ -87,11 +94,13 @@ class GameManager:
         self.spawn_manager: SpawnManager = SpawnManager(
             tile_size=self.tile_size,
             texture_manager=self.texture_manager,
-            spawn_points=SpawnManager.SPAWN_POINTS,
+            spawn_points=self.map.spawn_points,
             max_spawns=5,
             spawn_interval=5.0,
             player_tank=self.player_tank,
             game_map=self.map,
+            map_width_px=map_width_px,
+            map_height_px=map_height_px,
         )
 
         self.bullets: List[Bullet] = []

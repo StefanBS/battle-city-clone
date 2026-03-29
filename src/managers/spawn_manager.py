@@ -8,17 +8,10 @@ from src.core.enemy_tank import EnemyTank
 from src.core.map import Map
 from src.core.player_tank import PlayerTank
 from src.managers.texture_manager import TextureManager
-from src.utils.constants import GRID_WIDTH
 
 
 class SpawnManager:
     """Manages enemy tank spawning logic and state."""
-
-    SPAWN_POINTS: List[Tuple[int, int]] = [
-        (3, 1),  # Left spawn
-        (GRID_WIDTH // 2, 1),  # Center spawn
-        (GRID_WIDTH - 4, 1),  # Right spawn
-    ]
 
     def __init__(
         self,
@@ -29,6 +22,8 @@ class SpawnManager:
         spawn_interval: float,
         player_tank: PlayerTank,
         game_map: Map,
+        map_width_px: int,
+        map_height_px: int,
     ) -> None:
         """Initialize the SpawnManager.
 
@@ -40,12 +35,16 @@ class SpawnManager:
             spawn_interval: Seconds between spawn attempts.
             player_tank: The player tank (for collision checking on initial spawn).
             game_map: The game map (for collision checking on initial spawn).
+            map_width_px: Map width in pixels (passed to spawned enemies).
+            map_height_px: Map height in pixels (passed to spawned enemies).
         """
         self.tile_size = tile_size
         self.texture_manager = texture_manager
         self.spawn_points = spawn_points
         self.max_enemy_spawns = max_spawns
         self.spawn_interval = spawn_interval
+        self.map_width_px = map_width_px
+        self.map_height_px = map_height_px
         self.enemy_tanks: List[EnemyTank] = []
         self.total_enemy_spawns: int = 0
         self.spawn_timer: float = 0.0
@@ -95,7 +94,13 @@ class SpawnManager:
         if not collision:
             # Always spawn 'basic' type for now
             enemy = EnemyTank(
-                x, y, self.tile_size, self.texture_manager, tank_type="basic"
+                x,
+                y,
+                self.tile_size,
+                self.texture_manager,
+                tank_type="basic",
+                map_width_px=self.map_width_px,
+                map_height_px=self.map_height_px,
             )
             self.enemy_tanks.append(enemy)
             self.total_enemy_spawns += 1

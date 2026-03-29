@@ -3,7 +3,7 @@ import pygame
 from unittest.mock import patch, MagicMock
 from src.managers.spawn_manager import SpawnManager
 from src.core.enemy_tank import EnemyTank
-from src.utils.constants import TILE_SIZE, GRID_WIDTH
+from src.utils.constants import TILE_SIZE
 
 
 class TestSpawnManager:
@@ -11,8 +11,8 @@ class TestSpawnManager:
 
     SPAWN_POINTS = [
         (3, 1),
-        (GRID_WIDTH // 2, 1),
-        (GRID_WIDTH - 4, 1),
+        (8, 1),
+        (12, 1),
     ]
 
     @pytest.fixture
@@ -28,8 +28,8 @@ class TestSpawnManager:
         player = MagicMock()
         # Place player at the bottom of the map, far from spawn points
         player.rect = pygame.Rect(
-            (GRID_WIDTH // 2 - 1) * TILE_SIZE,
-            (16 - 2) * TILE_SIZE,
+            7 * TILE_SIZE,
+            14 * TILE_SIZE,
             TILE_SIZE,
             TILE_SIZE,
         )
@@ -54,6 +54,8 @@ class TestSpawnManager:
             spawn_interval=5.0,
             player_tank=mock_player_tank,
             game_map=mock_game_map,
+            map_width_px=512,
+            map_height_px=512,
         )
         yield manager
         pygame.quit()

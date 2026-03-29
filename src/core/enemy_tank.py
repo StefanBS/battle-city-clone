@@ -58,6 +58,9 @@ class EnemyTank(Tank):
         tile_size: int,
         texture_manager: TextureManager,
         tank_type: TankType,
+        *,
+        map_width_px: int,
+        map_height_px: int,
     ) -> None:
         """
         Initialize the enemy tank based on its type.
@@ -68,6 +71,8 @@ class EnemyTank(Tank):
             tile_size: Size of a tile in pixels
             texture_manager: Instance of TextureManager
             tank_type: The type of enemy tank ('basic', 'fast', 'power', 'armor')
+            map_width_px: Map width in pixels (for boundary clamping)
+            map_height_px: Map height in pixels (for boundary clamping)
         """
         props = self.TANK_PROPERTIES[tank_type]
 
@@ -90,6 +95,8 @@ class EnemyTank(Tank):
             lives=1,
             speed=props["speed"],
             bullet_speed=props["bullet_speed"],
+            map_width_px=map_width_px,
+            map_height_px=map_height_px,
         )
         self.tank_type = tank_type
         self.owner_type = "enemy"
