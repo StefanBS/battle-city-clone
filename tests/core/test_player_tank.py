@@ -8,7 +8,9 @@ from src.utils.constants import Direction, TILE_SIZE, FPS
 @pytest.fixture
 def player_tank(mock_texture_manager):
     """Fixture to create a PlayerTank instance."""
-    tank = PlayerTank(5, 12, TILE_SIZE, mock_texture_manager)
+    tank = PlayerTank(
+        5, 12, TILE_SIZE, mock_texture_manager, map_width_px=512, map_height_px=512
+    )
     yield tank
 
 

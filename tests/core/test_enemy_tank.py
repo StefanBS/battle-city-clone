@@ -47,7 +47,10 @@ def test_enemy_tank_initialization_properties(
     x, y = 0, 0
     tile_size = TILE_SIZE
 
-    tank = EnemyTank(x, y, tile_size, mock_texture_manager, tank_type)
+    tank = EnemyTank(
+        x, y, tile_size, mock_texture_manager, tank_type,
+        map_width_px=512, map_height_px=512,
+    )
 
     # Assert core properties set by the type
     assert tank.tank_type == tank_type
@@ -80,7 +83,8 @@ def test_enemy_tank_grid_alignment(mock_texture_manager):
     )  # round(15/32)*32=0, round(40/32)*32=32
 
     tank = EnemyTank(
-        initial_x, initial_y, tile_size, mock_texture_manager, tank_type="basic"
+        initial_x, initial_y, tile_size, mock_texture_manager, tank_type="basic",
+        map_width_px=512, map_height_px=512,
     )
 
     assert tank.x == expected_x
@@ -91,7 +95,10 @@ def test_enemy_tank_grid_alignment(mock_texture_manager):
 
 def test_on_wall_hit(mock_texture_manager):
     """Test that on_wall_hit changes direction and resets direction_timer."""
-    tank = EnemyTank(0, 0, TILE_SIZE, mock_texture_manager, tank_type="basic")
+    tank = EnemyTank(
+        0, 0, TILE_SIZE, mock_texture_manager, tank_type="basic",
+        map_width_px=512, map_height_px=512,
+    )
     tank.direction_timer = 1.5  # Simulate some elapsed time
 
     initial_direction = tank.direction
@@ -105,7 +112,10 @@ def test_on_wall_hit(mock_texture_manager):
 
 def test_consume_shoot_after_timer(mock_texture_manager):
     """Test that EnemyTank signals shoot intent when timer fires."""
-    tank = EnemyTank(0, 0, TILE_SIZE, mock_texture_manager, tank_type="basic")
+    tank = EnemyTank(
+        0, 0, TILE_SIZE, mock_texture_manager, tank_type="basic",
+        map_width_px=512, map_height_px=512,
+    )
     assert not tank.consume_shoot()
 
     tank.shoot_timer = tank.shoot_interval + 0.1
