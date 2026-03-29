@@ -45,6 +45,8 @@ class Bullet(GameObject):
         self.color: ColorTuple = WHITE
         self.owner = owner
         self.owner_type: OwnerType = owner.owner_type
+        self.map_width_px: int = owner.map_width_px
+        self.map_height_px: int = owner.map_height_px
         logger.trace(
             f"Created bullet for {self.owner_type} "
             f"at ({x:.1f}, {y:.1f}) moving {direction}"
@@ -67,9 +69,9 @@ class Bullet(GameObject):
         # Check if bullet is out of bounds
         if (
             self.x < 0
-            or self.x > self.owner.map_width_px
+            or self.x > self.map_width_px
             or self.y < 0
-            or self.y > self.owner.map_height_px
+            or self.y > self.map_height_px
         ):
             self.active = False
             return

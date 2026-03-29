@@ -48,72 +48,52 @@ class CollisionManager:
             all_tanks.append(player_tank)
         all_tanks.extend(enemy_tanks)
 
-        # Player bullets vs Enemy tanks
-        for bullet in player_bullets:
-            for tank in enemy_tanks:
-                if bullet.rect.colliderect(tank.rect):
-                    self._queue_collision(bullet, tank)
+        # Bullet collisions
+        self._check_group_vs_group(player_bullets, enemy_tanks)
+        self._check_group_vs_group(player_bullets, destructible_tiles)
+        self._check_group_vs_group(player_bullets, enemy_bullets)
+        self._check_group_vs_group(player_bullets, impassable_tiles)
+        self._check_group_vs_group(enemy_bullets, destructible_tiles)
+        self._check_group_vs_group(enemy_bullets, impassable_tiles)
 
-        # Player bullets vs Destructible tiles
-        for bullet in player_bullets:
-            for tile in destructible_tiles:
-                if bullet.rect.colliderect(tile.rect):
-                    self._queue_collision(bullet, tile)
-
-        # Player bullets vs Enemy bullets
-        for p_bullet in player_bullets:
-            for e_bullet in enemy_bullets:
-                if p_bullet.rect.colliderect(e_bullet.rect):
-                    self._queue_collision(p_bullet, e_bullet)
-
-        # Player bullets vs Impassable tiles
-        for bullet in player_bullets:
-            for tile in impassable_tiles:
-                if bullet.rect.colliderect(tile.rect):
-                    self._queue_collision(bullet, tile)
-
-        # Player bullets vs Player base
+        # Bullets vs single targets
         if player_base:
-            for bullet in player_bullets:
-                if bullet.rect.colliderect(player_base.rect):
-                    self._queue_collision(bullet, player_base)
-
-        # Enemy bullets vs Player base
-        if player_base:
-            for bullet in enemy_bullets:
-                if bullet.rect.colliderect(player_base.rect):
-                    self._queue_collision(bullet, player_base)
-
-        # Enemy bullets vs Player tank
+            self._check_group_vs_single(player_bullets, player_base)
+            self._check_group_vs_single(enemy_bullets, player_base)
         if player_tank:
-            for bullet in enemy_bullets:
-                if bullet.rect.colliderect(player_tank.rect):
-                    self._queue_collision(bullet, player_tank)
+            self._check_group_vs_single(enemy_bullets, player_tank)
 
-        # Enemy bullets vs Destructible tiles
-        for bullet in enemy_bullets:
-            for tile in destructible_tiles:
-                if bullet.rect.colliderect(tile.rect):
-                    self._queue_collision(bullet, tile)
+        # Tank collisions
+        self._check_group_vs_group(all_tanks, impassable_tiles)
+        self._check_self_collisions(all_tanks)
 
-        # Enemy bullets vs Impassable tiles
-        for bullet in enemy_bullets:
-            for tile in impassable_tiles:
-                if bullet.rect.colliderect(tile.rect):
-                    self._queue_collision(bullet, tile)
+    def _check_group_vs_group(
+        self,
+        group_a: Sequence[Collidable],
+        group_b: Sequence[Collidable],
+    ) -> None:
+        """Check all pairs between two groups for collisions."""
+        for obj_a in group_a:
+            for obj_b in group_b:
+                if obj_a.rect.colliderect(obj_b.rect):
+                    self._queue_collision(obj_a, obj_b)
 
-        # Tanks vs Impassable tiles
-        for tank in all_tanks:
-            for tile in impassable_tiles:
-                if tank.rect.colliderect(tile.rect):
-                    self._queue_collision(tank, tile)
+    def _check_group_vs_single(
+        self,
+        group: Sequence[Collidable],
+        target: Collidable,
+    ) -> None:
+        """Check all objects in a group against a single target."""
+        for obj in group:
+            if obj.rect.colliderect(target.rect):
+                self._queue_collision(obj, target)
 
-        # Tanks vs Tanks
-        for i, tank_a in enumerate(all_tanks):
-            # Check against tanks listed after tank_a to avoid duplicates/self-collision
-            for tank_b in all_tanks[i + 1 :]:
-                if tank_a.rect.colliderect(tank_b.rect):
-                    self._queue_collision(tank_a, tank_b)
+    def _check_self_collisions(self, group: Sequence[Collidable]) -> None:
+        """Check all unique pairs within a single group."""
+        for i, obj_a in enumerate(group):
+            for obj_b in group[i + 1 :]:
+                if obj_a.rect.colliderect(obj_b.rect):
+                    self._queue_collision(obj_a, obj_b)
 
     def _queue_collision(self, obj_a: Collidable, obj_b: Collidable) -> None:
         """Adds a collision event to the queue, deduplicating pairs."""

@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple
+from typing import Iterable, List, Optional, Tuple
 import pygame
 import pytmx
 from pytmx.util_pygame import load_pygame
@@ -189,7 +189,7 @@ class Map:
         if self._tile_cache_dirty:
             self._rebuild_tile_caches()
 
-    def get_tiles_by_type(self, types: List[TileType]) -> List[Tile]:
+    def get_tiles_by_type(self, types: Iterable[TileType]) -> List[Tile]:
         """Get a list of tiles matching the specified types."""
         self._ensure_cache()
         result = []

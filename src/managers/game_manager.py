@@ -4,10 +4,10 @@ from loguru import logger
 from src.core.map import Map
 from src.core.player_tank import PlayerTank
 from src.core.tile import Tile, TileType, IMPASSABLE_TILE_TYPES
-from src.utils.constants import OwnerType
 from src.core.bullet import Bullet
 from src.states.game_state import GameState
 from src.utils.constants import (
+    OwnerType,
     WINDOW_TITLE,
     FPS,
     TILE_SIZE,
@@ -128,7 +128,7 @@ class GameManager:
         # --- Prepare data for Collision Manager ---
         destructible_tiles: List[Tile] = self.map.get_tiles_by_type([TileType.BRICK])
         impassable_tiles: List[Tile] = self.map.get_tiles_by_type(
-            list(IMPASSABLE_TILE_TYPES)
+            IMPASSABLE_TILE_TYPES
         )
         player_base: Optional[Tile] = self.map.get_base()
 
@@ -149,8 +149,7 @@ class GameManager:
             self._try_shoot(self.player_tank)
         self.player_tank.update(dt)
 
-        # Iterate over a copy for safe removal
-        for enemy in self.spawn_manager.enemy_tanks[:]:
+        for enemy in self.spawn_manager.enemy_tanks:
             enemy.update(dt)
             if enemy.consume_shoot():
                 self._try_shoot(enemy)
