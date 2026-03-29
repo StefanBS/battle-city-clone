@@ -114,34 +114,27 @@ class EnemyTank(Tank):
             f"shoot_interval={self.shoot_interval:.2f}"
         )
 
+    _ALL_DIRECTIONS = list(Direction)
+
     def _change_direction(self) -> None:
         """Randomly change the tank's direction and update its sprite."""
         old_direction = self.direction
-        new_direction = old_direction  # Start with the current direction
-        directions = list(Direction)
+        new_direction = old_direction
 
         # Try to avoid reversing first
-        opposite_direction = {
-            Direction.UP: Direction.DOWN,
-            Direction.DOWN: Direction.UP,
-            Direction.LEFT: Direction.RIGHT,
-            Direction.RIGHT: Direction.LEFT,
-        }
-        if len(directions) > 1 and old_direction in opposite_direction:
+        possible_directions = [
+            d for d in self._ALL_DIRECTIONS if d != old_direction.opposite
+        ]
+        if possible_directions:
+            new_direction = random.choice(possible_directions)
+
+        # If direction didn't change, pick any different direction (fallback)
+        if new_direction == old_direction:
             possible_directions = [
-                d for d in directions if d != opposite_direction[old_direction]
+                d for d in self._ALL_DIRECTIONS if d != old_direction
             ]
             if possible_directions:
                 new_direction = random.choice(possible_directions)
-            # else: If only reversing is possible, let the fallback handle it
-
-        # If direction didn't change above, or if reversing was the only option,
-        # pick a different direction randomly (fallback).
-        if new_direction == old_direction:
-            possible_directions = [d for d in directions if d != old_direction]
-            if possible_directions:
-                new_direction = random.choice(possible_directions)
-            # else: If tank is somehow stuck in a 1-way path, direction won't change.
 
         # Only update sprite if the direction actually changed
         if new_direction != old_direction:
@@ -196,15 +189,5 @@ class EnemyTank(Tank):
             self._wants_to_shoot = True
             self.shoot_timer = random.uniform(0, 0.3)  # Add small random offset
 
-        # Calculate movement based on current direction
-        dx, dy = 0, 0
-        if self.direction == Direction.LEFT:
-            dx = -1
-        elif self.direction == Direction.RIGHT:
-            dx = 1
-        elif self.direction == Direction.UP:
-            dy = -1
-        elif self.direction == Direction.DOWN:
-            dy = 1
-
+        dx, dy = self.direction.delta
         self._move(dx, dy, dt)

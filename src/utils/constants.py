@@ -15,6 +15,32 @@ class Direction(str, Enum):
     def __str__(self) -> str:
         return self.value
 
+    @property
+    def opposite(self) -> "Direction":
+        """Return the opposite direction."""
+        return _OPPOSITE_DIRECTIONS[self]
+
+    @property
+    def delta(self) -> Tuple[int, int]:
+        """Return the (dx, dy) unit vector for this direction."""
+        return _DIRECTION_DELTAS[self]
+
+
+# Lookup tables defined after the enum class
+_OPPOSITE_DIRECTIONS: dict["Direction", "Direction"] = {
+    Direction.UP: Direction.DOWN,
+    Direction.DOWN: Direction.UP,
+    Direction.LEFT: Direction.RIGHT,
+    Direction.RIGHT: Direction.LEFT,
+}
+
+_DIRECTION_DELTAS: dict["Direction", Tuple[int, int]] = {
+    Direction.UP: (0, -1),
+    Direction.DOWN: (0, 1),
+    Direction.LEFT: (-1, 0),
+    Direction.RIGHT: (1, 0),
+}
+
 
 class OwnerType(str, Enum):
     PLAYER = "player"

@@ -55,16 +55,11 @@ class InputHandler:
         """
         dx = 0
         dy = 0
-
-        if self.directions[Direction.UP]:
-            dy -= 1
-        if self.directions[Direction.DOWN]:
-            dy += 1
-        if self.directions[Direction.LEFT]:
-            dx -= 1
-        if self.directions[Direction.RIGHT]:
-            dx += 1
-
+        for direction, pressed in self.directions.items():
+            if pressed:
+                ddx, ddy = direction.delta
+                dx += ddx
+                dy += ddy
         return (dx, dy)
 
     def consume_shoot(self) -> bool:
