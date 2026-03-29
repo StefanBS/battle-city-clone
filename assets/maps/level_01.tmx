@@ -15,13 +15,13 @@
 22,17,22,17,22,17,22,17,22,17,22,17,22,
 22,17,22,17,22,21,22,21,22,17,22,17,22,
 22,17,22,17,22,22,19,22,22,17,22,17,22,
-22,22,22,22,22,18,22,20,22,22,22,22,22
+22,22,22,22,22,18,70,20,22,22,22,22,22
 </data>
  </layer>
  <objectgroup id="2" name="spawn_points">
-  <object id="1" name="enemy_spawn" x="16" y="16" width="0" height="0"/>
-  <object id="2" name="enemy_spawn" x="96" y="16" width="0" height="0"/>
-  <object id="3" name="enemy_spawn" x="176" y="16" width="0" height="0"/>
+  <object id="1" name="enemy_spawn" x="0" y="0" width="0" height="0"/>
+  <object id="2" name="enemy_spawn" x="96" y="0" width="0" height="0"/>
+  <object id="3" name="enemy_spawn" x="192" y="0" width="0" height="0"/>
   <object id="4" name="player_spawn" x="80" y="176" width="0" height="0"/>
  </objectgroup>
 </map>

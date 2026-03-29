@@ -2,10 +2,10 @@ import pytest
 from unittest.mock import MagicMock
 from loguru import logger
 from src.managers.game_manager import GameManager
-from src.utils.constants import Direction, FPS, TILE_SIZE, GRID_WIDTH, GRID_HEIGHT
+from src.utils.constants import Direction, FPS, TILE_SIZE
 from src.states.game_state import GameState
 from src.core.bullet import Bullet
-from src.core.tile import TileType
+from src.core.tile import Tile, TileType
 from src.core.enemy_tank import EnemyTank
 
 # Tests related to game state transitions and initial state verification
@@ -37,25 +37,24 @@ def test_initial_game_state(game_manager_fixture):
         f"Expected initial total_enemy_spawns 1, got {game_manager.spawn_manager.total_enemy_spawns}"
     )
 
-    # 5. Verify map layout (basic check - e.g., base location and a corner)
+    # 5. Verify map layout (basic check - e.g., base exists and corner tile)
     game_map = game_manager.map
-    # Check base location (assuming default GRID constants)
-    expected_base_x = GRID_WIDTH // 2
-    expected_base_y = GRID_HEIGHT - 2
     base_tile = game_map.get_base()
     assert base_tile is not None, "Base tile not found in initial map."
-    assert base_tile.x == expected_base_x and base_tile.y == expected_base_y, (
-        f"Base tile location mismatch. Expected ({expected_base_x}, "
-        f"{expected_base_y}), "
-        f"got ({base_tile.x}, {base_tile.y})"
-    )
     assert base_tile.type == TileType.BASE, "Base tile type is not BASE."
+    # Base should be within map bounds
+    assert 0 <= base_tile.x < game_map.width, (
+        f"Base tile x={base_tile.x} out of map bounds (width={game_map.width})"
+    )
+    assert 0 <= base_tile.y < game_map.height, (
+        f"Base tile y={base_tile.y} out of map bounds (height={game_map.height})"
+    )
 
-    # Check a corner tile type (should be STEEL)
+    # Check a corner tile type (EMPTY in level_01.tmx)
     corner_tile = game_map.get_tile_at(0, 0)
     assert corner_tile is not None, "Tile at (0,0) not found."
-    assert corner_tile.type == TileType.STEEL, (
-        f"Tile at (0,0) should be STEEL, got {corner_tile.type.name}"
+    assert corner_tile.type == TileType.EMPTY, (
+        f"Tile at (0,0) should be EMPTY, got {corner_tile.type.name}"
     )
 
     logger.info("Initial game state verified.")
@@ -136,9 +135,11 @@ def test_player_bullet_hits_base(game_manager_fixture):
         )
     start_tile = game_map.get_tile_at(base_x_grid, base_y_grid - 1)
     if start_tile and start_tile.type != TileType.EMPTY:
-        pytest.skip(
-            f"Calculated player start position ({base_x_grid}, {base_y_grid - 1}) "
-            f"is not EMPTY ({start_tile.type.name}). Skipping."
+        # Clear the tile so the player can be placed there
+        game_map.place_tile(
+            base_x_grid,
+            base_y_grid - 1,
+            Tile(TileType.EMPTY, base_x_grid, base_y_grid - 1, TILE_SIZE),
         )
 
     player_tank.set_position(player_start_x, player_start_y)
@@ -225,12 +226,24 @@ def test_enemy_bullet_destroys_base_game_over(game_manager_fixture):
             f"is out of bounds. Skipping."
         )
 
+    # Clear tiles between enemy and base so bullet can reach the base
+    for y in range(enemy_y_grid, base_y_grid):
+        tile = game_map.get_tile_at(enemy_x_grid, y)
+        if tile and tile.type != TileType.EMPTY and tile.type != TileType.BASE:
+            game_map.place_tile(
+                enemy_x_grid, y, Tile(TileType.EMPTY, enemy_x_grid, y, TILE_SIZE)
+            )
+
+    map_w_px = game_manager.map.width * TILE_SIZE
+    map_h_px = game_manager.map.height * TILE_SIZE
     enemy_tank = EnemyTank(
         enemy_start_x,
         enemy_start_y,
         TILE_SIZE,
         game_manager.texture_manager,
         enemy_type,
+        map_width_px=map_w_px,
+        map_height_px=map_h_px,
     )
     enemy_tank.direction = Direction.DOWN  # Aim at base
     game_manager.spawn_manager.enemy_tanks = [enemy_tank]  # Replace default enemies

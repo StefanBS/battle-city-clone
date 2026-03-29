@@ -88,6 +88,17 @@ def test_player_bullet_vs_tile(
     )
 
 
+def _clear_tiles(game_map, positions):
+    """Clear tiles at given grid positions to EMPTY for test setup."""
+    for gx, gy in positions:
+        if 0 <= gx < game_map.width and 0 <= gy < game_map.height:
+            tile = game_map.get_tile_at(gx, gy)
+            if tile and tile.type != TileType.EMPTY:
+                game_map.place_tile(
+                    gx, gy, Tile(TileType.EMPTY, gx, gy, TILE_SIZE)
+                )
+
+
 def test_player_bullet_destroys_enemy_tank(game_manager_fixture, mocker):
     """Test player bullet hitting and destroying a basic enemy tank."""
     mocker.patch('src.core.enemy_tank.random.uniform', return_value=0.0)
@@ -101,12 +112,22 @@ def test_player_bullet_destroys_enemy_tank(game_manager_fixture, mocker):
     enemy_start_x = enemy_x_grid * TILE_SIZE
     enemy_start_y = enemy_y_grid * TILE_SIZE
 
+    # Clear tiles at entity positions so they don't collide with terrain
+    _clear_tiles(
+        game_manager.map,
+        [(enemy_x_grid, enemy_y_grid), (enemy_x_grid, enemy_y_grid + 1)],
+    )
+
+    map_w_px = game_manager.map.width * TILE_SIZE
+    map_h_px = game_manager.map.height * TILE_SIZE
     enemy_tank = EnemyTank(
         enemy_start_x,
         enemy_start_y,
         TILE_SIZE,
         game_manager.texture_manager,
         enemy_type,
+        map_width_px=map_w_px,
+        map_height_px=map_h_px,
     )
     # Prevent enemy from shooting so its bullets don't interfere
     enemy_tank.shoot = lambda: None
@@ -241,12 +262,22 @@ def test_enemy_bullet_hits_player_tank(
             f"is out of bounds. Skipping."
         )
 
+    # Clear tiles along the bullet path from enemy to player
+    _clear_tiles(
+        game_manager.map,
+        [(enemy_x_grid, y) for y in range(enemy_y_grid, player_y_grid + 1)],
+    )
+
+    map_w_px = game_manager.map.width * TILE_SIZE
+    map_h_px = game_manager.map.height * TILE_SIZE
     enemy_tank = EnemyTank(
         enemy_start_x,
         enemy_start_y,
         TILE_SIZE,
         game_manager.texture_manager,
         enemy_type,
+        map_width_px=map_w_px,
+        map_height_px=map_h_px,
     )
     enemy_tank.direction = Direction.DOWN  # Aim at player
     game_manager.spawn_manager.enemy_tanks = [enemy_tank]  # Replace default enemies
@@ -370,20 +401,30 @@ def test_enemy_bullet_hits_other_enemy(game_manager_fixture, mocker):
 
     # --- Spawn Two Enemy Tanks --- #
     enemy_type = "basic"
-    enemy1_x_grid, enemy1_y_grid = 7, 5  # Top enemy (shooter)
-    enemy2_x_grid, enemy2_y_grid = 7, 7  # Bottom enemy (target)
+    enemy1_x_grid, enemy1_y_grid = 8, 8  # Top enemy (shooter)
+    enemy2_x_grid, enemy2_y_grid = 8, 10  # Bottom enemy (target)
+
+    # Clear tiles at entity positions and the bullet path between them
+    _clear_tiles(
+        game_manager.map,
+        [(8, y) for y in range(8, 11)],
+    )
 
     enemy1_start_x = enemy1_x_grid * TILE_SIZE
     enemy1_start_y = enemy1_y_grid * TILE_SIZE
     enemy2_start_x = enemy2_x_grid * TILE_SIZE
     enemy2_start_y = enemy2_y_grid * TILE_SIZE
 
+    map_w_px = game_manager.map.width * TILE_SIZE
+    map_h_px = game_manager.map.height * TILE_SIZE
     enemy1 = EnemyTank(
         enemy1_start_x,
         enemy1_start_y,
         TILE_SIZE,
         game_manager.texture_manager,
         enemy_type,
+        map_width_px=map_w_px,
+        map_height_px=map_h_px,
     )
     enemy1.direction = Direction.DOWN  # Aim at enemy2
 
@@ -393,6 +434,8 @@ def test_enemy_bullet_hits_other_enemy(game_manager_fixture, mocker):
         TILE_SIZE,
         game_manager.texture_manager,
         enemy_type,
+        map_width_px=map_w_px,
+        map_height_px=map_h_px,
     )
 
     game_manager.spawn_manager.enemy_tanks = [enemy1, enemy2]  # Set the enemies
@@ -448,20 +491,30 @@ def test_enemy_bullets_collide(game_manager_fixture, mocker):
 
     # --- Spawn Two Enemy Tanks Facing Each Other --- #
     enemy_type = "basic"
-    enemy1_x_grid, enemy1_y_grid = 5, 7  # Left enemy
-    enemy2_x_grid, enemy2_y_grid = 9, 7  # Right enemy (4 tiles apart)
+    enemy1_x_grid, enemy1_y_grid = 1, 8  # Left enemy
+    enemy2_x_grid, enemy2_y_grid = 4, 8  # Right enemy (3 tiles apart)
+
+    # Clear tiles at entity positions and the bullet path between them
+    _clear_tiles(
+        game_manager.map,
+        [(x, 8) for x in range(1, 5)],
+    )
 
     enemy1_start_x = enemy1_x_grid * TILE_SIZE
     enemy1_start_y = enemy1_y_grid * TILE_SIZE
     enemy2_start_x = enemy2_x_grid * TILE_SIZE
     enemy2_start_y = enemy2_y_grid * TILE_SIZE
 
+    map_w_px = game_manager.map.width * TILE_SIZE
+    map_h_px = game_manager.map.height * TILE_SIZE
     enemy1 = EnemyTank(
         enemy1_start_x,
         enemy1_start_y,
         TILE_SIZE,
         game_manager.texture_manager,
         enemy_type,
+        map_width_px=map_w_px,
+        map_height_px=map_h_px,
     )
     enemy1.direction = Direction.RIGHT  # Aim at enemy2
 
@@ -471,6 +524,8 @@ def test_enemy_bullets_collide(game_manager_fixture, mocker):
         TILE_SIZE,
         game_manager.texture_manager,
         enemy_type,
+        map_width_px=map_w_px,
+        map_height_px=map_h_px,
     )
     enemy2.direction = Direction.LEFT  # Aim at enemy1
 
