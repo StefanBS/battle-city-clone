@@ -186,15 +186,10 @@ class GameManager:
             events
         )
         for enemy in enemies_to_remove:
-            if enemy in self.spawn_manager.enemy_tanks:
-                self.spawn_manager.enemy_tanks.remove(enemy)
+            self.spawn_manager.remove_enemy(enemy)
 
         if self.state == GameState.RUNNING:
-            if (
-                not self.spawn_manager.enemy_tanks
-                and self.spawn_manager.total_enemy_spawns
-                >= self.spawn_manager.max_enemy_spawns
-            ):
+            if self.spawn_manager.all_enemies_defeated():
                 logger.info("All enemies defeated. Victory!")
                 self.state = GameState.VICTORY
                 self.current_stage += 1

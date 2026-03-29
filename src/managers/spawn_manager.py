@@ -152,6 +152,18 @@ class SpawnManager:
             if self.spawn_enemy(player_tank, game_map):
                 self.spawn_timer = 0
 
+    def remove_enemy(self, enemy: EnemyTank) -> None:
+        """Remove a destroyed enemy from the active list."""
+        if enemy in self.enemy_tanks:
+            self.enemy_tanks.remove(enemy)
+
+    def all_enemies_defeated(self) -> bool:
+        """Check if all enemies have been spawned and destroyed."""
+        return (
+            not self.enemy_tanks
+            and self.total_enemy_spawns >= self.max_enemy_spawns
+        )
+
     def reset(self, stage: int, player_tank: PlayerTank, game_map: Map) -> None:
         """Reset spawn state and perform initial spawn.
 
