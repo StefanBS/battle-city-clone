@@ -1,6 +1,7 @@
 import pytest
+from unittest.mock import patch
 from src.core.enemy_tank import EnemyTank
-from src.utils.constants import TILE_SIZE, TANK_SPEED, BULLET_SPEED, TankType
+from src.utils.constants import TILE_SIZE, TANK_SPEED, BULLET_SPEED, TankType, Direction
 
 # Define expected properties based on EnemyTank.TANK_PROPERTIES for easier assertion
 EXPECTED_PROPERTIES = {
@@ -93,20 +94,22 @@ def test_enemy_tank_grid_alignment(mock_texture_manager):
     assert tank.rect.y == expected_y
 
 
-def test_on_wall_hit(mock_texture_manager):
+@patch("src.core.enemy_tank.random.choice")
+def test_on_wall_hit(mock_random_choice, mock_texture_manager):
     """Test that on_wall_hit changes direction and resets direction_timer."""
+    mock_random_choice.return_value = Direction.DOWN
     tank = EnemyTank(
         0, 0, TILE_SIZE, mock_texture_manager, tank_type="basic",
         map_width_px=512, map_height_px=512,
     )
-    tank.direction_timer = 1.5  # Simulate some elapsed time
+    # Now set a known direction and mock the next choice
+    tank.direction = Direction.UP
+    tank.direction_timer = 1.5
 
-    initial_direction = tank.direction
+    mock_random_choice.return_value = Direction.RIGHT
     tank.on_wall_hit()
 
-    # Direction should have changed (with 4 directions, random pick won't be same)
-    assert tank.direction != initial_direction
-    # Timer should be reset
+    assert tank.direction == Direction.RIGHT
     assert tank.direction_timer == 0
 
 

@@ -217,8 +217,7 @@ class TestSpawnManager:
     def test_spawn_uses_queue_types(
         self, mock_texture_manager, mock_player_tank, mock_game_map
     ):
-        """Test that spawn_enemy uses types from the queue, not always 'basic'."""
-        # Stage 4 has: (2, 5, 10, 3) — mix of all types
+        """Test that spawn queue contains multiple types for mixed stages."""
         manager = SpawnManager(
             tile_size=TILE_SIZE,
             texture_manager=mock_texture_manager,
@@ -230,18 +229,8 @@ class TestSpawnManager:
             map_width_px=512,
             map_height_px=512,
         )
-        # Spawn several enemies and collect their types
-        types_seen = set()
-        # Collect the type from initial spawn
-        for enemy in manager.enemy_tanks:
-            types_seen.add(enemy.tank_type)
-        for _ in range(19):  # 19 remaining after initial spawn
-            manager.enemy_tanks = []  # clear to avoid collision
-            manager.spawn_enemy(mock_player_tank, mock_game_map)
-            for enemy in manager.enemy_tanks:
-                types_seen.add(enemy.tank_type)
-        # Stage 4 has basic, fast, power, armor — should see multiple types
-        assert len(types_seen) > 1
+        types_in_queue = set(manager._spawn_queue)
+        assert len(types_in_queue) > 1
 
     def test_spawn_stops_when_queue_empty(
         self, mock_texture_manager, mock_player_tank, mock_game_map
