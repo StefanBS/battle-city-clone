@@ -41,7 +41,6 @@ def test_player_movement(key, axis, direction_sign, expected_direction):
                     )
 
     player_tank.set_position(new_x, new_y)
-    player_tank.target_position = (new_x, new_y)  # Ensure target is also updated
     player_tank.prev_x, player_tank.prev_y = new_x, new_y  # Sync previous position
 
     initial_pos = player_tank.get_position()
@@ -145,7 +144,6 @@ def test_player_movement_blocked_by_tile(
 
     # Place player
     player_tank.set_position(start_x, start_y)
-    player_tank.target_position = (start_x, start_y)
     player_tank.prev_x, player_tank.prev_y = start_x, start_y
     # Capture the initial rect based on rounded initial float positions
     initial_player_rect = pygame.Rect(round(start_x), round(start_y), player_tank.width, player_tank.height)

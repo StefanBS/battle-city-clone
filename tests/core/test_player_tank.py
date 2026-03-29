@@ -76,7 +76,6 @@ def test_player_tank_respawn(player_tank):
     assert player_tank.lives == initial_lives - 1
     assert player_tank.health == initial_health
     assert (player_tank.x, player_tank.y) == initial_pos
-    assert player_tank.target_position == initial_pos
     assert player_tank.is_invincible
     assert player_tank.invincibility_timer == 0
     assert player_tank.blink_timer == 0

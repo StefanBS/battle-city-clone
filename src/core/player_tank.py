@@ -78,15 +78,6 @@ class PlayerTank(Tank):
 
         self._move(dx, dy, dt)
 
-    def update(self, dt: float) -> None:
-        """
-        Update the tank's state.
-
-        Args:
-            dt: Time elapsed since last update in seconds
-        """
-        super().update(dt)
-
     def respawn(self) -> None:
         """Respawn the tank at its initial position."""
         if self.lives > 0:
@@ -95,7 +86,6 @@ class PlayerTank(Tank):
                 f"Lives: {self.lives}"
             )
             self.x, self.y = self.initial_position
-            self.target_position = self.initial_position
             self.is_invincible = True
             self.invincibility_timer = 0
             self.blink_timer = 0

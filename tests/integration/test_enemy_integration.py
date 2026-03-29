@@ -142,9 +142,6 @@ def test_enemy_spawn_blocked(game_manager_fixture):
     player_tank.set_position(
         blocked_spawn_point_pixels[0], blocked_spawn_point_pixels[1]
     )
-    player_tank.target_position = (
-        blocked_spawn_point_pixels  # Ensure target is also updated
-    )
     player_tank.prev_x, player_tank.prev_y = blocked_spawn_point_pixels
     logger.info(
         f"Blocking spawn point {blocked_spawn_point_grid} with player at "

@@ -115,4 +115,4 @@ class TextureManager:
         except KeyError:
             logger.error(f"Error: Sprite '{name}' not found.")
             # Optionally return a default 'missing' sprite or raise the error
-            raise KeyError(f"Sprite '{name}' not found.") from KeyError
+            raise KeyError(f"Sprite '{name}' not found.") from None
