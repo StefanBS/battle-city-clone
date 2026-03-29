@@ -60,15 +60,9 @@ class Bullet(GameObject):
         if not self.active:
             return
 
-        # Calculate movement based on direction
-        if self.direction == Direction.LEFT:
-            self.x -= self.speed * dt
-        elif self.direction == Direction.RIGHT:
-            self.x += self.speed * dt
-        elif self.direction == Direction.UP:
-            self.y -= self.speed * dt
-        elif self.direction == Direction.DOWN:
-            self.y += self.speed * dt
+        dx, dy = self.direction.delta
+        self.x += dx * self.speed * dt
+        self.y += dy * self.speed * dt
 
         # Check if bullet is out of bounds
         if (
