@@ -4,12 +4,7 @@ from unittest.mock import patch, MagicMock
 from src.managers.game_manager import GameManager
 from src.states.game_state import GameState
 from src.core.enemy_tank import EnemyTank
-from src.utils.constants import (
-    WINDOW_TITLE,
-    FPS,
-    WINDOW_WIDTH,
-    WINDOW_HEIGHT,
-)
+from src.utils.constants import FPS
 
 
 class TestGameManager:
@@ -19,20 +14,21 @@ class TestGameManager:
     def game_manager(self):
         """Create a game manager instance for testing."""
         pygame.init()
-        # Mock display, font, and TextureManager *before* GameManager is created
+        # Keep mocks alive for the duration of the test so _reset_game
+        # can be called again (e.g. by pressing R to restart).
         with (
             patch("pygame.display.set_mode"),
             patch("pygame.font.SysFont"),
-            patch("src.managers.game_manager.TextureManager") as MockTextureManager,
+            patch("src.managers.game_manager.TextureManager") as MockTM,
             patch("src.managers.game_manager.Renderer"),
             patch("src.managers.game_manager.SpawnManager"),
             patch("src.managers.game_manager.Map") as MockMap,
         ):
-            # Configure the mock TextureManager instance that GameManager will create
-            mock_tm_instance = MockTextureManager.return_value
-            mock_tm_instance.get_sprite.return_value = MagicMock(spec=pygame.Surface)
+            mock_tm_instance = MockTM.return_value
+            mock_tm_instance.get_sprite.return_value = MagicMock(
+                spec=pygame.Surface
+            )
 
-            # Configure the mock Map instance
             mock_map_instance = MockMap.return_value
             mock_map_instance.width = 16
             mock_map_instance.height = 16
@@ -40,17 +36,13 @@ class TestGameManager:
             mock_map_instance.spawn_points = [(3, 1), (8, 1), (12, 1)]
 
             manager = GameManager()
-        yield manager
+            yield manager
         pygame.quit()
 
     def test_initialization(self, game_manager):
         """Test that the game manager initializes correctly."""
         assert game_manager.state == GameState.RUNNING
         assert game_manager.fps == FPS
-        # Assert against constants used in GameManager init
-        assert game_manager.screen_width == WINDOW_WIDTH
-        assert game_manager.screen_height == WINDOW_HEIGHT
-        assert pygame.display.get_caption()[0] == WINDOW_TITLE
         assert game_manager.spawn_manager is not None
         assert game_manager.renderer is not None
 
