@@ -28,12 +28,9 @@ class PlayerTank(Tank):
             map_width_px: Map width in pixels (for boundary clamping)
             map_height_px: Map height in pixels (for boundary clamping)
         """
-        grid_x = round(x / tile_size) * tile_size
-        grid_y = round(y / tile_size) * tile_size
-        logger.debug(f"Creating PlayerTank at initial grid ({grid_x}, {grid_y})")
         super().__init__(
-            grid_x,
-            grid_y,
+            x,
+            y,
             texture_manager,
             tile_size,
             None,
@@ -43,7 +40,7 @@ class PlayerTank(Tank):
             map_height_px=map_height_px,
         )
         self.owner_type = OwnerType.PLAYER
-        self.initial_position = (grid_x, grid_y)
+        self.initial_position = (self.x, self.y)
         self.invincibility_duration = 3.0
         self._update_sprite()
 
