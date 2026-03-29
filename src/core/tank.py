@@ -179,6 +179,10 @@ class Tank(GameObject):
         super().update(dt)
 
 
+    def on_wall_hit(self) -> None:
+        """Called when the tank collides with a wall tile. No-op by default."""
+        pass
+
     def _move(self, dx: int, dy: int, dt: float) -> bool:
         """
         Attempt to move the tank by updating its position.

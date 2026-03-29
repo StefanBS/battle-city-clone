@@ -3,7 +3,7 @@ from loguru import logger
 from src.core.bullet import Bullet
 from src.core.player_tank import PlayerTank
 from src.core.enemy_tank import EnemyTank
-from src.core.tile import Tile, TileType
+from src.core.tile import Tile, TileType, IMPASSABLE_TILE_TYPES
 from src.core.map import Map
 from src.states.game_state import GameState
 
@@ -27,8 +27,8 @@ class CollisionResponseHandler:
             (PlayerTank, EnemyTank): self._handle_tank_vs_tank,
             (PlayerTank, PlayerTank): self._handle_tank_vs_tank,
             (EnemyTank, EnemyTank): self._handle_tank_vs_tank,
-            (PlayerTank, Tile): self._handle_player_tank_vs_tile,
-            (EnemyTank, Tile): self._handle_enemy_tank_vs_tile,
+            (PlayerTank, Tile): self._handle_tank_vs_tile,
+            (EnemyTank, Tile): self._handle_tank_vs_tile,
         }
 
     def process_collisions(self, events: List[Tuple[Any, Any]]) -> List[EnemyTank]:
@@ -188,36 +188,13 @@ class CollisionResponseHandler:
         tank_b.revert_move()
         return True
 
-    def _handle_player_tank_vs_tile(
+    def _handle_tank_vs_tile(
         self,
-        tank: PlayerTank,
+        tank: Any,
         tile: Tile,
         enemies_to_remove: List[EnemyTank],
     ) -> bool:
-        impassable = [
-            TileType.STEEL,
-            TileType.WATER,
-            TileType.BASE,
-            TileType.BRICK,
-        ]
-        if tile.type in impassable:
-            tank.revert_move(tile.rect)
-            return True
-        return False
-
-    def _handle_enemy_tank_vs_tile(
-        self,
-        tank: EnemyTank,
-        tile: Tile,
-        enemies_to_remove: List[EnemyTank],
-    ) -> bool:
-        impassable = [
-            TileType.STEEL,
-            TileType.WATER,
-            TileType.BASE,
-            TileType.BRICK,
-        ]
-        if tile.type in impassable:
+        if tile.type in IMPASSABLE_TILE_TYPES:
             tank.revert_move(tile.rect)
             tank.on_wall_hit()
             return True
