@@ -1,5 +1,6 @@
 import pytest
 import pygame
+from unittest.mock import MagicMock
 from src.core.bullet import Bullet
 from src.utils.constants import (
     Direction,
@@ -16,7 +17,9 @@ class TestBullet:
     def bullet(self):
         """Create a bullet instance for testing."""
         pygame.init()
-        return Bullet(0, 0, Direction.UP, owner_type="test")
+        mock_owner = MagicMock()
+        mock_owner.owner_type = "test"
+        return Bullet(0, 0, Direction.UP, owner=mock_owner)
 
     def test_initialization(self, bullet):
         """Test bullet initialization."""
@@ -25,6 +28,7 @@ class TestBullet:
         assert bullet.direction == Direction.UP
         assert bullet.speed == BULLET_SPEED
         assert bullet.active
+        assert bullet.owner.owner_type == "test"
         assert bullet.owner_type == "test"
         assert bullet.width == BULLET_WIDTH
         assert bullet.height == BULLET_HEIGHT
