@@ -99,6 +99,10 @@ class TestGameManager:
 
     # --- Game State Tests --- #
 
+    def test_current_stage_initialized(self, game_manager):
+        """Test that current_stage starts at 1."""
+        assert game_manager.current_stage == 1
+
     def test_update_stops_when_not_running(self, game_manager):
         """Test that update method does nothing if state is not RUNNING."""
         game_manager.state = GameState.GAME_OVER

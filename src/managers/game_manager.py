@@ -55,6 +55,7 @@ class GameManager:
 
         # Game state
         self.state: GameState = GameState.RUNNING
+        self.current_stage: int = 1
 
         # Map
         self.map: Map = Map("assets/maps/level_01.tmx", self.texture_manager)
@@ -95,7 +96,7 @@ class GameManager:
             tile_size=self.tile_size,
             texture_manager=self.texture_manager,
             spawn_points=self.map.spawn_points,
-            max_spawns=5,
+            stage=self.current_stage,
             spawn_interval=5.0,
             player_tank=self.player_tank,
             game_map=self.map,
@@ -197,6 +198,7 @@ class GameManager:
             ):
                 logger.info("All enemies defeated. Victory!")
                 self.state = GameState.VICTORY
+                self.current_stage += 1
 
         logger.trace("Game update finished.")
 
