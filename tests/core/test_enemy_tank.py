@@ -1,6 +1,14 @@
 import pytest
+from unittest.mock import patch
 from src.core.enemy_tank import EnemyTank
-from src.utils.constants import TILE_SIZE, TANK_SPEED, BULLET_SPEED, TankType
+from src.utils.constants import (
+    TILE_SIZE,
+    TANK_SPEED,
+    BULLET_SPEED,
+    FPS,
+    TankType,
+    Direction,
+)
 
 # Define expected properties based on EnemyTank.TANK_PROPERTIES for easier assertion
 EXPECTED_PROPERTIES = {
@@ -48,8 +56,13 @@ def test_enemy_tank_initialization_properties(
     tile_size = TILE_SIZE
 
     tank = EnemyTank(
-        x, y, tile_size, mock_texture_manager, tank_type,
-        map_width_px=512, map_height_px=512,
+        x,
+        y,
+        tile_size,
+        mock_texture_manager,
+        tank_type,
+        map_width_px=16 * TILE_SIZE,
+        map_height_px=16 * TILE_SIZE,
     )
 
     # Assert core properties set by the type
@@ -83,8 +96,13 @@ def test_enemy_tank_grid_alignment(mock_texture_manager):
     )  # round(15/32)*32=0, round(40/32)*32=32
 
     tank = EnemyTank(
-        initial_x, initial_y, tile_size, mock_texture_manager, tank_type="basic",
-        map_width_px=512, map_height_px=512,
+        initial_x,
+        initial_y,
+        tile_size,
+        mock_texture_manager,
+        tank_type="basic",
+        map_width_px=16 * TILE_SIZE,
+        map_height_px=16 * TILE_SIZE,
     )
 
     assert tank.x == expected_x
@@ -93,28 +111,40 @@ def test_enemy_tank_grid_alignment(mock_texture_manager):
     assert tank.rect.y == expected_y
 
 
-def test_on_wall_hit(mock_texture_manager):
+@patch("src.core.enemy_tank.random.choice")
+def test_on_wall_hit(mock_random_choice, mock_texture_manager):
     """Test that on_wall_hit changes direction and resets direction_timer."""
+    mock_random_choice.return_value = Direction.DOWN
     tank = EnemyTank(
-        0, 0, TILE_SIZE, mock_texture_manager, tank_type="basic",
-        map_width_px=512, map_height_px=512,
+        0,
+        0,
+        TILE_SIZE,
+        mock_texture_manager,
+        tank_type="basic",
+        map_width_px=16 * TILE_SIZE,
+        map_height_px=16 * TILE_SIZE,
     )
-    tank.direction_timer = 1.5  # Simulate some elapsed time
+    # Now set a known direction and mock the next choice
+    tank.direction = Direction.UP
+    tank.direction_timer = 1.5
 
-    initial_direction = tank.direction
+    mock_random_choice.return_value = Direction.RIGHT
     tank.on_wall_hit()
 
-    # Direction should have changed (with 4 directions, random pick won't be same)
-    assert tank.direction != initial_direction
-    # Timer should be reset
+    assert tank.direction == Direction.RIGHT
     assert tank.direction_timer == 0
 
 
 def test_consume_shoot_after_timer(mock_texture_manager):
     """Test that EnemyTank signals shoot intent when timer fires."""
     tank = EnemyTank(
-        0, 0, TILE_SIZE, mock_texture_manager, tank_type="basic",
-        map_width_px=512, map_height_px=512,
+        0,
+        0,
+        TILE_SIZE,
+        mock_texture_manager,
+        tank_type="basic",
+        map_width_px=16 * TILE_SIZE,
+        map_height_px=16 * TILE_SIZE,
     )
     assert not tank.consume_shoot()
 
@@ -123,3 +153,32 @@ def test_consume_shoot_after_timer(mock_texture_manager):
 
     assert tank.consume_shoot() is True
     assert tank.consume_shoot() is False
+
+
+@patch("src.core.enemy_tank.random.choice")
+@patch("src.core.enemy_tank.random.uniform", return_value=0.0)
+def test_update_moves_in_current_direction(
+    mock_uniform, mock_choice, mock_texture_manager
+):
+    """Test that update() moves the tank in its current direction."""
+    mock_choice.return_value = Direction.DOWN
+    tank = EnemyTank(
+        0,
+        0,
+        TILE_SIZE,
+        mock_texture_manager,
+        tank_type="basic",
+        map_width_px=16 * TILE_SIZE,
+        map_height_px=16 * TILE_SIZE,
+    )
+    tank.direction = Direction.RIGHT
+    # Set timers low so they don't trigger direction/shoot changes
+    tank.direction_timer = 0
+    tank.shoot_timer = 0
+    initial_x = tank.x
+
+    dt = 1.0 / FPS
+    tank.update(dt)
+
+    assert tank.x > initial_x
+    assert tank.y == pytest.approx(0.0)

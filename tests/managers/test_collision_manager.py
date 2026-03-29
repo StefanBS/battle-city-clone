@@ -1,55 +1,36 @@
 import pytest
-import pygame
 from src.managers.collision_manager import CollisionManager
-from src.core.tile import TileType
-
-
-# Define mock classes needed for spec in this file
-# (Moved back from conftest.py)
-class MockPlayerTank(pygame.sprite.Sprite):
-    pass
-
-
-class MockEnemyTank(pygame.sprite.Sprite):
-    pass
-
-
-class MockBullet(pygame.sprite.Sprite):
-    pass
-
-
-class MockTile(pygame.sprite.Sprite):
-    pass
+from src.core.tile import TileType, Tile
+from src.core.player_tank import PlayerTank
+from src.core.enemy_tank import EnemyTank
+from src.core.bullet import Bullet
 
 
 @pytest.fixture
 def collision_manager():
     """Provides a CollisionManager instance."""
-    pygame.init()  # Pygame needed for Rect
-    manager = CollisionManager()
-    yield manager
-    pygame.quit()
+    return CollisionManager()
 
 
 @pytest.fixture
 def mock_objects(create_mock_sprite):
     """Provides a dictionary of mock game objects for collision tests."""
     tile_size = 32
-    player = create_mock_sprite(0, 0, tile_size, tile_size, spec=MockPlayerTank)
-    enemy1 = create_mock_sprite(100, 100, tile_size, tile_size, spec=MockEnemyTank)
-    enemy2 = create_mock_sprite(200, 200, tile_size, tile_size, spec=MockEnemyTank)
-    p_bullet1 = create_mock_sprite(50, 50, 5, 5, spec=MockBullet, owner_type="player")
-    p_bullet2 = create_mock_sprite(60, 60, 5, 5, spec=MockBullet, owner_type="player")
-    e_bullet1 = create_mock_sprite(150, 150, 5, 5, spec=MockBullet, owner_type="enemy")
-    e_bullet2 = create_mock_sprite(160, 160, 5, 5, spec=MockBullet, owner_type="enemy")
+    player = create_mock_sprite(0, 0, tile_size, tile_size, spec=PlayerTank, owner_type="player")
+    enemy1 = create_mock_sprite(100, 100, tile_size, tile_size, spec=EnemyTank, owner_type="enemy")
+    enemy2 = create_mock_sprite(200, 200, tile_size, tile_size, spec=EnemyTank, owner_type="enemy")
+    p_bullet1 = create_mock_sprite(50, 50, 5, 5, spec=Bullet, owner_type="player", active=True)
+    p_bullet2 = create_mock_sprite(60, 60, 5, 5, spec=Bullet, owner_type="player", active=True)
+    e_bullet1 = create_mock_sprite(150, 150, 5, 5, spec=Bullet, owner_type="enemy", active=True)
+    e_bullet2 = create_mock_sprite(160, 160, 5, 5, spec=Bullet, owner_type="enemy", active=True)
     brick1 = create_mock_sprite(
-        300, 300, tile_size, tile_size, spec=MockTile, tile_type=TileType.BRICK
+        300, 300, tile_size, tile_size, spec=Tile, type=TileType.BRICK
     )
     steel1 = create_mock_sprite(
-        400, 400, tile_size, tile_size, spec=MockTile, tile_type=TileType.STEEL
+        400, 400, tile_size, tile_size, spec=Tile, type=TileType.STEEL
     )
     base = create_mock_sprite(
-        500, 500, tile_size, tile_size, spec=MockTile, tile_type=TileType.BASE
+        500, 500, tile_size, tile_size, spec=Tile, type=TileType.BASE
     )
 
     return {

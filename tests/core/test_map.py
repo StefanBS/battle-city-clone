@@ -1,20 +1,8 @@
 import pytest
-import pygame
-from unittest.mock import MagicMock
 from src.core.map import Map
 from src.core.tile import TileType
-from src.managers.texture_manager import TextureManager
 
 TEST_MAP_PATH = "tests/assets/test_map.tmx"
-
-
-@pytest.fixture
-def mock_texture_manager():
-    pygame.init()
-    pygame.display.set_mode((1, 1), pygame.NOFRAME)
-    mock_tm = MagicMock(spec=TextureManager)
-    mock_tm.get_sprite.return_value = MagicMock(spec=pygame.Surface)
-    return mock_tm
 
 
 @pytest.fixture

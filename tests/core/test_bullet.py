@@ -7,6 +7,7 @@ from src.utils.constants import (
     BULLET_SPEED,
     BULLET_WIDTH,
     BULLET_HEIGHT,
+    TILE_SIZE,
 )
 
 
@@ -19,8 +20,8 @@ class TestBullet:
         pygame.init()
         mock_owner = MagicMock()
         mock_owner.owner_type = "test"
-        mock_owner.map_width_px = 512
-        mock_owner.map_height_px = 512
+        mock_owner.map_width_px = 16 * TILE_SIZE
+        mock_owner.map_height_px = 16 * TILE_SIZE
         return Bullet(0, 0, Direction.UP, owner=mock_owner)
 
     def test_initialization(self, bullet):
@@ -50,6 +51,15 @@ class TestBullet:
         bullet.update(1.0)
         assert bullet.x == expected_x
         assert bullet.y == expected_y
+
+    def test_update_inactive_bullet_does_not_move(self, bullet):
+        """Test that an inactive bullet does not move on update."""
+        bullet.active = False
+        bullet.x = 100.0
+        bullet.y = 100.0
+        bullet.update(1.0)
+        assert bullet.x == 100.0
+        assert bullet.y == 100.0
 
     def test_out_of_bounds(self, bullet):
         """Test bullet deactivation when out of bounds."""
