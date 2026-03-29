@@ -93,7 +93,7 @@ class TestBulletVsEnemy:
         self, handler, mock_bullet, mock_enemy
     ):
         mock_bullet.owner_type = "player"
-        enemies = handler.process_collisions([(mock_bullet, mock_enemy)])
+        handler.process_collisions([(mock_bullet, mock_enemy)])
         assert not mock_bullet.active
         mock_enemy.take_damage.assert_called_once()
 
@@ -112,7 +112,7 @@ class TestBulletVsEnemy:
         bullet = MagicMock(spec=Bullet)
         bullet.active = True
         bullet.owner_type = "enemy"
-        enemies = handler.process_collisions([(bullet, mock_enemy)])
+        handler.process_collisions([(bullet, mock_enemy)])
         mock_enemy.take_damage.assert_not_called()
         assert bullet.active  # Bullet not consumed
 
