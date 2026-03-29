@@ -25,60 +25,49 @@ class TextureManager:
         self.sprites: dict[str, pygame.Surface] = {}
         self._load_sprites()
 
+    # All sprites are 2x2 source tiles (16x16 pixels in the atlas).
+    # Coordinates are grid positions in an 8x8-pixel grid.
+    _SPRITE_COORDS: dict[str, tuple[int, int]] = {
+        # Player tank
+        "player_tank_up_1": (0, 0),
+        "player_tank_up_2": (2, 0),
+        "player_tank_left_1": (4, 0),
+        "player_tank_left_2": (6, 0),
+        "player_tank_down_1": (8, 0),
+        "player_tank_down_2": (10, 0),
+        "player_tank_right_1": (12, 0),
+        "player_tank_right_2": (14, 0),
+        # Enemy tank
+        "enemy_tank_up_1": (16, 0),
+        "enemy_tank_up_2": (18, 0),
+        "enemy_tank_left_1": (20, 0),
+        "enemy_tank_left_2": (22, 0),
+        "enemy_tank_down_1": (24, 0),
+        "enemy_tank_down_2": (26, 0),
+        "enemy_tank_right_1": (28, 0),
+        "enemy_tank_right_2": (30, 0),
+        # Tiles
+        "brick": (32, 0),
+        "steel": (32, 2),
+        "bush": (34, 4),
+        "ice": (36, 4),
+        "base": (38, 4),
+        "base_destroyed": (40, 4),
+        "water_1": (32, 6),
+        "water_2": (34, 6),
+    }
+
     def _load_sprites(self):
         """Loads individual sprites from the texture atlas."""
+        sprite_size = SOURCE_TILE_SIZE * 2
 
-        # Coordinates are based on a 8x8 grid
-        sprite_coords = {
-            "player_tank_up_1": (0, 0),
-            "player_tank_up_2": (2, 0),
-            "player_tank_left_1": (4, 0),
-            "player_tank_left_2": (6, 0),
-            "player_tank_down_1": (8, 0),
-            "player_tank_down_2": (10, 0),
-            "player_tank_right_1": (12, 0),
-            "player_tank_right_2": (14, 0),
-            "enemy_tank_up_1": (16, 0),
-            "enemy_tank_up_2": (18, 0),
-            "enemy_tank_left_1": (20, 0),
-            "enemy_tank_left_2": (22, 0),
-            "enemy_tank_down_1": (24, 0),
-            "enemy_tank_down_2": (26, 0),
-            "enemy_tank_right_1": (28, 0),
-            "enemy_tank_right_2": (30, 0),
-        }
-
-        # --- Add Tile Coordinates Here ---
-        # Coordinates based on 8x8 grid
-        tile_coords = {
-            "brick": (32, 0),
-            "steel": (32, 2),
-            "bush": (34, 4),
-            "ice": (36, 4),
-            "base": (38, 4),
-            "base_destroyed": (40, 4),
-            "water_1": (32, 6),
-            "water_2": (34, 6),
-        }
-
-        sprite_coords.update(tile_coords)
-        # --- End Tile Coordinates ---
-
-        for name, (x, y) in sprite_coords.items():
-            src_x = x * SOURCE_TILE_SIZE
-            src_y = y * SOURCE_TILE_SIZE
-
-            # Determine the source dimensions based on sprite name
-            if "tank" in name or name in ["base", "base_destroyed", "steel", "bush", "ice", "brick", "water_1", "water_2"]:
-                src_width = SOURCE_TILE_SIZE * 2  # 32 pixels
-                src_height = SOURCE_TILE_SIZE * 2  # 32 pixels
-            else:
-                # Handle 8x8 sprites by tiling
-                src_width = SOURCE_TILE_SIZE
-                src_height = SOURCE_TILE_SIZE
-                logger.info(f"Tiling 8x8 sprite '{name}'")
-
-            rect = pygame.Rect(src_x, src_y, src_width, src_height)
+        for name, (gx, gy) in self._SPRITE_COORDS.items():
+            rect = pygame.Rect(
+                gx * SOURCE_TILE_SIZE,
+                gy * SOURCE_TILE_SIZE,
+                sprite_size,
+                sprite_size,
+            )
 
             try:
                 original_sprite = self.texture_atlas.subsurface(rect)
