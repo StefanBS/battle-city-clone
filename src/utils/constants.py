@@ -50,6 +50,16 @@ class OwnerType(str, Enum):
         return self.value
 
 
+class TankType(str, Enum):
+    BASIC = "basic"
+    FAST = "fast"
+    POWER = "power"
+    ARMOR = "armor"
+
+    def __str__(self) -> str:
+        return self.value
+
+
 # Window settings
 WINDOW_WIDTH: int = 1024  # Logical width (16*32) * 2
 WINDOW_HEIGHT: int = 1024  # Logical height (16*32) * 2

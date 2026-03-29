@@ -1,11 +1,9 @@
 import random
 from loguru import logger
 from .tank import Tank
-from typing import Literal, Dict, TypedDict
-from src.utils.constants import Direction, OwnerType, TANK_SPEED, BULLET_SPEED
+from typing import Dict, TypedDict
+from src.utils.constants import Direction, OwnerType, TankType, TANK_SPEED, BULLET_SPEED
 from src.managers.texture_manager import TextureManager
-
-TankType = Literal["basic", "fast", "power", "armor"]
 
 
 # Define the structure for the properties dictionary
@@ -21,28 +19,28 @@ class EnemyTank(Tank):
     """Enemy tank entity with basic AI and type variations."""
 
     TANK_PROPERTIES: Dict[TankType, TankPropertyDict] = {
-        "basic": {
+        TankType.BASIC: {
             "speed": TANK_SPEED * 0.75,
             "bullet_speed": BULLET_SPEED,
             "health": 1,
             "shoot_interval": 2.0,
             "direction_change_interval": 2.5,
         },
-        "fast": {
+        TankType.FAST: {
             "speed": TANK_SPEED * 1.5,
             "bullet_speed": BULLET_SPEED,
             "health": 1,
             "shoot_interval": 1.8,
             "direction_change_interval": 1.5,
         },
-        "power": {
+        TankType.POWER: {
             "speed": TANK_SPEED,
             "bullet_speed": BULLET_SPEED * 1.5,
             "health": 1,
             "shoot_interval": 1.0,
             "direction_change_interval": 2.0,
         },
-        "armor": {
+        TankType.ARMOR: {
             "speed": TANK_SPEED,
             "bullet_speed": BULLET_SPEED,
             "health": 4,

@@ -8,6 +8,7 @@ from src.core.enemy_tank import EnemyTank
 from src.core.map import Map
 from src.core.player_tank import PlayerTank
 from src.managers.texture_manager import TextureManager
+from src.utils.constants import TankType
 from src.utils.level_data import STAGE_ENEMIES
 
 
@@ -42,7 +43,7 @@ class SpawnManager:
         self.tile_size = tile_size
         self.texture_manager = texture_manager
         self.spawn_points = spawn_points
-        self._spawn_queue: List[str] = self._build_spawn_queue(stage)
+        self._spawn_queue: List[TankType] = self._build_spawn_queue(stage)
         self.max_enemy_spawns: int = len(self._spawn_queue)
         self.spawn_interval = spawn_interval
         self.map_width_px = map_width_px
@@ -53,22 +54,22 @@ class SpawnManager:
         # Initial spawn
         self.spawn_enemy(player_tank, game_map)
 
-    def _build_spawn_queue(self, stage: int) -> List[str]:
+    def _build_spawn_queue(self, stage: int) -> List[TankType]:
         """Build a shuffled list of enemy types for the given stage.
 
         Args:
             stage: Stage number (1-based). Clamped to valid range.
 
         Returns:
-            Shuffled list of enemy type strings.
+            Shuffled list of TankType enum members.
         """
         index = min(stage - 1, len(STAGE_ENEMIES) - 1)
         basic, fast, power, armor = STAGE_ENEMIES[index]
-        queue = (
-            ["basic"] * basic
-            + ["fast"] * fast
-            + ["power"] * power
-            + ["armor"] * armor
+        queue: List[TankType] = (
+            [TankType.BASIC] * basic
+            + [TankType.FAST] * fast
+            + [TankType.POWER] * power
+            + [TankType.ARMOR] * armor
         )
         random.shuffle(queue)
         return queue
