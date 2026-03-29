@@ -51,6 +51,15 @@ class TestBullet:
         assert bullet.x == expected_x
         assert bullet.y == expected_y
 
+    def test_update_inactive_bullet_does_not_move(self, bullet):
+        """Test that an inactive bullet does not move on update."""
+        bullet.active = False
+        bullet.x = 100.0
+        bullet.y = 100.0
+        bullet.update(1.0)
+        assert bullet.x == 100.0
+        assert bullet.y == 100.0
+
     def test_out_of_bounds(self, bullet):
         """Test bullet deactivation when out of bounds."""
         bullet.x = -1000

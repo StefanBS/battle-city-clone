@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch
 from src.core.enemy_tank import EnemyTank
-from src.utils.constants import TILE_SIZE, TANK_SPEED, BULLET_SPEED, TankType, Direction
+from src.utils.constants import TILE_SIZE, TANK_SPEED, BULLET_SPEED, FPS, TankType, Direction
 
 # Define expected properties based on EnemyTank.TANK_PROPERTIES for easier assertion
 EXPECTED_PROPERTIES = {
@@ -126,3 +126,27 @@ def test_consume_shoot_after_timer(mock_texture_manager):
 
     assert tank.consume_shoot() is True
     assert tank.consume_shoot() is False
+
+
+@patch("src.core.enemy_tank.random.choice")
+@patch("src.core.enemy_tank.random.uniform", return_value=0.0)
+def test_update_moves_in_current_direction(
+    mock_uniform, mock_choice, mock_texture_manager
+):
+    """Test that update() moves the tank in its current direction."""
+    mock_choice.return_value = Direction.DOWN
+    tank = EnemyTank(
+        0, 0, TILE_SIZE, mock_texture_manager, tank_type="basic",
+        map_width_px=512, map_height_px=512,
+    )
+    tank.direction = Direction.RIGHT
+    # Set timers low so they don't trigger direction/shoot changes
+    tank.direction_timer = 0
+    tank.shoot_timer = 0
+    initial_x = tank.x
+
+    dt = 1.0 / FPS
+    tank.update(dt)
+
+    assert tank.x > initial_x
+    assert tank.y == pytest.approx(0.0)

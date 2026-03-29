@@ -222,6 +222,18 @@ class TestTankVsTank:
         mock_player.revert_move.assert_called_once()
         mock_enemy.revert_move.assert_called_once()
 
+    def test_enemy_vs_enemy_reverted(self, handler):
+        """Test that two enemy tanks both get reverted on collision."""
+        enemy1 = MagicMock(spec=EnemyTank)
+        enemy1.owner_type = "enemy"
+        enemy1.revert_move = MagicMock()
+        enemy2 = MagicMock(spec=EnemyTank)
+        enemy2.owner_type = "enemy"
+        enemy2.revert_move = MagicMock()
+        handler.process_collisions([(enemy1, enemy2)])
+        enemy1.revert_move.assert_called_once()
+        enemy2.revert_move.assert_called_once()
+
 
 class TestTankVsTile:
     def test_player_reverted_on_impassable(
