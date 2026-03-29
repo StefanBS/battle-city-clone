@@ -1,7 +1,7 @@
 from loguru import logger
 from .tank import Tank
 from src.managers.texture_manager import TextureManager
-from src.utils.constants import Direction
+from src.utils.constants import Direction, OwnerType
 
 
 class PlayerTank(Tank):
@@ -42,7 +42,7 @@ class PlayerTank(Tank):
             map_width_px=map_width_px,
             map_height_px=map_height_px,
         )
-        self.owner_type = "player"
+        self.owner_type = OwnerType.PLAYER
         self.initial_position = (grid_x, grid_y)
         self.invincibility_duration = 3.0
         self._update_sprite()

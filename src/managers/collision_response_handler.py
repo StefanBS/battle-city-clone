@@ -4,6 +4,7 @@ from src.core.bullet import Bullet
 from src.core.player_tank import PlayerTank
 from src.core.enemy_tank import EnemyTank
 from src.core.tile import Tile, TileType, IMPASSABLE_TILE_TYPES
+from src.utils.constants import OwnerType
 from src.core.map import Map
 from src.states.game_state import GameState
 
@@ -107,7 +108,7 @@ class CollisionResponseHandler:
     ) -> bool:
         if not bullet.active:
             return False
-        if bullet.owner_type != "player":
+        if bullet.owner_type != OwnerType.PLAYER:
             return False
         logger.debug(f"Player bullet hit enemy tank (type: {enemy.tank_type})")
         bullet.active = False
@@ -125,7 +126,7 @@ class CollisionResponseHandler:
     ) -> bool:
         if not bullet.active:
             return False
-        if bullet.owner_type != "enemy":
+        if bullet.owner_type != OwnerType.ENEMY:
             return False
         logger.debug("Enemy bullet hit player tank.")
         bullet.active = False

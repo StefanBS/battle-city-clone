@@ -4,6 +4,7 @@ from loguru import logger
 from src.core.map import Map
 from src.core.player_tank import PlayerTank
 from src.core.tile import Tile, TileType, IMPASSABLE_TILE_TYPES
+from src.utils.constants import OwnerType
 from src.core.bullet import Bullet
 from src.states.game_state import GameState
 from src.utils.constants import (
@@ -140,10 +141,10 @@ class GameManager:
         player_base: Optional[Tile] = self.map.get_base()
 
         player_bullets = [
-            b for b in self.bullets if b.owner_type == "player" and b.active
+            b for b in self.bullets if b.owner_type == OwnerType.PLAYER and b.active
         ]
         enemy_bullets = [
-            b for b in self.bullets if b.owner_type == "enemy" and b.active
+            b for b in self.bullets if b.owner_type == OwnerType.ENEMY and b.active
         ]
         # --- End Prepare data ---
 

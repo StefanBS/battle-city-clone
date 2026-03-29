@@ -2,7 +2,7 @@ import random
 from loguru import logger
 from .tank import Tank
 from typing import Literal, Dict, TypedDict
-from src.utils.constants import Direction, TANK_SPEED, BULLET_SPEED
+from src.utils.constants import Direction, OwnerType, TANK_SPEED, BULLET_SPEED
 from src.managers.texture_manager import TextureManager
 
 TankType = Literal["basic", "fast", "power", "armor"]
@@ -99,7 +99,7 @@ class EnemyTank(Tank):
             map_height_px=map_height_px,
         )
         self.tank_type = tank_type
-        self.owner_type = "enemy"
+        self.owner_type = OwnerType.ENEMY
         self.direction = random.choice(list(Direction))
         self.direction_timer: float = 0
         self.direction_change_interval: float = props["direction_change_interval"]
