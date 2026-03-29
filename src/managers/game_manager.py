@@ -411,8 +411,7 @@ class GameManager:
 
             # Special case for EnemyTank: If it hit a wall, encourage changing direction
             if isinstance(tank, EnemyTank):
-                tank._change_direction()
-                tank.direction_timer = 0  # Reset timer to avoid immediate change back
+                tank.on_wall_hit()
 
             return True
 

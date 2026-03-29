@@ -150,6 +150,11 @@ class EnemyTank(Tank):
                 f"EnemyTank ({self.tank_type}) direction remained {old_direction}."
             )
 
+    def on_wall_hit(self) -> None:
+        """Handle collision with a wall by changing direction."""
+        self._change_direction()
+        self.direction_timer = 0
+
     def update(self, dt: float) -> None:
         """
         Update the tank's position and behavior.
