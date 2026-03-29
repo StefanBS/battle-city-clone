@@ -1,22 +1,15 @@
 import pytest
 import pygame
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from src.core.player_tank import PlayerTank
-from src.utils.constants import Direction, TILE_SIZE
+from src.utils.constants import Direction, TILE_SIZE, FPS
 
 
 @pytest.fixture
 def player_tank(mock_texture_manager):
     """Fixture to create a PlayerTank instance."""
-    with patch("src.managers.input_handler.InputHandler") as MockInputHandler:
-        mock_input_handler = MockInputHandler.return_value
-        mock_input_handler.get_movement_direction.return_value = (
-            0,
-            0,
-        )  # Default no movement
-        tank = PlayerTank(5, 12, TILE_SIZE, mock_texture_manager)
-        tank.input_handler = mock_input_handler
-        yield tank
+    tank = PlayerTank(5, 12, TILE_SIZE, mock_texture_manager)
+    yield tank
 
 
 def test_player_tank_initialization(player_tank):
@@ -27,20 +20,55 @@ def test_player_tank_initialization(player_tank):
     assert player_tank.lives == 3
     assert player_tank.health == 1
     assert player_tank.invincibility_duration == 3.0
-    assert not player_tank.is_invincible  # Should not start invincible
+    assert not player_tank.is_invincible
+
+
+def test_player_tank_no_input_handler(player_tank):
+    """Test that PlayerTank does not own an InputHandler."""
+    assert not hasattr(player_tank, "input_handler")
+
+
+def test_player_tank_no_handle_event(player_tank):
+    """Test that PlayerTank does not have a handle_event method."""
+    assert not hasattr(player_tank, "handle_event")
+
+
+def test_move_sets_direction_and_moves(player_tank):
+    """Test that move() sets direction, updates sprite, and moves."""
+    dt = 1.0 / FPS
+    player_tank.prev_x = player_tank.x
+    player_tank.prev_y = player_tank.y
+
+    player_tank.move(1, 0, dt)
+    assert player_tank.direction == Direction.RIGHT
+
+    player_tank.move(-1, 0, dt)
+    assert player_tank.direction == Direction.LEFT
+
+    player_tank.move(0, 1, dt)
+    assert player_tank.direction == Direction.DOWN
+
+    player_tank.move(0, -1, dt)
+    assert player_tank.direction == Direction.UP
+
+
+def test_move_zero_does_nothing(player_tank):
+    """Test that move(0, 0) doesn't change direction."""
+    dt = 1.0 / FPS
+    initial_direction = player_tank.direction
+    player_tank.move(0, 0, dt)
+    assert player_tank.direction == initial_direction
 
 
 def test_player_tank_respawn(player_tank):
     """Test player tank respawn functionality."""
     initial_lives = player_tank.lives
-    initial_health = player_tank.max_health  # Respawn resets to max health
+    initial_health = player_tank.max_health
     initial_pos = player_tank.initial_position
 
-    # Simulate taking fatal damage (though PlayerTank doesn't have take_damage directly)
     player_tank.health = player_tank.max_health
     player_tank.lives -= 1
 
-    # Call respawn
     player_tank.respawn()
 
     assert player_tank.lives == initial_lives - 1
@@ -50,7 +78,7 @@ def test_player_tank_respawn(player_tank):
     assert player_tank.is_invincible
     assert player_tank.invincibility_timer == 0
     assert player_tank.blink_timer == 0
-    assert player_tank.direction == Direction.UP  # Should reset direction
+    assert player_tank.direction == Direction.UP
 
 
 def test_player_tank_respawn_no_lives_left(player_tank):
@@ -58,117 +86,22 @@ def test_player_tank_respawn_no_lives_left(player_tank):
     player_tank.lives = 0
     player_tank.health = 0
 
-    # Attempt respawn
     player_tank.respawn()
 
     assert player_tank.health == 0
     assert player_tank.lives == 0
 
 
-def test_handle_event_shoot(player_tank):
-    """Test handling the shoot event."""
-    player_tank.shoot = MagicMock()  # Mock the shoot method
-    shoot_event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_SPACE)
-    player_tank.handle_event(shoot_event)
-    player_tank.shoot.assert_called_once()
-
-
-def test_handle_event_movement_input(player_tank):
-    """Test that handle_event calls input_handler."""
-    move_event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_UP)
-    player_tank.handle_event(move_event)
-    player_tank.input_handler.handle_event.assert_called_with(move_event)
-
-
-def test_handle_event_invincible(player_tank):
-    """Test that events are still processed when invincible."""
-    player_tank.is_invincible = True
-    player_tank.shoot = MagicMock()
-    shoot_event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_SPACE)
-    move_event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_UP)
-
-    # Handle events while invincible
-    player_tank.handle_event(shoot_event)
-    player_tank.handle_event(move_event)
-
-    # Events should still be processed during invincibility
-    player_tank.shoot.assert_called_once()
-    player_tank.input_handler.handle_event.assert_called_with(move_event)
-
-
-def test_keyup_during_invincibility_clears_direction(player_tank):
-    """Test that KEYUP events during invincibility reach InputHandler (issue #7)."""
-    # Simulate: player is holding RIGHT, then becomes invincible
-    player_tank.is_invincible = True
-
-    # Send KEYUP for RIGHT while invincible
-    keyup_event = pygame.event.Event(pygame.KEYUP, key=pygame.K_RIGHT)
-    player_tank.handle_event(keyup_event)
-
-    # KEYUP should have reached InputHandler
-    player_tank.input_handler.handle_event.assert_called_with(keyup_event)
-
-
-def test_update_movement_direction(player_tank):
-    """Test that update changes direction based on input."""
+def test_update_only_calls_super(player_tank):
+    """Test that update() only calls super().update() — no input logic."""
     dt = 0.1
-
-    # Mock movement input and _move
-    player_tank.input_handler.get_movement_direction.return_value = (1, 0)  # Move right
-    player_tank._move = MagicMock(return_value=True)
-
-    player_tank.update(dt)
-    assert player_tank.direction == Direction.RIGHT
-    player_tank._move.assert_called_once_with(1, 0, dt)
-
-    player_tank.input_handler.get_movement_direction.return_value = (-1, 0)  # Move left
-    player_tank._move.reset_mock()
-    player_tank.update(dt)
-    assert player_tank.direction == Direction.LEFT
-    player_tank._move.assert_called_once_with(-1, 0, dt)
-
-    player_tank.input_handler.get_movement_direction.return_value = (0, 1)  # Move down
-    player_tank._move.reset_mock()
-    player_tank.update(dt)
-    assert player_tank.direction == Direction.DOWN
-    player_tank._move.assert_called_once_with(0, 1, dt)
-
-    player_tank.input_handler.get_movement_direction.return_value = (0, -1)  # Move up
-    player_tank._move.reset_mock()
-    player_tank.update(dt)
-    assert player_tank.direction == Direction.UP
-    player_tank._move.assert_called_once_with(0, -1, dt)
-
-
-def test_update_no_movement_input(player_tank):
-    """Test that update doesn't change direction or move without input."""
-    dt = 0.1
-    initial_direction = player_tank.direction
-    player_tank.input_handler.get_movement_direction.return_value = (
-        0,
-        0,
-    )  # No movement
-    player_tank._move = MagicMock()
+    initial_x = player_tank.x
+    initial_y = player_tank.y
 
     player_tank.update(dt)
 
-    assert player_tank.direction == initial_direction
-    player_tank._move.assert_not_called()
-
-
-def test_update_invincible(player_tank):
-    """Test that update processes movement when invincible."""
-    player_tank.is_invincible = True
-    dt = 0.1
-    player_tank.input_handler.get_movement_direction.return_value = (
-        1,
-        0,
-    )  # Try to move right
-    player_tank._move = MagicMock()
-    player_tank.update(dt)
-
-    player_tank._move.assert_called_once_with(1, 0, dt)
-    assert player_tank.direction == Direction.RIGHT
+    assert player_tank.x == initial_x
+    assert player_tank.y == initial_y
 
 
 def test_draw_with_sprite_not_invincible(player_tank):
@@ -235,7 +168,6 @@ def test_draw_bullet(player_tank):
 
     mock_bullet.draw.assert_called_once_with(mock_surface)
 
-    # Assert bullet draw is not called if inactive
     mock_surface.reset_mock()
     mock_bullet.reset_mock()
     mock_bullet.active = False

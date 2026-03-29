@@ -38,7 +38,7 @@ def test_player_movement(key, axis, direction_sign, expected_direction):
 
     # Simulate key press
     key_down_event = pygame.event.Event(pygame.KEYDOWN, key=key)
-    game_manager.player_tank.handle_event(key_down_event)
+    game_manager.input_handler.handle_event(key_down_event)
 
     # Update game state
     for _ in range(num_updates):
@@ -46,7 +46,7 @@ def test_player_movement(key, axis, direction_sign, expected_direction):
 
     # Simulate key release
     key_up_event = pygame.event.Event(pygame.KEYUP, key=key)
-    game_manager.player_tank.handle_event(key_up_event)
+    game_manager.input_handler.handle_event(key_up_event)
 
     final_pos = player_tank.get_position()
 
@@ -144,7 +144,7 @@ def test_player_movement_blocked_by_tile(
 
     # Simulate key press
     key_down_event = pygame.event.Event(pygame.KEYDOWN, key=key)
-    game_manager.player_tank.handle_event(key_down_event)
+    game_manager.input_handler.handle_event(key_down_event)
 
     # Update game state
     for _ in range(num_updates):
@@ -152,7 +152,7 @@ def test_player_movement_blocked_by_tile(
 
     # Simulate key release
     key_up_event = pygame.event.Event(pygame.KEYUP, key=key)
-    game_manager.player_tank.handle_event(key_up_event)
+    game_manager.input_handler.handle_event(key_up_event)
 
     final_player_rect = player_tank.rect
     colliding_tile_rect = game_map.tiles[target_y_grid][target_x_grid].rect

@@ -7,7 +7,7 @@ from src.utils.constants import Direction
 class InputHandler:
     """Handles keyboard input for the player tank."""
 
-    def __init__(self) -> None:
+    def __init__(self, shoot_key: int = pygame.K_SPACE) -> None:
         """Initialize the input handler."""
         self.directions: Dict[Direction, bool] = {
             Direction.UP: False,
@@ -21,6 +21,8 @@ class InputHandler:
             pygame.K_LEFT: Direction.LEFT,
             pygame.K_RIGHT: Direction.RIGHT,
         }
+        self.shoot_key: int = shoot_key
+        self.shoot_pressed: bool = False
 
     def handle_event(self, event: pygame.event.Event) -> None:
         """
@@ -35,6 +37,8 @@ class InputHandler:
                 if not self.directions[direction]:
                     logger.trace(f"Key down: {direction}")
                     self.directions[direction] = True
+            if event.key == self.shoot_key:
+                self.shoot_pressed = True
         elif event.type == pygame.KEYUP:
             if event.key in self.key_mappings:
                 direction = self.key_mappings[event.key]
@@ -62,3 +66,15 @@ class InputHandler:
             dx += 1
 
         return (dx, dy)
+
+    def consume_shoot(self) -> bool:
+        """
+        Check if shoot was pressed and reset the flag.
+
+        Returns:
+            True if shoot was pressed since last check, False otherwise.
+        """
+        if self.shoot_pressed:
+            self.shoot_pressed = False
+            return True
+        return False
