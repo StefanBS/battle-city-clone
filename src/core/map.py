@@ -1,75 +1,107 @@
-from typing import List, Optional
+from typing import List, Optional, Tuple
 import pygame
+import pytmx
+from pytmx.util_pygame import load_pygame
 from loguru import logger
 from .tile import Tile, TileType
 from src.managers.texture_manager import TextureManager
-from src.utils.constants import (
-    TILE_SIZE,
-    GRID_WIDTH,
-    GRID_HEIGHT,
-)
+from src.utils.constants import TILE_SIZE
 
 
 class Map:
     """Manages the game map and its tiles."""
 
-    def __init__(self, texture_manager: TextureManager) -> None:
-        logger.info(
-            f"Initializing Map ({GRID_WIDTH}x{GRID_HEIGHT}) with tile size {TILE_SIZE}"
-        )
-        self.width = GRID_WIDTH
-        self.height = GRID_HEIGHT
+    def __init__(self, map_file: str, texture_manager: TextureManager) -> None:
         self.tile_size = TILE_SIZE
-        self.tiles: List[List[Optional[Tile]]] = []
         self.texture_manager = texture_manager
+        self.tiles: List[List[Optional[Tile]]] = []
+        self.spawn_points: List[Tuple[int, int]] = []
+        self.player_spawn: Tuple[int, int] = (0, 0)
         self._animated_tiles: List[Tile] = []
         self._tile_cache_dirty: bool = True
         self._cached_tiles_by_type: dict = {}
         self._cached_collidable_rects: List[pygame.Rect] = []
         self._cached_base: Optional[Tile] = None
 
-        # Create a simple test map
-        self._create_test_map()
+        self._load_from_tmx(map_file)
         self._build_animated_tiles()
         self._rebuild_tile_caches()
 
-    def _initialize_map(self) -> None:
-        # Initialize grid structure with None
-        logger.debug("Initializing map grid structure.")
-        self.tiles = [[None for _ in range(self.width)] for _ in range(self.height)]
+        logger.info(
+            f"Map loaded from {map_file}: {self.width}x{self.height}, "
+            f"{len(self.spawn_points)} spawn points, "
+            f"player spawn at {self.player_spawn}"
+        )
 
-    def _create_test_map(self) -> None:
-        """Create a simple test map layout by populating the grid with Tiles."""
-        logger.debug("Creating test map layout and Tile objects.")
+    def _load_from_tmx(self, map_file: str) -> None:
+        """Load map data from a TMX file via pytmx."""
+        tiled_map = load_pygame(map_file)
 
-        # Initialize grid structure first if not already done
-        if not self.tiles or not self.tiles[0]:
-            self.tiles = [[None for _ in range(self.width)] for _ in range(self.height)]
+        self.width = tiled_map.width
+        self.height = tiled_map.height
 
+        # Initialize grid
+        self.tiles = [
+            [None for _ in range(self.width)] for _ in range(self.height)
+        ]
+
+        # Find first tile layer
+        tile_layer = None
+        for layer in tiled_map.visible_layers:
+            if isinstance(layer, pytmx.TiledTileLayer):
+                tile_layer = layer
+                break
+
+        if tile_layer is not None:
+            for x, y, gid in tile_layer.iter_data():
+                if gid == 0:
+                    tile_type = TileType.EMPTY
+                else:
+                    props = tiled_map.get_tile_properties_by_gid(gid)
+                    if props:
+                        tile_type_str = props.get("tile_type")
+                        if tile_type_str and tile_type_str.strip():
+                            tile_type = TileType[tile_type_str.strip()]
+                        else:
+                            tile_type = TileType.EMPTY
+                    else:
+                        tile_type = TileType.EMPTY
+                self.tiles[y][x] = Tile(tile_type, x, y, self.tile_size)
+
+        # Fill any remaining None tiles with EMPTY
         for y in range(self.height):
             for x in range(self.width):
-                tile_type = TileType.EMPTY  # Default to EMPTY
+                if self.tiles[y][x] is None:
+                    self.tiles[y][x] = Tile(TileType.EMPTY, x, y, self.tile_size)
 
-                # Determine type based on position (example logic from previous version)
-                is_border_top = y == 0
-                is_border_bottom = y == self.height - 1
-                is_border_left = x == 0
-                is_border_right = x == self.width - 1
+        # Read spawn points from object layer
+        self._load_spawn_points(tiled_map)
 
-                if (
-                    is_border_top
-                    or is_border_bottom
-                    or is_border_left
-                    or is_border_right
-                ):
-                    tile_type = TileType.STEEL
-                elif 5 <= x < 8 and 5 <= y < 8:
-                    tile_type = TileType.WATER
-                elif y == self.height - 2 and x == self.width // 2:
-                    tile_type = TileType.BASE
+    def _load_spawn_points(self, tiled_map: pytmx.TiledMap) -> None:
+        """Read spawn points and player spawn from TMX object layers."""
+        try:
+            spawn_layer = tiled_map.get_layer_by_name("spawn_points")
+        except ValueError:
+            logger.warning("No 'spawn_points' object layer found in TMX")
+            self.player_spawn = (self.width // 2 - 1, self.height - 2)
+            return
 
-                # Create the Tile object with the determined type
-                self.tiles[y][x] = Tile(tile_type, x, y, self.tile_size)
+        player_spawn_found = False
+        for obj in spawn_layer:
+            grid_x = int(obj.x // tiled_map.tilewidth)
+            grid_y = int(obj.y // tiled_map.tileheight)
+
+            if obj.name == "player_spawn":
+                self.player_spawn = (grid_x, grid_y)
+                player_spawn_found = True
+            else:
+                self.spawn_points.append((grid_x, grid_y))
+
+        if not player_spawn_found:
+            self.player_spawn = (self.width // 2 - 1, self.height - 2)
+            logger.warning(
+                "No 'player_spawn' object found, defaulting to bottom-center"
+            )
 
     def _build_animated_tiles(self) -> None:
         """Build the list of animated tiles."""
