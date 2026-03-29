@@ -28,13 +28,13 @@ def test_initial_game_state(game_manager_fixture):
     )
 
     # 3. Verify initial number of enemies
-    assert len(game_manager.enemy_tanks) == 1, (
-        f"Expected 1 initial enemy tank, got {len(game_manager.enemy_tanks)}"
+    assert len(game_manager.spawn_manager.enemy_tanks) == 1, (
+        f"Expected 1 initial enemy tank, got {len(game_manager.spawn_manager.enemy_tanks)}"
     )
 
     # 4. Verify initial total spawn count
-    assert game_manager.total_enemy_spawns == 1, (
-        f"Expected initial total_enemy_spawns 1, got {game_manager.total_enemy_spawns}"
+    assert game_manager.spawn_manager.total_enemy_spawns == 1, (
+        f"Expected initial total_enemy_spawns 1, got {game_manager.spawn_manager.total_enemy_spawns}"
     )
 
     # 5. Verify map layout (basic check - e.g., base location and a corner)
@@ -233,7 +233,7 @@ def test_enemy_bullet_destroys_base_game_over(game_manager_fixture):
         enemy_type,
     )
     enemy_tank.direction = Direction.DOWN  # Aim at base
-    game_manager.enemy_tanks = [enemy_tank]  # Replace default enemies
+    game_manager.spawn_manager.enemy_tanks = [enemy_tank]  # Replace default enemies
     logger.debug(
         f"Manually added {enemy_type} enemy at ({enemy_x_grid}, {enemy_y_grid}) "
         f"aiming {enemy_tank.direction}"
@@ -296,12 +296,12 @@ def test_victory_condition(game_manager_fixture):
 
     # --- Setup Victory Condition --- #
     # Simulate that all enemies have been spawned
-    game_manager.total_enemy_spawns = game_manager.max_enemy_spawns
+    game_manager.spawn_manager.total_enemy_spawns = game_manager.spawn_manager.max_enemy_spawns
     # Simulate that all on-screen enemies are destroyed
-    game_manager.enemy_tanks = []
+    game_manager.spawn_manager.enemy_tanks = []
     logger.info(
         f"Setting up victory condition: total_spawns="
-        f"{game_manager.total_enemy_spawns}, on-screen enemies=0"
+        f"{game_manager.spawn_manager.total_enemy_spawns}, on-screen enemies=0"
     )
     # --- End Setup --- #
 

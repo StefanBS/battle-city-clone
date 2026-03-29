@@ -15,38 +15,38 @@ def test_enemy_spawning_rules(game_manager_fixture):
 
     # Convert spawn points (grid coords) to possible pixel coords for easy checking
     spawn_points_pixels = [
-        (gx * TILE_SIZE, gy * TILE_SIZE) for gx, gy in game_manager.SPAWN_POINTS
+        (gx * TILE_SIZE, gy * TILE_SIZE) for gx, gy in game_manager.spawn_manager.spawn_points
     ]
 
     # --- 1. Initial Spawn Verification --- #
     logger.info("Verifying initial enemy spawn...")
-    assert len(game_manager.enemy_tanks) == 1, (
+    assert len(game_manager.spawn_manager.enemy_tanks) == 1, (
         "GameManager should initialize with 1 enemy."
     )
-    initial_enemy = game_manager.enemy_tanks[0]
+    initial_enemy = game_manager.spawn_manager.enemy_tanks[0]
     initial_enemy_pos = initial_enemy.get_position()
     assert initial_enemy_pos in spawn_points_pixels, (
         f"Initial enemy spawned at {initial_enemy_pos}, which is not in valid spawn "
         f"points {spawn_points_pixels}"
     )
-    assert game_manager.total_enemy_spawns == 1, (
+    assert game_manager.spawn_manager.total_enemy_spawns == 1, (
         "Initial total_enemy_spawns should be 1."
     )
 
     # --- 2. Max Enemy Spawn Limit Verification --- #
     logger.info("Verifying maximum enemy spawn limit...")
-    max_spawns = game_manager.max_enemy_spawns
+    max_spawns = game_manager.spawn_manager.max_enemy_spawns
 
     # Reset state for this part of the test
-    game_manager.enemy_tanks = []
-    game_manager.total_enemy_spawns = 0
+    game_manager.spawn_manager.enemy_tanks = []
+    game_manager.spawn_manager.total_enemy_spawns = 0
     logger.debug(f"Cleared initial enemy. Max spawns to test: {max_spawns}")
 
     dt = 1.0 / FPS
     update_duration_between_spawns = 0.2  # Simulate time for enemies to move
     num_updates_between_spawns = int(update_duration_between_spawns / dt)
 
-    while game_manager.total_enemy_spawns < max_spawns:
+    while game_manager.spawn_manager.total_enemy_spawns < max_spawns:
         # Simulate time to allow existing enemies to potentially move
         logger.debug(
             f"Simulating {num_updates_between_spawns} updates "
@@ -55,16 +55,16 @@ def test_enemy_spawning_rules(game_manager_fixture):
         for _ in range(num_updates_between_spawns):
             game_manager.update()
 
-        spawned_count_before = len(game_manager.enemy_tanks)
-        total_spawned_before = game_manager.total_enemy_spawns
+        spawned_count_before = len(game_manager.spawn_manager.enemy_tanks)
+        total_spawned_before = game_manager.spawn_manager.total_enemy_spawns
 
         logger.debug(
             f"Attempting spawn (Current total: {total_spawned_before}/{max_spawns})"
         )
-        spawn_success = game_manager._spawn_enemy()  # Attempt spawn
+        spawn_success = game_manager.spawn_manager.spawn_enemy(game_manager.player_tank, game_manager.map)  # Attempt spawn
 
-        spawned_count_after = len(game_manager.enemy_tanks)
-        total_spawned_after = game_manager.total_enemy_spawns
+        spawned_count_after = len(game_manager.spawn_manager.enemy_tanks)
+        total_spawned_after = game_manager.spawn_manager.total_enemy_spawns
 
         if spawn_success:
             logger.debug("Spawn successful.")
@@ -75,7 +75,7 @@ def test_enemy_spawning_rules(game_manager_fixture):
                 f"Before: {total_spawned_before}, After: {total_spawned_after}"
             )
             # Verify the newly spawned enemy position
-            new_enemy = game_manager.enemy_tanks[-1]
+            new_enemy = game_manager.spawn_manager.enemy_tanks[-1]
             new_enemy_pos = new_enemy.get_position()
             assert new_enemy_pos in spawn_points_pixels, (
                 f"Enemy spawned at {new_enemy_pos}, which is not in valid spawn points "
@@ -94,25 +94,25 @@ def test_enemy_spawning_rules(game_manager_fixture):
             )
 
     # Assert final counts after the while loop finishes
-    assert len(game_manager.enemy_tanks) <= max_spawns, "Exceeded max on-screen enemies"
-    assert game_manager.total_enemy_spawns == max_spawns, (
+    assert len(game_manager.spawn_manager.enemy_tanks) <= max_spawns, "Exceeded max on-screen enemies"
+    assert game_manager.spawn_manager.total_enemy_spawns == max_spawns, (
         f"Expected total spawns {max_spawns} after filling limit, but got "
-        f"{game_manager.total_enemy_spawns}"
+        f"{game_manager.spawn_manager.total_enemy_spawns}"
     )
 
     # Attempt to spawn one more enemy beyond the limit
     logger.info("Attempting to spawn beyond max limit...")
-    spawn_success = game_manager._spawn_enemy()
+    spawn_success = game_manager.spawn_manager.spawn_enemy(game_manager.player_tank, game_manager.map)
 
     # Assert counts did NOT change and spawn failed
     assert not spawn_success, "Spawn succeeded unexpectedly beyond max limit."
-    assert len(game_manager.enemy_tanks) <= max_spawns, (
+    assert len(game_manager.spawn_manager.enemy_tanks) <= max_spawns, (
         f"Enemy count changed when spawning beyond limit. Expected <= {max_spawns}, "
-        f"got {len(game_manager.enemy_tanks)}"
+        f"got {len(game_manager.spawn_manager.enemy_tanks)}"
     )
-    assert game_manager.total_enemy_spawns == max_spawns, (
+    assert game_manager.spawn_manager.total_enemy_spawns == max_spawns, (
         f"Total spawn count changed when spawning beyond limit. "
-        f"Expected {max_spawns}, got {game_manager.total_enemy_spawns}"
+        f"Expected {max_spawns}, got {game_manager.spawn_manager.total_enemy_spawns}"
     )
     logger.info("Maximum spawn limit verified.")
 
@@ -122,7 +122,7 @@ def test_enemy_spawn_blocked(game_manager_fixture):
     game_manager = game_manager_fixture
     player_tank = game_manager.player_tank
 
-    spawn_points_grid = game_manager.SPAWN_POINTS
+    spawn_points_grid = game_manager.spawn_manager.spawn_points
     spawn_points_pixels = [
         (gx * TILE_SIZE, gy * TILE_SIZE) for gx, gy in spawn_points_grid
     ]
@@ -147,9 +147,9 @@ def test_enemy_spawn_blocked(game_manager_fixture):
     # --- End Blocking --- #
 
     # --- Reset Enemy State --- #
-    game_manager.enemy_tanks = []
-    game_manager.total_enemy_spawns = 0
-    max_spawns = game_manager.max_enemy_spawns
+    game_manager.spawn_manager.enemy_tanks = []
+    game_manager.spawn_manager.total_enemy_spawns = 0
+    max_spawns = game_manager.spawn_manager.max_enemy_spawns
     logger.debug(f"Cleared initial enemies. Will attempt to spawn up to {max_spawns}.")
     # --- End Reset --- #
 
@@ -158,17 +158,17 @@ def test_enemy_spawn_blocked(game_manager_fixture):
     max_attempts = len(spawn_points_pixels) * 5
 
     for attempt in range(max_attempts):
-        if game_manager.total_enemy_spawns >= max_spawns:
+        if game_manager.spawn_manager.total_enemy_spawns >= max_spawns:
             logger.debug("Reached max total spawns, stopping attempts.")
             break  # Stop if limit reached (unlikely if one is blocked)
 
-        spawned_count_before = len(game_manager.enemy_tanks)
-        spawn_success = game_manager._spawn_enemy()  # Attempt spawn
-        spawned_count_after = len(game_manager.enemy_tanks)
+        spawned_count_before = len(game_manager.spawn_manager.enemy_tanks)
+        spawn_success = game_manager.spawn_manager.spawn_enemy(game_manager.player_tank, game_manager.map)  # Attempt spawn
+        spawned_count_after = len(game_manager.spawn_manager.enemy_tanks)
 
         if spawn_success:
             assert spawned_count_after == spawned_count_before + 1
-            new_enemy = game_manager.enemy_tanks[-1]
+            new_enemy = game_manager.spawn_manager.enemy_tanks[-1]
             new_enemy_pos = new_enemy.get_position()
             logger.debug(f"Attempt {attempt + 1}: Spawn successful at {new_enemy_pos}.")
             # Assert the new enemy did NOT spawn at the blocked point
@@ -180,25 +180,25 @@ def test_enemy_spawn_blocked(game_manager_fixture):
             assert spawned_count_after == spawned_count_before
             logger.debug(
                 f"Attempt {attempt + 1}: Spawn failed (possibly blocked). "
-                f"Total spawned: {game_manager.total_enemy_spawns}"
+                f"Total spawned: {game_manager.spawn_manager.total_enemy_spawns}"
             )
 
     # --- Assert Final State --- #
     logger.info("Verifying final state after spawn attempts with blocking...")
     # Check that no spawned enemy ended up at the blocked location
-    for i, enemy in enumerate(game_manager.enemy_tanks):
+    for i, enemy in enumerate(game_manager.spawn_manager.enemy_tanks):
         assert enemy.get_position() != blocked_spawn_point_pixels, (
             f"Enemy {i} is located at the blocked spawn point "
             f"{blocked_spawn_point_pixels}."
         )
 
     # Because one point is blocked, we might not reach max_spawns
-    assert len(game_manager.enemy_tanks) <= max_spawns, (
-        f"Enemy count ({len(game_manager.enemy_tanks)}) exceeded max spawns "
+    assert len(game_manager.spawn_manager.enemy_tanks) <= max_spawns, (
+        f"Enemy count ({len(game_manager.spawn_manager.enemy_tanks)}) exceeded max spawns "
         f"({max_spawns})."
     )
-    assert game_manager.total_enemy_spawns <= max_spawns, (
-        f"Total enemy spawns ({game_manager.total_enemy_spawns}) exceeded max "
+    assert game_manager.spawn_manager.total_enemy_spawns <= max_spawns, (
+        f"Total enemy spawns ({game_manager.spawn_manager.total_enemy_spawns}) exceeded max "
         f"spawns ({max_spawns})."
     )
     logger.info("Blocked spawn point test completed.")
@@ -217,8 +217,8 @@ def test_enemy_movement_and_direction_change(
     game_manager = game_manager_fixture
 
     # --- Clear existing and Spawn one enemy in open space --- #
-    game_manager.enemy_tanks = []
-    game_manager.total_enemy_spawns = 0
+    game_manager.spawn_manager.enemy_tanks = []
+    game_manager.spawn_manager.total_enemy_spawns = 0
     enemy_type = "basic"
     start_x_grid, start_y_grid = 8, 8
     start_x = start_x_grid * TILE_SIZE
@@ -247,8 +247,8 @@ def test_enemy_movement_and_direction_change(
     # and cause GAME_OVER before the direction change timer fires
     enemy_tank.shoot = lambda: None
 
-    game_manager.enemy_tanks.append(enemy_tank)
-    game_manager.total_enemy_spawns = 1
+    game_manager.spawn_manager.enemy_tanks.append(enemy_tank)
+    game_manager.spawn_manager.total_enemy_spawns = 1
     logger.debug(
         f"Spawned single enemy at ({start_x_grid}, {start_y_grid}) for movement test."
     )
@@ -362,8 +362,8 @@ def test_enemy_movement_blocked_by_tile(
 
     # --- Spawn Enemy Tank Adjacent --- #
     # Clear existing enemies
-    game_manager.enemy_tanks = []
-    game_manager.total_enemy_spawns = 0
+    game_manager.spawn_manager.enemy_tanks = []
+    game_manager.spawn_manager.total_enemy_spawns = 0
     # Calculate start position
     start_grid_x = target_x_grid + start_pos_offset[0]
     start_grid_y = target_y_grid + start_pos_offset[1]
@@ -391,8 +391,8 @@ def test_enemy_movement_blocked_by_tile(
     # Force initial direction towards the obstacle
     enemy_tank.direction = move_direction
     enemy_tank.direction_timer = 0  # Prevent immediate random change
-    game_manager.enemy_tanks.append(enemy_tank)
-    game_manager.total_enemy_spawns = 1
+    game_manager.spawn_manager.enemy_tanks.append(enemy_tank)
+    game_manager.spawn_manager.total_enemy_spawns = 1
     logger.debug(
         f"Spawned enemy at ({start_grid_x}, {start_grid_y}) aiming "
         f"{move_direction} towards {blocking_tile_type.name} tile."
@@ -426,8 +426,8 @@ def test_enemy_shooting(game_manager_fixture):
     game_manager = game_manager_fixture
 
     # --- Clear existing and Spawn one enemy in open space --- #
-    game_manager.enemy_tanks = []
-    game_manager.total_enemy_spawns = 0
+    game_manager.spawn_manager.enemy_tanks = []
+    game_manager.spawn_manager.total_enemy_spawns = 0
     enemy_type = "basic"  # Basic shoot_interval is 2.0s
     start_x_grid, start_y_grid = 8, 8
     start_x = start_x_grid * TILE_SIZE
@@ -440,8 +440,8 @@ def test_enemy_shooting(game_manager_fixture):
     initial_enemy_direction = Direction.RIGHT
     enemy_tank.direction = initial_enemy_direction
     enemy_tank.shoot_timer = 0  # Reset shoot timer for predictable firing
-    game_manager.enemy_tanks.append(enemy_tank)
-    game_manager.total_enemy_spawns = 1
+    game_manager.spawn_manager.enemy_tanks.append(enemy_tank)
+    game_manager.spawn_manager.total_enemy_spawns = 1
     logger.debug(
         f"Spawned single enemy at ({start_x_grid}, {start_y_grid}) "
         f"aiming {initial_enemy_direction}"
