@@ -18,13 +18,14 @@ class Map:
         self.spawn_points: List[Tuple[int, int]] = []
         self.player_spawn: Tuple[int, int] = (0, 0)
         self._animated_tiles: List[Tile] = []
+        self._drawable_tiles: List[Tile] = []
         self._tile_cache_dirty: bool = True
         self._cached_tiles_by_type: dict = {}
         self._cached_collidable_rects: List[pygame.Rect] = []
         self._cached_base: Optional[Tile] = None
 
         self._load_from_tmx(map_file)
-        self._build_animated_tiles()
+        self._build_derived_tile_lists()
         self._rebuild_tile_caches()
 
         logger.info(
@@ -103,14 +104,18 @@ class Map:
                 "No 'player_spawn' object found, defaulting to bottom-center"
             )
 
-    def _build_animated_tiles(self) -> None:
-        """Build the list of animated tiles."""
-        self._animated_tiles = [
-            tile
-            for row in self.tiles
-            for tile in row
-            if tile and tile.is_animated
-        ]
+    def _build_derived_tile_lists(self) -> None:
+        """Build the lists of animated and drawable (non-empty) tiles."""
+        self._animated_tiles = []
+        self._drawable_tiles = []
+        for row in self.tiles:
+            for tile in row:
+                if not tile:
+                    continue
+                if tile.type != TileType.EMPTY:
+                    self._drawable_tiles.append(tile)
+                if tile.is_animated:
+                    self._animated_tiles.append(tile)
 
     def update(self, dt: float) -> None:
         """Update animated tiles only."""
@@ -118,11 +123,9 @@ class Map:
             tile.update(dt)
 
     def draw(self, surface: pygame.Surface) -> None:
-        """Draw all tiles on the given surface."""
-        for row in self.tiles:
-            for tile in row:
-                if tile:
-                    tile.draw(surface, self.texture_manager)
+        """Draw non-empty tiles on the given surface."""
+        for tile in self._drawable_tiles:
+            tile.draw(surface, self.texture_manager)
 
     def get_tile_at(self, x: int, y: int) -> Optional[Tile]:
         """Get the tile at the specified grid coordinates."""
@@ -135,12 +138,26 @@ class Map:
 
     def set_tile_type(self, tile: Tile, new_type: TileType) -> None:
         """Change a tile's type and invalidate caches."""
+        old_type = tile.type
         tile.type = new_type
         self._tile_cache_dirty = True
+        # Keep drawable tiles list in sync
+        if old_type == TileType.EMPTY and new_type != TileType.EMPTY:
+            self._drawable_tiles.append(tile)
+        elif old_type != TileType.EMPTY and new_type == TileType.EMPTY:
+            self._drawable_tiles.remove(tile)
 
     def place_tile(self, x: int, y: int, tile: Tile) -> None:
         """Place a tile at grid coordinates and invalidate caches."""
+        old_tile = self.tiles[y][x]
+        if old_tile and old_tile.type != TileType.EMPTY:
+            try:
+                self._drawable_tiles.remove(old_tile)
+            except ValueError:
+                pass
         self.tiles[y][x] = tile
+        if tile.type != TileType.EMPTY:
+            self._drawable_tiles.append(tile)
         self._tile_cache_dirty = True
 
     def _rebuild_tile_caches(self) -> None:
@@ -188,4 +205,4 @@ class Map:
     def get_collidable_tiles(self) -> List[pygame.Rect]:
         """Get a list of rectangles for all collidable tiles."""
         self._ensure_cache()
-        return list(self._cached_collidable_rects)
+        return self._cached_collidable_rects
