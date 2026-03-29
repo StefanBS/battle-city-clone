@@ -29,6 +29,7 @@ def mock_bullet():
     b = MagicMock(spec=Bullet)
     b.active = True
     b.owner_type = "player"
+    b.owner = MagicMock()
     return b
 
 
@@ -112,6 +113,7 @@ class TestBulletVsEnemy:
         bullet = MagicMock(spec=Bullet)
         bullet.active = True
         bullet.owner_type = "enemy"
+        bullet.owner = MagicMock()
         handler.process_collisions([(bullet, mock_enemy)])
         mock_enemy.take_damage.assert_not_called()
         assert bullet.active  # Bullet not consumed
@@ -124,6 +126,7 @@ class TestBulletVsPlayer:
         bullet = MagicMock(spec=Bullet)
         bullet.active = True
         bullet.owner_type = "enemy"
+        bullet.owner = MagicMock()
         handler.process_collisions([(bullet, mock_player)])
         assert not bullet.active
         mock_player.take_damage.assert_called_once()
@@ -133,6 +136,7 @@ class TestBulletVsPlayer:
         bullet = MagicMock(spec=Bullet)
         bullet.active = True
         bullet.owner_type = "enemy"
+        bullet.owner = MagicMock()
         mock_player.take_damage.return_value = True
         handler.process_collisions([(bullet, mock_player)])
         handler._set_game_state.assert_called_with(GameState.GAME_OVER)
@@ -142,6 +146,7 @@ class TestBulletVsPlayer:
         bullet = MagicMock(spec=Bullet)
         bullet.active = True
         bullet.owner_type = "enemy"
+        bullet.owner = MagicMock()
         mock_player.is_invincible = True
         handler.process_collisions([(bullet, mock_player)])
         assert not bullet.active
@@ -154,6 +159,7 @@ class TestBulletVsPlayer:
         bullet = MagicMock(spec=Bullet)
         bullet.active = True
         bullet.owner_type = "player"
+        bullet.owner = MagicMock()
         handler.process_collisions([(bullet, mock_player)])
         mock_player.take_damage.assert_not_called()
         assert bullet.active
@@ -163,6 +169,7 @@ class TestBulletVsTile:
     def test_bullet_destroys_brick(self, handler, mock_map):
         bullet = MagicMock(spec=Bullet)
         bullet.active = True
+        bullet.owner = MagicMock()
         tile = MagicMock(spec=Tile)
         tile.type = TileType.BRICK
         tile.x, tile.y = 0, 0
@@ -173,6 +180,7 @@ class TestBulletVsTile:
     def test_bullet_stops_at_steel(self, handler, mock_map):
         bullet = MagicMock(spec=Bullet)
         bullet.active = True
+        bullet.owner = MagicMock()
         tile = MagicMock(spec=Tile)
         tile.type = TileType.STEEL
         tile.x, tile.y = 0, 0
@@ -183,6 +191,7 @@ class TestBulletVsTile:
     def test_bullet_destroys_base(self, handler, mock_map):
         bullet = MagicMock(spec=Bullet)
         bullet.active = True
+        bullet.owner = MagicMock()
         tile = MagicMock(spec=Tile)
         tile.type = TileType.BASE
         tile.x, tile.y = 0, 0
@@ -199,7 +208,9 @@ class TestBulletVsBullet:
         b1 = MagicMock(spec=Bullet)
         b2 = MagicMock(spec=Bullet)
         b1.active = True
+        b1.owner = MagicMock()
         b2.active = True
+        b2.owner = MagicMock()
         handler.process_collisions([(b1, b2)])
         assert not b1.active
         assert not b2.active
@@ -235,6 +246,7 @@ class TestTracking:
         bullet = MagicMock(spec=Bullet)
         bullet.active = True
         bullet.owner_type = "player"
+        bullet.owner = MagicMock()
         enemy2 = MagicMock(spec=EnemyTank)
         enemy2.take_damage = MagicMock(return_value=False)
         enemy2.owner_type = "enemy"
