@@ -1,6 +1,7 @@
 from typing import Any, Callable, Dict, List, Tuple, Type
 from loguru import logger
 from src.core.bullet import Bullet
+from src.core.tank import Tank
 from src.core.player_tank import PlayerTank
 from src.core.enemy_tank import EnemyTank
 from src.core.tile import Tile, TileType, IMPASSABLE_TILE_TYPES
@@ -69,8 +70,6 @@ class CollisionResponseHandler:
                 continue
 
             # Tank collisions
-            from src.core.tank import Tank
-
             if isinstance(a, Tank) and isinstance(b, Tank):
                 if a not in reverted_tanks or b not in reverted_tanks:
                     if handler(a, b, enemies_to_remove):
