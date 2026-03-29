@@ -1,5 +1,5 @@
 import pygame
-from typing import Optional, Tuple
+from typing import Optional
 from loguru import logger
 from .game_object import GameObject
 from .bullet import Bullet
@@ -70,7 +70,6 @@ class Tank(GameObject):
         # Store previous position for collision rollback
         self.prev_x: float = x
         self.prev_y: float = y
-        self.target_position: Tuple[float, float] = (x, y)
         self.is_invincible: bool = False
         self.invincibility_timer: float = 0
         self.invincibility_duration: float = 0
@@ -205,7 +204,6 @@ class Tank(GameObject):
         # Apply movement (position will be validated/reverted by GameManager)
         self.x = target_x
         self.y = target_y
-        self.target_position = (self.x, self.y)
 
         # Distance-based animation toggle
         distance = abs(dx * self.speed * dt) + abs(dy * self.speed * dt)
@@ -254,7 +252,6 @@ class Tank(GameObject):
             self.y = self.prev_y
 
         self.rect.topleft = (round(self.x), round(self.y))
-        self.target_position = (self.x, self.y)
 
     def draw(self, surface: pygame.Surface) -> None:
         """

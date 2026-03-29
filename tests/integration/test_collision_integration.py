@@ -49,7 +49,6 @@ def test_player_bullet_vs_tile(
     player_start_x = target_x_grid * TILE_SIZE
     player_start_y = (target_y_grid + 1) * TILE_SIZE
     player_tank.set_position(player_start_x, player_start_y)
-    player_tank.target_position = (player_start_x, player_start_y)
     player_tank.prev_x, player_tank.prev_y = player_start_x, player_start_y
 
     # Aim up and shoot
@@ -143,7 +142,6 @@ def test_player_bullet_destroys_enemy_tank(game_manager_fixture, mocker):
     player_start_x = enemy_x_grid * TILE_SIZE
     player_start_y = (enemy_y_grid + 1) * TILE_SIZE
     player_tank.set_position(player_start_x, player_start_y)
-    player_tank.target_position = (player_start_x, player_start_y)
     player_tank.prev_x, player_tank.prev_y = player_start_x, player_start_y
 
     # Aim up and shoot

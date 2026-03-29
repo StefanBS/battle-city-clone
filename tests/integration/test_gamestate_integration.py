@@ -143,7 +143,6 @@ def test_player_bullet_hits_base(game_manager_fixture):
         )
 
     player_tank.set_position(player_start_x, player_start_y)
-    player_tank.target_position = (player_start_x, player_start_y)
     player_tank.prev_x, player_tank.prev_y = player_start_x, player_start_y
 
     # Aim DOWN and shoot
