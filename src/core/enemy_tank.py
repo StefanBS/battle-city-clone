@@ -76,18 +76,9 @@ class EnemyTank(Tank):
         """
         props = self.TANK_PROPERTIES[tank_type]
 
-        # Ensure x and y are aligned to the grid
-        grid_x = round(x / tile_size) * tile_size
-        grid_y = round(y / tile_size) * tile_size
-
-        logger.debug(
-            f"Creating EnemyTank (type: {tank_type}) at grid ({grid_x}, {grid_y})"
-        )
-
-        # Initialize with grid-aligned position and type-specific properties
         super().__init__(
-            grid_x,
-            grid_y,
+            x,
+            y,
             texture_manager,
             tile_size,
             None,

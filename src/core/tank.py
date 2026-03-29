@@ -52,6 +52,9 @@ class Tank(GameObject):
             map_width_px: Map width in pixels (for boundary clamping)
             map_height_px: Map height in pixels (for boundary clamping)
         """
+        # Snap to grid
+        x = round(x / tile_size) * tile_size
+        y = round(y / tile_size) * tile_size
         logger.debug(f"Creating Tank at ({x}, {y})")
         super().__init__(x, y, TANK_WIDTH, TANK_HEIGHT, sprite)
         self.texture_manager = texture_manager
