@@ -36,7 +36,6 @@ class CollisionResponseHandler:
         if not events:
             return []
 
-        logger.trace(f"Processing {len(events)} collision events...")
         processed_bullets: set = set()
         reverted_tanks: set = set()
         enemies_to_remove: List[EnemyTank] = []
@@ -185,7 +184,6 @@ class CollisionResponseHandler:
         tank_b: Any,
         enemies_to_remove: List[EnemyTank],
     ) -> bool:
-        logger.debug(f"Tank collision: {tank_a.owner_type} vs {tank_b.owner_type}")
         tank_a.revert_move()
         tank_b.revert_move()
         return True
@@ -203,10 +201,6 @@ class CollisionResponseHandler:
             TileType.BRICK,
         ]
         if tile.type in impassable:
-            logger.debug(
-                f"Tank ({tank.owner_type}) collision with "
-                f"{tile.type.name} at ({tile.x}, {tile.y})."
-            )
             tank.revert_move(tile.rect)
             return True
         return False
@@ -224,10 +218,6 @@ class CollisionResponseHandler:
             TileType.BRICK,
         ]
         if tile.type in impassable:
-            logger.debug(
-                f"Tank ({tank.owner_type}) collision with "
-                f"{tile.type.name} at ({tile.x}, {tile.y})."
-            )
             tank.revert_move(tile.rect)
             tank.on_wall_hit()
             return True

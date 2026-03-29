@@ -37,6 +37,9 @@ class Renderer:
         self.background_color: Tuple[int, int, int] = BLACK
         self.font: pygame.font.Font = pygame.font.SysFont(None, 48)
         self.small_font: pygame.font.Font = pygame.font.SysFont(None, 24)
+        self._scaled_surface: pygame.Surface = pygame.Surface(
+            (screen.get_width(), screen.get_height())
+        )
 
     def render(
         self,
@@ -82,12 +85,13 @@ class Renderer:
         elif state == GameState.VICTORY:
             self._draw_victory()
 
-        # Scale the logical surface to the main screen
-        scaled_surface = pygame.transform.scale(
+        # Scale the logical surface to the main screen (reuse pre-allocated surface)
+        pygame.transform.scale(
             self.game_surface,
             (self.screen.get_width(), self.screen.get_height()),
+            self._scaled_surface,
         )
-        self.screen.blit(scaled_surface, (0, 0))
+        self.screen.blit(self._scaled_surface, (0, 0))
 
         # Update the display
         pygame.display.flip()
