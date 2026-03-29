@@ -46,8 +46,8 @@ class TestSpawnManager:
             spawn_interval=5.0,
             player_tank=mock_player_tank,
             game_map=mock_game_map,
-            map_width_px=512,
-            map_height_px=512,
+            map_width_px=16 * TILE_SIZE,
+            map_height_px=16 * TILE_SIZE,
         )
         return manager
 
@@ -207,8 +207,8 @@ class TestSpawnManager:
             spawn_interval=5.0,
             player_tank=mock_player_tank,
             game_map=mock_game_map,
-            map_width_px=512,
-            map_height_px=512,
+            map_width_px=16 * TILE_SIZE,
+            map_height_px=16 * TILE_SIZE,
         )
         # Stage 1: (18, 2, 0, 0) = 20 total
         assert manager.max_enemy_spawns == 20
@@ -226,8 +226,8 @@ class TestSpawnManager:
             spawn_interval=5.0,
             player_tank=mock_player_tank,
             game_map=mock_game_map,
-            map_width_px=512,
-            map_height_px=512,
+            map_width_px=16 * TILE_SIZE,
+            map_height_px=16 * TILE_SIZE,
         )
         types_in_queue = set(manager._spawn_queue)
         assert len(types_in_queue) > 1
@@ -244,8 +244,8 @@ class TestSpawnManager:
             spawn_interval=5.0,
             player_tank=mock_player_tank,
             game_map=mock_game_map,
-            map_width_px=512,
-            map_height_px=512,
+            map_width_px=16 * TILE_SIZE,
+            map_height_px=16 * TILE_SIZE,
         )
         # Exhaust all 20 spawns
         for _ in range(25):  # more than 20 to test stop
@@ -265,7 +265,7 @@ class TestSpawnManager:
             spawn_interval=5.0,
             player_tank=mock_player_tank,
             game_map=mock_game_map,
-            map_width_px=512,
-            map_height_px=512,
+            map_width_px=16 * TILE_SIZE,
+            map_height_px=16 * TILE_SIZE,
         )
         assert manager.max_enemy_spawns == 20

@@ -12,8 +12,8 @@ from src.utils.constants import (
     FPS,
 )
 
-MAP_WIDTH_PX = 512
-MAP_HEIGHT_PX = 512
+MAP_WIDTH_PX = 16 * TILE_SIZE
+MAP_HEIGHT_PX = 16 * TILE_SIZE
 
 
 class TestTank:

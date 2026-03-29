@@ -50,7 +50,7 @@ def test_enemy_tank_initialization_properties(
 
     tank = EnemyTank(
         x, y, tile_size, mock_texture_manager, tank_type,
-        map_width_px=512, map_height_px=512,
+        map_width_px=16 * TILE_SIZE, map_height_px=16 * TILE_SIZE,
     )
 
     # Assert core properties set by the type
@@ -85,7 +85,7 @@ def test_enemy_tank_grid_alignment(mock_texture_manager):
 
     tank = EnemyTank(
         initial_x, initial_y, tile_size, mock_texture_manager, tank_type="basic",
-        map_width_px=512, map_height_px=512,
+        map_width_px=16 * TILE_SIZE, map_height_px=16 * TILE_SIZE,
     )
 
     assert tank.x == expected_x
@@ -100,7 +100,7 @@ def test_on_wall_hit(mock_random_choice, mock_texture_manager):
     mock_random_choice.return_value = Direction.DOWN
     tank = EnemyTank(
         0, 0, TILE_SIZE, mock_texture_manager, tank_type="basic",
-        map_width_px=512, map_height_px=512,
+        map_width_px=16 * TILE_SIZE, map_height_px=16 * TILE_SIZE,
     )
     # Now set a known direction and mock the next choice
     tank.direction = Direction.UP
@@ -117,7 +117,7 @@ def test_consume_shoot_after_timer(mock_texture_manager):
     """Test that EnemyTank signals shoot intent when timer fires."""
     tank = EnemyTank(
         0, 0, TILE_SIZE, mock_texture_manager, tank_type="basic",
-        map_width_px=512, map_height_px=512,
+        map_width_px=16 * TILE_SIZE, map_height_px=16 * TILE_SIZE,
     )
     assert not tank.consume_shoot()
 
@@ -137,7 +137,7 @@ def test_update_moves_in_current_direction(
     mock_choice.return_value = Direction.DOWN
     tank = EnemyTank(
         0, 0, TILE_SIZE, mock_texture_manager, tank_type="basic",
-        map_width_px=512, map_height_px=512,
+        map_width_px=16 * TILE_SIZE, map_height_px=16 * TILE_SIZE,
     )
     tank.direction = Direction.RIGHT
     # Set timers low so they don't trigger direction/shoot changes
