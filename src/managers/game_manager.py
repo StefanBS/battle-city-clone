@@ -26,37 +26,31 @@ class GameManager:
     """Manages the core game loop and window."""
 
     def __init__(self) -> None:
-        """Initialize the game window and basic settings."""
+        """Initialize the game window and persistent resources."""
         logger.info("Initializing GameManager...")
-        self._reset_game()
 
-    def _reset_game(self) -> None:
-        """Resets the game state to the initial configuration."""
-        logger.info("Resetting game state...")
-        # Display setup
+        # Display setup (once)
         self.tile_size: int = TILE_SIZE
-        self.screen_width: int = WINDOW_WIDTH
-        self.screen_height: int = WINDOW_HEIGHT
         self.screen: pygame.Surface = pygame.display.set_mode(
-            (self.screen_width, self.screen_height)
+            (WINDOW_WIDTH, WINDOW_HEIGHT)
         )
         pygame.display.set_caption(WINDOW_TITLE)
 
-        # --- Initialize Managers AFTER display mode is set ---
-        logger.info("Initializing TextureManager...")
+        # Persistent resources (once)
         self.texture_manager = TextureManager("assets/sprites/sprites.png")
-        logger.info("Initializing CollisionManager...")
-        self.collision_manager: CollisionManager = CollisionManager()
-        self.input_handler: InputHandler = InputHandler()
-        # --- End Initialize Managers ---
-
-        # Game clock
         self.clock: pygame.time.Clock = pygame.time.Clock()
         self.fps: int = FPS
+        self.input_handler: InputHandler = InputHandler()
 
-        # Game state
+        self._reset_game()
+
+    def _reset_game(self) -> None:
+        """Resets per-level game state. Display and textures are preserved."""
+        logger.info("Resetting game state...")
+
         self.state: GameState = GameState.RUNNING
         self.current_stage: int = 1
+        self.collision_manager: CollisionManager = CollisionManager()
 
         # Map
         self.map: Map = Map("assets/maps/level_01.tmx", self.texture_manager)
@@ -86,10 +80,8 @@ class GameManager:
         )
 
         # Renderer
-        logical_width: int = map_width_px
-        logical_height: int = map_height_px
         self.renderer: Renderer = Renderer(
-            self.screen, logical_width, logical_height
+            self.screen, map_width_px, map_height_px
         )
 
         # SpawnManager
