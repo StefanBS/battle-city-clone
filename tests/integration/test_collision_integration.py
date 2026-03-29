@@ -111,8 +111,8 @@ def test_player_bullet_destroys_enemy_tank(game_manager_fixture, mocker):
     # Prevent enemy from shooting so its bullets don't interfere
     enemy_tank.shoot = lambda: None
     # Replace existing enemies with just this one for a clean test
-    game_manager.enemy_tanks = [enemy_tank]
-    initial_enemy_count = len(game_manager.enemy_tanks)
+    game_manager.spawn_manager.enemy_tanks = [enemy_tank]
+    initial_enemy_count = len(game_manager.spawn_manager.enemy_tanks)
     logger.debug(
         f"Manually added {enemy_type} enemy at ({enemy_x_grid}, {enemy_y_grid})"
     )
@@ -145,11 +145,11 @@ def test_player_bullet_destroys_enemy_tank(game_manager_fixture, mocker):
             logger.debug(f"Player bullet became inactive after {i + 1} updates.")
             bullet_became_inactive_during_loop = True
             # If bullet is inactive, check if enemy is also destroyed
-            if enemy_tank not in game_manager.enemy_tanks:
+            if enemy_tank not in game_manager.spawn_manager.enemy_tanks:
                 enemy_destroyed_during_loop = True
             break  # Stop if bullet is inactive
 
-        if enemy_tank not in game_manager.enemy_tanks:
+        if enemy_tank not in game_manager.spawn_manager.enemy_tanks:
             logger.debug(f"Enemy tank destroyed after {i + 1} updates.")
             enemy_destroyed_during_loop = True
             # If enemy destroyed, bullet might still be active if it passed through
@@ -159,14 +159,14 @@ def test_player_bullet_destroys_enemy_tank(game_manager_fixture, mocker):
     else: # Loop finished without break
         logger.warning(
             f"Max updates ({max_updates}) reached. Bullet active: {bullet.active}, "
-            f"Enemy in list: {enemy_tank in game_manager.enemy_tanks}"
+            f"Enemy in list: {enemy_tank in game_manager.spawn_manager.enemy_tanks}"
         )
 
 
     # --- Assertions after updates ---
     # 1. Bullet should be inactive if it hit the enemy.
     # If the enemy was destroyed, the bullet might have passed through, so this check is conditional.
-    if enemy_destroyed_during_loop or (enemy_tank not in game_manager.enemy_tanks):
+    if enemy_destroyed_during_loop or (enemy_tank not in game_manager.spawn_manager.enemy_tanks):
         # If enemy is gone, bullet could be active or inactive.
         # The critical part is enemy destruction.
         pass
@@ -177,10 +177,10 @@ def test_player_bullet_destroys_enemy_tank(game_manager_fixture, mocker):
 
 
     # 2. The enemy tank should have been removed from the list
-    assert enemy_tank not in game_manager.enemy_tanks, (
+    assert enemy_tank not in game_manager.spawn_manager.enemy_tanks, (
         "Enemy tank was not removed after being hit."
     )
-    assert len(game_manager.enemy_tanks) == initial_enemy_count - 1, (
+    assert len(game_manager.spawn_manager.enemy_tanks) == initial_enemy_count - 1, (
         "Enemy count did not decrease by one."
     )
 
@@ -249,7 +249,7 @@ def test_enemy_bullet_hits_player_tank(
         enemy_type,
     )
     enemy_tank.direction = Direction.DOWN  # Aim at player
-    game_manager.enemy_tanks = [enemy_tank]  # Replace default enemies
+    game_manager.spawn_manager.enemy_tanks = [enemy_tank]  # Replace default enemies
     logger.debug(
         f"Manually added {enemy_type} enemy at ({enemy_x_grid}, {enemy_y_grid}) "
         f"aiming {enemy_tank.direction}"
@@ -395,8 +395,8 @@ def test_enemy_bullet_hits_other_enemy(game_manager_fixture, mocker):
         enemy_type,
     )
 
-    game_manager.enemy_tanks = [enemy1, enemy2]  # Set the enemies
-    initial_enemy_count = len(game_manager.enemy_tanks)
+    game_manager.spawn_manager.enemy_tanks = [enemy1, enemy2]  # Set the enemies
+    initial_enemy_count = len(game_manager.spawn_manager.enemy_tanks)
     initial_enemy2_health = enemy2.health
     logger.debug(f"Spawned enemy1 at ({enemy1_x_grid}, {enemy1_y_grid}) aiming down.")
     logger.debug(f"Spawned enemy2 at ({enemy2_x_grid}, {enemy2_y_grid}).")
@@ -432,12 +432,12 @@ def test_enemy_bullet_hits_other_enemy(game_manager_fixture, mocker):
     )
 
     # 2. Enemy2 should still be in the list
-    assert enemy2 in game_manager.enemy_tanks, "Enemy2 was removed from the list."
+    assert enemy2 in game_manager.spawn_manager.enemy_tanks, "Enemy2 was removed from the list."
 
     # 3. Total enemy count should be unchanged
-    assert len(game_manager.enemy_tanks) == initial_enemy_count, (
+    assert len(game_manager.spawn_manager.enemy_tanks) == initial_enemy_count, (
         f"Enemy count changed. Expected: {initial_enemy_count}, "
-        f"Got: {len(game_manager.enemy_tanks)}"
+        f"Got: {len(game_manager.spawn_manager.enemy_tanks)}"
     )
 
 
@@ -474,7 +474,7 @@ def test_enemy_bullets_collide(game_manager_fixture, mocker):
     )
     enemy2.direction = Direction.LEFT  # Aim at enemy1
 
-    game_manager.enemy_tanks = [enemy1, enemy2]  # Set the enemies
+    game_manager.spawn_manager.enemy_tanks = [enemy1, enemy2]  # Set the enemies
     logger.debug(f"Spawned enemy1 at ({enemy1_x_grid}, {enemy1_y_grid}) aiming right.")
     logger.debug(f"Spawned enemy2 at ({enemy2_x_grid}, {enemy2_y_grid}) aiming left.")
     # --- End Spawn --- #
