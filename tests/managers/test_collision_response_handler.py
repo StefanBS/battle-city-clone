@@ -7,6 +7,7 @@ from src.core.player_tank import PlayerTank
 from src.core.enemy_tank import EnemyTank
 from src.core.tile import Tile, TileType
 from src.core.map import Map
+from src.states.game_state import GameState
 from src.utils.constants import TILE_SIZE
 
 
@@ -85,3 +86,180 @@ class TestDispatch:
         # Should not raise
         result = handler.process_collisions([(obj_a, obj_b)])
         assert result == []
+
+
+class TestBulletVsEnemy:
+    def test_player_bullet_damages_enemy(
+        self, handler, mock_bullet, mock_enemy
+    ):
+        mock_bullet.owner_type = "player"
+        enemies = handler.process_collisions([(mock_bullet, mock_enemy)])
+        assert not mock_bullet.active
+        mock_enemy.take_damage.assert_called_once()
+
+    def test_player_bullet_destroys_enemy(
+        self, handler, mock_bullet, mock_enemy
+    ):
+        mock_bullet.owner_type = "player"
+        mock_enemy.take_damage.return_value = True
+        enemies = handler.process_collisions([(mock_bullet, mock_enemy)])
+        assert mock_enemy in enemies
+
+    def test_enemy_bullet_does_not_damage_enemy(
+        self, handler, mock_enemy
+    ):
+        """Friendly fire — enemy bullet should not damage enemy."""
+        bullet = MagicMock(spec=Bullet)
+        bullet.active = True
+        bullet.owner_type = "enemy"
+        enemies = handler.process_collisions([(bullet, mock_enemy)])
+        mock_enemy.take_damage.assert_not_called()
+        assert bullet.active  # Bullet not consumed
+
+
+class TestBulletVsPlayer:
+    def test_enemy_bullet_damages_player(
+        self, handler, mock_player
+    ):
+        bullet = MagicMock(spec=Bullet)
+        bullet.active = True
+        bullet.owner_type = "enemy"
+        handler.process_collisions([(bullet, mock_player)])
+        assert not bullet.active
+        mock_player.take_damage.assert_called_once()
+        mock_player.respawn.assert_called_once()
+
+    def test_enemy_bullet_kills_player(self, handler, mock_player):
+        bullet = MagicMock(spec=Bullet)
+        bullet.active = True
+        bullet.owner_type = "enemy"
+        mock_player.take_damage.return_value = True
+        handler.process_collisions([(bullet, mock_player)])
+        handler._set_game_state.assert_called_with(GameState.GAME_OVER)
+        mock_player.respawn.assert_not_called()
+
+    def test_bullet_vs_invincible_player(self, handler, mock_player):
+        bullet = MagicMock(spec=Bullet)
+        bullet.active = True
+        bullet.owner_type = "enemy"
+        mock_player.is_invincible = True
+        handler.process_collisions([(bullet, mock_player)])
+        assert not bullet.active
+        mock_player.take_damage.assert_not_called()
+
+    def test_player_bullet_does_not_damage_player(
+        self, handler, mock_player
+    ):
+        """Friendly fire — player bullet should not damage player."""
+        bullet = MagicMock(spec=Bullet)
+        bullet.active = True
+        bullet.owner_type = "player"
+        handler.process_collisions([(bullet, mock_player)])
+        mock_player.take_damage.assert_not_called()
+        assert bullet.active
+
+
+class TestBulletVsTile:
+    def test_bullet_destroys_brick(self, handler, mock_map):
+        bullet = MagicMock(spec=Bullet)
+        bullet.active = True
+        tile = MagicMock(spec=Tile)
+        tile.type = TileType.BRICK
+        tile.x, tile.y = 0, 0
+        handler.process_collisions([(bullet, tile)])
+        assert not bullet.active
+        mock_map.set_tile_type.assert_called_with(tile, TileType.EMPTY)
+
+    def test_bullet_stops_at_steel(self, handler, mock_map):
+        bullet = MagicMock(spec=Bullet)
+        bullet.active = True
+        tile = MagicMock(spec=Tile)
+        tile.type = TileType.STEEL
+        tile.x, tile.y = 0, 0
+        handler.process_collisions([(bullet, tile)])
+        assert not bullet.active
+        mock_map.set_tile_type.assert_not_called()
+
+    def test_bullet_destroys_base(self, handler, mock_map):
+        bullet = MagicMock(spec=Bullet)
+        bullet.active = True
+        tile = MagicMock(spec=Tile)
+        tile.type = TileType.BASE
+        tile.x, tile.y = 0, 0
+        handler.process_collisions([(bullet, tile)])
+        assert not bullet.active
+        mock_map.set_tile_type.assert_called_with(
+            tile, TileType.BASE_DESTROYED
+        )
+        handler._set_game_state.assert_called_with(GameState.GAME_OVER)
+
+
+class TestBulletVsBullet:
+    def test_both_deactivated(self, handler):
+        b1 = MagicMock(spec=Bullet)
+        b2 = MagicMock(spec=Bullet)
+        b1.active = True
+        b2.active = True
+        handler.process_collisions([(b1, b2)])
+        assert not b1.active
+        assert not b2.active
+
+
+class TestTankVsTank:
+    def test_both_reverted(self, handler, mock_player, mock_enemy):
+        handler.process_collisions([(mock_player, mock_enemy)])
+        mock_player.revert_move.assert_called_once()
+        mock_enemy.revert_move.assert_called_once()
+
+
+class TestTankVsTile:
+    def test_player_reverted_on_impassable(
+        self, handler, mock_player, mock_tile
+    ):
+        mock_tile.type = TileType.STEEL
+        handler.process_collisions([(mock_player, mock_tile)])
+        mock_player.revert_move.assert_called_once_with(mock_tile.rect)
+
+    def test_enemy_reverted_and_wall_hit(
+        self, handler, mock_enemy, mock_tile
+    ):
+        mock_tile.type = TileType.STEEL
+        handler.process_collisions([(mock_enemy, mock_tile)])
+        mock_enemy.revert_move.assert_called_once_with(mock_tile.rect)
+        mock_enemy.on_wall_hit.assert_called_once()
+
+
+class TestTracking:
+    def test_processed_bullet_not_reprocessed(self, handler, mock_enemy):
+        """Same bullet in two events should only be processed once."""
+        bullet = MagicMock(spec=Bullet)
+        bullet.active = True
+        bullet.owner_type = "player"
+        enemy2 = MagicMock(spec=EnemyTank)
+        enemy2.take_damage = MagicMock(return_value=False)
+        enemy2.owner_type = "enemy"
+        handler.process_collisions([
+            (bullet, mock_enemy),
+            (bullet, enemy2),
+        ])
+        # Only first enemy should be damaged
+        mock_enemy.take_damage.assert_called_once()
+        enemy2.take_damage.assert_not_called()
+
+    def test_reverted_tank_not_re_reverted(
+        self, handler, mock_player
+    ):
+        """Tank hitting two tiles should only revert once."""
+        tile1 = MagicMock(spec=Tile)
+        tile1.type = TileType.STEEL
+        tile1.x, tile1.y = 0, 0
+        tile1.rect = pygame.Rect(0, 0, TILE_SIZE, TILE_SIZE)
+        tile2 = MagicMock(spec=Tile)
+        tile2.type = TileType.BRICK
+        tile2.x, tile2.y = 32, 0
+        tile2.rect = pygame.Rect(32, 0, TILE_SIZE, TILE_SIZE)
+        handler.process_collisions([
+            (mock_player, tile1),
+            (mock_player, tile2),
+        ])
+        mock_player.revert_move.assert_called_once()
