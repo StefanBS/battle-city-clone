@@ -25,10 +25,7 @@ class MockTile(pygame.sprite.Sprite):
 @pytest.fixture
 def collision_manager():
     """Provides a CollisionManager instance."""
-    pygame.init()  # Pygame needed for Rect
-    manager = CollisionManager()
-    yield manager
-    pygame.quit()
+    return CollisionManager()
 
 
 @pytest.fixture

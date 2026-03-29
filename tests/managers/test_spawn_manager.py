@@ -16,13 +16,6 @@ class TestSpawnManager:
     ]
 
     @pytest.fixture
-    def mock_texture_manager(self):
-        """Create a mock TextureManager."""
-        mock_tm = MagicMock()
-        mock_tm.get_sprite.return_value = MagicMock(spec=pygame.Surface)
-        return mock_tm
-
-    @pytest.fixture
     def mock_player_tank(self):
         """Create a mock player tank positioned away from spawn points."""
         player = MagicMock()
@@ -45,7 +38,6 @@ class TestSpawnManager:
     @pytest.fixture
     def spawn_manager(self, mock_texture_manager, mock_player_tank, mock_game_map):
         """Create a SpawnManager instance for testing."""
-        pygame.init()
         manager = SpawnManager(
             tile_size=TILE_SIZE,
             texture_manager=mock_texture_manager,
@@ -57,8 +49,7 @@ class TestSpawnManager:
             map_width_px=512,
             map_height_px=512,
         )
-        yield manager
-        pygame.quit()
+        return manager
 
     def test_initial_spawn(self, spawn_manager):
         """Test that the constructor spawns one enemy."""
@@ -208,7 +199,6 @@ class TestSpawnManager:
         self, mock_texture_manager, mock_player_tank, mock_game_map
     ):
         """Test that spawn queue is built from stage data."""
-        pygame.init()
         manager = SpawnManager(
             tile_size=TILE_SIZE,
             texture_manager=mock_texture_manager,
@@ -223,13 +213,11 @@ class TestSpawnManager:
         # Stage 1: (18, 2, 0, 0) = 20 total
         assert manager.max_enemy_spawns == 20
         assert manager.total_enemy_spawns == 1  # initial spawn
-        pygame.quit()
 
     def test_spawn_uses_queue_types(
         self, mock_texture_manager, mock_player_tank, mock_game_map
     ):
         """Test that spawn_enemy uses types from the queue, not always 'basic'."""
-        pygame.init()
         # Stage 4 has: (2, 5, 10, 3) — mix of all types
         manager = SpawnManager(
             tile_size=TILE_SIZE,
@@ -254,13 +242,11 @@ class TestSpawnManager:
                 types_seen.add(enemy.tank_type)
         # Stage 4 has basic, fast, power, armor — should see multiple types
         assert len(types_seen) > 1
-        pygame.quit()
 
     def test_spawn_stops_when_queue_empty(
         self, mock_texture_manager, mock_player_tank, mock_game_map
     ):
         """Test that spawning stops when the queue is depleted."""
-        pygame.init()
         manager = SpawnManager(
             tile_size=TILE_SIZE,
             texture_manager=mock_texture_manager,
@@ -277,13 +263,11 @@ class TestSpawnManager:
             manager.enemy_tanks = []  # clear to avoid collision
             manager.spawn_enemy(mock_player_tank, mock_game_map)
         assert manager.total_enemy_spawns == 20
-        pygame.quit()
 
     def test_stage_clamped_above_35(
         self, mock_texture_manager, mock_player_tank, mock_game_map
     ):
         """Test that stages > 35 use stage 35 data."""
-        pygame.init()
         manager = SpawnManager(
             tile_size=TILE_SIZE,
             texture_manager=mock_texture_manager,
@@ -296,4 +280,3 @@ class TestSpawnManager:
             map_height_px=512,
         )
         assert manager.max_enemy_spawns == 20
-        pygame.quit()
