@@ -33,6 +33,7 @@ class Tank(GameObject):
         speed: float = TANK_SPEED,
         bullet_speed: float = BULLET_SPEED,
         *,
+        owner_type: OwnerType,
         map_width_px: int,
         map_height_px: int,
     ) -> None:
@@ -49,6 +50,7 @@ class Tank(GameObject):
             lives: Number of lives
             speed: Movement speed in pixels per second
             bullet_speed: Speed of bullets fired by this tank
+            owner_type: Whether this tank belongs to a player or enemy
             map_width_px: Map width in pixels (for boundary clamping)
             map_height_px: Map height in pixels (for boundary clamping)
         """
@@ -68,7 +70,7 @@ class Tank(GameObject):
         self.health: int = health
         self.max_health: int = health
         self.lives: int = lives
-        self.owner_type: OwnerType = OwnerType.PLAYER
+        self.owner_type: OwnerType = owner_type
         self.distance_since_last_toggle: float = 0
         # Store previous position for collision rollback
         self.prev_x: float = x

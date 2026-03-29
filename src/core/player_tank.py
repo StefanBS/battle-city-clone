@@ -36,10 +36,10 @@ class PlayerTank(Tank):
             None,
             health=1,
             lives=3,
+            owner_type=OwnerType.PLAYER,
             map_width_px=map_width_px,
             map_height_px=map_height_px,
         )
-        self.owner_type = OwnerType.PLAYER
         self.initial_position = (self.x, self.y)
         self.invincibility_duration = 3.0
         self._update_sprite()

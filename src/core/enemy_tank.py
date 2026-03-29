@@ -86,11 +86,11 @@ class EnemyTank(Tank):
             lives=1,
             speed=props["speed"],
             bullet_speed=props["bullet_speed"],
+            owner_type=OwnerType.ENEMY,
             map_width_px=map_width_px,
             map_height_px=map_height_px,
         )
         self.tank_type = tank_type
-        self.owner_type = OwnerType.ENEMY
         self.direction = random.choice(list(Direction))
         self.direction_timer: float = 0
         self.direction_change_interval: float = props["direction_change_interval"]
