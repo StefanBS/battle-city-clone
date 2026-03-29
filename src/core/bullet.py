@@ -48,7 +48,8 @@ class Bullet(GameObject):
         self.owner = owner
         self.owner_type: str = owner.owner_type
         logger.trace(
-            f"Created bullet for {self.owner_type} at ({x:.1f}, {y:.1f}) moving {direction}"
+            f"Created bullet for {self.owner_type} "
+            f"at ({x:.1f}, {y:.1f}) moving {direction}"
         )
 
     def update(self, dt: float) -> None:
