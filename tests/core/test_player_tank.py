@@ -156,20 +156,3 @@ def test_draw_invincible_invisible_phase(player_tank):
 
     mock_surface.blit.assert_not_called()
 
-
-def test_draw_bullet(player_tank):
-    """Test that the bullet's draw method is called."""
-    mock_surface = MagicMock(spec=pygame.Surface)
-    mock_bullet = MagicMock()
-    mock_bullet.active = True
-    player_tank.bullet = mock_bullet
-
-    player_tank.draw(mock_surface)
-
-    mock_bullet.draw.assert_called_once_with(mock_surface)
-
-    mock_surface.reset_mock()
-    mock_bullet.reset_mock()
-    mock_bullet.active = False
-    player_tank.draw(mock_surface)
-    mock_bullet.draw.assert_not_called()

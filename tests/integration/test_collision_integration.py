@@ -54,10 +54,10 @@ def test_player_bullet_vs_tile(
 
     # Aim up and shoot
     player_tank.direction = Direction.UP
-    player_tank.shoot()
+    game_manager._try_shoot(player_tank)
 
-    assert player_tank.bullet is not None, "Bullet failed to spawn."
-    bullet = player_tank.bullet  # Get reference to the bullet
+    assert len(game_manager.bullets) == 1, "Bullet failed to spawn."
+    bullet = next(b for b in game_manager.bullets if b.owner is player_tank)
 
     # Simulate game time until bullet should have hit (or passed)
     dt = 1.0 / FPS
@@ -127,10 +127,10 @@ def test_player_bullet_destroys_enemy_tank(game_manager_fixture, mocker):
 
     # Aim up and shoot
     player_tank.direction = Direction.UP
-    player_tank.shoot()
+    game_manager._try_shoot(player_tank)
 
-    assert player_tank.bullet is not None, "Bullet failed to spawn."
-    bullet = player_tank.bullet
+    assert len(game_manager.bullets) == 1, "Bullet failed to spawn."
+    bullet = next(b for b in game_manager.bullets if b.owner is player_tank)
 
     # Simulate game time until bullet should have hit
     dt = 1.0 / FPS
@@ -257,9 +257,10 @@ def test_enemy_bullet_hits_player_tank(
     # --- End Enemy Spawn --- #
 
     # --- Fire Enemy Bullet --- #
-    enemy_tank.shoot()
-    assert enemy_tank.bullet is not None, "Enemy bullet failed to spawn."
-    enemy_bullet = enemy_tank.bullet
+    game_manager._try_shoot(enemy_tank)
+    enemy_bullets = [b for b in game_manager.bullets if b.owner is enemy_tank]
+    assert len(enemy_bullets) == 1, "Enemy bullet failed to spawn."
+    enemy_bullet = enemy_bullets[0]
     assert enemy_bullet.active, "Enemy bullet spawned inactive."
     # --- End Fire --- #
 
@@ -402,9 +403,10 @@ def test_enemy_bullet_hits_other_enemy(game_manager_fixture, mocker):
     # --- End Spawn --- #
 
     # --- Fire Enemy Bullet --- #
-    enemy1.shoot()
-    assert enemy1.bullet is not None, "Enemy1 bullet failed to spawn."
-    bullet = enemy1.bullet
+    game_manager._try_shoot(enemy1)
+    enemy1_bullets = [b for b in game_manager.bullets if b.owner is enemy1]
+    assert len(enemy1_bullets) == 1, "Enemy1 bullet failed to spawn."
+    bullet = enemy1_bullets[0]
     assert bullet.active, "Enemy1 bullet spawned inactive."
     # --- End Fire --- #
 
@@ -478,13 +480,15 @@ def test_enemy_bullets_collide(game_manager_fixture, mocker):
     # --- End Spawn --- #
 
     # --- Fire Both Bullets Simultaneously --- #
-    enemy1.shoot()
-    enemy2.shoot()
+    game_manager._try_shoot(enemy1)
+    game_manager._try_shoot(enemy2)
 
-    assert enemy1.bullet is not None, "Enemy1 bullet failed to spawn."
-    assert enemy2.bullet is not None, "Enemy2 bullet failed to spawn."
-    bullet1 = enemy1.bullet
-    bullet2 = enemy2.bullet
+    enemy1_bullets = [b for b in game_manager.bullets if b.owner is enemy1]
+    enemy2_bullets = [b for b in game_manager.bullets if b.owner is enemy2]
+    assert len(enemy1_bullets) == 1, "Enemy1 bullet failed to spawn."
+    assert len(enemy2_bullets) == 1, "Enemy2 bullet failed to spawn."
+    bullet1 = enemy1_bullets[0]
+    bullet2 = enemy2_bullets[0]
     assert bullet1.active, "Enemy1 bullet spawned inactive."
     assert bullet2.active, "Enemy2 bullet spawned inactive."
     # --- End Fire --- #

@@ -101,3 +101,15 @@ def test_on_wall_hit(mock_texture_manager):
     assert tank.direction != initial_direction
     # Timer should be reset
     assert tank.direction_timer == 0
+
+
+def test_consume_shoot_after_timer(mock_texture_manager):
+    """Test that EnemyTank signals shoot intent when timer fires."""
+    tank = EnemyTank(0, 0, TILE_SIZE, mock_texture_manager, tank_type="basic")
+    assert not tank.consume_shoot()
+
+    tank.shoot_timer = tank.shoot_interval + 0.1
+    tank.update(0.01)
+
+    assert tank.consume_shoot() is True
+    assert tank.consume_shoot() is False

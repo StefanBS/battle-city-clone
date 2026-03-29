@@ -98,6 +98,7 @@ class EnemyTank(Tank):
         self.direction_change_interval: float = props["direction_change_interval"]
         self.shoot_timer: float = 0
         self.shoot_interval: float = props["shoot_interval"]
+        self._wants_to_shoot: bool = False
         self._update_sprite()
         logger.debug(
             f"EnemyTank ({tank_type}) properties: speed={self.speed:.2f}, "
@@ -150,6 +151,13 @@ class EnemyTank(Tank):
                 f"EnemyTank ({self.tank_type}) direction remained {old_direction}."
             )
 
+    def consume_shoot(self) -> bool:
+        """Check if the tank wants to shoot and clear the flag."""
+        if self._wants_to_shoot:
+            self._wants_to_shoot = False
+            return True
+        return False
+
     def on_wall_hit(self) -> None:
         """Handle collision with a wall by changing direction."""
         self._change_direction()
@@ -178,7 +186,7 @@ class EnemyTank(Tank):
         # Shoot periodically
         if self.shoot_timer >= self.shoot_interval:
             logger.trace(f"EnemyTank ({self.tank_type}) shoot timer triggered.")
-            self.shoot()
+            self._wants_to_shoot = True
             self.shoot_timer = random.uniform(0, 0.3)  # Add small random offset
 
         # Calculate movement based on current direction

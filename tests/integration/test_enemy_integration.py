@@ -468,9 +468,14 @@ def test_enemy_shooting(game_manager_fixture):
     for i in range(num_updates):
         game_manager.update()
 
-        if not bullet_fired and enemy_tank.bullet and enemy_tank.bullet.active:
+        # Check if an enemy bullet appeared in game_manager.bullets
+        enemy_bullets = [
+            b for b in game_manager.bullets
+            if b.owner_type == "enemy" and b.active
+        ]
+        if not bullet_fired and len(enemy_bullets) > 0:
             bullet_fired = True
-            fired_bullet = enemy_tank.bullet
+            fired_bullet = enemy_bullets[0]
             bullet_start_pos = fired_bullet.get_position()
             # Bullet direction is set based on tank direction AT time of firing
             bullet_start_dir = fired_bullet.direction
@@ -496,7 +501,6 @@ def test_enemy_shooting(game_manager_fixture):
             )
 
             # Basic check: Ensure movement is roughly in the correct direction
-            # (A more precise check would calculate expected position based on speed/dt)
             if bullet_start_dir == Direction.RIGHT:
                 assert current_bullet_pos[0] > bullet_start_pos[0], (
                     "Bullet not moving right"

@@ -147,10 +147,10 @@ def test_player_bullet_hits_base(game_manager_fixture):
 
     # Aim DOWN and shoot
     player_tank.direction = Direction.DOWN  # Aim down towards base
-    player_tank.shoot()
+    game_manager._try_shoot(player_tank)
 
-    assert player_tank.bullet is not None, "Player bullet failed to spawn."
-    bullet = player_tank.bullet
+    assert len(game_manager.bullets) == 1, "Player bullet failed to spawn."
+    bullet = next(b for b in game_manager.bullets if b.owner is player_tank)
     assert bullet.active, "Player bullet spawned inactive."
 
     # Assert initial game state is RUNNING
@@ -241,9 +241,10 @@ def test_enemy_bullet_destroys_base_game_over(game_manager_fixture):
     # --- End Enemy Spawn --- #
 
     # --- Fire Enemy Bullet --- #
-    enemy_tank.shoot()
-    assert enemy_tank.bullet is not None, "Enemy bullet failed to spawn."
-    bullet = enemy_tank.bullet
+    game_manager._try_shoot(enemy_tank)
+    enemy_bullets = [b for b in game_manager.bullets if b.owner is enemy_tank]
+    assert len(enemy_bullets) == 1, "Enemy bullet failed to spawn."
+    bullet = enemy_bullets[0]
     assert bullet.active, "Enemy bullet spawned inactive."
     # --- End Fire --- #
 

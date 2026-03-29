@@ -102,6 +102,8 @@ class GameManager:
         self.spawn_interval: float = 5.0
         self._spawn_enemy()  # Initial spawn
 
+        self.bullets: List[Bullet] = []
+
         # Font
         self.font: pygame.font.Font = pygame.font.SysFont(None, 48)
         self.small_font: pygame.font.Font = pygame.font.SysFont(None, 24)
@@ -195,14 +197,12 @@ class GameManager:
         )
         player_base: Optional[Tile] = self.map.get_base()
 
-        player_bullets: List[Bullet] = []
-        if self.player_tank.bullet and self.player_tank.bullet.active:
-            player_bullets.append(self.player_tank.bullet)
-
-        enemy_bullets: List[Bullet] = []
-        for enemy in self.enemy_tanks:
-            if enemy.bullet and enemy.bullet.active:
-                enemy_bullets.append(enemy.bullet)
+        player_bullets = [
+            b for b in self.bullets if b.owner_type == "player" and b.active
+        ]
+        enemy_bullets = [
+            b for b in self.bullets if b.owner_type == "enemy" and b.active
+        ]
         # --- End Prepare data ---
 
         self.map.update(dt)
@@ -211,12 +211,20 @@ class GameManager:
         if dx != 0 or dy != 0:
             self.player_tank.move(dx, dy, dt)
         if self.input_handler.consume_shoot():
-            self.player_tank.shoot()
+            self._try_shoot(self.player_tank)
         self.player_tank.update(dt)
 
         # Iterate over a copy for safe removal
         for enemy in self.enemy_tanks[:]:
             enemy.update(dt)
+            if enemy.consume_shoot():
+                self._try_shoot(enemy)
+
+        # Update all bullets
+        for bullet in self.bullets:
+            bullet.update(dt)
+        # Remove inactive bullets
+        self.bullets = [b for b in self.bullets if b.active]
 
         self.spawn_timer += dt
         if self.spawn_timer >= self.spawn_interval:
@@ -253,6 +261,14 @@ class GameManager:
                 self.state = GameState.VICTORY
 
         logger.trace("Game update finished.")
+
+    def _try_shoot(self, tank) -> None:
+        """Attempt to fire a bullet for the given tank, respecting max_bullets."""
+        active_count = sum(1 for b in self.bullets if b.owner is tank and b.active)
+        if active_count < tank.max_bullets:
+            bullet = tank.shoot()
+            if bullet is not None:
+                self.bullets.append(bullet)
 
     def _set_game_state(self, state: GameState) -> None:
         """Set the game state."""
@@ -340,6 +356,11 @@ class GameManager:
         # Draw enemy tanks onto the logical surface
         for enemy in self.enemy_tanks:
             enemy.draw(self.game_surface)
+
+        # Draw all bullets
+        for bullet in self.bullets:
+            if bullet.active:
+                bullet.draw(self.game_surface)
 
         # Draw HUD onto the logical surface
         self._draw_hud()  # Make sure HUD uses self.game_surface if drawing directly

@@ -217,40 +217,41 @@ def test_player_shooting():
     game_manager = GameManager()
     player_tank = game_manager.player_tank
 
-    # 1. Initial state: No bullet
-    assert player_tank.bullet is None, "Player should not have a bullet initially."
+    # 1. Initial state: No bullets
+    assert len(game_manager.bullets) == 0, "No bullets should exist initially."
 
     # 2. Fire the first bullet
     player_tank.direction = Direction.RIGHT  # Set a known direction
-    player_tank.shoot()
+    game_manager._try_shoot(player_tank)
 
     # 3. Verify bullet creation and properties
-    assert player_tank.bullet is not None, "Bullet object was not created."
-    assert player_tank.bullet.active, "Bullet should be active after shooting."
-    assert player_tank.bullet.direction == Direction.RIGHT, (
+    assert len(game_manager.bullets) == 1, "One bullet should exist after shooting."
+    bullet = game_manager.bullets[0]
+    assert bullet.active, "Bullet should be active after shooting."
+    assert bullet.direction == Direction.RIGHT, (
         "Bullet direction is incorrect."
     )
-    assert player_tank.bullet.owner_type == "player", "Bullet owner type is incorrect."
+    assert bullet.owner_type == "player", "Bullet owner type is incorrect."
+    assert bullet.owner is player_tank, "Bullet owner should be the player tank."
 
     # 4. Verify bullet initial position (centered on tank)
     expected_x = player_tank.x + player_tank.width // 2 - BULLET_WIDTH // 2
     expected_y = player_tank.y + player_tank.height // 2 - BULLET_HEIGHT // 2
-    actual_pos = player_tank.bullet.get_position()
+    actual_pos = bullet.get_position()
     assert actual_pos == (expected_x, expected_y), (
         f"Bullet spawn position incorrect. Expected ({expected_x}, {expected_y}), "
         f"got {actual_pos}"
     )
 
-    # 5. Attempt to fire a second bullet immediately
-    original_bullet_instance = player_tank.bullet  # Keep reference
-    player_tank.shoot()
+    # 5. Attempt to fire a second bullet immediately (one-bullet limit)
+    game_manager._try_shoot(player_tank)
 
     # 6. Verify no new bullet was created
-    assert player_tank.bullet is original_bullet_instance, (
-        "Firing again should not create a new bullet instance while the first "
-        "is active."
+    assert len(game_manager.bullets) == 1, (
+        "Firing again should not create a new bullet while the first is active."
     )
-    assert player_tank.bullet.active, "Original bullet should still be active."
+    assert game_manager.bullets[0] is bullet, "Original bullet should still be present."
+    assert bullet.active, "Original bullet should still be active."
 
 
 @pytest.mark.parametrize(
@@ -270,13 +271,14 @@ def test_player_bullet_movement(direction_str, axis_index, direction_sign):
 
     # Set tank direction and fire
     player_tank.direction = direction_str
-    player_tank.shoot()
+    game_manager._try_shoot(player_tank)
 
-    assert player_tank.bullet is not None, "Bullet failed to spawn."
-    assert player_tank.bullet.active, "Bullet spawned but is not active."
-    assert player_tank.bullet.direction == direction_str, "Bullet has wrong direction."
+    assert len(game_manager.bullets) == 1, "Bullet failed to spawn."
+    bullet = next(b for b in game_manager.bullets if b.owner is player_tank)
+    assert bullet.active, "Bullet spawned but is not active."
+    assert bullet.direction == direction_str, "Bullet has wrong direction."
 
-    initial_pos = player_tank.bullet.get_position()
+    initial_pos = bullet.get_position()
 
     # Simulate game time
     dt = 1.0 / FPS
@@ -286,7 +288,7 @@ def test_player_bullet_movement(direction_str, axis_index, direction_sign):
     for _ in range(num_updates):
         game_manager.update()  # Update game (which updates bullet)
 
-    final_pos = player_tank.bullet.get_position()
+    final_pos = bullet.get_position()
 
     # Assert position changed
     assert final_pos != initial_pos, f"Bullet did not move from {initial_pos}"

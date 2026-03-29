@@ -25,7 +25,7 @@ class Bullet(GameObject):
         x: float,
         y: float,
         direction: str,
-        owner_type: str,
+        owner,
         sprite: Optional[pygame.Surface] = None,
         speed: float = BULLET_SPEED,
     ) -> None:
@@ -36,7 +36,7 @@ class Bullet(GameObject):
             x: Initial x position
             y: Initial y position
             direction: Direction of movement ("up", "down", "left", "right")
-            owner_type: The type of object that fired the bullet ('player' or 'enemy').
+            owner: The tank that fired this bullet.
             sprite: Optional sprite surface
             speed: Speed of the bullet in pixels per second
         """
@@ -45,9 +45,11 @@ class Bullet(GameObject):
         self.speed: float = speed
         self.active: bool = True
         self.color: ColorTuple = WHITE
-        self.owner_type: str = owner_type
+        self.owner = owner
+        self.owner_type: str = owner.owner_type
         logger.trace(
-            f"Created bullet for {owner_type} at ({x:.1f}, {y:.1f}) moving {direction}"
+            f"Created bullet for {self.owner_type} "
+            f"at ({x:.1f}, {y:.1f}) moving {direction}"
         )
 
     def update(self, dt: float) -> None:
