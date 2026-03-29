@@ -25,8 +25,6 @@ FPS: int = 60
 # Grid settings
 SOURCE_TILE_SIZE: int = 8  # Original size for loading sprites
 TILE_SIZE: int = 32  # Game logic uses 32x32 tiles
-GRID_WIDTH: int = 16  # Number of tiles horizontally
-GRID_HEIGHT: int = 16  # Number of tiles vertically
 
 # Colors
 BLACK: Tuple[int, int, int] = (0, 0, 0)
