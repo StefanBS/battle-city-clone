@@ -89,7 +89,15 @@ def test_enemy_tank_grid_alignment(mock_texture_manager):
     assert tank.rect.y == expected_y
 
 
-# Potential further tests:
-# - Test _change_direction logic (e.g., doesn't immediately reverse)
-# - Test update method behavior (timers increment, shooting/direction changes occur)
-#   (These would likely require mocking time/dt and random)
+def test_on_wall_hit(mock_texture_manager):
+    """Test that on_wall_hit changes direction and resets direction_timer."""
+    tank = EnemyTank(0, 0, TILE_SIZE, mock_texture_manager, tank_type="basic")
+    tank.direction_timer = 1.5  # Simulate some elapsed time
+
+    initial_direction = tank.direction
+    tank.on_wall_hit()
+
+    # Direction should have changed (with 4 directions, random pick won't be same)
+    assert tank.direction != initial_direction
+    # Timer should be reset
+    assert tank.direction_timer == 0
