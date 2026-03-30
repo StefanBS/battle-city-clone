@@ -147,6 +147,37 @@ class TestTank:
         assert tank.x == 0
         assert tank.y == 0
 
+    @pytest.mark.parametrize(
+        "start_x,start_y,dx,dy",
+        [
+            (0, 100, -1, 0),  # left edge, moving left
+            (100, 0, 0, -1),  # top edge, moving up
+        ],
+        ids=["left_boundary", "top_boundary"],
+    )
+    def test_move_clamps_to_min_bounds(self, create_tank, start_x, start_y, dx, dy):
+        """Test that _move() clamps position to minimum map bounds."""
+        tank = create_tank(x=start_x, y=start_y)
+        tank.prev_x = tank.x
+        tank.prev_y = tank.y
+        tank._move(dx, dy, 1.0 / FPS)
+        assert tank.x >= 0
+        assert tank.y >= 0
+
+    def test_move_clamps_to_max_bounds(self, create_tank):
+        """Test that _move() clamps position to maximum map bounds."""
+        max_x = MAP_WIDTH_PX - TILE_SIZE
+        max_y = MAP_HEIGHT_PX - TILE_SIZE
+        tank = create_tank(x=max_x, y=max_y)
+        tank.prev_x = tank.x
+        tank.prev_y = tank.y
+        # Move right — should clamp at max_x
+        tank._move(1, 0, 1.0 / FPS)
+        assert tank.x <= max_x
+        # Move down — should clamp at max_y
+        tank._move(0, 1, 1.0 / FPS)
+        assert tank.y <= max_y
+
     def test_revert_move(self, tank):
         """Test the revert_move functionality."""
         initial_x, initial_y = tank.x, tank.y
