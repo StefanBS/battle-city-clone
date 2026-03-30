@@ -40,3 +40,23 @@ def create_tank(mock_texture_manager):
         return Tank(x, y, mock_texture_manager, **defaults)
 
     return _create
+
+
+@pytest.fixture
+def key_down_event():
+    """Factory fixture to create KEYDOWN events."""
+
+    def _key_down_event(key: int) -> pygame.event.Event:
+        return pygame.event.Event(pygame.KEYDOWN, key=key)
+
+    return _key_down_event
+
+
+@pytest.fixture
+def key_up_event():
+    """Factory fixture to create KEYUP events."""
+
+    def _key_up_event(key: int) -> pygame.event.Event:
+        return pygame.event.Event(pygame.KEYUP, key=key)
+
+    return _key_up_event
