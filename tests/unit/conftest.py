@@ -1,5 +1,9 @@
+import os
 import pytest
 import pygame
+
+# Use a virtual framebuffer so unit tests don't open real windows.
+os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 
 
 @pytest.fixture(scope="session", autouse=True)
