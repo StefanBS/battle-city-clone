@@ -53,38 +53,24 @@ class TestGameManager:
         # Check if state is set to EXIT
         assert game_manager.state == GameState.EXIT
 
-    def test_handle_events_escape(self, game_manager):
+    def test_handle_events_escape(self, game_manager, key_down_event):
         """Test handling escape key event sets state to EXIT."""
-        # with pytest.raises(SystemExit): # Should not raise SystemExit anymore
-        event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_ESCAPE)
-        pygame.event.post(event)
+        pygame.event.post(key_down_event(pygame.K_ESCAPE))
         game_manager.handle_events()
-        # Check if state is set to EXIT
         assert game_manager.state == GameState.EXIT
 
-    def test_handle_events_restart(self, game_manager):
+    def test_handle_events_restart(self, game_manager, key_down_event):
         """Test handling restart key event."""
-        # Set game to game over state
         game_manager.state = GameState.GAME_OVER
-
-        # Simulate R key press
-        event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_r)
-        pygame.event.post(event)
+        pygame.event.post(key_down_event(pygame.K_r))
         game_manager.handle_events()
-
-        # Game should be reset
         assert game_manager.state == GameState.RUNNING
 
-    def test_handle_events_restart_not_game_over(self, game_manager):
+    def test_handle_events_restart_not_game_over(self, game_manager, key_down_event):
         """Test that restart key does nothing when game is running."""
         initial_state = game_manager.state
-
-        # Simulate R key press
-        event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_r)
-        pygame.event.post(event)
+        pygame.event.post(key_down_event(pygame.K_r))
         game_manager.handle_events()
-
-        # Game state should not change
         assert game_manager.state == initial_state
 
     # --- Game State Tests --- #
