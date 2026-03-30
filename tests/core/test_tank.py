@@ -264,8 +264,8 @@ class TestTank:
             tile_size=TILE_SIZE,
             bullet_speed=custom_speed,
             owner_type=OwnerType.PLAYER,
-            map_width_px=512,
-            map_height_px=512,
+            map_width_px=MAP_WIDTH_PX,
+            map_height_px=MAP_HEIGHT_PX,
         )
         bullet = tank.shoot()
         assert bullet.speed == custom_speed
