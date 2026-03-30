@@ -9,9 +9,7 @@ class TestTextureManagerErrors:
 
     def test_init_missing_atlas_raises_system_exit(self):
         """Test that missing atlas file raises SystemExit."""
-        with patch(
-            "pygame.image.load", side_effect=pygame.error("file not found")
-        ):
+        with patch("pygame.image.load", side_effect=pygame.error("file not found")):
             with pytest.raises(SystemExit, match="Error loading texture atlas"):
                 TextureManager("nonexistent.png")
 

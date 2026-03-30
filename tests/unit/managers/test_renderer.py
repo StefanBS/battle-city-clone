@@ -178,9 +178,7 @@ class TestRendererHUD:
             patch("pygame.display.flip"),
         ):
             mock_scale.return_value = MagicMock()
-            renderer.render(
-                mock_map, mock_player, [], [], GameState.RUNNING
-            )
+            renderer.render(mock_map, mock_player, [], [], GameState.RUNNING)
 
         # small_font.render should be called twice: lives + invincibility
         assert renderer.small_font.render.call_count == 2
