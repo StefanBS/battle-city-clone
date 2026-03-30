@@ -22,23 +22,23 @@ def renderer(mock_screen):
         patch("pygame.font.SysFont"),
         patch("pygame.Surface", return_value=MagicMock(spec=pygame.Surface)),
     ):
-        return Renderer(mock_screen, 512, 512)
+        return Renderer(mock_screen, 512, 512, 416, 416)
 
 
 class TestRendererInitialization:
     """Tests for Renderer initialization."""
 
     def test_initialization(self, mock_screen):
-        """Renderer creates game_surface, fonts, and background_color."""
-        with patch("pygame.font.SysFont"), patch("pygame.Surface") as mock_surface_cls:
-            renderer = Renderer(mock_screen, 512, 512)
+        """Renderer creates game_surface, fonts, and computes map offset."""
+        with patch("pygame.font.SysFont"), patch("pygame.Surface"):
+            renderer = Renderer(mock_screen, 512, 512, 416, 416)
 
         assert renderer.screen is mock_screen
         assert renderer.logical_width == 512
         assert renderer.logical_height == 512
-        assert mock_surface_cls.call_count == 2
-        mock_surface_cls.assert_any_call((512, 512))
-        mock_surface_cls.assert_any_call((1024, 1024))
+        assert renderer.map_offset_x == (512 - 416) // 2
+        assert renderer.map_offset_y == (512 - 416) // 2
+        assert renderer.border_color == (128, 128, 128)
         assert renderer.background_color == (0, 0, 0)
         assert renderer.font is not None
         assert renderer.small_font is not None
@@ -48,7 +48,7 @@ class TestRendererRender:
     """Tests for the render method."""
 
     def test_render_calls_draw_methods(self, renderer):
-        """Render calls map.draw, player.draw, enemy.draw, bullet.draw."""
+        """Render calls draw methods on map_surface."""
         mock_map = MagicMock()
         mock_player = MagicMock()
         mock_player.lives = 3
@@ -75,11 +75,11 @@ class TestRendererRender:
                 GameState.RUNNING,
             )
 
-        mock_map.draw.assert_called_once_with(renderer.game_surface)
-        mock_player.draw.assert_called_once_with(renderer.game_surface)
-        mock_enemy1.draw.assert_called_once_with(renderer.game_surface)
-        mock_enemy2.draw.assert_called_once_with(renderer.game_surface)
-        mock_bullet1.draw.assert_called_once_with(renderer.game_surface)
+        mock_map.draw.assert_called_once_with(renderer.map_surface)
+        mock_player.draw.assert_called_once_with(renderer.map_surface)
+        mock_enemy1.draw.assert_called_once_with(renderer.map_surface)
+        mock_enemy2.draw.assert_called_once_with(renderer.map_surface)
+        mock_bullet1.draw.assert_called_once_with(renderer.map_surface)
         mock_bullet2.draw.assert_not_called()
 
     def test_render_game_over_overlay(self, renderer):

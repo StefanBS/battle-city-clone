@@ -70,8 +70,13 @@ FPS: int = 60
 SOURCE_TILE_SIZE: int = 8  # Original size for loading sprites
 TILE_SIZE: int = 32  # Game logic uses 32x32 tiles
 
+# Logical surface (fixed size, map centered inside with gray border)
+LOGICAL_WIDTH: int = 512
+LOGICAL_HEIGHT: int = 512
+
 # Colors
 BLACK: Tuple[int, int, int] = (0, 0, 0)
+GRAY: Tuple[int, int, int] = (128, 128, 128)
 WHITE: Tuple[int, int, int] = (255, 255, 255)
 RED: Tuple[int, int, int] = (255, 0, 0)
 GREEN: Tuple[int, int, int] = (0, 255, 0)
