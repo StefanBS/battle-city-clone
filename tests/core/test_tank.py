@@ -1,10 +1,8 @@
 import pytest
 import pygame
-from src.core.tank import Tank
 from src.core.bullet import Bullet
 from src.utils.constants import (
     Direction,
-    OwnerType,
     TILE_SIZE,
     TANK_SPEED,
     BULLET_WIDTH,
@@ -20,17 +18,9 @@ class TestTank:
     """Test cases for the Tank class."""
 
     @pytest.fixture
-    def tank(self, mock_texture_manager):
+    def tank(self, create_tank):
         """Create a tank instance for testing."""
-        return Tank(
-            0,
-            0,
-            mock_texture_manager,
-            tile_size=TILE_SIZE,
-            owner_type=OwnerType.PLAYER,
-            map_width_px=MAP_WIDTH_PX,
-            map_height_px=MAP_HEIGHT_PX,
-        )
+        return create_tank()
 
     @pytest.mark.parametrize(
         "direction",
@@ -69,7 +59,7 @@ class TestTank:
     )
     def test_take_damage(
         self,
-        mock_texture_manager,
+        create_tank,
         health,
         lives,
         expected_destroyed,
@@ -77,17 +67,7 @@ class TestTank:
         post_lives,
     ):
         """Test taking damage with various health/lives configurations."""
-        tank = Tank(
-            0,
-            0,
-            mock_texture_manager,
-            tile_size=TILE_SIZE,
-            health=health,
-            lives=lives,
-            owner_type=OwnerType.PLAYER,
-            map_width_px=MAP_WIDTH_PX,
-            map_height_px=MAP_HEIGHT_PX,
-        )
+        tank = create_tank(health=health, lives=lives)
         assert tank.take_damage() == expected_destroyed
         assert tank.health == post_health
         assert tank.lives == post_lives
@@ -237,18 +217,8 @@ class TestTank:
         assert tank.prev_x == 100.0
         assert tank.prev_y == 200.0
 
-    def test_shoot_forwards_bullet_speed(self, mock_texture_manager):
+    def test_shoot_forwards_bullet_speed(self, create_tank):
         """Test that shoot() creates a bullet with the tank's bullet_speed."""
-        custom_speed = 999.0
-        tank = Tank(
-            0,
-            0,
-            mock_texture_manager,
-            tile_size=TILE_SIZE,
-            bullet_speed=custom_speed,
-            owner_type=OwnerType.PLAYER,
-            map_width_px=MAP_WIDTH_PX,
-            map_height_px=MAP_HEIGHT_PX,
-        )
+        tank = create_tank(bullet_speed=999.0)
         bullet = tank.shoot()
-        assert bullet.speed == custom_speed
+        assert bullet.speed == 999.0
