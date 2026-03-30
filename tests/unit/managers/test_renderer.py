@@ -159,3 +159,38 @@ class TestRendererRender:
         )
         renderer.screen.blit.assert_called_once_with(renderer._scaled_surface, (0, 0))
         mock_flip.assert_called_once()
+
+
+class TestRendererHUD:
+    """Tests for HUD and overlay rendering."""
+
+    def test_hud_shows_invincibility_timer(self, renderer):
+        """Test that HUD renders invincibility text when player is invincible."""
+        mock_map = MagicMock()
+        mock_player = MagicMock()
+        mock_player.lives = 3
+        mock_player.is_invincible = True
+        mock_player.invincibility_duration = 3.0
+        mock_player.invincibility_timer = 1.0
+
+        with (
+            patch("pygame.transform.scale") as mock_scale,
+            patch("pygame.display.flip"),
+        ):
+            mock_scale.return_value = MagicMock()
+            renderer.render(
+                mock_map, mock_player, [], [], GameState.RUNNING
+            )
+
+        # small_font.render should be called twice: lives + invincibility
+        assert renderer.small_font.render.call_count == 2
+
+    def test_overlay_screen_renders_title_and_subtitle(self, renderer):
+        """Test that _draw_overlay_screen blits overlay, title, and subtitle."""
+        mock_overlay = MagicMock(spec=pygame.Surface)
+        with patch("pygame.Surface") as mock_surface_cls:
+            mock_surface_cls.return_value = mock_overlay
+            renderer._draw_overlay_screen("TEST", (255, 0, 0), "subtitle")
+
+        # Should blit: overlay background, title text, subtitle text
+        assert renderer.game_surface.blit.call_count >= 3
