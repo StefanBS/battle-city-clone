@@ -32,34 +32,6 @@ class TestTank:
             map_height_px=MAP_HEIGHT_PX,
         )
 
-    @pytest.fixture
-    def tank_two_lives(self, mock_texture_manager):
-        """Create a tank instance with two lives for testing."""
-        return Tank(
-            0,
-            0,
-            mock_texture_manager,
-            tile_size=TILE_SIZE,
-            lives=2,
-            owner_type=OwnerType.PLAYER,
-            map_width_px=MAP_WIDTH_PX,
-            map_height_px=MAP_HEIGHT_PX,
-        )
-
-    @pytest.fixture
-    def tank_two_health(self, mock_texture_manager):
-        """Create a tank instance with two health for testing."""
-        return Tank(
-            0,
-            0,
-            mock_texture_manager,
-            tile_size=TILE_SIZE,
-            health=2,
-            owner_type=OwnerType.PLAYER,
-            map_width_px=MAP_WIDTH_PX,
-            map_height_px=MAP_HEIGHT_PX,
-        )
-
     @pytest.mark.parametrize(
         "direction",
         [Direction.UP, Direction.RIGHT, Direction.DOWN, Direction.LEFT],
@@ -86,28 +58,39 @@ class TestTank:
         assert tank.lives == 1
         assert not tank.is_invincible
 
-    def test_take_damage_survive(self, tank_two_health):
-        """Test taking damage without dying."""
-        # Take 1 damage, should survive
-        assert not tank_two_health.take_damage()
-        assert tank_two_health.health == 1
-        assert tank_two_health.lives == 1
-
-    def test_take_damage_die(self, tank_two_lives):
-        """Test taking damage and dying."""
-        # Take 1 damage, should die and lose a life
-        assert (
-            not tank_two_lives.take_damage()
-        )  # Returns False because tank still has lives left
-        assert tank_two_lives.health == 1
-        assert tank_two_lives.lives == 1
-
-    def test_take_damage_game_over(self, tank):
-        """Test taking damage with no lives left."""
-        # Take 1 damage, should die and trigger game over
-        assert tank.take_damage()  # Returns True because tank has no lives left
-        assert tank.health == 0
-        assert tank.lives == 0
+    @pytest.mark.parametrize(
+        "health,lives,expected_destroyed,post_health,post_lives",
+        [
+            (2, 1, False, 1, 1),
+            (1, 2, False, 1, 1),
+            (1, 1, True, 0, 0),
+        ],
+        ids=["survive", "lose_life", "game_over"],
+    )
+    def test_take_damage(
+        self,
+        mock_texture_manager,
+        health,
+        lives,
+        expected_destroyed,
+        post_health,
+        post_lives,
+    ):
+        """Test taking damage with various health/lives configurations."""
+        tank = Tank(
+            0,
+            0,
+            mock_texture_manager,
+            tile_size=TILE_SIZE,
+            health=health,
+            lives=lives,
+            owner_type=OwnerType.PLAYER,
+            map_width_px=MAP_WIDTH_PX,
+            map_height_px=MAP_HEIGHT_PX,
+        )
+        assert tank.take_damage() == expected_destroyed
+        assert tank.health == post_health
+        assert tank.lives == post_lives
 
     def test_invincibility(self, tank):
         """Test invincibility mechanics."""
