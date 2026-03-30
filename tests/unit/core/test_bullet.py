@@ -1,6 +1,6 @@
 import pytest
 import pygame
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from src.core.bullet import Bullet
 from src.utils.constants import (
     Direction,
@@ -67,3 +67,28 @@ class TestBullet:
         bullet.y = -1000
         bullet.update(1.0)
         assert not bullet.active
+
+    def test_draw_active_with_sprite(self, bullet):
+        """Test that active bullet with sprite blits to surface."""
+        mock_surface = MagicMock(spec=pygame.Surface)
+        mock_sprite = MagicMock(spec=pygame.Surface)
+        bullet.sprite = mock_sprite
+        bullet.active = True
+        bullet.draw(mock_surface)
+        mock_surface.blit.assert_called_once_with(mock_sprite, bullet.rect)
+
+    def test_draw_active_without_sprite(self, bullet):
+        """Test that active bullet without sprite draws colored rect."""
+        mock_surface = MagicMock(spec=pygame.Surface)
+        bullet.sprite = None
+        bullet.active = True
+        with patch("pygame.draw.rect") as mock_draw:
+            bullet.draw(mock_surface)
+        mock_draw.assert_called_once_with(mock_surface, bullet.color, bullet.rect)
+
+    def test_draw_inactive_does_nothing(self, bullet):
+        """Test that inactive bullet does not draw."""
+        mock_surface = MagicMock(spec=pygame.Surface)
+        bullet.active = False
+        bullet.draw(mock_surface)
+        mock_surface.blit.assert_not_called()
