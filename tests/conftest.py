@@ -6,15 +6,6 @@ from src.managers.texture_manager import TextureManager
 from src.utils.constants import OwnerType, TILE_SIZE
 
 
-@pytest.fixture(scope="session", autouse=True)
-def pygame_init():
-    """Initialize pygame once for the entire test session."""
-    pygame.init()
-    pygame.display.set_mode((1, 1), pygame.NOFRAME)
-    yield
-    pygame.quit()
-
-
 @pytest.fixture
 def mock_texture_manager():
     """Create a mock TextureManager with a stub get_sprite."""
