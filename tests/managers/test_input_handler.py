@@ -10,7 +10,6 @@ def handler() -> InputHandler:
     return InputHandler()
 
 
-
 def test_initialization(handler: InputHandler) -> None:
     """Test that the handler initializes with all directions False."""
     assert not handler.directions[Direction.UP]

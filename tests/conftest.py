@@ -1,7 +1,9 @@
 import pytest
 import pygame
 from unittest.mock import MagicMock
+from src.core.tank import Tank
 from src.managers.texture_manager import TextureManager
+from src.utils.constants import OwnerType, TILE_SIZE
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -19,10 +21,6 @@ def mock_texture_manager():
     mock_tm = MagicMock(spec=TextureManager)
     mock_tm.get_sprite.return_value = MagicMock(spec=pygame.Surface)
     return mock_tm
-
-
-from src.core.tank import Tank
-from src.utils.constants import OwnerType, TILE_SIZE
 
 
 @pytest.fixture
