@@ -4,6 +4,7 @@ from src.core.tile import TileType, Tile
 from src.core.player_tank import PlayerTank
 from src.core.enemy_tank import EnemyTank
 from src.core.bullet import Bullet
+from src.utils.constants import TILE_SIZE
 
 
 @pytest.fixture
@@ -15,14 +16,28 @@ def collision_manager():
 @pytest.fixture
 def mock_objects(create_mock_sprite):
     """Provides a dictionary of mock game objects for collision tests."""
-    tile_size = 32
-    player = create_mock_sprite(0, 0, tile_size, tile_size, spec=PlayerTank, owner_type="player")
-    enemy1 = create_mock_sprite(100, 100, tile_size, tile_size, spec=EnemyTank, owner_type="enemy")
-    enemy2 = create_mock_sprite(200, 200, tile_size, tile_size, spec=EnemyTank, owner_type="enemy")
-    p_bullet1 = create_mock_sprite(50, 50, 5, 5, spec=Bullet, owner_type="player", active=True)
-    p_bullet2 = create_mock_sprite(60, 60, 5, 5, spec=Bullet, owner_type="player", active=True)
-    e_bullet1 = create_mock_sprite(150, 150, 5, 5, spec=Bullet, owner_type="enemy", active=True)
-    e_bullet2 = create_mock_sprite(160, 160, 5, 5, spec=Bullet, owner_type="enemy", active=True)
+    tile_size = TILE_SIZE
+    player = create_mock_sprite(
+        0, 0, tile_size, tile_size, spec=PlayerTank, owner_type="player"
+    )
+    enemy1 = create_mock_sprite(
+        100, 100, tile_size, tile_size, spec=EnemyTank, owner_type="enemy"
+    )
+    enemy2 = create_mock_sprite(
+        200, 200, tile_size, tile_size, spec=EnemyTank, owner_type="enemy"
+    )
+    p_bullet1 = create_mock_sprite(
+        50, 50, 5, 5, spec=Bullet, owner_type="player", active=True
+    )
+    p_bullet2 = create_mock_sprite(
+        60, 60, 5, 5, spec=Bullet, owner_type="player", active=True
+    )
+    e_bullet1 = create_mock_sprite(
+        150, 150, 5, 5, spec=Bullet, owner_type="enemy", active=True
+    )
+    e_bullet2 = create_mock_sprite(
+        160, 160, 5, 5, spec=Bullet, owner_type="enemy", active=True
+    )
     brick1 = create_mock_sprite(
         300, 300, tile_size, tile_size, spec=Tile, type=TileType.BRICK
     )
@@ -45,6 +60,24 @@ def mock_objects(create_mock_sprite):
 
 
 class TestCollisionManager:
+    def _assert_single_collision(self, collision_manager, obj_a, obj_b, **check_kwargs):
+        """Force overlap between two objects and assert exactly one collision event."""
+        obj_a.rect = obj_b.rect.copy()
+        defaults = dict(
+            player_tank=None,
+            player_bullets=[],
+            enemy_tanks=[],
+            enemy_bullets=[],
+            destructible_tiles=[],
+            impassable_tiles=[],
+            player_base=None,
+        )
+        defaults.update(check_kwargs)
+        collision_manager.check_collisions(**defaults)
+        events = collision_manager.get_collision_events()
+        assert len(events) == 1
+        assert (obj_a, obj_b) in events or (obj_b, obj_a) in events
+
     def test_initialization(self, collision_manager):
         """Test CollisionManager initializes with empty events."""
         assert collision_manager.get_collision_events() == []
@@ -64,156 +97,84 @@ class TestCollisionManager:
 
     def test_player_bullet_vs_enemy_tank(self, collision_manager, mock_objects):
         """Test collision between player bullet and enemy tank."""
-        p_bullet = mock_objects["p_bullets"][0]
-        enemy = mock_objects["enemies"][0]
-        p_bullet.rect = enemy.rect.copy()  # Force collision
-
-        collision_manager.check_collisions(
+        self._assert_single_collision(
+            collision_manager,
+            mock_objects["p_bullets"][0],
+            mock_objects["enemies"][0],
             player_tank=mock_objects["player"],
-            player_bullets=[p_bullet],
-            enemy_tanks=[enemy],
-            enemy_bullets=[],
-            destructible_tiles=[],
-            impassable_tiles=[],
-            player_base=None,
+            player_bullets=[mock_objects["p_bullets"][0]],
+            enemy_tanks=[mock_objects["enemies"][0]],
         )
-        events = collision_manager.get_collision_events()
-        assert len(events) == 1
-        assert (p_bullet, enemy) in events or (enemy, p_bullet) in events
 
     def test_player_bullet_vs_destructible_tile(self, collision_manager, mock_objects):
         """Test collision between player bullet and brick tile."""
-        p_bullet = mock_objects["p_bullets"][0]
-        brick = mock_objects["bricks"][0]
-        p_bullet.rect = brick.rect.copy()
-
-        collision_manager.check_collisions(
-            player_tank=None,
-            player_bullets=[p_bullet],
-            enemy_tanks=[],
-            enemy_bullets=[],
-            destructible_tiles=[brick],
-            impassable_tiles=[],
-            player_base=None,
+        self._assert_single_collision(
+            collision_manager,
+            mock_objects["p_bullets"][0],
+            mock_objects["bricks"][0],
+            player_bullets=[mock_objects["p_bullets"][0]],
+            destructible_tiles=[mock_objects["bricks"][0]],
         )
-        events = collision_manager.get_collision_events()
-        assert len(events) == 1
-        assert (p_bullet, brick) in events or (brick, p_bullet) in events
 
     def test_enemy_bullet_vs_player_tank(self, collision_manager, mock_objects):
         """Test collision between enemy bullet and player tank."""
-        e_bullet = mock_objects["e_bullets"][0]
-        player = mock_objects["player"]
-        e_bullet.rect = player.rect.copy()
-
-        collision_manager.check_collisions(
-            player_tank=player,
-            player_bullets=[],
-            enemy_tanks=[],
-            enemy_bullets=[e_bullet],
-            destructible_tiles=[],
-            impassable_tiles=[],
-            player_base=None,
+        self._assert_single_collision(
+            collision_manager,
+            mock_objects["e_bullets"][0],
+            mock_objects["player"],
+            player_tank=mock_objects["player"],
+            enemy_bullets=[mock_objects["e_bullets"][0]],
         )
-        events = collision_manager.get_collision_events()
-        assert len(events) == 1
-        assert (e_bullet, player) in events or (player, e_bullet) in events
 
     def test_enemy_bullet_vs_player_base(self, collision_manager, mock_objects):
         """Test collision between enemy bullet and player base."""
-        e_bullet = mock_objects["e_bullets"][0]
-        base = mock_objects["base"]
-        e_bullet.rect = base.rect.copy()
-
-        collision_manager.check_collisions(
-            player_tank=None,
-            player_bullets=[],
-            enemy_tanks=[],
-            enemy_bullets=[e_bullet],
-            destructible_tiles=[],
-            impassable_tiles=[],
-            player_base=base,
+        self._assert_single_collision(
+            collision_manager,
+            mock_objects["e_bullets"][0],
+            mock_objects["base"],
+            enemy_bullets=[mock_objects["e_bullets"][0]],
+            player_base=mock_objects["base"],
         )
-        events = collision_manager.get_collision_events()
-        assert len(events) == 1
-        assert (e_bullet, base) in events or (base, e_bullet) in events
 
     def test_enemy_bullet_vs_destructible_tile(self, collision_manager, mock_objects):
         """Test collision between enemy bullet and brick tile."""
-        e_bullet = mock_objects["e_bullets"][0]
-        brick = mock_objects["bricks"][0]
-        e_bullet.rect = brick.rect.copy()
-
-        collision_manager.check_collisions(
-            player_tank=None,
-            player_bullets=[],
-            enemy_tanks=[],
-            enemy_bullets=[e_bullet],
-            destructible_tiles=[brick],
-            impassable_tiles=[],
-            player_base=None,
+        self._assert_single_collision(
+            collision_manager,
+            mock_objects["e_bullets"][0],
+            mock_objects["bricks"][0],
+            enemy_bullets=[mock_objects["e_bullets"][0]],
+            destructible_tiles=[mock_objects["bricks"][0]],
         )
-        events = collision_manager.get_collision_events()
-        assert len(events) == 1
-        assert (e_bullet, brick) in events or (brick, e_bullet) in events
 
     def test_player_bullet_vs_enemy_bullet(self, collision_manager, mock_objects):
         """Test collision between player bullet and enemy bullet."""
-        p_bullet = mock_objects["p_bullets"][0]
-        e_bullet = mock_objects["e_bullets"][0]
-        p_bullet.rect = e_bullet.rect.copy()
-
-        collision_manager.check_collisions(
-            player_tank=None,
-            player_bullets=[p_bullet],
-            enemy_tanks=[],
-            enemy_bullets=[e_bullet],
-            destructible_tiles=[],
-            impassable_tiles=[],
-            player_base=None,
+        self._assert_single_collision(
+            collision_manager,
+            mock_objects["p_bullets"][0],
+            mock_objects["e_bullets"][0],
+            player_bullets=[mock_objects["p_bullets"][0]],
+            enemy_bullets=[mock_objects["e_bullets"][0]],
         )
-        events = collision_manager.get_collision_events()
-        assert len(events) == 1
-        assert (p_bullet, e_bullet) in events or (e_bullet, p_bullet) in events
 
     def test_tank_vs_impassable_tile(self, collision_manager, mock_objects):
         """Test collision between player tank and steel tile."""
-        player = mock_objects["player"]
-        steel = mock_objects["steel"][0]
-        player.rect = steel.rect.copy()
-
-        collision_manager.check_collisions(
-            player_tank=player,
-            player_bullets=[],
-            enemy_tanks=[],
-            enemy_bullets=[],
-            destructible_tiles=[],
-            impassable_tiles=[steel],
-            player_base=None,
+        self._assert_single_collision(
+            collision_manager,
+            mock_objects["player"],
+            mock_objects["steel"][0],
+            player_tank=mock_objects["player"],
+            impassable_tiles=[mock_objects["steel"][0]],
         )
-        events = collision_manager.get_collision_events()
-        assert len(events) == 1
-        assert (player, steel) in events or (steel, player) in events
 
     def test_tank_vs_tank(self, collision_manager, mock_objects):
         """Test collision between player tank and enemy tank."""
-        player = mock_objects["player"]
-        enemy = mock_objects["enemies"][0]
-        player.rect = enemy.rect.copy()
-
-        collision_manager.check_collisions(
-            player_tank=player,
-            player_bullets=[],
-            enemy_tanks=[enemy],
-            enemy_bullets=[],
-            destructible_tiles=[],
-            impassable_tiles=[],
-            player_base=None,
+        self._assert_single_collision(
+            collision_manager,
+            mock_objects["player"],
+            mock_objects["enemies"][0],
+            player_tank=mock_objects["player"],
+            enemy_tanks=[mock_objects["enemies"][0]],
         )
-        events = collision_manager.get_collision_events()
-        # Should have player vs enemy collision
-        assert len(events) == 1
-        assert (player, enemy) in events or (enemy, player) in events
 
     def test_multiple_collisions(self, collision_manager, mock_objects):
         """Test multiple collisions occurring in one check."""
@@ -273,41 +234,23 @@ class TestCollisionManager:
 
     def test_player_bullet_vs_impassable_tile(self, collision_manager, mock_objects):
         """Test collision between player bullet and steel tile."""
-        p_bullet = mock_objects["p_bullets"][0]
-        steel = mock_objects["steel"][0]
-        p_bullet.rect = steel.rect.copy()
-
-        collision_manager.check_collisions(
-            player_tank=None,
-            player_bullets=[p_bullet],
-            enemy_tanks=[],
-            enemy_bullets=[],
-            destructible_tiles=[],
-            impassable_tiles=[steel],
-            player_base=None,
+        self._assert_single_collision(
+            collision_manager,
+            mock_objects["p_bullets"][0],
+            mock_objects["steel"][0],
+            player_bullets=[mock_objects["p_bullets"][0]],
+            impassable_tiles=[mock_objects["steel"][0]],
         )
-        events = collision_manager.get_collision_events()
-        assert len(events) == 1
-        assert (p_bullet, steel) in events or (steel, p_bullet) in events
 
     def test_enemy_bullet_vs_impassable_tile(self, collision_manager, mock_objects):
         """Test collision between enemy bullet and steel tile."""
-        e_bullet = mock_objects["e_bullets"][0]
-        steel = mock_objects["steel"][0]
-        e_bullet.rect = steel.rect.copy()
-
-        collision_manager.check_collisions(
-            player_tank=None,
-            player_bullets=[],
-            enemy_tanks=[],
-            enemy_bullets=[e_bullet],
-            destructible_tiles=[],
-            impassable_tiles=[steel],
-            player_base=None,
+        self._assert_single_collision(
+            collision_manager,
+            mock_objects["e_bullets"][0],
+            mock_objects["steel"][0],
+            enemy_bullets=[mock_objects["e_bullets"][0]],
+            impassable_tiles=[mock_objects["steel"][0]],
         )
-        events = collision_manager.get_collision_events()
-        assert len(events) == 1
-        assert (e_bullet, steel) in events or (steel, e_bullet) in events
 
     def test_duplicate_brick_collision_deduplicated(
         self, collision_manager, mock_objects
