@@ -79,8 +79,7 @@ class PlayerTank(Tank):
         """Respawn the tank at its initial position."""
         if self.lives > 0:
             logger.info(
-                f"Player respawning at {self.initial_position}. "
-                f"Lives: {self.lives}"
+                f"Player respawning at {self.initial_position}. Lives: {self.lives}"
             )
             self.x, self.y = self.initial_position
             self.is_invincible = True
