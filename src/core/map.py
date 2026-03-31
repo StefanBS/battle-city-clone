@@ -28,8 +28,6 @@ class Map:
         self._cached_tiles_by_type: dict = {}
         self._cached_collidable_rects: List[pygame.Rect] = []
         self._cached_base: Optional[Tile] = None
-        # Base group: maps each base sub-tile to its sibling sub-tiles
-        self._base_groups: dict[Tile, List[Tile]] = {}
 
         self._load_from_tmx(map_file)
         self._build_derived_tile_lists()
@@ -102,14 +100,14 @@ class Map:
                     sy,
                     self.tile_size,
                     is_group_primary=is_primary,
+                    group_dx=dx,
+                    group_dy=dy,
                 )
                 self.tiles[sy][sx] = tile
                 group_tiles.append(tile)
 
-        # Track base groups for grouped destruction
-        if tile_type in (TileType.BASE, TileType.BASE_DESTROYED):
-            for tile in group_tiles:
-                self._base_groups[tile] = group_tiles
+        for tile in group_tiles:
+            tile.group_tiles = group_tiles
 
     def _load_spawn_points(self, tiled_map: pytmx.TiledMap) -> None:
         """Read spawn points and player spawn from TMX object layers.
@@ -191,7 +189,7 @@ class Map:
 
     def destroy_base_group(self, tile: Tile) -> None:
         """Destroy all sub-tiles in a base group."""
-        group = self._base_groups.get(tile, [tile])
+        group = tile.group_tiles if tile.group_tiles else [tile]
         for t in group:
             self.set_tile_type(t, TileType.BASE_DESTROYED)
 
