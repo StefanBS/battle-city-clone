@@ -209,6 +209,8 @@ class CollisionResponseHandler:
     ) -> bool:
         tank_a.revert_move()
         tank_b.revert_move()
+        tank_a.on_wall_hit()
+        tank_b.on_wall_hit()
         return True
 
     def _handle_tank_vs_tile(

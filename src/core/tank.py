@@ -209,6 +209,10 @@ class Tank(GameObject):
         self.x = max(0.0, min(target_x, max_x))
         self.y = max(0.0, min(target_y, max_y))
 
+        # Detect boundary hit (position was clamped)
+        if self.x != target_x or self.y != target_y:
+            self.on_wall_hit()
+
         # Distance-based animation toggle
         distance = abs(dx * self.speed * dt) + abs(dy * self.speed * dt)
         self.distance_since_last_toggle += distance
