@@ -203,9 +203,11 @@ class Tank(GameObject):
         target_x = self.x + dx * self.speed * dt
         target_y = self.y + dy * self.speed * dt
 
-        # Apply movement (position will be validated/reverted by GameManager)
-        self.x = target_x
-        self.y = target_y
+        # Apply movement and clamp to map bounds
+        max_x = float(self.map_width_px - self.width)
+        max_y = float(self.map_height_px - self.height)
+        self.x = max(0.0, min(target_x, max_x))
+        self.y = max(0.0, min(target_y, max_y))
 
         # Distance-based animation toggle
         distance = abs(dx * self.speed * dt) + abs(dy * self.speed * dt)

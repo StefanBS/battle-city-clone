@@ -13,6 +13,8 @@ from src.utils.constants import (
     TILE_SIZE,
     WINDOW_WIDTH,
     WINDOW_HEIGHT,
+    LOGICAL_WIDTH,
+    LOGICAL_HEIGHT,
 )
 from src.managers.collision_manager import CollisionManager
 from src.managers.collision_response_handler import CollisionResponseHandler
@@ -79,9 +81,13 @@ class GameManager:
             map_height_px=map_height_px,
         )
 
-        # Renderer
+        # Renderer (fixed logical surface with map centered inside)
         self.renderer: Renderer = Renderer(
-            self.screen, map_width_px, map_height_px
+            self.screen,
+            LOGICAL_WIDTH,
+            LOGICAL_HEIGHT,
+            map_width_px,
+            map_height_px,
         )
 
         # SpawnManager

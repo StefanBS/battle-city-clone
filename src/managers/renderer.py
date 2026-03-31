@@ -1,14 +1,15 @@
 import pygame
 from typing import List, Tuple
 from src.states.game_state import GameState
-from src.utils.constants import WHITE, YELLOW, BLACK, RED, GREEN
+from src.utils.constants import WHITE, YELLOW, BLACK, RED, GREEN, GRAY
 
 
 class Renderer:
     """Handles all rendering logic for the game.
 
     Manages the logical game surface, fonts, HUD, and overlay screens.
-    Receives all data per-call rather than holding entity references.
+    The map is drawn centered on a fixed-size logical surface with a
+    gray border, matching the original NES Battle City style.
     """
 
     def __init__(
@@ -16,6 +17,8 @@ class Renderer:
         screen: pygame.Surface,
         logical_width: int,
         logical_height: int,
+        map_width_px: int,
+        map_height_px: int,
     ) -> None:
         """Initialize the renderer.
 
@@ -23,6 +26,8 @@ class Renderer:
             screen: The main display surface (window).
             logical_width: Width of the logical game surface in pixels.
             logical_height: Height of the logical game surface in pixels.
+            map_width_px: Width of the map in pixels.
+            map_height_px: Height of the map in pixels.
         """
         self.screen = screen
         self.logical_width = logical_width
@@ -30,11 +35,21 @@ class Renderer:
         self.game_surface: pygame.Surface = pygame.Surface(
             (logical_width, logical_height)
         )
+        self.border_color: Tuple[int, int, int] = GRAY
         self.background_color: Tuple[int, int, int] = BLACK
         self.font: pygame.font.Font = pygame.font.SysFont(None, 48)
         self.small_font: pygame.font.Font = pygame.font.SysFont(None, 24)
         self._scaled_surface: pygame.Surface = pygame.Surface(
             (screen.get_width(), screen.get_height())
+        )
+
+        # Map offset: center the map on the logical surface
+        self.map_offset_x: int = (logical_width - map_width_px) // 2
+        self.map_offset_y: int = (logical_height - map_height_px) // 2
+
+        # Map area surface for rendering entities at map-relative positions
+        self.map_surface: pygame.Surface = pygame.Surface(
+            (map_width_px, map_height_px)
         )
 
     def render(
@@ -54,25 +69,33 @@ class Renderer:
             bullets: List of bullets.
             state: Current game state.
         """
-        # Clear the logical game surface
-        self.game_surface.fill(self.background_color)
+        # Fill logical surface with border color (gray)
+        self.game_surface.fill(self.border_color)
 
-        # Draw the map onto the logical surface
-        game_map.draw(self.game_surface)
+        # Clear the map area with black background
+        self.map_surface.fill(self.background_color)
 
-        # Draw the player tank onto the logical surface
-        player_tank.draw(self.game_surface)
+        # Draw the map onto the map surface
+        game_map.draw(self.map_surface)
 
-        # Draw enemy tanks onto the logical surface
+        # Draw the player tank onto the map surface
+        player_tank.draw(self.map_surface)
+
+        # Draw enemy tanks onto the map surface
         for enemy in enemy_tanks:
-            enemy.draw(self.game_surface)
+            enemy.draw(self.map_surface)
 
         # Draw all bullets
         for bullet in bullets:
             if bullet.active:
-                bullet.draw(self.game_surface)
+                bullet.draw(self.map_surface)
 
-        # Draw HUD onto the logical surface
+        # Blit the map surface onto the logical surface at the offset
+        self.game_surface.blit(
+            self.map_surface, (self.map_offset_x, self.map_offset_y)
+        )
+
+        # Draw HUD onto the logical surface (in the border area)
         self._draw_hud(player_tank)
 
         # Draw game over/victory screen if needed onto logical surface
@@ -98,11 +121,11 @@ class Renderer:
         Args:
             player_tank: The player's tank (used for lives and invincibility).
         """
-        # Draw lives onto the logical surface
+        # Draw lives in the top border area
         lives_text = self.small_font.render(f"Lives: {player_tank.lives}", True, WHITE)
         self.game_surface.blit(lives_text, (10, 10))
 
-        # Draw invincibility timer if active onto the logical surface
+        # Draw invincibility timer if active
         if player_tank.is_invincible:
             remaining_time = max(
                 0,
@@ -111,7 +134,7 @@ class Renderer:
             invincible_text = self.small_font.render(
                 f"Invincible: {remaining_time:.1f}s", True, YELLOW
             )
-            self.game_surface.blit(invincible_text, (10, 40))
+            self.game_surface.blit(invincible_text, (10, 30))
 
     def _draw_game_over(self) -> None:
         """Draw the game over screen."""
