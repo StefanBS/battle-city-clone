@@ -3,7 +3,19 @@ import pygame
 from unittest.mock import MagicMock
 from src.core.tile import Tile, TileType
 from src.managers.texture_manager import TextureManager
-from src.utils.constants import TILE_ANIMATION_INTERVAL
+from src.utils.constants import (
+    TILE_ANIMATION_INTERVAL,
+    SEGMENT_TOP_LEFT,
+    SEGMENT_TOP_RIGHT,
+    SEGMENT_BOTTOM_RIGHT,
+    SEGMENT_LEFT,
+    SEGMENT_RIGHT,
+    SEGMENT_TOP,
+    SEGMENT_BOTTOM,
+    SEGMENT_FULL,
+    BRICK_SEGMENT_SIZE,
+    SUB_TILE_SIZE,
+)
 
 
 class TestTileAnimation:
@@ -109,3 +121,90 @@ class TestTileDraw:
         mock_tm.get_sprite.assert_not_called()
         mock_tm.get_sub_sprite.assert_not_called()
         mock_surface.blit.assert_not_called()
+
+    def test_draw_partial_brick_one_quadrant(self, mock_surface, mock_tm):
+        """Brick with one quadrant removed draws remaining three quadrants."""
+        tile = Tile(TileType.BRICK, 2, 3)
+        tile.remove_brick_segment(SEGMENT_TOP_RIGHT)
+        tile.draw(mock_surface, mock_tm)
+        mock_tm.get_sub_sprite.assert_called_once_with("brick")
+        # Should blit 3 remaining quadrants
+        assert mock_surface.blit.call_count == 3
+
+    def test_draw_partial_brick_quadrant_source_rects(self, mock_surface, mock_tm):
+        """Each remaining quadrant blits the correct 8x8 source region."""
+        tile = Tile(TileType.BRICK, 0, 0)
+        # Remove top row, keep only bottom row
+        tile.remove_brick_segment(SEGMENT_TOP)
+        tile.draw(mock_surface, mock_tm)
+        calls = mock_surface.blit.call_args_list
+        source_rects = [tuple(c[0][2]) for c in calls]
+        h = BRICK_SEGMENT_SIZE
+        w = BRICK_SEGMENT_SIZE
+        bl = tuple(pygame.Rect(0, h, w, h))
+        br = tuple(pygame.Rect(w, h, w, h))
+        assert bl in source_rects
+        assert br in source_rects
+
+
+class TestBrickSegments:
+    """Tests for brick quadrant tracking and rect updates."""
+
+    def test_new_brick_has_full_segments(self):
+        tile = Tile(TileType.BRICK, 0, 0)
+        assert tile.brick_segments == SEGMENT_FULL
+
+    def test_non_brick_has_no_segments(self):
+        tile = Tile(TileType.STEEL, 0, 0)
+        assert tile.brick_segments == 0
+
+    def test_remove_left_column_updates_rect(self):
+        tile = Tile(TileType.BRICK, 4, 4)  # px: (64, 64, 16, 16)
+        tile.remove_brick_segment(SEGMENT_LEFT)
+        assert tile.brick_segments == SEGMENT_RIGHT
+        assert tile.rect == pygame.Rect(
+            4 * SUB_TILE_SIZE + BRICK_SEGMENT_SIZE,
+            4 * SUB_TILE_SIZE,
+            BRICK_SEGMENT_SIZE,
+            SUB_TILE_SIZE,
+        )
+
+    def test_remove_top_row_updates_rect(self):
+        tile = Tile(TileType.BRICK, 4, 4)
+        tile.remove_brick_segment(SEGMENT_TOP)
+        assert tile.brick_segments == SEGMENT_BOTTOM
+        assert tile.rect == pygame.Rect(
+            4 * SUB_TILE_SIZE,
+            4 * SUB_TILE_SIZE + BRICK_SEGMENT_SIZE,
+            SUB_TILE_SIZE,
+            BRICK_SEGMENT_SIZE,
+        )
+
+    def test_remove_single_quadrant_updates_rect(self):
+        tile = Tile(TileType.BRICK, 4, 4)
+        tile.remove_brick_segment(SEGMENT_BOTTOM_RIGHT)
+        assert tile.brick_segments == (SEGMENT_FULL & ~SEGMENT_BOTTOM_RIGHT)
+        # Bounding box still covers full sub-tile (3 of 4 corners occupied)
+        assert tile.rect == pygame.Rect(
+            4 * SUB_TILE_SIZE, 4 * SUB_TILE_SIZE, SUB_TILE_SIZE, SUB_TILE_SIZE
+        )
+
+    def test_remove_all_segments_zeroes_bitmask(self):
+        tile = Tile(TileType.BRICK, 0, 0)
+        tile.remove_brick_segment(SEGMENT_FULL)
+        assert tile.brick_segments == 0
+
+    def test_get_segment_rect_top_left(self):
+        tile = Tile(TileType.BRICK, 4, 4)
+        rect = tile.get_segment_rect(SEGMENT_TOP_LEFT)
+        assert rect == pygame.Rect(64, 64, BRICK_SEGMENT_SIZE, BRICK_SEGMENT_SIZE)
+
+    def test_get_segment_rect_bottom_right(self):
+        tile = Tile(TileType.BRICK, 4, 4)
+        rect = tile.get_segment_rect(SEGMENT_BOTTOM_RIGHT)
+        assert rect == pygame.Rect(
+            64 + BRICK_SEGMENT_SIZE,
+            64 + BRICK_SEGMENT_SIZE,
+            BRICK_SEGMENT_SIZE,
+            BRICK_SEGMENT_SIZE,
+        )

@@ -92,6 +92,21 @@ TANK_WIDTH: int = TILE_SIZE
 TANK_HEIGHT: int = TILE_SIZE
 TANK_ANIMATION_DISTANCE: float = 4  # pixels traveled between animation frame toggles
 
+# Brick segment bitmask constants (each sub-tile has 4 quadrants, 8x8 each)
+SEGMENT_TOP_LEFT: int = 0b0001
+SEGMENT_TOP_RIGHT: int = 0b0010
+SEGMENT_BOTTOM_LEFT: int = 0b0100
+SEGMENT_BOTTOM_RIGHT: int = 0b1000
+SEGMENT_FULL: int = 0b1111
+
+# Composite masks for entry-side destruction
+SEGMENT_LEFT: int = SEGMENT_TOP_LEFT | SEGMENT_BOTTOM_LEFT
+SEGMENT_RIGHT: int = SEGMENT_TOP_RIGHT | SEGMENT_BOTTOM_RIGHT
+SEGMENT_TOP: int = SEGMENT_TOP_LEFT | SEGMENT_TOP_RIGHT
+SEGMENT_BOTTOM: int = SEGMENT_BOTTOM_LEFT | SEGMENT_BOTTOM_RIGHT
+
+BRICK_SEGMENT_SIZE: int = SUB_TILE_SIZE // 2  # 8px — half a sub-tile (square)
+
 # Bullet settings
 BULLET_SPEED: float = 180  # pixels per second (was 3, multiplied by FPS internally)
 BULLET_WIDTH: int = 2

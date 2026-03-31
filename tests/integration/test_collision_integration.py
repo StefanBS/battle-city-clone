@@ -1,6 +1,6 @@
 import pytest
 from loguru import logger
-from src.utils.constants import Direction, FPS, TILE_SIZE, SUB_TILE_SIZE
+from src.utils.constants import Direction, FPS, TILE_SIZE, SUB_TILE_SIZE, SEGMENT_FULL
 from src.states.game_state import GameState
 from src.core.tile import Tile, TileType
 from src.core.enemy_tank import EnemyTank
@@ -11,7 +11,7 @@ from src.core.enemy_tank import EnemyTank
 @pytest.mark.parametrize(
     "tile_to_place, expected_bullet_active, expected_tile_type",
     [
-        (TileType.BRICK, False, TileType.EMPTY),  # Bullet hits brick, brick destroyed
+        (TileType.BRICK, False, TileType.BRICK),  # Bullet partially destroys brick
         (TileType.STEEL, False, TileType.STEEL),  # Bullet hits steel, steel unchanged
         (TileType.WATER, True, TileType.WATER),  # Bullet passes through water
         (TileType.BUSH, True, TileType.BUSH),  # Bullet passes through bush
@@ -93,13 +93,18 @@ def test_player_bullet_vs_tile(
     )
 
     # 2. Verify the tile's final type
-    # Re-fetch the tile in case it was replaced (though unlikely with current impl)
     final_tile = game_map.get_tile_at(target_x_grid, target_y_grid)
     assert final_tile is not None, "Target tile somehow disappeared."
     assert final_tile.type == expected_tile_type, (
         f"Tile type mismatch for {tile_to_place.name}. "
         f"Expected: {expected_tile_type.name}, Got: {final_tile.type.name}"
     )
+
+    # 3. For brick: verify partial destruction (quadrants removed)
+    if tile_to_place == TileType.BRICK:
+        assert final_tile.brick_segments != SEGMENT_FULL, (
+            "Brick should have lost at least one quadrant after being hit."
+        )
 
 
 def _clear_tiles(game_map, positions):

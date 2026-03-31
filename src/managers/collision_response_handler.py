@@ -5,7 +5,14 @@ from src.core.tank import Tank
 from src.core.player_tank import PlayerTank
 from src.core.enemy_tank import EnemyTank
 from src.core.tile import Tile, TileType, IMPASSABLE_TILE_TYPES
-from src.utils.constants import Direction, OwnerType
+from src.utils.constants import (
+    Direction,
+    OwnerType,
+    SEGMENT_LEFT,
+    SEGMENT_RIGHT,
+    SEGMENT_TOP,
+    SEGMENT_BOTTOM,
+)
 from src.core.map import Map
 from src.states.game_state import GameState
 
@@ -149,7 +156,7 @@ class CollisionResponseHandler:
         if tile.type == TileType.BRICK:
             logger.debug(f"Bullet hit brick tile at ({tile.x}, {tile.y})")
             bullet.active = False
-            self._destroy_brick_pair(tile, bullet.direction)
+            self._destroy_brick_segments(tile, bullet)
             return True
         elif tile.type == TileType.STEEL:
             logger.debug(f"Bullet hit steel tile at ({tile.x}, {tile.y})")
@@ -178,28 +185,57 @@ class CollisionResponseHandler:
         bullet_b.active = False
         return True
 
-    def _destroy_brick_pair(self, tile: Tile, direction: Direction) -> None:
-        """Destroy a brick sub-tile and its directional sibling.
+    def _destroy_brick_segments(self, tile: Tile, bullet: Bullet) -> None:
+        """Destroy brick quadrants hit by a bullet (4x4 segment model).
 
-        Matches NES behavior: a bullet destroys the two sub-tiles on the
-        entry side of a 2x2 brick group. UP/DOWN bullets destroy a
-        horizontal pair (same row). LEFT/RIGHT bullets destroy a vertical
-        pair (same column).
+        Each 32x32 brick = 4 sub-tiles (2x2, 16x16 each).
+        Each sub-tile has 4 quadrants (2x2, 8x8 each) = 16 segments total.
+
+        A bullet destroys the full entry-side row/column of each sub-tile
+        it overlaps. For a RIGHT bullet that means both left-column quadrants
+        (TL+BL); for a DOWN bullet both top-row quadrants (TL+TR), etc.
+
+        If the entry side is already gone the bullet passes through and
+        destroys the remaining side instead.
         """
-        self._map.set_tile_type(tile, TileType.EMPTY)
+        direction = bullet.direction
+        bullet_rect = bullet.rect
 
-        # Find the sibling sub-tile perpendicular to bullet direction
-        if direction in (Direction.UP, Direction.DOWN):
-            # Horizontal pair: sibling is at x±1, same y
-            sibling_x = tile.x ^ 1  # toggle least significant bit
-            sibling = self._map.get_tile_at(sibling_x, tile.y)
+        if direction in (Direction.LEFT, Direction.RIGHT):
+            entry_mask = SEGMENT_LEFT if direction == Direction.RIGHT else SEGMENT_RIGHT
+            sibling = self._map.get_tile_at(tile.x, tile.y ^ 1)
         else:
-            # Vertical pair: sibling is at same x, y±1
-            sibling_y = tile.y ^ 1  # toggle least significant bit
-            sibling = self._map.get_tile_at(tile.x, sibling_y)
+            entry_mask = SEGMENT_TOP if direction == Direction.DOWN else SEGMENT_BOTTOM
+            sibling = self._map.get_tile_at(tile.x ^ 1, tile.y)
 
+        # Always destroy the full entry side of the primary tile
+        self._destroy_entry_side(tile, entry_mask)
+
+        # Sibling only if the bullet physically reaches it
         if sibling and sibling.type == TileType.BRICK:
-            self._map.set_tile_type(sibling, TileType.EMPTY)
+            if bullet_rect.colliderect(sibling.rect):
+                self._destroy_entry_side(sibling, entry_mask)
+
+    def _destroy_entry_side(self, tile: Tile, entry_mask: int) -> None:
+        """Destroy the full entry-side of a sub-tile.
+
+        If entry side has remaining quadrants, destroy them all.
+        If entry side is already gone, destroy the opposite side (pass-through).
+        """
+        target = tile.brick_segments & entry_mask
+        if not target:
+            # Entry side gone — pass-through to remaining quadrants
+            target = tile.brick_segments
+        if target:
+            self._remove_segment(tile, target)
+
+    def _remove_segment(self, tile: Tile, segment: int) -> None:
+        """Remove one segment from a brick sub-tile; set EMPTY if none remain."""
+        tile.remove_brick_segment(segment)
+        if tile.brick_segments == 0:
+            self._map.set_tile_type(tile, TileType.EMPTY)
+        else:
+            self._map.mark_tile_cache_dirty()
 
     def _handle_tank_vs_tank(
         self,
