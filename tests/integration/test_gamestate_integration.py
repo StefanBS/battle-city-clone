@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import MagicMock
 from loguru import logger
 from src.managers.game_manager import GameManager
-from src.utils.constants import Direction, FPS, TILE_SIZE
+from src.utils.constants import Direction, FPS, TILE_SIZE, SUB_TILE_SIZE
 from src.states.game_state import GameState
 from src.core.bullet import Bullet
 from src.core.tile import Tile, TileType
@@ -123,24 +123,27 @@ def test_player_bullet_hits_base(game_manager_fixture):
     base_y_grid = base_tile.y
     logger.debug(f"Found base at ({base_x_grid}, {base_y_grid})")
 
-    # Position player above the base
-    player_start_x = base_x_grid * TILE_SIZE
-    player_start_y = (base_y_grid - 1) * TILE_SIZE
+    # Position player above the base (2 sub-tiles = 1 tank height)
+    player_start_x = base_x_grid * SUB_TILE_SIZE
+    player_start_y = (base_y_grid - 2) * SUB_TILE_SIZE
 
     # Check if player start position is valid (not steel/water/etc.)
-    if not (0 <= (base_y_grid - 1) < game_map.height):
+    if not (0 <= (base_y_grid - 2) < game_map.height):
         pytest.skip(
-            f"Calculated player start position y={base_y_grid - 1} is out of "
+            f"Calculated player start position y={base_y_grid - 2} is out of "
             f"bounds. Skipping."
         )
-    start_tile = game_map.get_tile_at(base_x_grid, base_y_grid - 1)
-    if start_tile and start_tile.type != TileType.EMPTY:
-        # Clear the tile so the player can be placed there
-        game_map.place_tile(
-            base_x_grid,
-            base_y_grid - 1,
-            Tile(TileType.EMPTY, base_x_grid, base_y_grid - 1, TILE_SIZE),
-        )
+    # Clear the 2x2 sub-tile area where the player will be placed
+    for dy in range(2):
+        for dx in range(2):
+            sx, sy = base_x_grid + dx, base_y_grid - 2 + dy
+            start_tile = game_map.get_tile_at(sx, sy)
+            if start_tile and start_tile.type != TileType.EMPTY:
+                game_map.place_tile(
+                    sx,
+                    sy,
+                    Tile(TileType.EMPTY, sx, sy, SUB_TILE_SIZE),
+                )
 
     player_tank.set_position(player_start_x, player_start_y)
     player_tank.prev_x, player_tank.prev_y = player_start_x, player_start_y
@@ -210,10 +213,12 @@ def test_enemy_bullet_destroys_base_game_over(game_manager_fixture):
     # --- Spawn Enemy Tank Above Base --- #
     enemy_type = "basic"
     enemy_x_grid = base_x_grid
-    enemy_y_grid = base_y_grid - 2  # Place enemy 2 tiles above base
+    enemy_y_grid = (
+        base_y_grid - 4
+    )  # Place enemy 4 sub-tiles (2 tank heights) above base
 
-    enemy_start_x = enemy_x_grid * TILE_SIZE
-    enemy_start_y = enemy_y_grid * TILE_SIZE
+    enemy_start_x = enemy_x_grid * SUB_TILE_SIZE
+    enemy_start_y = enemy_y_grid * SUB_TILE_SIZE
 
     # Ensure enemy spawns within bounds
     if not (
@@ -225,16 +230,19 @@ def test_enemy_bullet_destroys_base_game_over(game_manager_fixture):
             f"is out of bounds. Skipping."
         )
 
-    # Clear tiles between enemy and base so bullet can reach the base
+    # Clear sub-tiles between enemy and base so bullet can reach the base
     for y in range(enemy_y_grid, base_y_grid):
-        tile = game_map.get_tile_at(enemy_x_grid, y)
-        if tile and tile.type != TileType.EMPTY and tile.type != TileType.BASE:
-            game_map.place_tile(
-                enemy_x_grid, y, Tile(TileType.EMPTY, enemy_x_grid, y, TILE_SIZE)
-            )
+        for dx in range(2):
+            tile = game_map.get_tile_at(enemy_x_grid + dx, y)
+            if tile and tile.type != TileType.EMPTY and tile.type != TileType.BASE:
+                game_map.place_tile(
+                    enemy_x_grid + dx,
+                    y,
+                    Tile(TileType.EMPTY, enemy_x_grid + dx, y, SUB_TILE_SIZE),
+                )
 
-    map_w_px = game_manager.map.width * TILE_SIZE
-    map_h_px = game_manager.map.height * TILE_SIZE
+    map_w_px = game_manager.map.width * SUB_TILE_SIZE
+    map_h_px = game_manager.map.height * SUB_TILE_SIZE
     enemy_tank = EnemyTank(
         enemy_start_x,
         enemy_start_y,
@@ -308,7 +316,9 @@ def test_victory_condition(game_manager_fixture):
 
     # --- Setup Victory Condition --- #
     # Simulate that all enemies have been spawned
-    game_manager.spawn_manager.total_enemy_spawns = game_manager.spawn_manager.max_enemy_spawns
+    game_manager.spawn_manager.total_enemy_spawns = (
+        game_manager.spawn_manager.max_enemy_spawns
+    )
     # Simulate that all on-screen enemies are destroyed
     game_manager.spawn_manager.enemy_tanks = []
     logger.info(

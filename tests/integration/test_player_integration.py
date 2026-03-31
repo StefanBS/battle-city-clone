@@ -2,7 +2,14 @@ import pytest
 import pygame
 from loguru import logger
 from src.managers.game_manager import GameManager
-from src.utils.constants import Direction, FPS, TILE_SIZE, BULLET_WIDTH, BULLET_HEIGHT
+from src.utils.constants import (
+    Direction,
+    FPS,
+    TILE_SIZE,
+    SUB_TILE_SIZE,
+    BULLET_WIDTH,
+    BULLET_HEIGHT,
+)
 from src.core.tile import Tile, TileType
 
 # Tests related to player actions: movement, shooting, respawn
@@ -24,20 +31,21 @@ def test_player_movement(key, axis, direction_sign, expected_direction):
     player_tank = game_manager.player_tank
     game_map = game_manager.map
 
-    # Manually set position to an open space (grid 8, 8)
-    start_grid_x, start_grid_y = 8, 8
-    new_x = start_grid_x * TILE_SIZE
-    new_y = start_grid_y * TILE_SIZE
+    # Manually set position to an open space (sub-tile grid 16, 16)
+    start_grid_x, start_grid_y = 16, 16
+    new_x = start_grid_x * SUB_TILE_SIZE
+    new_y = start_grid_y * SUB_TILE_SIZE
 
-    # Clear surrounding tiles to ensure movement in all directions
-    for dy in range(-1, 2):
-        for dx in range(-1, 2):
+    # Clear surrounding sub-tiles to ensure movement in all directions
+    # Tank is 2x2 sub-tiles, so clear a wider area
+    for dy in range(-2, 4):
+        for dx in range(-2, 4):
             nx, ny = start_grid_x + dx, start_grid_y + dy
             if 0 <= nx < game_map.width and 0 <= ny < game_map.height:
                 tile = game_map.get_tile_at(nx, ny)
                 if tile and tile.type != TileType.EMPTY:
                     game_map.place_tile(
-                        nx, ny, Tile(TileType.EMPTY, nx, ny, TILE_SIZE)
+                        nx, ny, Tile(TileType.EMPTY, nx, ny, SUB_TILE_SIZE)
                     )
 
     player_tank.set_position(new_x, new_y)
@@ -87,10 +95,22 @@ def test_player_movement(key, axis, direction_sign, expected_direction):
 @pytest.mark.parametrize(
     "move_direction, key, start_pos_offset",
     [
-        (Direction.UP, pygame.K_UP, (0, 1)),  # UP: start 1 tile below
-        (Direction.DOWN, pygame.K_DOWN, (0, -1)),  # DOWN: start 1 tile above
-        (Direction.LEFT, pygame.K_LEFT, (1, 0)),  # LEFT: start 1 tile right
-        (Direction.RIGHT, pygame.K_RIGHT, (-1, 0)),  # RIGHT: start 1 tile left
+        (Direction.UP, pygame.K_UP, (0, 1)),  # UP: start 1 tile below (2 sub-tiles)
+        (
+            Direction.DOWN,
+            pygame.K_DOWN,
+            (0, -1),
+        ),  # DOWN: start 1 tile above (2 sub-tiles)
+        (
+            Direction.LEFT,
+            pygame.K_LEFT,
+            (1, 0),
+        ),  # LEFT: start 1 tile right (2 sub-tiles)
+        (
+            Direction.RIGHT,
+            pygame.K_RIGHT,
+            (-1, 0),
+        ),  # RIGHT: start 1 tile left (2 sub-tiles)
     ],
 )
 def test_player_movement_blocked_by_tile(
@@ -101,16 +121,22 @@ def test_player_movement_blocked_by_tile(
     player_tank = game_manager.player_tank
     game_map = game_manager.map
 
-    # Define target tile location
-    target_x_grid = 7
-    target_y_grid = 7  # Choose a location away from default obstacles
+    # Define target tile location (sub-tile grid coords)
+    target_x_grid = 14
+    target_y_grid = 14  # Choose a location away from default obstacles
 
-    # Manually place the specified tile type at the target location
-    if 0 <= target_y_grid < game_map.height and 0 <= target_x_grid < game_map.width:
-        target_tile = Tile(blocking_tile_type, target_x_grid, target_y_grid, TILE_SIZE)
-        game_map.place_tile(target_x_grid, target_y_grid, target_tile)
+    # Manually place the specified tile type as a 2x2 sub-tile block (= 1 full tile)
+    if (
+        0 <= target_y_grid + 1 < game_map.height
+        and 0 <= target_x_grid + 1 < game_map.width
+    ):
+        for dy in range(2):
+            for dx in range(2):
+                sx, sy = target_x_grid + dx, target_y_grid + dy
+                tile = Tile(blocking_tile_type, sx, sy, SUB_TILE_SIZE)
+                game_map.place_tile(sx, sy, tile)
         logger.debug(
-            f"Placed {blocking_tile_type.name} tile at "
+            f"Placed {blocking_tile_type.name} 2x2 block at "
             f"({target_x_grid}, {target_y_grid})"
         )
     else:
@@ -119,11 +145,12 @@ def test_player_movement_blocked_by_tile(
             f"are out of bounds."
         )
 
-    # Calculate player start position based on offset
-    start_grid_x = target_x_grid + start_pos_offset[0]
-    start_grid_y = target_y_grid + start_pos_offset[1]
-    start_x = start_grid_x * TILE_SIZE
-    start_y = start_grid_y * TILE_SIZE
+    # Calculate player start position: tank (32px) flush against 2x2 block (32px)
+    # Offsets are in tile-size units (2 sub-tiles each)
+    start_grid_x = target_x_grid + start_pos_offset[0] * 2
+    start_grid_y = target_y_grid + start_pos_offset[1] * 2
+    start_x = start_grid_x * SUB_TILE_SIZE
+    start_y = start_grid_y * SUB_TILE_SIZE
 
     # Ensure start position is within bounds
     if not (0 <= start_grid_y < game_map.height and 0 <= start_grid_x < game_map.width):
@@ -132,21 +159,25 @@ def test_player_movement_blocked_by_tile(
             f"bounds for target ({target_x_grid}, {target_y_grid}). Skipping."
         )
 
-    # Clear the starting tile for the player to ensure no self-collision issue
-    game_map.place_tile(
-        start_grid_x,
-        start_grid_y,
-        Tile(TileType.EMPTY, start_grid_x, start_grid_y, TILE_SIZE),
-    )
-    logger.debug(
-        f"Set player starting tile ({start_grid_x}, {start_grid_y}) to EMPTY."
-    )
+    # Clear the 2x2 sub-tile area for the player to ensure no self-collision issue
+    for dy in range(2):
+        for dx in range(2):
+            sx, sy = start_grid_x + dx, start_grid_y + dy
+            if 0 <= sx < game_map.width and 0 <= sy < game_map.height:
+                game_map.place_tile(
+                    sx,
+                    sy,
+                    Tile(TileType.EMPTY, sx, sy, SUB_TILE_SIZE),
+                )
+    logger.debug(f"Set player starting area ({start_grid_x}, {start_grid_y}) to EMPTY.")
 
     # Place player
     player_tank.set_position(start_x, start_y)
     player_tank.prev_x, player_tank.prev_y = start_x, start_y
     # Capture the initial rect based on rounded initial float positions
-    initial_player_rect = pygame.Rect(round(start_x), round(start_y), player_tank.width, player_tank.height)
+    initial_player_rect = pygame.Rect(
+        round(start_x), round(start_y), player_tank.width, player_tank.height
+    )
 
     initial_pos = player_tank.get_position()
     dt = 1.0 / FPS
@@ -166,7 +197,13 @@ def test_player_movement_blocked_by_tile(
     game_manager.input_handler.handle_event(key_up_event)
 
     final_player_rect = player_tank.rect
-    colliding_tile_rect = game_map.tiles[target_y_grid][target_x_grid].rect
+    # The blocking tile is a 2x2 sub-tile block; compute its combined rect
+    colliding_tile_rect = pygame.Rect(
+        target_x_grid * SUB_TILE_SIZE,
+        target_y_grid * SUB_TILE_SIZE,
+        SUB_TILE_SIZE * 2,
+        SUB_TILE_SIZE * 2,
+    )
 
     # Assert position has changed from initial (due to snapping) but is now flush
     # The core idea is that the tank should be touching the obstacle.
@@ -239,9 +276,7 @@ def test_player_shooting():
     assert len(game_manager.bullets) == 1, "One bullet should exist after shooting."
     bullet = game_manager.bullets[0]
     assert bullet.active, "Bullet should be active after shooting."
-    assert bullet.direction == Direction.RIGHT, (
-        "Bullet direction is incorrect."
-    )
+    assert bullet.direction == Direction.RIGHT, "Bullet direction is incorrect."
     assert bullet.owner_type == "player", "Bullet owner type is incorrect."
     assert bullet.owner is player_tank, "Bullet owner should be the player tank."
 

@@ -1,6 +1,6 @@
 import pygame
 from loguru import logger
-from src.utils.constants import TILE_SIZE, SOURCE_TILE_SIZE
+from src.utils.constants import TILE_SIZE, SUB_TILE_SIZE, SOURCE_TILE_SIZE
 
 
 class TextureManager:
@@ -23,6 +23,7 @@ class TextureManager:
             raise SystemExit(f"Error loading texture atlas: {e}") from e
 
         self.sprites: dict[str, pygame.Surface] = {}
+        self.sub_sprites: dict[str, pygame.Surface] = {}
         self._load_sprites()
 
     # All sprites are 2x2 source tiles (16x16 pixels in the atlas).
@@ -78,6 +79,15 @@ class TextureManager:
                 )
 
                 self.sprites[name] = scaled_sprite
+
+                # Also store at sub-tile size (native 16x16)
+                if SUB_TILE_SIZE != TILE_SIZE:
+                    sub_sprite = pygame.transform.scale(
+                        original_sprite, (SUB_TILE_SIZE, SUB_TILE_SIZE)
+                    )
+                    self.sub_sprites[name] = sub_sprite
+                else:
+                    self.sub_sprites[name] = scaled_sprite
             except ValueError as e:
                 logger.error(
                     f"Error loading sprite '{name}' with rect {rect}: {e}. "
@@ -85,6 +95,24 @@ class TextureManager:
                 )
                 # Consider raising the error or returning a default sprite
                 raise ValueError(f"Failed to load sprite '{name}'") from e
+
+    def get_sub_sprite(self, name: str) -> pygame.Surface:
+        """Retrieve a sprite at sub-tile size (16x16).
+
+        Args:
+            name: The name identifier of the sprite.
+
+        Returns:
+            The corresponding Pygame Surface at sub-tile size.
+
+        Raises:
+            KeyError: If the sprite name is not found.
+        """
+        try:
+            return self.sub_sprites[name]
+        except KeyError:
+            logger.error(f"Error: Sub-sprite '{name}' not found.")
+            raise KeyError(f"Sub-sprite '{name}' not found.") from None
 
     def get_sprite(self, name: str) -> pygame.Surface:
         """

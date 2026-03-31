@@ -158,7 +158,7 @@ class CollisionResponseHandler:
         elif tile.type == TileType.BASE:
             logger.debug(f"Bullet hit base tile at ({tile.x}, {tile.y})")
             bullet.active = False
-            self._map.set_tile_type(tile, TileType.BASE_DESTROYED)
+            self._map.destroy_base_group(tile)
             self._set_game_state(GameState.GAME_OVER)
             return True
         return False

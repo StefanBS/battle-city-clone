@@ -187,7 +187,7 @@ class TestBulletVsTile:
         tile.x, tile.y = 0, 0
         handler.process_collisions([(bullet, tile)])
         assert not bullet.active
-        mock_map.set_tile_type.assert_called_with(tile, TileType.BASE_DESTROYED)
+        mock_map.destroy_base_group.assert_called_with(tile)
         handler._set_game_state.assert_called_with(GameState.GAME_OVER)
 
 

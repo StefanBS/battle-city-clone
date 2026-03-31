@@ -48,9 +48,7 @@ class Renderer:
         self.map_offset_y: int = (logical_height - map_height_px) // 2
 
         # Map area surface for rendering entities at map-relative positions
-        self.map_surface: pygame.Surface = pygame.Surface(
-            (map_width_px, map_height_px)
-        )
+        self.map_surface: pygame.Surface = pygame.Surface((map_width_px, map_height_px))
 
     def render(
         self,
@@ -91,9 +89,7 @@ class Renderer:
                 bullet.draw(self.map_surface)
 
         # Blit the map surface onto the logical surface at the offset
-        self.game_surface.blit(
-            self.map_surface, (self.map_offset_x, self.map_offset_y)
-        )
+        self.game_surface.blit(self.map_surface, (self.map_offset_x, self.map_offset_y))
 
         # Draw HUD onto the logical surface (in the border area)
         self._draw_hud(player_tank)

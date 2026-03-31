@@ -3,7 +3,7 @@ import pygame
 from unittest.mock import patch, MagicMock
 from src.managers.spawn_manager import SpawnManager
 from src.core.enemy_tank import EnemyTank
-from src.utils.constants import TILE_SIZE
+from src.utils.constants import TILE_SIZE, SUB_TILE_SIZE
 
 
 class TestSpawnManager:
@@ -95,8 +95,8 @@ class TestSpawnManager:
         """Test that spawn_enemy avoids spawning on map collision tiles."""
         spawn_point_grid = self.SPAWN_POINTS[0]
         mock_random_choice.return_value = spawn_point_grid
-        spawn_x = spawn_point_grid[0] * TILE_SIZE
-        spawn_y = spawn_point_grid[1] * TILE_SIZE
+        spawn_x = spawn_point_grid[0] * SUB_TILE_SIZE
+        spawn_y = spawn_point_grid[1] * SUB_TILE_SIZE
         colliding_tile = pygame.Rect(spawn_x, spawn_y, TILE_SIZE, TILE_SIZE)
         mock_game_map.get_collidable_tiles.return_value = [colliding_tile]
 
@@ -115,8 +115,8 @@ class TestSpawnManager:
         """Test that spawn_enemy avoids spawning on other tanks."""
         spawn_point_grid = self.SPAWN_POINTS[0]
         mock_random_choice.return_value = spawn_point_grid
-        spawn_x = spawn_point_grid[0] * TILE_SIZE
-        spawn_y = spawn_point_grid[1] * TILE_SIZE
+        spawn_x = spawn_point_grid[0] * SUB_TILE_SIZE
+        spawn_y = spawn_point_grid[1] * SUB_TILE_SIZE
         mock_game_map.get_collidable_tiles.return_value = []
 
         existing_enemy = MagicMock(spec=EnemyTank)

@@ -1,6 +1,6 @@
 import pytest
 from loguru import logger
-from src.utils.constants import Direction, FPS, TILE_SIZE
+from src.utils.constants import Direction, FPS, TILE_SIZE, SUB_TILE_SIZE
 from src.states.game_state import GameState
 from src.core.tile import Tile, TileType
 from src.core.enemy_tank import EnemyTank
@@ -28,13 +28,13 @@ def test_player_bullet_vs_tile(
     player_tank = game_manager.player_tank
     game_map = game_manager.map
 
-    # Define target tile location
-    target_x_grid = 7
-    target_y_grid = 10
+    # Define target tile location (sub-tile grid coords)
+    target_x_grid = 14
+    target_y_grid = 20
 
     # Manually place the specified tile type at the target location
     if 0 <= target_y_grid < game_map.height and 0 <= target_x_grid < game_map.width:
-        target_tile = Tile(tile_to_place, target_x_grid, target_y_grid, TILE_SIZE)
+        target_tile = Tile(tile_to_place, target_x_grid, target_y_grid, SUB_TILE_SIZE)
         game_map.place_tile(target_x_grid, target_y_grid, target_tile)
         logger.debug(
             f"Placed {tile_to_place.name} tile at ({target_x_grid}, {target_y_grid})"
@@ -45,9 +45,24 @@ def test_player_bullet_vs_tile(
             f"are out of bounds."
         )
 
-    # Position player below the target tile
-    player_start_x = target_x_grid * TILE_SIZE
-    player_start_y = (target_y_grid + 1) * TILE_SIZE
+    # Clear sub-tiles around the target and between target and player position
+    # (2 sub-tiles wide for bullet path, plus player's own area)
+    for y in range(target_y_grid, target_y_grid + 4):
+        for dx in range(2):
+            sx = target_x_grid + dx
+            if 0 <= sx < game_map.width and 0 <= y < game_map.height:
+                # Skip the target tile itself
+                if sx == target_x_grid and y == target_y_grid:
+                    continue
+                t = game_map.get_tile_at(sx, y)
+                if t and t.type != TileType.EMPTY:
+                    game_map.place_tile(
+                        sx, y, Tile(TileType.EMPTY, sx, y, SUB_TILE_SIZE)
+                    )
+
+    # Position player below the target tile (2 sub-tiles = 1 tank height)
+    player_start_x = target_x_grid * SUB_TILE_SIZE
+    player_start_y = (target_y_grid + 2) * SUB_TILE_SIZE
     player_tank.set_position(player_start_x, player_start_y)
     player_tank.prev_x, player_tank.prev_y = player_start_x, player_start_y
 
@@ -88,37 +103,39 @@ def test_player_bullet_vs_tile(
 
 
 def _clear_tiles(game_map, positions):
-    """Clear tiles at given grid positions to EMPTY for test setup."""
+    """Clear tiles at given sub-tile grid positions to EMPTY for test setup."""
     for gx, gy in positions:
         if 0 <= gx < game_map.width and 0 <= gy < game_map.height:
             tile = game_map.get_tile_at(gx, gy)
             if tile and tile.type != TileType.EMPTY:
-                game_map.place_tile(
-                    gx, gy, Tile(TileType.EMPTY, gx, gy, TILE_SIZE)
-                )
+                game_map.place_tile(gx, gy, Tile(TileType.EMPTY, gx, gy, SUB_TILE_SIZE))
 
 
 def test_player_bullet_destroys_enemy_tank(game_manager_fixture, mocker):
     """Test player bullet hitting and destroying a basic enemy tank."""
-    mocker.patch('src.core.enemy_tank.random.uniform', return_value=0.0)
+    mocker.patch("src.core.enemy_tank.random.uniform", return_value=0.0)
     game_manager = game_manager_fixture
     player_tank = game_manager.player_tank
 
     # --- Spawn Enemy Tank --- #
     enemy_type = "basic"
-    enemy_x_grid = 7
-    enemy_y_grid = 5
-    enemy_start_x = enemy_x_grid * TILE_SIZE
-    enemy_start_y = enemy_y_grid * TILE_SIZE
+    enemy_x_grid = 14  # sub-tile grid coords
+    enemy_y_grid = 10
+    enemy_start_x = enemy_x_grid * SUB_TILE_SIZE
+    enemy_start_y = enemy_y_grid * SUB_TILE_SIZE
 
-    # Clear tiles at entity positions so they don't collide with terrain
+    # Clear 2x2 sub-tile blocks at entity positions so they don't collide with terrain
     _clear_tiles(
         game_manager.map,
-        [(enemy_x_grid, enemy_y_grid), (enemy_x_grid, enemy_y_grid + 1)],
+        [
+            (enemy_x_grid + dx, enemy_y_grid + dy)
+            for dy in range(4)  # enemy + player below (2 sub-tiles each)
+            for dx in range(2)
+        ],
     )
 
-    map_w_px = game_manager.map.width * TILE_SIZE
-    map_h_px = game_manager.map.height * TILE_SIZE
+    map_w_px = game_manager.map.width * SUB_TILE_SIZE
+    map_h_px = game_manager.map.height * SUB_TILE_SIZE
     enemy_tank = EnemyTank(
         enemy_start_x,
         enemy_start_y,
@@ -138,9 +155,9 @@ def test_player_bullet_destroys_enemy_tank(game_manager_fixture, mocker):
     )
     # --- End Spawn --- #
 
-    # Position player below the enemy tank
-    player_start_x = enemy_x_grid * TILE_SIZE
-    player_start_y = (enemy_y_grid + 1) * TILE_SIZE
+    # Position player below the enemy tank (2 sub-tiles = 1 tank height)
+    player_start_x = enemy_x_grid * SUB_TILE_SIZE
+    player_start_y = (enemy_y_grid + 2) * SUB_TILE_SIZE
     player_tank.set_position(player_start_x, player_start_y)
     player_tank.prev_x, player_tank.prev_y = player_start_x, player_start_y
 
@@ -173,27 +190,29 @@ def test_player_bullet_destroys_enemy_tank(game_manager_fixture, mocker):
             enemy_destroyed_during_loop = True
             # If enemy destroyed, bullet might still be active if it passed through
             if not bullet.active:
-                 bullet_became_inactive_during_loop = True
-            break # Stop if enemy is destroyed
-    else: # Loop finished without break
+                bullet_became_inactive_during_loop = True
+            break  # Stop if enemy is destroyed
+    else:  # Loop finished without break
         logger.warning(
             f"Max updates ({max_updates}) reached. Bullet active: {bullet.active}, "
             f"Enemy in list: {enemy_tank in game_manager.spawn_manager.enemy_tanks}"
         )
 
-
     # --- Assertions after updates ---
     # 1. Bullet should be inactive if it hit the enemy.
     # If the enemy was destroyed, the bullet might have passed through, so this check is conditional.
-    if enemy_destroyed_during_loop or (enemy_tank not in game_manager.spawn_manager.enemy_tanks):
+    if enemy_destroyed_during_loop or (
+        enemy_tank not in game_manager.spawn_manager.enemy_tanks
+    ):
         # If enemy is gone, bullet could be active or inactive.
         # The critical part is enemy destruction.
         pass
-    else: # Enemy not destroyed, so bullet must have become inactive (e.g. hit armor, or missed and hit wall)
-          # This test expects destruction, so if enemy is still there, it's a failure.
-          # We rely on the next assertion to catch this. For now, ensure bullet did *something*.
-        assert bullet_became_inactive_during_loop, "Bullet remained active but enemy was not destroyed."
-
+    else:  # Enemy not destroyed, so bullet must have become inactive (e.g. hit armor, or missed and hit wall)
+        # This test expects destruction, so if enemy is still there, it's a failure.
+        # We rely on the next assertion to catch this. For now, ensure bullet did *something*.
+        assert bullet_became_inactive_during_loop, (
+            "Bullet remained active but enemy was not destroyed."
+        )
 
     # 2. The enemy tank should have been removed from the list
     assert enemy_tank not in game_manager.spawn_manager.enemy_tanks, (
@@ -225,7 +244,7 @@ def test_enemy_bullet_hits_player_tank(
     mocker,
 ):
     """Test enemy bullet hitting the player tank under different conditions."""
-    mocker.patch('src.core.enemy_tank.random.uniform', return_value=0.0)
+    mocker.patch("src.core.enemy_tank.random.uniform", return_value=0.0)
     game_manager = game_manager_fixture
     player_tank = game_manager.player_tank
     initial_spawn_pos = player_tank.initial_position
@@ -242,13 +261,13 @@ def test_enemy_bullet_hits_player_tank(
 
     # --- Spawn Enemy Tank Above Player --- #
     enemy_type = "basic"
-    player_x_grid = int(player_tank.x // TILE_SIZE)
-    player_y_grid = int(player_tank.y // TILE_SIZE)
+    player_x_grid = int(player_tank.x // SUB_TILE_SIZE)
+    player_y_grid = int(player_tank.y // SUB_TILE_SIZE)
     enemy_x_grid = player_x_grid
-    enemy_y_grid = player_y_grid - 2  # Place enemy 2 tiles above
+    enemy_y_grid = player_y_grid - 4  # Place enemy 4 sub-tiles (2 tank heights) above
 
-    enemy_start_x = enemy_x_grid * TILE_SIZE
-    enemy_start_y = enemy_y_grid * TILE_SIZE
+    enemy_start_x = enemy_x_grid * SUB_TILE_SIZE
+    enemy_start_y = enemy_y_grid * SUB_TILE_SIZE
 
     # Ensure enemy spawns within bounds
     if not (
@@ -260,14 +279,18 @@ def test_enemy_bullet_hits_player_tank(
             f"is out of bounds. Skipping."
         )
 
-    # Clear tiles along the bullet path from enemy to player
+    # Clear sub-tiles along the bullet path from enemy to player (2 cols wide)
     _clear_tiles(
         game_manager.map,
-        [(enemy_x_grid, y) for y in range(enemy_y_grid, player_y_grid + 1)],
+        [
+            (enemy_x_grid + dx, y)
+            for y in range(enemy_y_grid, player_y_grid + 2)
+            for dx in range(2)
+        ],
     )
 
-    map_w_px = game_manager.map.width * TILE_SIZE
-    map_h_px = game_manager.map.height * TILE_SIZE
+    map_w_px = game_manager.map.width * SUB_TILE_SIZE
+    map_h_px = game_manager.map.height * SUB_TILE_SIZE
     enemy_tank = EnemyTank(
         enemy_start_x,
         enemy_start_y,
@@ -299,7 +322,7 @@ def test_enemy_bullet_hits_player_tank(
     max_updates = int(max_simulation_time / dt)
     interaction_processed = False
 
-    original_player_lives = player_tank.lives # Store to check if lives changed
+    original_player_lives = player_tank.lives  # Store to check if lives changed
 
     for i in range(max_updates):
         game_manager.update()  # Update game (moves bullet, processes collisions)
@@ -321,33 +344,34 @@ def test_enemy_bullet_hits_player_tank(
                 )
                 interaction_processed = True
                 break
-            if current_state == GameState.GAME_OVER and expected_game_state == GameState.GAME_OVER:
+            if (
+                current_state == GameState.GAME_OVER
+                and expected_game_state == GameState.GAME_OVER
+            ):
                 logger.debug(
                     f"Game state became GAME_OVER as expected after {i + 1} updates."
                 )
                 interaction_processed = True
                 break
-        else: # Player is invincible
-            if i == max_updates -1: # Let simulation run for invincible case
-                interaction_processed = True # Assume interaction window passed
+        else:  # Player is invincible
+            if i == max_updates - 1:  # Let simulation run for invincible case
+                interaction_processed = True  # Assume interaction window passed
                 break
-
 
         # Early exit if game state changes definitively and unexpectedly
         if current_state != GameState.RUNNING and current_state != expected_game_state:
             logger.warning(
-                f"Game state changed to {current_state.name} unexpectedly after {i+1} updates."
+                f"Game state changed to {current_state.name} unexpectedly after {i + 1} updates."
             )
-            interaction_processed = True # Mark as processed to evaluate current state
+            interaction_processed = True  # Mark as processed to evaluate current state
             break
-    else: # Loop finished without break
+    else:  # Loop finished without break
         logger.warning(
             f"Max updates ({max_updates}) reached. Bullet active: {enemy_bullet.active}, "
             f"GameState: {game_manager.state.name}, PlayerLives: {player_tank.lives}"
         )
         # If loop finished, mark interaction_processed as true to allow assertions to run on final state
         interaction_processed = True
-
 
     # --- Assertions after updates --- #
     # If player was invincible, the bullet might or might not be active (e.g. hit a wall later)
@@ -359,8 +383,11 @@ def test_enemy_bullet_hits_player_tank(
             f"Game state: {game_manager.state.name}"
         )
         # If an interaction was processed, and player was vulnerable, bullet should be inactive.
-        if player_tank.lives < original_player_lives or game_manager.state == GameState.GAME_OVER:
-             assert not enemy_bullet.active, (
+        if (
+            player_tank.lives < original_player_lives
+            or game_manager.state == GameState.GAME_OVER
+        ):
+            assert not enemy_bullet.active, (
                 "Enemy bullet should be inactive after damaging player or causing game over."
             )
 
@@ -394,27 +421,27 @@ def test_enemy_bullet_hits_player_tank(
 
 def test_enemy_bullet_hits_other_enemy(game_manager_fixture, mocker):
     """Test that an enemy bullet has no effect on another enemy tank."""
-    mocker.patch('src.core.enemy_tank.random.uniform', return_value=0.0)
+    mocker.patch("src.core.enemy_tank.random.uniform", return_value=0.0)
     game_manager = game_manager_fixture
 
     # --- Spawn Two Enemy Tanks --- #
     enemy_type = "basic"
-    enemy1_x_grid, enemy1_y_grid = 8, 8  # Top enemy (shooter)
-    enemy2_x_grid, enemy2_y_grid = 8, 10  # Bottom enemy (target)
+    enemy1_x_grid, enemy1_y_grid = 16, 16  # Top enemy (shooter, sub-tile coords)
+    enemy2_x_grid, enemy2_y_grid = 16, 20  # Bottom enemy (target, 4 sub-tiles apart)
 
-    # Clear tiles at entity positions and the bullet path between them
+    # Clear sub-tiles at entity positions and the bullet path between them
     _clear_tiles(
         game_manager.map,
-        [(8, y) for y in range(8, 11)],
+        [(16 + dx, y) for y in range(16, 22) for dx in range(2)],
     )
 
-    enemy1_start_x = enemy1_x_grid * TILE_SIZE
-    enemy1_start_y = enemy1_y_grid * TILE_SIZE
-    enemy2_start_x = enemy2_x_grid * TILE_SIZE
-    enemy2_start_y = enemy2_y_grid * TILE_SIZE
+    enemy1_start_x = enemy1_x_grid * SUB_TILE_SIZE
+    enemy1_start_y = enemy1_y_grid * SUB_TILE_SIZE
+    enemy2_start_x = enemy2_x_grid * SUB_TILE_SIZE
+    enemy2_start_y = enemy2_y_grid * SUB_TILE_SIZE
 
-    map_w_px = game_manager.map.width * TILE_SIZE
-    map_h_px = game_manager.map.height * TILE_SIZE
+    map_w_px = game_manager.map.width * SUB_TILE_SIZE
+    map_h_px = game_manager.map.height * SUB_TILE_SIZE
     enemy1 = EnemyTank(
         enemy1_start_x,
         enemy1_start_y,
@@ -473,7 +500,9 @@ def test_enemy_bullet_hits_other_enemy(game_manager_fixture, mocker):
     )
 
     # 2. Enemy2 should still be in the list
-    assert enemy2 in game_manager.spawn_manager.enemy_tanks, "Enemy2 was removed from the list."
+    assert enemy2 in game_manager.spawn_manager.enemy_tanks, (
+        "Enemy2 was removed from the list."
+    )
 
     # 3. Total enemy count should be unchanged
     assert len(game_manager.spawn_manager.enemy_tanks) == initial_enemy_count, (
@@ -484,27 +513,27 @@ def test_enemy_bullet_hits_other_enemy(game_manager_fixture, mocker):
 
 def test_enemy_bullets_collide(game_manager_fixture, mocker):
     """Test that two enemy bullets pass through each other."""
-    mocker.patch('src.core.enemy_tank.random.uniform', return_value=0.0)
+    mocker.patch("src.core.enemy_tank.random.uniform", return_value=0.0)
     game_manager = game_manager_fixture
 
     # --- Spawn Two Enemy Tanks Facing Each Other --- #
     enemy_type = "basic"
-    enemy1_x_grid, enemy1_y_grid = 1, 8  # Left enemy
-    enemy2_x_grid, enemy2_y_grid = 4, 8  # Right enemy (3 tiles apart)
+    enemy1_x_grid, enemy1_y_grid = 2, 16  # Left enemy (sub-tile coords)
+    enemy2_x_grid, enemy2_y_grid = 8, 16  # Right enemy (6 sub-tiles apart)
 
-    # Clear tiles at entity positions and the bullet path between them
+    # Clear sub-tiles at entity positions and the bullet path between them
     _clear_tiles(
         game_manager.map,
-        [(x, 8) for x in range(1, 5)],
+        [(x, 16 + dy) for x in range(2, 10) for dy in range(2)],
     )
 
-    enemy1_start_x = enemy1_x_grid * TILE_SIZE
-    enemy1_start_y = enemy1_y_grid * TILE_SIZE
-    enemy2_start_x = enemy2_x_grid * TILE_SIZE
-    enemy2_start_y = enemy2_y_grid * TILE_SIZE
+    enemy1_start_x = enemy1_x_grid * SUB_TILE_SIZE
+    enemy1_start_y = enemy1_y_grid * SUB_TILE_SIZE
+    enemy2_start_x = enemy2_x_grid * SUB_TILE_SIZE
+    enemy2_start_y = enemy2_y_grid * SUB_TILE_SIZE
 
-    map_w_px = game_manager.map.width * TILE_SIZE
-    map_h_px = game_manager.map.height * TILE_SIZE
+    map_w_px = game_manager.map.width * SUB_TILE_SIZE
+    map_h_px = game_manager.map.height * SUB_TILE_SIZE
     enemy1 = EnemyTank(
         enemy1_start_x,
         enemy1_start_y,

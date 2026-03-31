@@ -3,7 +3,7 @@ from typing import List, Optional
 import pygame
 from loguru import logger
 from src.managers.texture_manager import TextureManager
-from src.utils.constants import TILE_SIZE, TILE_ANIMATION_INTERVAL
+from src.utils.constants import SUB_TILE_SIZE, TILE_ANIMATION_INTERVAL
 
 
 class TileType(Enum):
@@ -24,9 +24,17 @@ IMPASSABLE_TILE_TYPES = frozenset(
     {TileType.BRICK, TileType.STEEL, TileType.WATER, TileType.BASE}
 )
 
+# Tile types that render at full TILE_SIZE from the top-left sub-tile only
+_FULL_SIZE_TILE_TYPES = frozenset({TileType.BASE, TileType.BASE_DESTROYED})
+
 
 class Tile:
-    """Represents a single tile in the game map."""
+    """Represents a single sub-tile (16x16) in the game map.
+
+    Most tiles are part of a 2x2 group that corresponds to one visual tile.
+    Bricks are independently destructible. Base tiles render as a single
+    32x32 sprite from the top-left sub-tile of their group.
+    """
 
     SPRITE_NAME_MAP = {
         TileType.EMPTY: None,
@@ -39,7 +47,12 @@ class Tile:
     }
 
     def __init__(
-        self, tile_type: TileType, x: int, y: int, size: int = TILE_SIZE
+        self,
+        tile_type: TileType,
+        x: int,
+        y: int,
+        size: int = SUB_TILE_SIZE,
+        is_group_primary: bool = False,
     ) -> None:
         logger.trace(f"Creating Tile ({tile_type.name}) at grid ({x}, {y})")
         self.type = tile_type
@@ -47,6 +60,7 @@ class Tile:
         self.y = y
         self.size = size
         self.rect = pygame.Rect(x * size, y * size, size, size)
+        self.is_group_primary = is_group_primary
 
         # Animation attributes
         self.is_animated: bool = False
@@ -78,7 +92,7 @@ class Tile:
         return False
 
     def draw(self, surface: pygame.Surface, texture_manager: TextureManager) -> None:
-        """Draw the tile on the given surface using textures if available."""
+        """Draw the tile on the given surface using textures."""
         sprite_name: Optional[str] = None
 
         if self.is_animated:
@@ -87,7 +101,16 @@ class Tile:
         else:
             sprite_name = self.SPRITE_NAME_MAP.get(self.type)
 
-        if sprite_name:
-            # No fallback color drawing - if sprite is missing, let KeyError propagate
+        if not sprite_name:
+            return
+
+        # Base/base_destroyed: only the group primary renders, at full TILE_SIZE
+        if self.type in _FULL_SIZE_TILE_TYPES:
+            if not self.is_group_primary:
+                return
             sprite = texture_manager.get_sprite(sprite_name)
+            surface.blit(sprite, self.rect.topleft)
+        else:
+            # All other tiles render at sub-tile size
+            sprite = texture_manager.get_sub_sprite(sprite_name)
             surface.blit(sprite, self.rect.topleft)
