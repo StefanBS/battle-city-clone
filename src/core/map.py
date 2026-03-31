@@ -173,6 +173,10 @@ class Map:
             logger.warning(f"Attempted to get tile outside map bounds at ({x}, {y})")
             return None
 
+    def mark_tile_cache_dirty(self) -> None:
+        """Mark tile caches as needing rebuild."""
+        self._tile_cache_dirty = True
+
     def set_tile_type(self, tile: Tile, new_type: TileType) -> None:
         """Change a tile's type and invalidate caches."""
         old_type = tile.type

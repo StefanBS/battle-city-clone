@@ -8,7 +8,14 @@ from src.core.enemy_tank import EnemyTank
 from src.core.tile import Tile, TileType
 from src.core.map import Map
 from src.states.game_state import GameState
-from src.utils.constants import Direction, TILE_SIZE
+from src.utils.constants import (
+    Direction,
+    TILE_SIZE,
+    SEGMENT_LEFT,
+    SEGMENT_RIGHT,
+    SEGMENT_TOP,
+    SEGMENT_BOTTOM,
+)
 
 
 @pytest.fixture
@@ -156,64 +163,148 @@ class TestBulletVsPlayer:
 
 
 class TestBulletVsTile:
-    def test_bullet_destroys_brick_and_horizontal_sibling(self, handler, mock_map):
-        """Bullet moving UP destroys hit tile and horizontal sibling."""
-        bullet = MagicMock(spec=Bullet)
-        bullet.active = True
-        bullet.owner = MagicMock()
-        bullet.direction = Direction.UP
-        tile = MagicMock(spec=Tile)
-        tile.type = TileType.BRICK
-        tile.x, tile.y = 4, 5
-        sibling = MagicMock(spec=Tile)
-        sibling.type = TileType.BRICK
-        mock_map.get_tile_at.return_value = sibling
+    """Brick quadrant destruction tests (4x4 segment model).
+
+    Each 32x32 brick = 4 sub-tiles (16x16, 2x2 grid).
+    Each sub-tile has 4 quadrants (8x8, 2x2 grid) = 16 segments total.
+
+    Sub-tile at grid (4,4) has pixel rect (64,64,16,16).
+    Quadrants: TL=(64,64,8,8) TR=(72,64,8,8) BL=(64,72,8,8) BR=(72,72,8,8).
+    """
+
+    @staticmethod
+    def _bullet(direction, px_x, px_y):
+        """Create a mock bullet with a real rect at given pixel coords."""
+        b = MagicMock(spec=Bullet)
+        b.active = True
+        b.owner = MagicMock()
+        b.direction = direction
+        b.rect = pygame.Rect(px_x, px_y, 2, 2)
+        return b
+
+    # -- Horizontal bullets (LEFT / RIGHT) --
+
+    def test_right_bullet_destroys_entry_column(self, handler, mock_map):
+        """RIGHT bullet destroys full left column (TL+BL) of sub-tile."""
+        tile = Tile(TileType.BRICK, 4, 4)
+        mock_map.get_tile_at.return_value = Tile(TileType.EMPTY, 4, 5)
+        bullet = self._bullet(Direction.RIGHT, 64, 66)
 
         handler.process_collisions([(bullet, tile)])
 
         assert not bullet.active
-        # Should destroy both the hit tile and its horizontal sibling
-        mock_map.set_tile_type.assert_any_call(tile, TileType.EMPTY)
-        mock_map.get_tile_at.assert_called_with(5, 5)  # x^1 = 5
-        mock_map.set_tile_type.assert_any_call(sibling, TileType.EMPTY)
+        assert tile.brick_segments == SEGMENT_RIGHT
 
-    def test_bullet_destroys_brick_and_vertical_sibling(self, handler, mock_map):
-        """Bullet moving LEFT destroys hit tile and vertical sibling."""
-        bullet = MagicMock(spec=Bullet)
-        bullet.active = True
-        bullet.owner = MagicMock()
-        bullet.direction = Direction.LEFT
-        tile = MagicMock(spec=Tile)
-        tile.type = TileType.BRICK
-        tile.x, tile.y = 4, 4
-        sibling = MagicMock(spec=Tile)
-        sibling.type = TileType.BRICK
-        mock_map.get_tile_at.return_value = sibling
+    def test_left_bullet_destroys_entry_column(self, handler, mock_map):
+        """LEFT bullet destroys full right column (TR+BR) of sub-tile."""
+        tile = Tile(TileType.BRICK, 4, 4)
+        mock_map.get_tile_at.return_value = Tile(TileType.EMPTY, 4, 5)
+        bullet = self._bullet(Direction.LEFT, 72, 66)
 
         handler.process_collisions([(bullet, tile)])
 
         assert not bullet.active
-        mock_map.set_tile_type.assert_any_call(tile, TileType.EMPTY)
-        mock_map.get_tile_at.assert_called_with(4, 5)  # y^1 = 5
-        mock_map.set_tile_type.assert_any_call(sibling, TileType.EMPTY)
+        assert tile.brick_segments == SEGMENT_LEFT
 
-    def test_bullet_destroys_brick_sibling_already_gone(self, handler, mock_map):
-        """If sibling is already EMPTY, only the hit tile is destroyed."""
-        bullet = MagicMock(spec=Bullet)
-        bullet.active = True
-        bullet.owner = MagicMock()
-        bullet.direction = Direction.UP
-        tile = MagicMock(spec=Tile)
-        tile.type = TileType.BRICK
-        tile.x, tile.y = 4, 5
-        sibling = MagicMock(spec=Tile)
-        sibling.type = TileType.EMPTY
+    def test_right_bullet_center_destroys_both_subtiles(self, handler, mock_map):
+        """RIGHT bullet at row boundary → left column of both sub-tiles."""
+        tile = Tile(TileType.BRICK, 4, 4)
+        sibling = Tile(TileType.BRICK, 4, 5)
         mock_map.get_tile_at.return_value = sibling
+        # Bullet straddles y=80 boundary
+        bullet = self._bullet(Direction.RIGHT, 64, 79)
 
         handler.process_collisions([(bullet, tile)])
 
         assert not bullet.active
+        assert tile.brick_segments == SEGMENT_RIGHT
+        assert sibling.brick_segments == SEGMENT_RIGHT
+
+    def test_horizontal_bullet_sibling_already_gone(self, handler, mock_map):
+        """If vertical sibling is EMPTY, only hit sub-tile loses entry column."""
+        tile = Tile(TileType.BRICK, 4, 4)
+        mock_map.get_tile_at.return_value = Tile(TileType.EMPTY, 4, 5)
+        bullet = self._bullet(Direction.RIGHT, 64, 79)
+
+        handler.process_collisions([(bullet, tile)])
+
+        assert tile.brick_segments == SEGMENT_RIGHT
+
+    def test_horizontal_bullet_entry_gone_passes_through(self, handler, mock_map):
+        """If entry column is gone, bullet destroys remaining column."""
+        tile = Tile(TileType.BRICK, 4, 4)
+        tile.remove_brick_segment(SEGMENT_LEFT)  # left column destroyed
+        mock_map.get_tile_at.return_value = Tile(TileType.EMPTY, 4, 5)
+        bullet = self._bullet(Direction.RIGHT, 72, 66)
+
+        handler.process_collisions([(bullet, tile)])
+
+        assert not bullet.active
+        assert tile.brick_segments == 0
         mock_map.set_tile_type.assert_called_once_with(tile, TileType.EMPTY)
+
+    # -- Vertical bullets (UP / DOWN) --
+
+    def test_down_bullet_destroys_entry_row(self, handler, mock_map):
+        """DOWN bullet destroys full top row (TL+TR) of sub-tile."""
+        tile = Tile(TileType.BRICK, 4, 4)
+        mock_map.get_tile_at.return_value = Tile(TileType.EMPTY, 5, 4)
+        bullet = self._bullet(Direction.DOWN, 66, 64)
+
+        handler.process_collisions([(bullet, tile)])
+
+        assert not bullet.active
+        assert tile.brick_segments == SEGMENT_BOTTOM
+
+    def test_up_bullet_destroys_entry_row(self, handler, mock_map):
+        """UP bullet destroys full bottom row (BL+BR) of sub-tile."""
+        tile = Tile(TileType.BRICK, 4, 4)
+        mock_map.get_tile_at.return_value = Tile(TileType.EMPTY, 5, 4)
+        bullet = self._bullet(Direction.UP, 66, 74)
+
+        handler.process_collisions([(bullet, tile)])
+
+        assert not bullet.active
+        assert tile.brick_segments == SEGMENT_TOP
+
+    def test_down_bullet_center_destroys_both_subtiles(self, handler, mock_map):
+        """DOWN bullet at column boundary → top row of both sub-tiles."""
+        tile = Tile(TileType.BRICK, 4, 4)
+        sibling = Tile(TileType.BRICK, 5, 4)
+        mock_map.get_tile_at.return_value = sibling
+        # Bullet straddles x=80 boundary
+        bullet = self._bullet(Direction.DOWN, 79, 64)
+
+        handler.process_collisions([(bullet, tile)])
+
+        assert not bullet.active
+        assert tile.brick_segments == SEGMENT_BOTTOM
+        assert sibling.brick_segments == SEGMENT_BOTTOM
+
+    def test_vertical_bullet_sibling_already_gone(self, handler, mock_map):
+        """If horizontal sibling is EMPTY, only hit sub-tile loses entry row."""
+        tile = Tile(TileType.BRICK, 4, 4)
+        mock_map.get_tile_at.return_value = Tile(TileType.EMPTY, 5, 4)
+        bullet = self._bullet(Direction.DOWN, 66, 64)
+
+        handler.process_collisions([(bullet, tile)])
+
+        assert tile.brick_segments == SEGMENT_BOTTOM
+
+    def test_vertical_bullet_entry_gone_passes_through(self, handler, mock_map):
+        """If entry row is gone, bullet destroys remaining row."""
+        tile = Tile(TileType.BRICK, 4, 4)
+        tile.remove_brick_segment(SEGMENT_TOP)  # top row destroyed
+        mock_map.get_tile_at.return_value = Tile(TileType.EMPTY, 5, 4)
+        bullet = self._bullet(Direction.DOWN, 66, 72)
+
+        handler.process_collisions([(bullet, tile)])
+
+        assert not bullet.active
+        assert tile.brick_segments == 0
+        mock_map.set_tile_type.assert_called_once_with(tile, TileType.EMPTY)
+
+    # -- Non-brick tiles --
 
     def test_bullet_stops_at_steel(self, handler, mock_map):
         bullet = MagicMock(spec=Bullet)
