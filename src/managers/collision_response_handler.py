@@ -5,7 +5,7 @@ from src.core.tank import Tank
 from src.core.player_tank import PlayerTank
 from src.core.enemy_tank import EnemyTank
 from src.core.tile import Tile, TileType, IMPASSABLE_TILE_TYPES
-from src.utils.constants import OwnerType
+from src.utils.constants import Direction, OwnerType
 from src.core.map import Map
 from src.states.game_state import GameState
 
@@ -149,7 +149,7 @@ class CollisionResponseHandler:
         if tile.type == TileType.BRICK:
             logger.debug(f"Bullet hit brick tile at ({tile.x}, {tile.y})")
             bullet.active = False
-            self._map.set_tile_type(tile, TileType.EMPTY)
+            self._destroy_brick_pair(tile, bullet.direction)
             return True
         elif tile.type == TileType.STEEL:
             logger.debug(f"Bullet hit steel tile at ({tile.x}, {tile.y})")
@@ -158,7 +158,7 @@ class CollisionResponseHandler:
         elif tile.type == TileType.BASE:
             logger.debug(f"Bullet hit base tile at ({tile.x}, {tile.y})")
             bullet.active = False
-            self._map.set_tile_type(tile, TileType.BASE_DESTROYED)
+            self._map.destroy_base_group(tile)
             self._set_game_state(GameState.GAME_OVER)
             return True
         return False
@@ -177,6 +177,29 @@ class CollisionResponseHandler:
         bullet_a.active = False
         bullet_b.active = False
         return True
+
+    def _destroy_brick_pair(self, tile: Tile, direction: Direction) -> None:
+        """Destroy a brick sub-tile and its directional sibling.
+
+        Matches NES behavior: a bullet destroys the two sub-tiles on the
+        entry side of a 2x2 brick group. UP/DOWN bullets destroy a
+        horizontal pair (same row). LEFT/RIGHT bullets destroy a vertical
+        pair (same column).
+        """
+        self._map.set_tile_type(tile, TileType.EMPTY)
+
+        # Find the sibling sub-tile perpendicular to bullet direction
+        if direction in (Direction.UP, Direction.DOWN):
+            # Horizontal pair: sibling is at x±1, same y
+            sibling_x = tile.x ^ 1  # toggle least significant bit
+            sibling = self._map.get_tile_at(sibling_x, tile.y)
+        else:
+            # Vertical pair: sibling is at same x, y±1
+            sibling_y = tile.y ^ 1  # toggle least significant bit
+            sibling = self._map.get_tile_at(tile.x, sibling_y)
+
+        if sibling and sibling.type == TileType.BRICK:
+            self._map.set_tile_type(sibling, TileType.EMPTY)
 
     def _handle_tank_vs_tank(
         self,

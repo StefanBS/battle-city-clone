@@ -233,7 +233,6 @@ class Tank(GameObject):
             snapped_x, snapped_y = self.x, self.y
 
             if self.direction == Direction.RIGHT:
-
                 snapped_x = float(obstacle_rect.left - self.width)
             elif self.direction == Direction.LEFT:
                 snapped_x = float(obstacle_rect.right)

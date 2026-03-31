@@ -1,7 +1,7 @@
 import pytest
 from loguru import logger
 from unittest.mock import patch
-from src.utils.constants import Direction, FPS, TILE_SIZE
+from src.utils.constants import Direction, FPS, TILE_SIZE, SUB_TILE_SIZE
 from src.core.tile import Tile, TileType
 from src.core.enemy_tank import EnemyTank
 import random
@@ -13,9 +13,10 @@ def test_enemy_spawning_rules(game_manager_fixture):
     """Test enemy spawning location, count, and limits."""
     game_manager = game_manager_fixture
 
-    # Convert spawn points (grid coords) to possible pixel coords for easy checking
+    # Convert spawn points (sub-tile grid coords) to possible pixel coords
     spawn_points_pixels = [
-        (gx * TILE_SIZE, gy * TILE_SIZE) for gx, gy in game_manager.spawn_manager.spawn_points
+        (gx * SUB_TILE_SIZE, gy * SUB_TILE_SIZE)
+        for gx, gy in game_manager.spawn_manager.spawn_points
     ]
 
     # --- 1. Initial Spawn Verification --- #
@@ -66,8 +67,7 @@ def test_enemy_spawning_rules(game_manager_fixture):
         game_manager.spawn_manager.enemy_tanks = []
 
         logger.debug(
-            f"Attempting spawn (Current total: "
-            f"{total_spawned_before}/{max_spawns})"
+            f"Attempting spawn (Current total: {total_spawned_before}/{max_spawns})"
         )
         spawn_success = game_manager.spawn_manager.spawn_enemy(
             game_manager.player_tank, game_manager.map
@@ -100,7 +100,9 @@ def test_enemy_spawning_rules(game_manager_fixture):
             )
 
     # Assert final counts after the while loop finishes
-    assert len(game_manager.spawn_manager.enemy_tanks) <= max_spawns, "Exceeded max on-screen enemies"
+    assert len(game_manager.spawn_manager.enemy_tanks) <= max_spawns, (
+        "Exceeded max on-screen enemies"
+    )
     assert game_manager.spawn_manager.total_enemy_spawns == max_spawns, (
         f"Expected total spawns {max_spawns} after filling limit, but got "
         f"{game_manager.spawn_manager.total_enemy_spawns}"
@@ -108,7 +110,9 @@ def test_enemy_spawning_rules(game_manager_fixture):
 
     # Attempt to spawn one more enemy beyond the limit
     logger.info("Attempting to spawn beyond max limit...")
-    spawn_success = game_manager.spawn_manager.spawn_enemy(game_manager.player_tank, game_manager.map)
+    spawn_success = game_manager.spawn_manager.spawn_enemy(
+        game_manager.player_tank, game_manager.map
+    )
 
     # Assert counts did NOT change and spawn failed
     assert not spawn_success, "Spawn succeeded unexpectedly beyond max limit."
@@ -130,7 +134,7 @@ def test_enemy_spawn_blocked(game_manager_fixture):
 
     spawn_points_grid = game_manager.spawn_manager.spawn_points
     spawn_points_pixels = [
-        (gx * TILE_SIZE, gy * TILE_SIZE) for gx, gy in spawn_points_grid
+        (gx * SUB_TILE_SIZE, gy * SUB_TILE_SIZE) for gx, gy in spawn_points_grid
     ]
     assert len(spawn_points_pixels) > 0, "No spawn points defined in GameManager."
 
@@ -166,7 +170,9 @@ def test_enemy_spawn_blocked(game_manager_fixture):
             break  # Stop if limit reached (unlikely if one is blocked)
 
         spawned_count_before = len(game_manager.spawn_manager.enemy_tanks)
-        spawn_success = game_manager.spawn_manager.spawn_enemy(game_manager.player_tank, game_manager.map)  # Attempt spawn
+        spawn_success = game_manager.spawn_manager.spawn_enemy(
+            game_manager.player_tank, game_manager.map
+        )  # Attempt spawn
         spawned_count_after = len(game_manager.spawn_manager.enemy_tanks)
 
         if spawn_success:
@@ -223,26 +229,26 @@ def test_enemy_movement_and_direction_change(
     game_manager.spawn_manager.enemy_tanks = []
     game_manager.spawn_manager.total_enemy_spawns = 0
     enemy_type = "basic"
-    start_x_grid, start_y_grid = 8, 8
-    start_x = start_x_grid * TILE_SIZE
-    start_y = start_y_grid * TILE_SIZE
+    start_x_grid, start_y_grid = 16, 16  # sub-tile grid coords
+    start_x = start_x_grid * SUB_TILE_SIZE
+    start_y = start_y_grid * SUB_TILE_SIZE
 
-    # Clear tiles around starting position so enemy can move in any direction
+    # Clear sub-tiles around starting position so enemy can move in any direction
     game_map = game_manager.map
-    for dy in range(-2, 3):
-        for dx in range(-2, 3):
+    for dy in range(-4, 6):
+        for dx in range(-4, 6):
             nx, ny = start_x_grid + dx, start_y_grid + dy
             if 0 <= nx < game_map.width and 0 <= ny < game_map.height:
                 tile = game_map.get_tile_at(nx, ny)
                 if tile and tile.type != TileType.EMPTY:
                     game_map.place_tile(
-                        nx, ny, Tile(TileType.EMPTY, nx, ny, TILE_SIZE)
+                        nx, ny, Tile(TileType.EMPTY, nx, ny, SUB_TILE_SIZE)
                     )
 
     # Use the original random.choice via side_effect for the __init__ call
     mock_choice.side_effect = lambda x: original_random_choice(x)
-    map_w_px = game_manager.map.width * TILE_SIZE
-    map_h_px = game_manager.map.height * TILE_SIZE
+    map_w_px = game_manager.map.width * SUB_TILE_SIZE
+    map_h_px = game_manager.map.height * SUB_TILE_SIZE
     enemy_tank = EnemyTank(
         start_x,
         start_y,
@@ -345,10 +351,10 @@ def test_enemy_movement_and_direction_change(
 @pytest.mark.parametrize(
     "move_direction, start_pos_offset",
     [
-        (Direction.UP, (0, 1)),  # Try moving UP, start 1 tile below
-        (Direction.DOWN, (0, -1)),  # Try moving DOWN, start 1 tile above
-        (Direction.LEFT, (1, 0)),  # Try moving LEFT, start 1 tile right
-        (Direction.RIGHT, (-1, 0)),  # Try moving RIGHT, start 1 tile left
+        (Direction.UP, (0, 1)),  # Try moving UP, start 1 tile below (2 sub-tiles)
+        (Direction.DOWN, (0, -1)),  # Try moving DOWN, start 1 tile above (2 sub-tiles)
+        (Direction.LEFT, (1, 0)),  # Try moving LEFT, start 1 tile right (2 sub-tiles)
+        (Direction.RIGHT, (-1, 0)),  # Try moving RIGHT, start 1 tile left (2 sub-tiles)
     ],
 )
 def test_enemy_movement_blocked_by_tile(
@@ -358,22 +364,28 @@ def test_enemy_movement_blocked_by_tile(
     game_manager = game_manager_fixture
     game_map = game_manager.map
 
-    # Define target tile location (use a known EMPTY spot)
-    target_x_grid = 10
-    target_y_grid = 10  # Changed from (7, 7) to avoid default water
+    # Define target tile location (sub-tile grid coords, use a known EMPTY spot)
+    target_x_grid = 20
+    target_y_grid = 20  # Changed from (7, 7) to avoid default water
 
-    # --- Place Blocking Tile --- #
-    if 0 <= target_y_grid < game_map.height and 0 <= target_x_grid < game_map.width:
-        # Ensure the target spot is initially empty
-        original_tile = game_map.get_tile_at(target_x_grid, target_y_grid)
-        assert original_tile is not None and original_tile.type == TileType.EMPTY, (
-            "Target location for blocking tile is not EMPTY in default map."
-        )
-
-        target_tile = Tile(blocking_tile_type, target_x_grid, target_y_grid, TILE_SIZE)
-        game_map.place_tile(target_x_grid, target_y_grid, target_tile)
+    # --- Place Blocking Tile (2x2 sub-tile block = 1 full tile) --- #
+    if (
+        0 <= target_y_grid + 1 < game_map.height
+        and 0 <= target_x_grid + 1 < game_map.width
+    ):
+        for dy in range(2):
+            for dx in range(2):
+                sx, sy = target_x_grid + dx, target_y_grid + dy
+                original_tile = game_map.get_tile_at(sx, sy)
+                assert (
+                    original_tile is not None and original_tile.type == TileType.EMPTY
+                ), (
+                    f"Target location ({sx}, {sy}) for blocking tile is not EMPTY in default map."
+                )
+                tile = Tile(blocking_tile_type, sx, sy, SUB_TILE_SIZE)
+                game_map.place_tile(sx, sy, tile)
         logger.debug(
-            f"Placed blocking {blocking_tile_type.name} tile at "
+            f"Placed blocking {blocking_tile_type.name} 2x2 block at "
             f"({target_x_grid}, {target_y_grid})"
         )
     else:
@@ -387,11 +399,12 @@ def test_enemy_movement_blocked_by_tile(
     # Clear existing enemies
     game_manager.spawn_manager.enemy_tanks = []
     game_manager.spawn_manager.total_enemy_spawns = 0
-    # Calculate start position
-    start_grid_x = target_x_grid + start_pos_offset[0]
-    start_grid_y = target_y_grid + start_pos_offset[1]
-    start_x = start_grid_x * TILE_SIZE
-    start_y = start_grid_y * TILE_SIZE
+    # Calculate start position: tank (32px) placed flush against 2x2 tile block (32px)
+    # Offsets are in tank-size units (2 sub-tiles)
+    start_grid_x = target_x_grid + start_pos_offset[0] * 2
+    start_grid_y = target_y_grid + start_pos_offset[1] * 2
+    start_x = start_grid_x * SUB_TILE_SIZE
+    start_y = start_grid_y * SUB_TILE_SIZE
 
     # Ensure start position is within bounds and EMPTY
     if not (0 <= start_grid_y < game_map.height and 0 <= start_grid_x < game_map.width):
@@ -399,21 +412,23 @@ def test_enemy_movement_blocked_by_tile(
             f"Calculated enemy start pos ({start_grid_x}, {start_grid_y}) "
             f"is out of bounds. Skipping."
         )
-    start_tile = game_map.get_tile_at(start_grid_x, start_grid_y)
-    # Ensure start tile is EMPTY (clear it if not, since we control the test area)
-    if start_tile is not None and start_tile.type != TileType.EMPTY:
-        game_map.place_tile(
-            start_grid_x,
-            start_grid_y,
-            Tile(TileType.EMPTY, start_grid_x, start_grid_y, TILE_SIZE),
-        )
-        logger.debug(
-            f"Cleared start tile ({start_grid_x}, {start_grid_y}) to EMPTY."
-        )
+    # Clear the 2x2 sub-tile area for the enemy
+    for dy in range(2):
+        for dx in range(2):
+            sx, sy = start_grid_x + dx, start_grid_y + dy
+            if 0 <= sx < game_map.width and 0 <= sy < game_map.height:
+                start_tile = game_map.get_tile_at(sx, sy)
+                if start_tile is not None and start_tile.type != TileType.EMPTY:
+                    game_map.place_tile(
+                        sx,
+                        sy,
+                        Tile(TileType.EMPTY, sx, sy, SUB_TILE_SIZE),
+                    )
+    logger.debug(f"Cleared start area ({start_grid_x}, {start_grid_y}) to EMPTY.")
 
     # Spawn the enemy
-    map_w_px = game_manager.map.width * TILE_SIZE
-    map_h_px = game_manager.map.height * TILE_SIZE
+    map_w_px = game_manager.map.width * SUB_TILE_SIZE
+    map_h_px = game_manager.map.height * SUB_TILE_SIZE
     enemy_tank = EnemyTank(
         start_x,
         start_y,
@@ -464,12 +479,12 @@ def test_enemy_shooting(game_manager_fixture):
     game_manager.spawn_manager.enemy_tanks = []
     game_manager.spawn_manager.total_enemy_spawns = 0
     enemy_type = "basic"  # Basic shoot_interval is 2.0s
-    start_x_grid, start_y_grid = 8, 8
-    start_x = start_x_grid * TILE_SIZE
-    start_y = start_y_grid * TILE_SIZE
+    start_x_grid, start_y_grid = 16, 16  # sub-tile grid coords
+    start_x = start_x_grid * SUB_TILE_SIZE
+    start_y = start_y_grid * SUB_TILE_SIZE
 
-    map_w_px = game_manager.map.width * TILE_SIZE
-    map_h_px = game_manager.map.height * TILE_SIZE
+    map_w_px = game_manager.map.width * SUB_TILE_SIZE
+    map_h_px = game_manager.map.height * SUB_TILE_SIZE
     enemy_tank = EnemyTank(
         start_x,
         start_y,
@@ -513,8 +528,7 @@ def test_enemy_shooting(game_manager_fixture):
 
         # Check if an enemy bullet appeared in game_manager.bullets
         enemy_bullets = [
-            b for b in game_manager.bullets
-            if b.owner_type == "enemy" and b.active
+            b for b in game_manager.bullets if b.owner_type == "enemy" and b.active
         ]
         if not bullet_fired and len(enemy_bullets) > 0:
             bullet_fired = True

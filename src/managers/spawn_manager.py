@@ -8,7 +8,7 @@ from src.core.enemy_tank import EnemyTank
 from src.core.map import Map
 from src.core.player_tank import PlayerTank
 from src.managers.texture_manager import TextureManager
-from src.utils.constants import TankType
+from src.utils.constants import SUB_TILE_SIZE, TankType
 from src.utils.level_data import STAGE_ENEMIES
 
 
@@ -88,10 +88,10 @@ class SpawnManager:
             logger.trace("Max enemy spawns reached, skipping spawn.")
             return False
 
-        # Get a random spawn point
+        # Get a random spawn point (spawn coords are in sub-tile units)
         spawn_grid_x, spawn_grid_y = random.choice(self.spawn_points)
-        x: int = spawn_grid_x * self.tile_size
-        y: int = spawn_grid_y * self.tile_size
+        x: int = spawn_grid_x * SUB_TILE_SIZE
+        y: int = spawn_grid_y * SUB_TILE_SIZE
 
         # Check if the spawn point is clear
         temp_rect = pygame.Rect(x, y, self.tile_size, self.tile_size)
@@ -160,8 +160,4 @@ class SpawnManager:
 
     def all_enemies_defeated(self) -> bool:
         """Check if all enemies have been spawned and destroyed."""
-        return (
-            not self.enemy_tanks
-            and self.total_enemy_spawns >= self.max_enemy_spawns
-        )
-
+        return not self.enemy_tanks and self.total_enemy_spawns >= self.max_enemy_spawns

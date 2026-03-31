@@ -57,9 +57,9 @@ class GameManager:
         # Map
         self.map: Map = Map("assets/maps/level_01.tmx", self.texture_manager)
 
-        # Compute map pixel dimensions
-        map_width_px: int = self.map.width * self.tile_size
-        map_height_px: int = self.map.height * self.tile_size
+        # Compute map pixel dimensions (sub-tile grid * sub-tile size)
+        map_width_px: int = self.map.width * self.map.tile_size
+        map_height_px: int = self.map.height * self.map.tile_size
 
         # Collision response handler
         self.collision_response_handler: CollisionResponseHandler = (
@@ -69,9 +69,9 @@ class GameManager:
             )
         )
 
-        # Player tank
-        start_x: int = self.map.player_spawn[0] * self.tile_size
-        start_y: int = self.map.player_spawn[1] * self.tile_size
+        # Player tank (spawn coords are in sub-tile units)
+        start_x: int = self.map.player_spawn[0] * self.map.tile_size
+        start_y: int = self.map.player_spawn[1] * self.map.tile_size
         self.player_tank: PlayerTank = PlayerTank(
             start_x,
             start_y,
@@ -133,9 +133,7 @@ class GameManager:
 
         # --- Prepare data for Collision Manager ---
         destructible_tiles: List[Tile] = self.map.get_tiles_by_type([TileType.BRICK])
-        impassable_tiles: List[Tile] = self.map.get_tiles_by_type(
-            IMPASSABLE_TILE_TYPES
-        )
+        impassable_tiles: List[Tile] = self.map.get_tiles_by_type(IMPASSABLE_TILE_TYPES)
         player_base: Optional[Tile] = self.map.get_base()
 
         player_bullets = [
@@ -179,9 +177,7 @@ class GameManager:
         )
 
         events = self.collision_manager.get_collision_events()
-        enemies_to_remove = self.collision_response_handler.process_collisions(
-            events
-        )
+        enemies_to_remove = self.collision_response_handler.process_collisions(events)
         for enemy in enemies_to_remove:
             self.spawn_manager.remove_enemy(enemy)
 

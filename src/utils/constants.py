@@ -68,7 +68,8 @@ FPS: int = 60
 
 # Grid settings
 SOURCE_TILE_SIZE: int = 8  # Original size for loading sprites
-TILE_SIZE: int = 32  # Game logic uses 32x32 tiles
+SUB_TILE_SIZE: int = 16  # Sub-tile size for the internal grid (brick segments)
+TILE_SIZE: int = 32  # Entity size (tanks) and visual tile size
 
 # Logical surface (fixed size, map centered inside with gray border)
 LOGICAL_WIDTH: int = 512
