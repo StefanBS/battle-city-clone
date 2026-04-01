@@ -17,7 +17,7 @@ battle-city-clone/
 │   │   └── map.py                  # Map loading and tile grid management
 │   │
 │   ├── managers/                   # Game systems
-│   │   ├── game_manager.py         # Main loop, spawning, collision dispatch
+│   │   ├── game_manager.py         # Main loop, orchestration, collision dispatch
 │   │   ├── collision_manager.py    # Collision detection and event queuing
 │   │   ├── collision_response_handler.py  # Collision outcome processing
 │   │   ├── spawn_manager.py        # Enemy wave spawning logic
@@ -34,7 +34,7 @@ battle-city-clone/
 │
 ├── assets/
 │   ├── sprites/                    # Sprite sheets (sprites.png atlas)
-│   ├── sounds/                     # Sound effects and music
+│   ├── sounds/                     # Sound effects and music (placeholder)
 │   └── maps/                       # TMX level map files
 │
 ├── tests/
@@ -50,7 +50,15 @@ battle-city-clone/
 └── README.md
 ```
 
+## Controls
+
+- Arrow keys to move
+- Space to shoot
+- Defend your base from enemy tanks
+
 ## Setup
+
+Requires Python 3.12+.
 
 1. Install [uv](https://docs.astral.sh/uv/) (if not already installed):
 ```bash
