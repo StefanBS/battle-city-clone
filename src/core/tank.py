@@ -12,6 +12,7 @@ from src.utils.constants import (
     TANK_WIDTH,
     TANK_HEIGHT,
     TANK_ANIMATION_DISTANCE,
+    TANK_ALIGN_THRESHOLD,
     BULLET_WIDTH,
     BULLET_HEIGHT,
     BULLET_SPEED,
@@ -180,6 +181,22 @@ class Tank(GameObject):
         """Called when the tank collides with a wall tile. No-op by default."""
         pass
 
+    def _align_to_grid(self, value: float, dt: float) -> float:
+        """Nudge a coordinate toward the nearest TILE_SIZE grid line.
+
+        If the offset is within TANK_ALIGN_THRESHOLD, move toward the grid
+        line at the tank's speed so the correction feels natural.
+        """
+        nearest = round(value / TILE_SIZE) * TILE_SIZE
+        offset = nearest - value
+        if abs(offset) > TANK_ALIGN_THRESHOLD:
+            return value
+        # Move toward the grid line, but don't overshoot
+        max_step = self.speed * dt
+        if abs(offset) <= max_step:
+            return float(nearest)
+        return value + max_step * (1.0 if offset > 0 else -1.0)
+
     def _move(self, dx: int, dy: int, dt: float) -> bool:
         """
         Attempt to move the tank by updating its position.
@@ -198,6 +215,12 @@ class Tank(GameObject):
 
         if dx == 0 and dy == 0:
             return False  # No movement requested
+
+        # Steering assist: nudge perpendicular axis toward grid alignment
+        if dx != 0:
+            self.y = self._align_to_grid(self.y, dt)
+        else:
+            self.x = self._align_to_grid(self.x, dt)
 
         # Calculate target position
         target_x = self.x + dx * self.speed * dt

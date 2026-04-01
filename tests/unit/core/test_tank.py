@@ -5,6 +5,7 @@ from src.utils.constants import (
     Direction,
     TILE_SIZE,
     TANK_SPEED,
+    TANK_ALIGN_THRESHOLD,
     BULLET_WIDTH,
     BULLET_HEIGHT,
     FPS,
@@ -120,10 +121,11 @@ class TestTank:
         assert tank.y == 0
 
         # Move again without any timer reset needed
+        # Steering assist nudges x toward nearest grid line (0) when moving vertically
         tank.prev_x = tank.x
         tank.prev_y = tank.y
         assert tank._move(0, 1, dt)
-        assert tank.x == pytest.approx(TANK_SPEED * dt)
+        assert tank.x == pytest.approx(0.0)
         assert tank.y == pytest.approx(TANK_SPEED * dt)
 
     def test_move_edge_cases(self, tank):
@@ -146,6 +148,49 @@ class TestTank:
         # Position should not change after failed diagonal attempt
         assert tank.x == 0
         assert tank.y == 0
+
+    @staticmethod
+    def _offset_tank(tank, x=None, y=None):
+        """Set tank position after init (bypasses constructor grid snap)."""
+        if x is not None:
+            tank.x = float(x)
+        if y is not None:
+            tank.y = float(y)
+        tank.rect.topleft = (round(tank.x), round(tank.y))
+
+    def test_steering_assist_nudges_within_threshold(self, create_tank):
+        """Moving horizontally nudges Y toward nearest grid line."""
+        tank = create_tank(x=0, y=0)
+        self._offset_tank(tank, y=TILE_SIZE + 5)
+        dt = 1.0 / FPS
+        tank._move(1, 0, dt)
+        assert tank.y < TILE_SIZE + 5
+
+    def test_steering_assist_snaps_when_close(self, create_tank):
+        """Small offset snaps exactly to grid in one frame."""
+        tank = create_tank(x=0, y=0)
+        self._offset_tank(tank, y=TILE_SIZE + 1)
+        dt = 1.0 / FPS
+        tank._move(1, 0, dt)
+        assert tank.y == pytest.approx(float(TILE_SIZE))
+
+    def test_steering_assist_ignores_beyond_threshold(self, create_tank):
+        """Offset beyond threshold is not corrected."""
+        tank = create_tank(x=0, y=0)
+        offset = TANK_ALIGN_THRESHOLD + 1
+        self._offset_tank(tank, y=TILE_SIZE + offset)
+        dt = 1.0 / FPS
+        tank._move(1, 0, dt)
+        assert tank.y == pytest.approx(TILE_SIZE + offset)
+
+    def test_steering_assist_vertical_nudges_x(self, create_tank):
+        """Moving vertically nudges X toward nearest grid line."""
+        tank = create_tank(x=0, y=0)
+        self._offset_tank(tank, x=TILE_SIZE + 3)
+        dt = 1.0 / FPS
+        tank._move(0, 1, dt)
+        # X should move toward TILE_SIZE but may not arrive in one frame
+        assert tank.x < TILE_SIZE + 3
 
     @pytest.mark.parametrize(
         "start_x,start_y,dx,dy",

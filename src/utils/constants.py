@@ -91,6 +91,7 @@ TANK_SPEED: float = 80  # pixels per second (was 12 px/step)
 TANK_WIDTH: int = TILE_SIZE
 TANK_HEIGHT: int = TILE_SIZE
 TANK_ANIMATION_DISTANCE: float = 4  # pixels traveled between animation frame toggles
+TANK_ALIGN_THRESHOLD: float = 8.0  # max px offset for steering assist (half a sub-tile)
 
 # Brick segment bitmask constants (each sub-tile has 4 quadrants, 8x8 each)
 SEGMENT_TOP_LEFT: int = 0b0001
