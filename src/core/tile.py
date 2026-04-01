@@ -41,9 +41,6 @@ IMPASSABLE_TILE_TYPES = frozenset(
     {TileType.BRICK, TileType.STEEL, TileType.WATER, TileType.BASE}
 )
 
-# Tile types that render at full TILE_SIZE from the top-left sub-tile only
-_FULL_SIZE_TILE_TYPES = frozenset({TileType.BASE, TileType.BASE_DESTROYED})
-
 
 class Tile:
     """Represents a single sub-tile (16x16) in the game map.
@@ -70,6 +67,8 @@ class Tile:
         y: int,
         size: int = SUB_TILE_SIZE,
         is_group_primary: bool = False,
+        group_dx: int = 0,
+        group_dy: int = 0,
     ) -> None:
         logger.trace(f"Creating Tile ({tile_type.name}) at grid ({x}, {y})")
         self.type = tile_type
@@ -78,6 +77,14 @@ class Tile:
         self.size = size
         self.rect = pygame.Rect(x * size, y * size, size, size)
         self.is_group_primary = is_group_primary
+        # 2x2 group siblings (set by Map._place_tile_group)
+        self.group_tiles: List["Tile"] = []
+        # Source rect for this sub-tile's quarter within the full sprite
+        self._sub_tile_source_rect: pygame.Rect = pygame.Rect(
+            group_dx * size, group_dy * size, size, size
+        )
+        # False once any sibling takes damage; avoids per-frame group scan
+        self._group_intact: bool = True
 
         # Brick segment tracking: each sub-tile has 4 quadrants (8x8 each)
         self.brick_segments: int = SEGMENT_FULL if tile_type == TileType.BRICK else 0
@@ -128,6 +135,8 @@ class Tile:
         If all segments are gone the tile should be set to EMPTY by the caller.
         """
         self.brick_segments &= ~segment
+        for t in self.group_tiles:
+            t._group_intact = False
         if self.brick_segments == 0 or self.brick_segments == SEGMENT_FULL:
             self._segment_draw_cache = []
             return
@@ -147,8 +156,10 @@ class Tile:
                 max_x = max(max_x, sx + BRICK_SEGMENT_SIZE)
                 max_y = max(max_y, sy + BRICK_SEGMENT_SIZE)
                 s = BRICK_SEGMENT_SIZE
+                src_x = self._sub_tile_source_rect.x + dx
+                src_y = self._sub_tile_source_rect.y + dy
                 draw_cache.append(
-                    ((sx, sy), pygame.Rect(dx, dy, s, s))
+                    ((sx, sy), pygame.Rect(src_x, src_y, s, s))
                 )
         self.rect = pygame.Rect(min_x, min_y, max_x - min_x, max_y - min_y)
         self._segment_draw_cache = draw_cache
@@ -166,18 +177,20 @@ class Tile:
         if not sprite_name:
             return
 
-        # Base/base_destroyed: only the group primary renders, at full TILE_SIZE
-        if self.type in _FULL_SIZE_TILE_TYPES:
+        sprite = texture_manager.get_sprite(sprite_name)
+
+        if self.type == TileType.BRICK:
+            if self._segment_draw_cache:
+                for dest, source_rect in self._segment_draw_cache:
+                    surface.blit(sprite, dest, source_rect)
+            elif self._group_intact:
+                if not self.is_group_primary:
+                    return
+                surface.blit(sprite, self.rect.topleft)
+            else:
+                # Sibling damaged — render only our quarter of the full sprite
+                surface.blit(sprite, self.rect.topleft, self._sub_tile_source_rect)
+        else:
             if not self.is_group_primary:
                 return
-            sprite = texture_manager.get_sprite(sprite_name)
-            surface.blit(sprite, self.rect.topleft)
-        elif self.type == TileType.BRICK and self._segment_draw_cache:
-            # Partial brick: blit pre-computed quadrants
-            sprite = texture_manager.get_sub_sprite(sprite_name)
-            for dest, source_rect in self._segment_draw_cache:
-                surface.blit(sprite, dest, source_rect)
-        else:
-            # All other tiles render at sub-tile size
-            sprite = texture_manager.get_sub_sprite(sprite_name)
             surface.blit(sprite, self.rect.topleft)

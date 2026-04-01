@@ -79,25 +79,42 @@ class TestTileDraw:
         return MagicMock(spec=pygame.Surface)
 
     def test_draw_animated_tile(self, mock_surface, mock_tm):
-        """Test that animated tile uses current frame sub-sprite."""
-        tile = Tile(TileType.WATER, 0, 0)
+        """Test that animated primary tile uses current frame full sprite."""
+        tile = Tile(TileType.WATER, 0, 0, is_group_primary=True)
         tile.draw(mock_surface, mock_tm)
-        mock_tm.get_sub_sprite.assert_called_once_with("water_1")
+        mock_tm.get_sprite.assert_called_once_with("water_1")
         mock_surface.blit.assert_called_once()
 
     def test_draw_animated_tile_second_frame(self, mock_surface, mock_tm):
-        """Test animated tile after frame advance uses next sub-sprite."""
-        tile = Tile(TileType.WATER, 0, 0)
+        """Test animated primary tile after frame advance uses next full sprite."""
+        tile = Tile(TileType.WATER, 0, 0, is_group_primary=True)
         tile.update(TILE_ANIMATION_INTERVAL)  # advance to frame 1
         tile.draw(mock_surface, mock_tm)
-        mock_tm.get_sub_sprite.assert_called_once_with("water_2")
+        mock_tm.get_sprite.assert_called_once_with("water_2")
 
     def test_draw_static_tile(self, mock_surface, mock_tm):
-        """Test that static tile uses SPRITE_NAME_MAP lookup via sub-sprite."""
-        tile = Tile(TileType.BRICK, 0, 0)
+        """Test that primary brick tile uses full-size sprite."""
+        tile = Tile(TileType.BRICK, 0, 0, is_group_primary=True)
         tile.draw(mock_surface, mock_tm)
-        mock_tm.get_sub_sprite.assert_called_once_with("brick")
+        mock_tm.get_sprite.assert_called_once_with("brick")
         mock_surface.blit.assert_called_once()
+
+    def test_draw_intact_brick_in_damaged_group(self, mock_surface, mock_tm):
+        """Intact non-primary brick in damaged group blits its quarter."""
+        tile = Tile(TileType.BRICK, 1, 0, group_dx=1, group_dy=0)
+        tile._group_intact = False
+        tile.draw(mock_surface, mock_tm)
+        mock_surface.blit.assert_called_once()
+        source_rect = mock_surface.blit.call_args[0][2]
+        assert source_rect == pygame.Rect(
+            SUB_TILE_SIZE, 0, SUB_TILE_SIZE, SUB_TILE_SIZE
+        )
+
+    def test_draw_non_primary_does_not_blit(self, mock_surface, mock_tm):
+        """Test that non-primary sub-tile does not blit."""
+        tile = Tile(TileType.STEEL, 1, 0, is_group_primary=False)
+        tile.draw(mock_surface, mock_tm)
+        mock_surface.blit.assert_not_called()
 
     def test_draw_base_primary_uses_full_sprite(self, mock_surface, mock_tm):
         """Test that base primary sub-tile uses full-size sprite."""
@@ -106,12 +123,10 @@ class TestTileDraw:
         mock_tm.get_sprite.assert_called_once_with("base")
         mock_surface.blit.assert_called_once()
 
-    def test_draw_base_non_primary_does_nothing(self, mock_surface, mock_tm):
-        """Test that non-primary base sub-tile does not render."""
+    def test_draw_base_non_primary_does_not_blit(self, mock_surface, mock_tm):
+        """Test that non-primary base sub-tile does not blit."""
         tile = Tile(TileType.BASE, 1, 0, is_group_primary=False)
         tile.draw(mock_surface, mock_tm)
-        mock_tm.get_sprite.assert_not_called()
-        mock_tm.get_sub_sprite.assert_not_called()
         mock_surface.blit.assert_not_called()
 
     def test_draw_empty_tile_no_blit(self, mock_surface, mock_tm):
@@ -127,7 +142,7 @@ class TestTileDraw:
         tile = Tile(TileType.BRICK, 2, 3)
         tile.remove_brick_segment(SEGMENT_TOP_RIGHT)
         tile.draw(mock_surface, mock_tm)
-        mock_tm.get_sub_sprite.assert_called_once_with("brick")
+        mock_tm.get_sprite.assert_called_once_with("brick")
         # Should blit 3 remaining quadrants
         assert mock_surface.blit.call_count == 3
 
