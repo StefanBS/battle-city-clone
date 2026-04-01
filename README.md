@@ -6,55 +6,55 @@ A Python and Pygame implementation of the classic NES game Battle City.
 
 ```
 battle-city-clone/
-├── src/                    # Source code
-│   ├── __init__.py
-│   ├── core/              # Core game mechanics and systems
-│   │   ├── __init__.py
-│   │   ├── game_object.py # Base GameObject class
-│   │   ├── tank.py        # Tank base class
-│   │   ├── player_tank.py # Player-controlled tank
-│   │   ├── enemy_tank.py  # AI-controlled tank
-│   │   ├── bullet.py      # Bullet implementation
-│   │   ├── tile.py        # Tile types and implementation
-│   │   └── map.py         # Map management
+├── src/
+│   ├── core/                       # Game entities
+│   │   ├── game_object.py          # Base class (position, rect, draw, update)
+│   │   ├── tank.py                 # Tank base (movement, shooting, health)
+│   │   ├── player_tank.py          # Player-controlled tank (input, respawn, lives)
+│   │   ├── enemy_tank.py           # AI-controlled tank (4 types: basic/fast/power/armor)
+│   │   ├── bullet.py               # Bullet (directional movement, bounds checking)
+│   │   ├── tile.py                 # Tile types and behavior
+│   │   └── map.py                  # Map loading and tile grid management
 │   │
-│   ├── managers/          # Game managers
-│   │   ├── game_manager.py
-│   │   └── input_handler.py
+│   ├── managers/                   # Game systems
+│   │   ├── game_manager.py         # Main loop, spawning, collision dispatch
+│   │   ├── collision_manager.py    # Collision detection and event queuing
+│   │   ├── collision_response_handler.py  # Collision outcome processing
+│   │   ├── spawn_manager.py        # Enemy wave spawning logic
+│   │   ├── renderer.py             # Rendering pipeline (logical → display surface)
+│   │   ├── texture_manager.py      # Sprite atlas slicing and caching
+│   │   └── input_handler.py        # Keyboard input mapping
 │   │
-│   ├── states/            # Game states
-│   │   └── game_state.py  # Game state enum
+│   ├── states/
+│   │   └── game_state.py           # GameState enum (RUNNING, GAME_OVER, VICTORY, EXIT)
 │   │
-│   ├── utils/             # Utility functions and helpers
-│   │   └── constants.py   # Game constants
-│   │
-│   └── main.py            # Entry point
+│   └── utils/
+│       ├── constants.py            # Sizes, speeds, grid dimensions, colors
+│       └── level_data.py           # Level definitions
 │
-├── assets/                # Game assets
-│   ├── sprites/          # Sprite sheets and images
-│   ├── sounds/           # Sound effects and music
-│   └── maps/             # Level map files
+├── assets/
+│   ├── sprites/                    # Sprite sheets (sprites.png atlas)
+│   ├── sounds/                     # Sound effects and music
+│   └── maps/                       # TMX level map files
 │
-├── tests/                # Test files
-│   ├── __init__.py
-│   ├── core/            # Core component tests
-│   ├── managers/        # Manager tests
-│   ├── integration/     # Integration tests
-│   └── utils/          # Utility tests
+├── tests/
+│   ├── conftest.py                 # Shared fixtures
+│   ├── unit/
+│   │   ├── conftest.py             # pygame_init (session-scoped, SDL dummy driver)
+│   │   ├── core/                   # Entity unit tests
+│   │   └── managers/               # Manager unit tests
+│   └── integration/                # End-to-end tests with real objects
 │
-├── pyproject.toml        # Project configuration and dependencies
-└── README.md            # This file
+├── main.py                         # Entry point
+├── pyproject.toml                  # Project configuration and dependencies
+└── README.md
 ```
 
-## Setup Instructions
+## Setup
 
-1. Install `uv` (if not already installed):
+1. Install [uv](https://docs.astral.sh/uv/) (if not already installed):
 ```bash
-# Using curl
 curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Or using pip
-pip install uv
 ```
 
 2. Create and activate a virtual environment:
@@ -65,7 +65,7 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
 3. Install dependencies:
 ```bash
-uv pip install -e .
+uv pip install -e ".[dev]"
 ```
 
 4. Run the game:
@@ -75,22 +75,23 @@ python main.py
 
 ## Testing
 
-The project uses pytest for testing. To run the tests:
-
 ```bash
 # Run all tests
 pytest
 
-# Run tests with coverage report
+# Run tests with coverage
 pytest --cov=src
 
-# Run specific test file
-pytest tests/managers/test_game_manager.py
+# Run a specific test file
+pytest tests/unit/core/test_tank.py
 
-# Run tests matching a pattern
-pytest -k "test_bullet"
+# Run a specific test
+pytest tests/unit/core/test_tank.py::TestTank::test_shoot
 ```
 
-Tests are organized into:
-- Unit tests: Test individual components in isolation
-- Integration tests: Test interactions between components
+## Linting and Formatting
+
+```bash
+ruff check src/ tests/
+ruff format src/ tests/
+```
