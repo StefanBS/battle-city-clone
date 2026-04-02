@@ -77,6 +77,7 @@ class TestRendererRender:
                 mock_player,
                 [mock_enemy1, mock_enemy2],
                 [mock_bullet1, mock_bullet2],
+                [],
                 GameState.RUNNING,
             )
 
@@ -101,7 +102,7 @@ class TestRendererRender:
             patch("pygame.display.flip"),
         ):
             mock_scale.return_value = MagicMock()
-            renderer.render(mock_map, mock_player, [], [], GameState.GAME_OVER)
+            renderer.render(mock_map, mock_player, [], [], [], GameState.GAME_OVER)
 
         mock_draw_go.assert_called_once()
         mock_draw_v.assert_not_called()
@@ -120,7 +121,7 @@ class TestRendererRender:
             patch("pygame.display.flip"),
         ):
             mock_scale.return_value = MagicMock()
-            renderer.render(mock_map, mock_player, [], [], GameState.VICTORY)
+            renderer.render(mock_map, mock_player, [], [], [], GameState.VICTORY)
 
         mock_draw_v.assert_called_once()
         mock_draw_go.assert_not_called()
@@ -139,7 +140,7 @@ class TestRendererRender:
             patch("pygame.display.flip"),
         ):
             mock_scale.return_value = MagicMock()
-            renderer.render(mock_map, mock_player, [], [], GameState.RUNNING)
+            renderer.render(mock_map, mock_player, [], [], [], GameState.RUNNING)
 
         mock_draw_go.assert_not_called()
         mock_draw_v.assert_not_called()
@@ -157,7 +158,7 @@ class TestRendererRender:
             patch("pygame.display.flip") as mock_flip,
         ):
             mock_scale.return_value = mock_scaled
-            renderer.render(mock_map, mock_player, [], [], GameState.RUNNING)
+            renderer.render(mock_map, mock_player, [], [], [], GameState.RUNNING)
 
         mock_scale.assert_called_once_with(
             renderer.game_surface, (1024, 1024), renderer._scaled_surface
@@ -183,7 +184,7 @@ class TestRendererHUD:
             patch("pygame.display.flip"),
         ):
             mock_scale.return_value = MagicMock()
-            renderer.render(mock_map, mock_player, [], [], GameState.RUNNING)
+            renderer.render(mock_map, mock_player, [], [], [], GameState.RUNNING)
 
         # small_font.render should be called twice: lives + invincibility
         assert renderer.small_font.render.call_count == 2

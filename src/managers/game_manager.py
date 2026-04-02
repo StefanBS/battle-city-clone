@@ -191,6 +191,8 @@ class GameManager:
         for enemy in enemies_to_remove:
             self.spawn_manager.remove_enemy(enemy)
 
+        self.effect_manager.update(dt)
+
         if self.state == GameState.RUNNING:
             if self.spawn_manager.all_enemies_defeated():
                 logger.info("All enemies defeated. Victory!")
@@ -216,6 +218,7 @@ class GameManager:
             self.player_tank,
             self.spawn_manager.enemy_tanks,
             self.bullets,
+            self.effect_manager.effects,
             self.state,
         )
 
