@@ -198,16 +198,6 @@ class CollisionResponseHandler:
         logger.debug("Bullet hit bullet. Both deactivated.")
         bullet_a.active = False
         bullet_b.active = False
-        self._effect_manager.spawn(
-            EffectType.SMALL_EXPLOSION,
-            float(bullet_a.rect.centerx),
-            float(bullet_a.rect.centery),
-        )
-        self._effect_manager.spawn(
-            EffectType.SMALL_EXPLOSION,
-            float(bullet_b.rect.centerx),
-            float(bullet_b.rect.centery),
-        )
         return True
 
     def _destroy_brick_segments(self, tile: Tile, bullet: Bullet) -> None:

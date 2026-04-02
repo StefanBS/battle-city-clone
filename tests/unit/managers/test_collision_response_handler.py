@@ -578,7 +578,7 @@ class TestExplosionEffects:
             EffectType.LARGE_EXPLOSION, 116.0, 116.0
         )
 
-    def test_bullet_vs_bullet_spawns_two_small_explosions(
+    def test_bullet_vs_bullet_no_explosion(
         self, handler, mock_effect_manager
     ):
         b1 = MagicMock(spec=Bullet)
@@ -590,7 +590,7 @@ class TestExplosionEffects:
         b2.owner = MagicMock()
         b2.rect = pygame.Rect(52, 50, 2, 2)
         handler.process_collisions([(b1, b2)])
-        assert mock_effect_manager.spawn.call_count == 2
+        mock_effect_manager.spawn.assert_not_called()
 
     def test_player_destroyed_spawns_large_explosion(
         self, handler, mock_player, mock_effect_manager
