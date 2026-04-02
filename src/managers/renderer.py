@@ -129,7 +129,9 @@ class Renderer:
         self.game_surface.blit(lives_text, (10, 10))
 
         # Draw score
-        score_text = self.small_font.render(f"Score: {score}", True, WHITE)
+        score_text = self.small_font.render(
+            f"Score: {score:>6}", True, WHITE
+        )
         score_rect = score_text.get_rect(topright=(self.logical_width - 10, 10))
         self.game_surface.blit(score_text, score_rect)
 
