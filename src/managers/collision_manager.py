@@ -51,7 +51,7 @@ class CollisionManager:
         # Bullet collisions
         self._check_group_vs_group(player_bullets, enemy_tanks)
         self._check_group_vs_group(player_bullets, destructible_tiles)
-        self._check_group_vs_group(player_bullets, enemy_bullets)
+        self._check_bullet_vs_bullet(player_bullets, enemy_bullets)
         self._check_group_vs_group(player_bullets, impassable_tiles)
         self._check_group_vs_group(enemy_bullets, destructible_tiles)
         self._check_group_vs_group(enemy_bullets, impassable_tiles)
@@ -78,6 +78,24 @@ class CollisionManager:
                 if obj_a.rect.colliderect(obj_b.rect):
                     self._queue_collision(obj_a, obj_b)
 
+    def _check_bullet_vs_bullet(
+        self,
+        group_a: Sequence[Collidable],
+        group_b: Sequence[Collidable],
+    ) -> None:
+        """Check bullet-vs-bullet collisions using swept rects to prevent tunneling.
+
+        Swept rects cover both the previous and current positions of each
+        bullet, so fast-moving bullets heading towards each other cannot
+        pass through one another between frames.
+        """
+        for bullet_a in group_a:
+            rect_a = self._get_swept_rect(bullet_a)
+            for bullet_b in group_b:
+                rect_b = self._get_swept_rect(bullet_b)
+                if rect_a.colliderect(rect_b):
+                    self._queue_collision(bullet_a, bullet_b)
+
     def _check_group_vs_single(
         self,
         group: Sequence[Collidable],
@@ -94,6 +112,14 @@ class CollisionManager:
             for obj_b in group[i + 1 :]:
                 if obj_a.rect.colliderect(obj_b.rect):
                     self._queue_collision(obj_a, obj_b)
+
+    @staticmethod
+    def _get_swept_rect(obj: Collidable) -> pygame.Rect:
+        """Return the swept_rect if available, otherwise fall back to rect."""
+        swept = getattr(obj, "swept_rect", None)
+        if isinstance(swept, pygame.Rect):
+            return swept
+        return obj.rect
 
     def _queue_collision(self, obj_a: Collidable, obj_b: Collidable) -> None:
         """Adds a collision event to the queue, deduplicating pairs."""
