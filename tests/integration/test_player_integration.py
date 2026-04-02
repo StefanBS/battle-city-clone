@@ -28,6 +28,7 @@ def test_player_movement(key, axis, direction_sign, expected_direction):
     """Test player tank movement and direction in all four directions."""
     # Use fresh instance to avoid side effects from other tests
     game_manager = GameManager()
+    game_manager._reset_game()
     player_tank = game_manager.player_tank
     game_map = game_manager.map
 
@@ -263,6 +264,7 @@ def test_player_shooting():
     """Test player shooting mechanics."""
     # Use fresh instance
     game_manager = GameManager()
+    game_manager._reset_game()
     player_tank = game_manager.player_tank
 
     # 1. Initial state: No bullets
@@ -313,6 +315,7 @@ def test_player_bullet_movement(direction_str, axis_index, direction_sign):
     """Test that the player's bullet moves correctly after firing."""
     # Use fresh instance
     game_manager = GameManager()
+    game_manager._reset_game()
     player_tank = game_manager.player_tank
 
     # Set tank direction and fire
@@ -363,6 +366,7 @@ def test_player_respawn():
     """Test player respawn mechanics after taking lethal damage with lives remaining."""
     # Use fresh instance
     game_manager = GameManager()
+    game_manager._reset_game()
     player_tank = game_manager.player_tank
 
     initial_lives = player_tank.lives

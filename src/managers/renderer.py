@@ -148,11 +148,11 @@ class Renderer:
 
     def _draw_game_over(self) -> None:
         """Draw the game over screen."""
-        self._draw_overlay_screen("GAME OVER", RED, "Press R to Restart")
+        self._draw_overlay_screen("GAME OVER", RED, "Press R for Title")
 
     def _draw_victory(self) -> None:
         """Draw the victory screen."""
-        self._draw_overlay_screen("VICTORY!", GREEN, "Press R to Play Again")
+        self._draw_overlay_screen("VICTORY!", GREEN, "Press R for Title")
 
     def _draw_overlay_screen(
         self,
@@ -178,3 +178,44 @@ class Renderer:
             center=(self.logical_width // 2, self.logical_height // 2 + 50)
         )
         self.game_surface.blit(subtitle_text, subtitle_rect)
+
+    def render_title_screen(self, menu_selection: int) -> None:
+        """Render the title screen with menu options.
+
+        Args:
+            menu_selection: Currently selected menu item (0 or 1).
+        """
+        self.game_surface.fill(BLACK)
+
+        cx = self.logical_width // 2
+        cy = self.logical_height // 2
+
+        # Title
+        title = self.font.render("BATTLE CITY", True, WHITE)
+        title_rect = title.get_rect(center=(cx, cy - 80))
+        self.game_surface.blit(title, title_rect)
+
+        # Menu options
+        options = ["1 PLAYER", "2 PLAYERS"]
+        colors = [WHITE, GRAY]  # 2 Players is greyed out (disabled)
+        for i, (label, color) in enumerate(zip(options, colors)):
+            text = self.small_font.render(label, True, color)
+            text_rect = text.get_rect(center=(cx, cy + i * 30))
+            self.game_surface.blit(text, text_rect)
+
+        # Tank cursor next to selected option
+        cursor_y = cy + menu_selection * 30
+        cursor_text = self.small_font.render(">", True, WHITE)
+        cursor_rect = cursor_text.get_rect(
+            midright=(cx - 60, cursor_y)
+        )
+        self.game_surface.blit(cursor_text, cursor_rect)
+
+        # Scale and flip
+        pygame.transform.scale(
+            self.game_surface,
+            (self.screen.get_width(), self.screen.get_height()),
+            self._scaled_surface,
+        )
+        self.screen.blit(self._scaled_surface, (0, 0))
+        pygame.display.flip()

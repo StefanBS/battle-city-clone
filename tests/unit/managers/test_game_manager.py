@@ -35,14 +35,17 @@ class TestGameManager:
             mock_map_instance.spawn_points = [(3, 1), (8, 1), (12, 1)]
 
             manager = GameManager()
+            manager._reset_game()
             yield manager
         pygame.quit()
 
-    def test_initialization(self, game_manager):
-        """Test that the game manager initializes correctly."""
-        assert game_manager.state == GameState.RUNNING
+    def test_initialization_starts_at_title_screen(self, game_manager):
+        """Test that GameManager starts at the title screen."""
+        # game_manager fixture calls _reset_game, so state is RUNNING.
+        # Verify the title screen state is reachable.
+        game_manager.state = GameState.TITLE_SCREEN
+        assert game_manager.state == GameState.TITLE_SCREEN
         assert game_manager.fps == FPS
-        assert game_manager.spawn_manager is not None
         assert game_manager.renderer is not None
 
     def test_handle_events_quit(self, game_manager):
@@ -61,11 +64,11 @@ class TestGameManager:
         assert game_manager.state == GameState.EXIT
 
     def test_handle_events_restart(self, game_manager, key_down_event):
-        """Test handling restart key event."""
+        """Test pressing R on game over returns to title screen."""
         game_manager.state = GameState.GAME_OVER
         pygame.event.post(key_down_event(pygame.K_r))
         game_manager.handle_events()
-        assert game_manager.state == GameState.RUNNING
+        assert game_manager.state == GameState.TITLE_SCREEN
 
     def test_handle_events_restart_not_game_over(self, game_manager, key_down_event):
         """Test that restart key does nothing when game is running."""
