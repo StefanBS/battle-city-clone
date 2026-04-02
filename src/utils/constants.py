@@ -60,6 +60,15 @@ class TankType(str, Enum):
         return self.value
 
 
+# Points awarded per enemy tank type
+ENEMY_POINTS: dict[TankType, int] = {
+    TankType.BASIC: 100,
+    TankType.FAST: 200,
+    TankType.POWER: 300,
+    TankType.ARMOR: 400,
+}
+
+
 class EffectType(Enum):
     SMALL_EXPLOSION = auto()
     LARGE_EXPLOSION = auto()

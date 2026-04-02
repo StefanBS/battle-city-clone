@@ -2,7 +2,13 @@ import pytest
 from unittest.mock import MagicMock
 from loguru import logger
 from src.managers.game_manager import GameManager
-from src.utils.constants import Direction, FPS, TILE_SIZE, SUB_TILE_SIZE
+from src.utils.constants import (
+    Direction,
+    ENEMY_POINTS,
+    FPS,
+    TILE_SIZE,
+    SUB_TILE_SIZE,
+)
 from src.states.game_state import GameState
 from src.core.bullet import Bullet
 from src.core.tile import Tile, TileType
@@ -347,3 +353,49 @@ def test_victory_condition(game_manager_fixture):
     )
 
     logger.info("Victory condition verified.")
+
+
+def test_score_accumulates_on_enemy_kill(game_manager_fixture):
+    """Test that score increases when the player destroys an enemy."""
+    gm = game_manager_fixture
+    assert gm.score == 0
+
+    # Wait for initial spawn animation to complete
+    for _ in range(60):
+        gm.update()
+        if gm.spawn_manager.enemy_tanks:
+            break
+
+    enemy = gm.spawn_manager.enemy_tanks[0]
+    tank_type = enemy.tank_type
+    expected_points = ENEMY_POINTS.get(tank_type, 0)
+
+    # Position player near the enemy and shoot at it
+    player = gm.player_tank
+    player.x = float(enemy.x)
+    player.y = float(enemy.y + TILE_SIZE + 10)
+    player.rect.topleft = (round(player.x), round(player.y))
+    player.direction = Direction.UP
+
+    # Fire a bullet
+    bullet = player.shoot()
+    assert bullet is not None
+    gm.bullets.append(bullet)
+
+    # Clear other enemies to avoid interference
+    gm.spawn_manager.enemy_tanks = [enemy]
+    gm.spawn_manager._pending_spawns = []
+
+    # Set enemy to 1 HP so it dies in one hit
+    enemy.health = 1
+
+    # Run updates until the enemy is destroyed or max iterations
+    for _ in range(60):
+        gm.update()
+        if enemy not in gm.spawn_manager.enemy_tanks:
+            break
+
+    assert gm.score == expected_points, (
+        f"Expected score {expected_points} after killing {tank_type} enemy, "
+        f"got {gm.score}"
+    )

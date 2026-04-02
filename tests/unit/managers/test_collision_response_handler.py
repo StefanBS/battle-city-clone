@@ -12,6 +12,7 @@ from src.states.game_state import GameState
 from src.utils.constants import (
     Direction,
     EffectType,
+    TankType,
     TILE_SIZE,
     SEGMENT_LEFT,
     SEGMENT_RIGHT,
@@ -33,12 +34,18 @@ def mock_effect_manager():
 
 
 @pytest.fixture
-def handler(mock_map, mock_effect_manager):
+def mock_add_score():
+    return MagicMock()
+
+
+@pytest.fixture
+def handler(mock_map, mock_effect_manager, mock_add_score):
     set_state = MagicMock()
     return CollisionResponseHandler(
         game_map=mock_map,
         set_game_state=set_state,
         effect_manager=mock_effect_manager,
+        add_score=mock_add_score,
     )
 
 
@@ -621,3 +628,32 @@ class TestExplosionEffects:
         mock_effect_manager.spawn.assert_called_once_with(
             EffectType.LARGE_EXPLOSION, 116.0, 116.0
         )
+
+
+class TestScoring:
+    @pytest.mark.parametrize(
+        "tank_type,expected_points",
+        [
+            (TankType.BASIC, 100),
+            (TankType.FAST, 200),
+            (TankType.POWER, 300),
+            (TankType.ARMOR, 400),
+        ],
+    )
+    def test_enemy_destroyed_awards_points(
+        self, handler, mock_bullet, mock_enemy, mock_add_score,
+        tank_type, expected_points,
+    ):
+        """Destroying an enemy awards points based on tank type."""
+        mock_enemy.tank_type = tank_type
+        mock_enemy.take_damage.return_value = True
+        handler.process_collisions([(mock_bullet, mock_enemy)])
+        mock_add_score.assert_called_once_with(expected_points)
+
+    def test_enemy_damaged_not_destroyed_no_points(
+        self, handler, mock_bullet, mock_enemy, mock_add_score
+    ):
+        """Damaging but not destroying an enemy awards no points."""
+        mock_enemy.take_damage.return_value = False
+        handler.process_collisions([(mock_bullet, mock_enemy)])
+        mock_add_score.assert_not_called()

@@ -55,6 +55,7 @@ class GameManager:
 
         self.state: GameState = GameState.RUNNING
         self.current_stage: int = 1
+        self.score: int = 0
         self.collision_manager: CollisionManager = CollisionManager()
 
         # Map
@@ -74,6 +75,7 @@ class GameManager:
                 game_map=self.map,
                 set_game_state=self._set_game_state,
                 effect_manager=self.effect_manager,
+                add_score=self._add_score,
             )
         )
 
@@ -212,6 +214,10 @@ class GameManager:
         """Set the game state."""
         self.state = state
 
+    def _add_score(self, points: int) -> None:
+        """Add points to the player's score."""
+        self.score += points
+
     def render(self) -> None:
         """Render the game state."""
         self.renderer.render(
@@ -221,6 +227,7 @@ class GameManager:
             self.bullets,
             self.effect_manager,
             self.state,
+            self.score,
         )
 
     def run(self) -> None:

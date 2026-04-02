@@ -60,6 +60,7 @@ class Renderer:
         bullets: List,
         effect_manager,
         state: GameState,
+        score: int = 0,
     ) -> None:
         """Render the complete game frame.
 
@@ -97,7 +98,7 @@ class Renderer:
         self.game_surface.blit(self.map_surface, (self.map_offset_x, self.map_offset_y))
 
         # Draw HUD onto the logical surface (in the border area)
-        self._draw_hud(player_tank)
+        self._draw_hud(player_tank, score)
 
         # Draw game over/victory screen if needed onto logical surface
         if state == GameState.GAME_OVER:
@@ -116,15 +117,23 @@ class Renderer:
         # Update the display
         pygame.display.flip()
 
-    def _draw_hud(self, player_tank) -> None:
+    def _draw_hud(self, player_tank, score: int = 0) -> None:
         """Draw the heads-up display.
 
         Args:
             player_tank: The player's tank (used for lives and invincibility).
+            score: Current player score.
         """
         # Draw lives in the top border area
         lives_text = self.small_font.render(f"Lives: {player_tank.lives}", True, WHITE)
         self.game_surface.blit(lives_text, (10, 10))
+
+        # Draw score
+        score_text = self.small_font.render(
+            f"Score: {score:>6}", True, WHITE
+        )
+        score_rect = score_text.get_rect(topright=(self.logical_width - 10, 10))
+        self.game_surface.blit(score_text, score_rect)
 
         # Draw invincibility timer if active
         if player_tank.is_invincible:
