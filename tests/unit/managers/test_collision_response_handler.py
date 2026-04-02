@@ -562,6 +562,21 @@ class TestExplosionEffects:
             EffectType.SMALL_EXPLOSION, 51.0, 51.0
         )
 
+    def test_bullet_vs_base_spawns_small_explosion(
+        self, handler, mock_map, mock_effect_manager
+    ):
+        bullet = MagicMock(spec=Bullet)
+        bullet.active = True
+        bullet.owner = MagicMock()
+        bullet.rect = pygame.Rect(50, 50, 2, 2)
+        tile = MagicMock(spec=Tile)
+        tile.type = TileType.BASE
+        tile.x, tile.y = 0, 0
+        handler.process_collisions([(bullet, tile)])
+        mock_effect_manager.spawn.assert_called_once_with(
+            EffectType.SMALL_EXPLOSION, 51.0, 51.0
+        )
+
     def test_enemy_destroyed_spawns_large_explosion(self, handler, mock_effect_manager):
         bullet = MagicMock(spec=Bullet)
         bullet.active = True
