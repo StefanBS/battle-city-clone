@@ -148,11 +148,18 @@ class Tank(GameObject):
         )
         bullet_x = self.x + self.width // 2 - BULLET_WIDTH // 2
         bullet_y = self.y + self.height // 2 - BULLET_HEIGHT // 2
+        try:
+            bullet_sprite = self.texture_manager.get_sprite(
+                f"bullet_{self.direction}"
+            )
+        except KeyError:
+            bullet_sprite = None
         return Bullet(
             bullet_x,
             bullet_y,
             self.direction,
             owner=self,
+            sprite=bullet_sprite,
             speed=self.bullet_speed,
         )
 

@@ -1,6 +1,12 @@
 import pygame
 from loguru import logger
-from src.utils.constants import TILE_SIZE, SUB_TILE_SIZE, SOURCE_TILE_SIZE
+from src.utils.constants import (
+    TILE_SIZE,
+    SUB_TILE_SIZE,
+    SOURCE_TILE_SIZE,
+    BULLET_SIZE,
+    ATLAS_BG_COLOR,
+)
 
 
 class TextureManager:
@@ -26,7 +32,7 @@ class TextureManager:
         self.sub_sprites: dict[str, pygame.Surface] = {}
         self._load_sprites()
 
-    # All sprites are 2x2 source tiles (16x16 pixels in the atlas).
+    # Tile/tank sprites: 2x2 source tiles (16x16 pixels in the atlas).
     # Coordinates are grid positions in an 8x8-pixel grid.
     _SPRITE_COORDS: dict[str, tuple[int, int]] = {
         # Player tank
@@ -62,8 +68,48 @@ class TextureManager:
         "explosion_3": (36, 16),
     }
 
+    # Bullet sprites: pixel rects (x, y, w, h) in the atlas.
+    # Content sits at the bottom of each 8x8 cell, so we extract
+    # only the 4x4 region containing the actual bullet pixels.
+    _BULLET_RECTS: dict[str, tuple[int, int, int, int]] = {
+        "bullet_up": (323, 102, 3, 4),
+        "bullet_left": (330, 102, 4, 3),
+        "bullet_down": (339, 102, 3, 4),
+        "bullet_right": (346, 102, 4, 3),
+    }
+
     def _load_sprites(self):
         """Loads individual sprites from the texture atlas."""
+        self._load_tile_sprites()
+        self._load_bullet_sprites()
+
+    def _load_bullet_sprites(self):
+        """Load bullet sprites cropped to their content region.
+
+        Applies colorkey transparency for the near-black (0,0,1) atlas
+        background so bullets render correctly over the game scene.
+        """
+        for name, (px, py, pw, ph) in self._BULLET_RECTS.items():
+            rect = pygame.Rect(px, py, pw, ph)
+            try:
+                original = self.texture_atlas.subsurface(rect)
+                scaled = pygame.transform.scale(
+                    original, (BULLET_SIZE, BULLET_SIZE)
+                )
+                # Apply colorkey for near-black atlas background
+                copy = scaled.convert()
+                copy.set_colorkey(ATLAS_BG_COLOR)
+                result = pygame.Surface(
+                    (BULLET_SIZE, BULLET_SIZE), pygame.SRCALPHA
+                )
+                result.blit(copy, (0, 0))
+                self.sprites[name] = result
+            except (ValueError, TypeError) as e:
+                logger.warning(f"Could not load bullet sprite '{name}': {e}")
+                # Bullet sprites are optional — fallback to colored rect
+
+    def _load_tile_sprites(self):
+        """Loads 16x16 tile/tank sprites from the texture atlas."""
         sprite_size = SOURCE_TILE_SIZE * 2
 
         for name, (gx, gy) in self._SPRITE_COORDS.items():

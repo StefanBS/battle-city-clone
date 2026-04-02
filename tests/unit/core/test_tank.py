@@ -298,3 +298,27 @@ class TestTank:
         tank = create_tank(bullet_speed=999.0)
         bullet = tank.shoot()
         assert bullet.speed == 999.0
+
+    @pytest.mark.parametrize(
+        "direction",
+        [Direction.UP, Direction.RIGHT, Direction.DOWN, Direction.LEFT],
+    )
+    def test_shoot_passes_bullet_sprite(
+        self, tank, mock_texture_manager, direction
+    ):
+        """Test that shoot() passes the directional sprite to the bullet."""
+        tank.direction = direction
+        bullet = tank.shoot()
+        mock_texture_manager.get_sprite.assert_called_with(
+            f"bullet_{direction}"
+        )
+        assert bullet.sprite is mock_texture_manager.get_sprite.return_value
+
+    def test_shoot_sprite_none_when_missing(
+        self, create_tank, mock_texture_manager
+    ):
+        """Test that bullet gets None sprite when texture is missing."""
+        mock_texture_manager.get_sprite.side_effect = KeyError("not found")
+        tank = create_tank()
+        bullet = tank.shoot()
+        assert bullet.sprite is None
