@@ -58,7 +58,7 @@ class TestGetLogPath:
             patch.dict(os.environ, {"XDG_DATA_HOME": "/tmp/xdg_data"}, clear=False),
         ):
             result = get_log_path()
-            assert result == "/tmp/xdg_data/BattleCity/game.log"
+            assert result == os.path.join("/tmp/xdg_data", "BattleCity", "game.log")
 
     def test_returns_platform_path_in_frozen_mode_windows(self):
         """In frozen mode on Windows, uses APPDATA."""
