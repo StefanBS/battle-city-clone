@@ -1,3 +1,4 @@
+import pygame
 from typing import Any, Callable, Dict, List, Tuple, Type
 from loguru import logger
 from src.core.bullet import Bullet
@@ -237,16 +238,42 @@ class CollisionResponseHandler:
         else:
             self._map.mark_tile_cache_dirty()
 
+    @staticmethod
+    def _caused_collision(mover: Tank, other: Tank) -> bool:
+        """Check if mover's movement contributed to the collision.
+
+        Returns True when mover's previous position does NOT overlap
+        with other's current position, meaning mover's movement closed
+        the gap and caused the collision.
+        """
+        prev_rect = pygame.Rect(
+            round(mover.prev_x), round(mover.prev_y),
+            mover.width, mover.height,
+        )
+        other_rect = pygame.Rect(
+            round(other.x), round(other.y),
+            other.width, other.height,
+        )
+        return not prev_rect.colliderect(other_rect)
+
     def _handle_tank_vs_tank(
         self,
         tank_a: Tank,
         tank_b: Tank,
         enemies_to_remove: List[EnemyTank],
     ) -> bool:
-        tank_a.revert_move()
-        tank_b.revert_move()
-        tank_a.on_wall_hit()
-        tank_b.on_wall_hit()
+        a_caused = self._caused_collision(tank_a, tank_b)
+        b_caused = self._caused_collision(tank_b, tank_a)
+
+        if a_caused or not b_caused:
+            tank_a.revert_move()
+        if b_caused or not a_caused:
+            tank_b.revert_move()
+
+        if a_caused:
+            tank_a.on_wall_hit()
+        if b_caused:
+            tank_b.on_wall_hit()
         return True
 
     def _handle_tank_vs_tile(

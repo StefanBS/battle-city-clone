@@ -48,6 +48,13 @@ def mock_enemy():
     e.take_damage = MagicMock(return_value=False)
     e.on_wall_hit = MagicMock()
     e.revert_move = MagicMock()
+    e.x = 100.0
+    e.y = 100.0
+    e.prev_x = 100.0
+    e.prev_y = 100.0
+    e.width = TILE_SIZE
+    e.height = TILE_SIZE
+    e.direction = Direction.DOWN
     return e
 
 
@@ -59,6 +66,13 @@ def mock_player():
     p.take_damage = MagicMock(return_value=False)
     p.respawn = MagicMock()
     p.revert_move = MagicMock()
+    p.x = 100.0
+    p.y = 200.0
+    p.prev_x = 100.0
+    p.prev_y = 200.0
+    p.width = TILE_SIZE
+    p.height = TILE_SIZE
+    p.direction = Direction.UP
     return p
 
 
@@ -344,22 +358,80 @@ class TestBulletVsBullet:
 
 
 class TestTankVsTank:
-    def test_both_reverted(self, handler, mock_player, mock_enemy):
-        handler.process_collisions([(mock_player, mock_enemy)])
-        mock_player.revert_move.assert_called_once()
-        mock_enemy.revert_move.assert_called_once()
+    def test_both_moving_toward_each_other(self, handler):
+        """Both tanks moving toward each other: both reverted."""
+        # Tank A at y=130 moved UP from y=134, Tank B at y=100 moved DOWN from y=96
+        a = MagicMock(spec=PlayerTank)
+        a.owner_type = "player"
+        a.x, a.y = 100.0, 130.0
+        a.prev_x, a.prev_y = 100.0, 134.0
+        a.width = a.height = TILE_SIZE
+        b = MagicMock(spec=EnemyTank)
+        b.owner_type = "enemy"
+        b.x, b.y = 100.0, 100.0
+        b.prev_x, b.prev_y = 100.0, 96.0
+        b.width = b.height = TILE_SIZE
+        handler.process_collisions([(a, b)])
+        a.revert_move.assert_called_once()
+        b.revert_move.assert_called_once()
+        a.on_wall_hit.assert_called_once()
+        b.on_wall_hit.assert_called_once()
 
-    def test_enemy_vs_enemy_reverted(self, handler):
-        """Test that two enemy tanks both get reverted on collision."""
+    def test_only_aggressor_gets_wall_hit(self, handler):
+        """Only the tank that moved into the other gets on_wall_hit."""
+        # Player at y=130 moved UP from y=134, enemy stationary at y=100
+        player = MagicMock(spec=PlayerTank)
+        player.owner_type = "player"
+        player.x, player.y = 100.0, 130.0
+        player.prev_x, player.prev_y = 100.0, 134.0
+        player.width = player.height = TILE_SIZE
+        enemy = MagicMock(spec=EnemyTank)
+        enemy.owner_type = "enemy"
+        enemy.x, enemy.y = 100.0, 100.0
+        enemy.prev_x, enemy.prev_y = 100.0, 100.0
+        enemy.width = enemy.height = TILE_SIZE
+        handler.process_collisions([(player, enemy)])
+        player.revert_move.assert_called_once()
+        enemy.revert_move.assert_not_called()
+        player.on_wall_hit.assert_called_once()
+        enemy.on_wall_hit.assert_not_called()
+
+    def test_perpendicular_tank_not_reverted(self, handler):
+        """Enemy moving perpendicular to collision axis is not reverted."""
+        # Player at y=130 moves UP from y=134, enemy at y=100 moves RIGHT from x=98
+        player = MagicMock(spec=PlayerTank)
+        player.owner_type = "player"
+        player.x, player.y = 100.0, 130.0
+        player.prev_x, player.prev_y = 100.0, 134.0
+        player.width = player.height = TILE_SIZE
+        enemy = MagicMock(spec=EnemyTank)
+        enemy.owner_type = "enemy"
+        enemy.x, enemy.y = 100.0, 100.0
+        enemy.prev_x, enemy.prev_y = 98.0, 100.0
+        enemy.width = enemy.height = TILE_SIZE
+        handler.process_collisions([(player, enemy)])
+        player.revert_move.assert_called_once()
+        enemy.revert_move.assert_not_called()
+        player.on_wall_hit.assert_called_once()
+        enemy.on_wall_hit.assert_not_called()
+
+    def test_enemy_vs_enemy_both_moving_toward(self, handler):
+        """Two enemies moving toward each other: both reverted."""
         enemy1 = MagicMock(spec=EnemyTank)
         enemy1.owner_type = "enemy"
-        enemy1.revert_move = MagicMock()
+        enemy1.x, enemy1.y = 100.0, 100.0
+        enemy1.prev_x, enemy1.prev_y = 96.0, 100.0
+        enemy1.width = enemy1.height = TILE_SIZE
         enemy2 = MagicMock(spec=EnemyTank)
         enemy2.owner_type = "enemy"
-        enemy2.revert_move = MagicMock()
+        enemy2.x, enemy2.y = 130.0, 100.0
+        enemy2.prev_x, enemy2.prev_y = 134.0, 100.0
+        enemy2.width = enemy2.height = TILE_SIZE
         handler.process_collisions([(enemy1, enemy2)])
         enemy1.revert_move.assert_called_once()
         enemy2.revert_move.assert_called_once()
+        enemy1.on_wall_hit.assert_called_once()
+        enemy2.on_wall_hit.assert_called_once()
 
 
 class TestTankVsTile:

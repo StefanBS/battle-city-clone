@@ -516,6 +516,83 @@ def test_enemy_bullet_hits_other_enemy(game_manager_fixture, mocker):
     )
 
 
+def test_player_tank_vs_enemy_tank_no_overlap(game_manager_fixture, mocker):
+    """Test that a player tank driving into an enemy tank does not overlap."""
+    mocker.patch("src.core.enemy_tank.random.uniform", return_value=0.0)
+    game_manager = game_manager_fixture
+    player_tank = game_manager.player_tank
+
+    # --- Spawn an enemy tank directly above the player --- #
+    enemy_type = "basic"
+    player_x_grid = int(player_tank.x // SUB_TILE_SIZE)
+    player_y_grid = int(player_tank.y // SUB_TILE_SIZE)
+    # Place enemy 2 sub-tiles above (exactly adjacent)
+    enemy_x_grid = player_x_grid
+    enemy_y_grid = player_y_grid - 2
+
+    enemy_start_x = enemy_x_grid * SUB_TILE_SIZE
+    enemy_start_y = enemy_y_grid * SUB_TILE_SIZE
+
+    # Clear tiles between player and enemy
+    _clear_tiles(
+        game_manager.map,
+        [
+            (enemy_x_grid + dx, y)
+            for y in range(enemy_y_grid, player_y_grid + 2)
+            for dx in range(2)
+        ],
+    )
+
+    map_w_px = game_manager.map.width * SUB_TILE_SIZE
+    map_h_px = game_manager.map.height * SUB_TILE_SIZE
+    enemy_tank = EnemyTank(
+        enemy_start_x,
+        enemy_start_y,
+        TILE_SIZE,
+        game_manager.texture_manager,
+        enemy_type,
+        map_width_px=map_w_px,
+        map_height_px=map_h_px,
+    )
+    # Make enemy stationary so only the player drives into it
+    enemy_tank.direction = Direction.DOWN
+    enemy_tank.direction_change_interval = 999
+    enemy_tank.shoot_interval = 999
+    game_manager.spawn_manager.enemy_tanks = [enemy_tank]
+
+    # Drive the player tank UP into the enemy for several frames
+    dt = 1.0 / FPS
+    for _ in range(30):
+        # Simulate player pressing UP
+        player_tank.update(dt)
+        player_tank.move(0, -1, dt)
+        enemy_tank.update(dt)
+
+        # Run collision detection and response
+        game_manager.collision_manager.check_collisions(
+            player_tank=player_tank,
+            player_bullets=[],
+            enemy_tanks=[enemy_tank],
+            enemy_bullets=[],
+            destructible_tiles=[],
+            impassable_tiles=[],
+            player_base=None,
+        )
+        events = game_manager.collision_manager.get_collision_events()
+        game_manager.collision_response_handler.process_collisions(events)
+
+    # The tanks must NOT overlap
+    assert not player_tank.rect.colliderect(enemy_tank.rect), (
+        f"Player rect {player_tank.rect} overlaps "
+        f"enemy rect {enemy_tank.rect}"
+    )
+    # Player should be pushed back to just below the enemy
+    assert player_tank.rect.top >= enemy_tank.rect.bottom, (
+        f"Player top ({player_tank.rect.top}) should be "
+        f">= enemy bottom ({enemy_tank.rect.bottom})"
+    )
+
+
 def test_enemy_bullets_collide(game_manager_fixture, mocker):
     """Test that two enemy bullets pass through each other."""
     mocker.patch("src.core.enemy_tank.random.uniform", return_value=0.0)
