@@ -2,6 +2,7 @@ import pygame
 from typing import List, Tuple
 from src.states.game_state import GameState
 from src.utils.constants import WHITE, YELLOW, BLACK, RED, GREEN, GRAY
+from src.utils.paths import resource_path
 
 
 class Renderer:
@@ -37,8 +38,9 @@ class Renderer:
         )
         self.border_color: Tuple[int, int, int] = GRAY
         self.background_color: Tuple[int, int, int] = BLACK
-        self.font: pygame.font.Font = pygame.font.SysFont(None, 48)
-        self.small_font: pygame.font.Font = pygame.font.SysFont(None, 24)
+        font_path = resource_path("assets/fonts/PressStart2P-Regular.ttf")
+        self.font: pygame.font.Font = pygame.font.Font(font_path, 24)
+        self.small_font: pygame.font.Font = pygame.font.Font(font_path, 12)
         self._scaled_surface: pygame.Surface = pygame.Surface(
             (screen.get_width(), screen.get_height())
         )
