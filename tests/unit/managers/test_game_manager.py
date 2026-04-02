@@ -4,7 +4,6 @@ from unittest.mock import patch, MagicMock
 from src.managers.game_manager import GameManager
 from src.states.game_state import GameState
 from src.core.enemy_tank import EnemyTank
-from src.utils.constants import FPS
 
 
 class TestGameManager:
@@ -39,14 +38,79 @@ class TestGameManager:
             yield manager
         pygame.quit()
 
-    def test_initialization_starts_at_title_screen(self, game_manager):
+    @pytest.fixture
+    def game_manager_at_title(self):
+        """Create a GameManager at the title screen (no _reset_game)."""
+        pygame.init()
+        with (
+            patch("pygame.display.set_mode"),
+            patch("pygame.font.SysFont"),
+            patch("src.managers.game_manager.TextureManager") as MockTM,
+            patch("src.managers.game_manager.EffectManager"),
+            patch("src.managers.game_manager.Renderer"),
+            patch("src.managers.game_manager.SpawnManager"),
+            patch("src.managers.game_manager.Map") as MockMap,
+        ):
+            mock_tm_instance = MockTM.return_value
+            mock_tm_instance.get_sprite.return_value = MagicMock(
+                spec=pygame.Surface
+            )
+            mock_map_instance = MockMap.return_value
+            mock_map_instance.width = 16
+            mock_map_instance.height = 16
+            mock_map_instance.player_spawn = (4, 12)
+            mock_map_instance.spawn_points = [(3, 1), (8, 1), (12, 1)]
+
+            manager = GameManager()
+            yield manager
+        pygame.quit()
+
+    def test_initialization_starts_at_title_screen(
+        self, game_manager_at_title
+    ):
         """Test that GameManager starts at the title screen."""
-        # game_manager fixture calls _reset_game, so state is RUNNING.
-        # Verify the title screen state is reachable.
-        game_manager.state = GameState.TITLE_SCREEN
+        assert game_manager_at_title.state == GameState.TITLE_SCREEN
+        assert game_manager_at_title._menu_selection == 0
+
+    def test_title_screen_cursor_moves(
+        self, game_manager_at_title, key_down_event
+    ):
+        """Test up/down keys toggle menu selection on title screen."""
+        gm = game_manager_at_title
+        assert gm._menu_selection == 0
+        pygame.event.post(key_down_event(pygame.K_DOWN))
+        gm.handle_events()
+        assert gm._menu_selection == 1
+        pygame.event.post(key_down_event(pygame.K_UP))
+        gm.handle_events()
+        assert gm._menu_selection == 0
+
+    def test_title_screen_enter_starts_game(
+        self, game_manager_at_title, key_down_event
+    ):
+        """Test Enter on '1 PLAYER' starts the game."""
+        gm = game_manager_at_title
+        gm._menu_selection = 0
+        pygame.event.post(key_down_event(pygame.K_RETURN))
+        gm.handle_events()
+        assert gm.state == GameState.RUNNING
+
+    def test_title_screen_enter_on_disabled_does_nothing(
+        self, game_manager_at_title, key_down_event
+    ):
+        """Test Enter on '2 PLAYERS' (disabled) does nothing."""
+        gm = game_manager_at_title
+        gm._menu_selection = 1
+        pygame.event.post(key_down_event(pygame.K_RETURN))
+        gm.handle_events()
+        assert gm.state == GameState.TITLE_SCREEN
+
+    def test_victory_r_returns_to_title(self, game_manager, key_down_event):
+        """Test pressing R on victory returns to title screen."""
+        game_manager.state = GameState.VICTORY
+        pygame.event.post(key_down_event(pygame.K_r))
+        game_manager.handle_events()
         assert game_manager.state == GameState.TITLE_SCREEN
-        assert game_manager.fps == FPS
-        assert game_manager.renderer is not None
 
     def test_handle_events_quit(self, game_manager):
         """Test handling quit event sets state to EXIT."""
