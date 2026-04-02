@@ -32,6 +32,9 @@ class TestEffectLifecycle:
         player.y = float(target.rect.bottom + 10)
         player.rect.topleft = (round(player.x), round(player.y))
 
+        # Clear enemies so they don't interfere (e.g., shooting the player)
+        gm.spawn_manager.enemy_tanks.clear()
+
         # Create a bullet aimed at the tile
         bullet = player.shoot()
         assert bullet is not None

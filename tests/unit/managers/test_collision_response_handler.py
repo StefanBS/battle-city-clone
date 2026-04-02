@@ -618,5 +618,6 @@ class TestExplosionEffects:
         mock_player.take_damage.return_value = True
         mock_player.rect = pygame.Rect(100, 100, 32, 32)
         handler.process_collisions([(bullet, mock_player)])
-        calls = mock_effect_manager.spawn.call_args_list
-        assert any(c.args[0] == EffectType.LARGE_EXPLOSION for c in calls)
+        mock_effect_manager.spawn.assert_called_once_with(
+            EffectType.LARGE_EXPLOSION, 116.0, 116.0
+        )
