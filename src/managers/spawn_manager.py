@@ -91,6 +91,29 @@ class SpawnManager:
         random.shuffle(queue)
         return queue
 
+    def _is_spawn_blocked(
+        self,
+        rect: pygame.Rect,
+        player_tank: PlayerTank,
+        game_map: Map,
+    ) -> bool:
+        """Check if a spawn rect overlaps any obstacle."""
+        for map_rect in game_map.get_collidable_tiles():
+            if rect.colliderect(map_rect):
+                return True
+        if player_tank and rect.colliderect(player_tank.rect):
+            return True
+        for enemy in self.enemy_tanks:
+            if rect.colliderect(enemy.rect):
+                return True
+        for pending in self._pending_spawns:
+            pending_rect = pygame.Rect(
+                pending.x, pending.y, self.tile_size, self.tile_size
+            )
+            if rect.colliderect(pending_rect):
+                return True
+        return False
+
     def spawn_enemy(self, player_tank: PlayerTank, game_map: Map) -> bool:
         """Spawn a new enemy tank at a random spawn point if under the spawn limit.
 
@@ -114,38 +137,8 @@ class SpawnManager:
         x: int = spawn_grid_x * SUB_TILE_SIZE
         y: int = spawn_grid_y * SUB_TILE_SIZE
 
-        # Check if the spawn point is clear
         temp_rect = pygame.Rect(x, y, self.tile_size, self.tile_size)
-        collision: bool = False
-        map_collidables: List[pygame.Rect] = game_map.get_collidable_tiles()
-        for map_rect in map_collidables:
-            if temp_rect.colliderect(map_rect):
-                collision = True
-                break
-
-        # Check against player tank
-        if not collision and player_tank:
-            if temp_rect.colliderect(player_tank.rect):
-                logger.debug(f"Spawn point ({x}, {y}) blocked by player tank.")
-                collision = True
-
-        if not collision:
-            for enemy in self.enemy_tanks:
-                if temp_rect.colliderect(enemy.rect):
-                    collision = True
-                    break
-
-        # Also check against pending spawn locations
-        if not collision:
-            for pending in self._pending_spawns:
-                pending_rect = pygame.Rect(
-                    pending.x, pending.y, self.tile_size, self.tile_size
-                )
-                if temp_rect.colliderect(pending_rect):
-                    collision = True
-                    break
-
-        if collision:
+        if self._is_spawn_blocked(temp_rect, player_tank, game_map):
             logger.warning(f"Spawn point ({x}, {y}) was blocked.")
             return False
 

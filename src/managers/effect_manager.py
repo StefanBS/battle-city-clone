@@ -76,16 +76,12 @@ class EffectManager:
         )
 
         # Spawn animation: 4 frames bounced twice (1→2→3→4→3→2→1→2→3→4→3→2)
-        spawn_frames_raw = [
+        f1, f2, f3, f4 = [
             self._apply_colorkey(texture_manager.get_sprite(f"spawn_{i}"))
             for i in range(1, 5)
         ]
-        spawn_cycle = (
-            spawn_frames_raw
-            + spawn_frames_raw[2:0:-1]  # 3→2
-            + spawn_frames_raw
-            + spawn_frames_raw[2:0:-1]  # 3→2
-        )
+        bounce = [f1, f2, f3, f4, f3, f2]
+        spawn_cycle = bounce + bounce
         self._effect_data[EffectType.SPAWN] = (
             spawn_cycle,
             SPAWN_FRAME_DURATION,
