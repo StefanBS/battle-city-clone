@@ -4,6 +4,7 @@ from loguru import logger
 from src.core.effect import Effect
 from src.managers.texture_manager import TextureManager
 from src.utils.constants import (
+    ATLAS_BG_COLOR,
     EffectType,
     TILE_SIZE,
     SMALL_EXPLOSION_FRAME_DURATION,
@@ -30,7 +31,9 @@ class EffectManager:
         self._build_frame_cache(texture_manager)
 
     @staticmethod
-    def _apply_colorkey(surface: pygame.Surface, key_color=(0, 0, 1)) -> pygame.Surface:
+    def _apply_colorkey(
+        surface: pygame.Surface, key_color=ATLAS_BG_COLOR
+    ) -> pygame.Surface:
         """Return a copy with key_color pixels made fully transparent.
 
         The explosion sprites in the atlas have an opaque near-black

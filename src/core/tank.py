@@ -13,7 +13,6 @@ from src.utils.constants import (
     TANK_HEIGHT,
     TANK_ANIMATION_DISTANCE,
     TANK_ALIGN_THRESHOLD,
-    BULLET_SIZE,
     BULLET_WIDTH,
     BULLET_HEIGHT,
     BULLET_SPEED,
@@ -83,27 +82,6 @@ class Tank(GameObject):
         self.blink_timer: float = 0
         self.blink_interval: float = 0.2  # Blink every 0.2 seconds during invincibility
         self.animation_frame: int = 1  # Start with frame 1
-        self._bullet_sprites: dict[Direction, Optional[pygame.Surface]] = (
-            self._load_bullet_sprites()
-        )
-
-    def _load_bullet_sprites(self) -> dict:
-        """Load and cache bullet sprites with transparency applied."""
-        sprites: dict[Direction, Optional[pygame.Surface]] = {}
-        for direction in Direction:
-            name = f"bullet_{direction}"
-            try:
-                raw = self.texture_manager.get_sprite(name)
-                copy = raw.convert()
-                copy.set_colorkey((0, 0, 1))
-                result = pygame.Surface(
-                    (BULLET_SIZE, BULLET_SIZE), pygame.SRCALPHA
-                )
-                result.blit(copy, (0, 0))
-                sprites[direction] = result
-            except (KeyError, TypeError, pygame.error):
-                sprites[direction] = None
-        return sprites
 
     def _update_sprite(self) -> None:
         """Updates the tank's sprite based on direction and animation frame."""
@@ -170,12 +148,18 @@ class Tank(GameObject):
         )
         bullet_x = self.x + self.width // 2 - BULLET_WIDTH // 2
         bullet_y = self.y + self.height // 2 - BULLET_HEIGHT // 2
+        try:
+            bullet_sprite = self.texture_manager.get_sprite(
+                f"bullet_{self.direction}"
+            )
+        except KeyError:
+            bullet_sprite = None
         return Bullet(
             bullet_x,
             bullet_y,
             self.direction,
             owner=self,
-            sprite=self._bullet_sprites.get(self.direction),
+            sprite=bullet_sprite,
             speed=self.bullet_speed,
         )
 

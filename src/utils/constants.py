@@ -113,9 +113,12 @@ SEGMENT_BOTTOM: int = SEGMENT_BOTTOM_LEFT | SEGMENT_BOTTOM_RIGHT
 
 BRICK_SEGMENT_SIZE: int = SUB_TILE_SIZE // 2  # 8px — half a sub-tile (square)
 
+# Atlas background color used as colorkey for transparency
+ATLAS_BG_COLOR: tuple[int, int, int] = (0, 0, 1)
+
 # Bullet settings
 BULLET_SPEED: float = 180  # pixels per second (was 3, multiplied by FPS internally)
-BULLET_SIZE: int = SOURCE_TILE_SIZE  # 8px — scaled from 8x8 atlas sprite
+BULLET_SIZE: int = 4  # Visual size of bullet sprites after extraction
 BULLET_WIDTH: int = BULLET_SIZE
 BULLET_HEIGHT: int = BULLET_SIZE
 
