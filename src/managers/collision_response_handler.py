@@ -237,16 +237,35 @@ class CollisionResponseHandler:
         else:
             self._map.mark_tile_cache_dirty()
 
+    @staticmethod
+    def _caused_collision(mover: Tank, other: Tank) -> bool:
+        """Check if mover's movement contributed to the collision.
+
+        Compares mover's previous position against other's current
+        (post-move) rect. Returns True when the previous position does
+        NOT overlap, meaning mover's movement closed the gap.
+        """
+        return not mover.prev_rect.colliderect(other.rect)
+
     def _handle_tank_vs_tank(
         self,
         tank_a: Tank,
         tank_b: Tank,
         enemies_to_remove: List[EnemyTank],
     ) -> bool:
-        tank_a.revert_move()
-        tank_b.revert_move()
-        tank_a.on_wall_hit()
-        tank_b.on_wall_hit()
+        a_caused = self._caused_collision(tank_a, tank_b)
+        b_caused = self._caused_collision(tank_b, tank_a)
+        neither = not a_caused and not b_caused
+
+        # Revert and notify each tank that caused the collision.
+        # In the 'neither' case (pre-existing overlap), apply to both
+        # so enemies can escape via direction change.
+        if a_caused or neither:
+            tank_a.revert_move()
+            tank_a.on_movement_blocked()
+        if b_caused or neither:
+            tank_b.revert_move()
+            tank_b.on_movement_blocked()
         return True
 
     def _handle_tank_vs_tile(
@@ -257,6 +276,6 @@ class CollisionResponseHandler:
     ) -> bool:
         if tile.type in IMPASSABLE_TILE_TYPES:
             tank.revert_move(tile.rect)
-            tank.on_wall_hit()
+            tank.on_movement_blocked()
             return True
         return False

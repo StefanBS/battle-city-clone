@@ -146,3 +146,22 @@ class TestPlayerTank:
         player_tank.draw(mock_surface)
 
         mock_surface.blit.assert_not_called()
+
+    def test_respawn_syncs_rect(self, player_tank):
+        """Test that respawn() updates rect to match the new position."""
+        dt = 1.0 / FPS
+        # Move the tank away from its initial position
+        player_tank.prev_x = player_tank.x
+        player_tank.prev_y = player_tank.y
+        player_tank.move(0, 1, dt)
+        player_tank.move(0, 1, dt)
+        moved_rect = player_tank.rect.copy()
+
+        # Respawn should reset rect to initial position
+        player_tank.respawn()
+
+        assert player_tank.rect.topleft == (
+            round(player_tank.initial_position[0]),
+            round(player_tank.initial_position[1]),
+        )
+        assert player_tank.rect.topleft != moved_rect.topleft

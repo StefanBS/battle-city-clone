@@ -112,8 +112,8 @@ def test_enemy_tank_grid_alignment(mock_texture_manager):
 
 
 @patch("src.core.enemy_tank.random.choice")
-def test_on_wall_hit(mock_random_choice, mock_texture_manager):
-    """Test that on_wall_hit changes direction and resets direction_timer."""
+def test_on_movement_blocked(mock_random_choice, mock_texture_manager):
+    """Test that on_movement_blocked changes direction and resets direction_timer."""
     mock_random_choice.return_value = Direction.DOWN
     tank = EnemyTank(
         0,
@@ -129,10 +129,86 @@ def test_on_wall_hit(mock_random_choice, mock_texture_manager):
     tank.direction_timer = 1.5
 
     mock_random_choice.return_value = Direction.RIGHT
-    tank.on_wall_hit()
+    tank.on_movement_blocked()
 
     assert tank.direction == Direction.RIGHT
     assert tank.direction_timer == 0
+    assert Direction.UP in tank._blocked_directions
+
+
+@patch("src.core.enemy_tank.random.choice")
+def test_blocked_avoids_blocked_dirs(mock_random_choice, mock_texture_manager):
+    """Test that consecutive wall hits accumulate blocked directions."""
+    mock_random_choice.return_value = Direction.DOWN
+    tank = EnemyTank(
+        0,
+        0,
+        TILE_SIZE,
+        mock_texture_manager,
+        tank_type="basic",
+        map_width_px=16 * TILE_SIZE,
+        map_height_px=16 * TILE_SIZE,
+    )
+    # Block UP, then RIGHT — only DOWN and LEFT remain as candidates
+    tank.direction = Direction.UP
+    tank._blocked_directions.add(Direction.UP)
+    tank.direction = Direction.RIGHT
+    mock_random_choice.return_value = Direction.DOWN
+    tank.on_movement_blocked()
+    assert Direction.RIGHT in tank._blocked_directions
+    assert Direction.UP in tank._blocked_directions
+    assert tank.direction == Direction.DOWN
+
+
+@patch("src.core.enemy_tank.random.choice")
+def test_blocked_directions_persist_until_movement(
+    mock_random_choice, mock_texture_manager
+):
+    """Blocked directions persist while stuck, clear on successful move."""
+    mock_random_choice.return_value = Direction.DOWN
+    tank = EnemyTank(
+        0,
+        0,
+        TILE_SIZE,
+        mock_texture_manager,
+        tank_type="basic",
+        map_width_px=16 * TILE_SIZE,
+        map_height_px=16 * TILE_SIZE,
+    )
+    tank._blocked_directions.add(Direction.UP)
+    tank._blocked_directions.add(Direction.LEFT)
+    # Simulate a frame where the tank doesn't move (stuck)
+    tank.x = 0
+    tank.prev_x = 0
+    tank.y = 0
+    tank.prev_y = 0
+    tank.update(1.0 / 60)
+    # Blocked directions should persist (tank didn't move)
+    assert Direction.UP in tank._blocked_directions
+    assert Direction.LEFT in tank._blocked_directions
+
+
+@patch("src.core.enemy_tank.random.choice")
+def test_blocked_directions_cleared_on_successful_move(
+    mock_random_choice, mock_texture_manager
+):
+    """Blocked directions are cleared once the tank moves successfully."""
+    mock_random_choice.return_value = Direction.DOWN
+    tank = EnemyTank(
+        0,
+        0,
+        TILE_SIZE,
+        mock_texture_manager,
+        tank_type="basic",
+        map_width_px=16 * TILE_SIZE,
+        map_height_px=16 * TILE_SIZE,
+    )
+    tank._blocked_directions.add(Direction.UP)
+    # Simulate prev position differing from current (tank moved last frame)
+    tank.prev_x = 32.0
+    tank.prev_y = 0.0
+    tank.update(1.0 / 60)
+    assert len(tank._blocked_directions) == 0
 
 
 def test_consume_shoot_after_timer(mock_texture_manager):

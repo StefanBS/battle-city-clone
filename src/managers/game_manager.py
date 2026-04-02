@@ -135,13 +135,15 @@ class GameManager:
         dt: float = 1.0 / self.fps
 
         self.map.update(dt)
+        # Update player tank (stores prev position) BEFORE movement
+        self.player_tank.update(dt)
+
         # Drive player tank from input
         dx, dy = self.input_handler.get_movement_direction()
         if dx != 0 or dy != 0:
             self.player_tank.move(dx, dy, dt)
         if self.input_handler.consume_shoot():
             self._try_shoot(self.player_tank)
-        self.player_tank.update(dt)
 
         for enemy in self.spawn_manager.enemy_tanks:
             enemy.update(dt)

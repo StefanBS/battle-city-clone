@@ -46,7 +46,7 @@ def mock_enemy():
     e.owner_type = "enemy"
     e.tank_type = "basic"
     e.take_damage = MagicMock(return_value=False)
-    e.on_wall_hit = MagicMock()
+    e.on_movement_blocked = MagicMock()
     e.revert_move = MagicMock()
     return e
 
@@ -344,22 +344,121 @@ class TestBulletVsBullet:
 
 
 class TestTankVsTank:
-    def test_both_reverted(self, handler, mock_player, mock_enemy):
-        handler.process_collisions([(mock_player, mock_enemy)])
-        mock_player.revert_move.assert_called_once()
-        mock_enemy.revert_move.assert_called_once()
+    """Tank-vs-tank collision tests using real tank objects."""
 
-    def test_enemy_vs_enemy_reverted(self, handler):
-        """Test that two enemy tanks both get reverted on collision."""
-        enemy1 = MagicMock(spec=EnemyTank)
-        enemy1.owner_type = "enemy"
-        enemy1.revert_move = MagicMock()
-        enemy2 = MagicMock(spec=EnemyTank)
-        enemy2.owner_type = "enemy"
-        enemy2.revert_move = MagicMock()
-        handler.process_collisions([(enemy1, enemy2)])
-        enemy1.revert_move.assert_called_once()
-        enemy2.revert_move.assert_called_once()
+    MAP_PX = 16 * TILE_SIZE
+
+    def _make_player(self, mock_texture_manager, x, y):
+        """Create a real PlayerTank at the given position."""
+        tank = PlayerTank(
+            x, y, TILE_SIZE, mock_texture_manager,
+            map_width_px=self.MAP_PX, map_height_px=self.MAP_PX,
+        )
+        return tank
+
+    def _make_enemy(self, mock_texture_manager, x, y):
+        """Create a real EnemyTank at the given position."""
+        tank = EnemyTank(
+            x, y, TILE_SIZE, mock_texture_manager, tank_type="basic",
+            map_width_px=self.MAP_PX, map_height_px=self.MAP_PX,
+        )
+        return tank
+
+    @staticmethod
+    def _simulate_move(tank, dx, dy, dt=1.0 / 60):
+        """Move tank and set up prev position as Tank.update() would."""
+        tank.prev_x, tank.prev_y = tank.x, tank.y
+        tank._move(dx, dy, dt)
+
+    def test_both_moving_toward_each_other(
+        self, handler, mock_texture_manager
+    ):
+        """Both tanks moving toward each other: both reverted."""
+        player = self._make_player(mock_texture_manager, 100, 130)
+        enemy = self._make_enemy(mock_texture_manager, 100, 100)
+        enemy.direction = Direction.DOWN
+        self._simulate_move(player, 0, -1)
+        self._simulate_move(enemy, 0, 1)
+        handler.process_collisions([(player, enemy)])
+        # Both should be snapped back to prev positions
+        assert player.x == player.prev_x and player.y == player.prev_y
+        assert enemy.x == enemy.prev_x and enemy.y == enemy.prev_y
+
+    def test_only_aggressor_reverted(
+        self, handler, mock_texture_manager
+    ):
+        """Stationary enemy is not reverted when player moves into it."""
+        player = self._make_player(mock_texture_manager, 100, 130)
+        enemy = self._make_enemy(mock_texture_manager, 100, 100)
+        enemy_pos_before = (enemy.x, enemy.y)
+        self._simulate_move(player, 0, -1)
+        # Enemy didn't move (prev == current)
+        enemy.prev_x, enemy.prev_y = enemy.x, enemy.y
+        handler.process_collisions([(player, enemy)])
+        assert player.x == player.prev_x and player.y == player.prev_y
+        assert (enemy.x, enemy.y) == enemy_pos_before
+
+    def test_perpendicular_tank_not_reverted(
+        self, handler, mock_texture_manager
+    ):
+        """Enemy moving perpendicular to collision axis keeps its move."""
+        player = self._make_player(mock_texture_manager, 100, 130)
+        enemy = self._make_enemy(mock_texture_manager, 100, 100)
+        enemy.direction = Direction.RIGHT
+        self._simulate_move(player, 0, -1)
+        self._simulate_move(enemy, 1, 0)
+        enemy_pos_after_move = (enemy.x, enemy.y)
+        handler.process_collisions([(player, enemy)])
+        # Player reverted, enemy kept its perpendicular movement
+        assert player.x == player.prev_x and player.y == player.prev_y
+        assert (enemy.x, enemy.y) == enemy_pos_after_move
+
+    def test_enemy_vs_enemy_both_moving_toward(
+        self, handler, mock_texture_manager
+    ):
+        """Two enemies moving toward each other: both reverted."""
+        e1 = self._make_enemy(mock_texture_manager, 100, 100)
+        e2 = self._make_enemy(mock_texture_manager, 130, 100)
+        e1.direction = Direction.RIGHT
+        e2.direction = Direction.LEFT
+        self._simulate_move(e1, 1, 0)
+        self._simulate_move(e2, -1, 0)
+        handler.process_collisions([(e1, e2)])
+        assert e1.x == e1.prev_x and e1.y == e1.prev_y
+        assert e2.x == e2.prev_x and e2.y == e2.prev_y
+
+    def test_pre_existing_overlap_reverts_both(
+        self, handler, mock_texture_manager
+    ):
+        """When tanks are already overlapping (neither caused it),
+        both should be reverted."""
+        e1 = self._make_enemy(mock_texture_manager, 100, 100)
+        e2 = self._make_enemy(mock_texture_manager, 100, 100)
+        # Neither moved
+        e1.prev_x, e1.prev_y = e1.x, e1.y
+        e2.prev_x, e2.prev_y = e2.x, e2.y
+        handler.process_collisions([(e1, e2)])
+        assert e1.x == e1.prev_x and e1.y == e1.prev_y
+        assert e2.x == e2.prev_x and e2.y == e2.prev_y
+
+    def test_cornered_enemy_blocked_direction_recorded(
+        self, handler, mock_texture_manager, mock_tile
+    ):
+        """When a cornered enemy gets tile + tank collisions, its
+        blocked direction is recorded from the tile hit."""
+        mock_tile.type = TileType.STEEL
+        mock_tile.rect = pygame.Rect(68, 100, TILE_SIZE, TILE_SIZE)
+        enemy = self._make_enemy(mock_texture_manager, 100, 100)
+        enemy.direction = Direction.LEFT
+        enemy.prev_x, enemy.prev_y = enemy.x, enemy.y
+        pusher = self._make_player(mock_texture_manager, 130, 100)
+        self._simulate_move(pusher, -1, 0)
+        handler.process_collisions([
+            (enemy, mock_tile),
+            (pusher, enemy),
+        ])
+        # Enemy's LEFT direction should be recorded as blocked
+        assert Direction.LEFT in enemy._blocked_directions
 
 
 class TestTankVsTile:
@@ -372,7 +471,7 @@ class TestTankVsTile:
         mock_tile.type = TileType.STEEL
         handler.process_collisions([(mock_enemy, mock_tile)])
         mock_enemy.revert_move.assert_called_once_with(mock_tile.rect)
-        mock_enemy.on_wall_hit.assert_called_once()
+        mock_enemy.on_movement_blocked.assert_called_once()
 
 
 class TestTracking:
