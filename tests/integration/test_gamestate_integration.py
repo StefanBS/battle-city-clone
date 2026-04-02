@@ -27,9 +27,13 @@ def test_initial_game_state(game_manager_fixture):
         f"got {game_manager.player_tank.lives}"
     )
 
-    # 3. Verify initial number of enemies
-    assert len(game_manager.spawn_manager.enemy_tanks) == 1, (
-        f"Expected 1 initial enemy tank, got {len(game_manager.spawn_manager.enemy_tanks)}"
+    # 3. Verify initial number of enemies (may be pending spawn animation)
+    total_enemies = (
+        len(game_manager.spawn_manager.enemy_tanks)
+        + len(game_manager.spawn_manager._pending_spawns)
+    )
+    assert total_enemies == 1, (
+        f"Expected 1 initial enemy (active or pending), got {total_enemies}"
     )
 
     # 4. Verify initial total spawn count
@@ -321,6 +325,7 @@ def test_victory_condition(game_manager_fixture):
     )
     # Simulate that all on-screen enemies are destroyed
     game_manager.spawn_manager.enemy_tanks = []
+    game_manager.spawn_manager._pending_spawns = []
     logger.info(
         f"Setting up victory condition: total_spawns="
         f"{game_manager.spawn_manager.total_enemy_spawns}, on-screen enemies=0"

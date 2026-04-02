@@ -1,9 +1,11 @@
 import pytest
 import pygame
-from unittest.mock import patch, MagicMock
+from unittest.mock import ANY, patch, MagicMock
 from src.managers.spawn_manager import SpawnManager
+from src.managers.effect_manager import EffectManager
+from src.core.effect import Effect
 from src.core.enemy_tank import EnemyTank
-from src.utils.constants import TILE_SIZE, SUB_TILE_SIZE
+from src.utils.constants import EffectType, TILE_SIZE, SUB_TILE_SIZE
 
 
 class TestSpawnManager:
@@ -269,3 +271,127 @@ class TestSpawnManager:
             map_height_px=16 * TILE_SIZE,
         )
         assert manager.max_enemy_spawns == 20
+
+
+class TestSpawnAnimation:
+    """Tests for the spawn animation / pending spawn flow."""
+
+    SPAWN_POINTS = [(3, 1), (8, 1), (12, 1)]
+
+    @pytest.fixture
+    def mock_player_tank(self):
+        player = MagicMock()
+        player.rect = pygame.Rect(
+            7 * TILE_SIZE, 14 * TILE_SIZE, TILE_SIZE, TILE_SIZE
+        )
+        return player
+
+    @pytest.fixture
+    def mock_game_map(self):
+        game_map = MagicMock()
+        game_map.get_collidable_tiles.return_value = []
+        return game_map
+
+    @pytest.fixture
+    def mock_effect_manager(self):
+        em = MagicMock(spec=EffectManager)
+        effect = MagicMock(spec=Effect)
+        effect.active = True
+        em.spawn.return_value = effect
+        return em
+
+    @pytest.fixture
+    def spawn_manager_with_effects(
+        self,
+        mock_texture_manager,
+        mock_player_tank,
+        mock_game_map,
+        mock_effect_manager,
+    ):
+        return SpawnManager(
+            tile_size=TILE_SIZE,
+            texture_manager=mock_texture_manager,
+            spawn_points=self.SPAWN_POINTS,
+            stage=1,
+            spawn_interval=5.0,
+            player_tank=mock_player_tank,
+            game_map=mock_game_map,
+            map_width_px=16 * TILE_SIZE,
+            map_height_px=16 * TILE_SIZE,
+            effect_manager=mock_effect_manager,
+        )
+
+    def test_spawn_creates_pending_not_immediate(
+        self, spawn_manager_with_effects, mock_effect_manager
+    ):
+        """spawn_enemy() creates a pending spawn, not an immediate tank."""
+        sm = spawn_manager_with_effects
+        assert len(sm.enemy_tanks) == 0
+        assert len(sm._pending_spawns) == 1
+        assert sm.total_enemy_spawns == 1
+        mock_effect_manager.spawn.assert_called_once_with(
+            EffectType.SPAWN, ANY, ANY
+        )
+
+    def test_update_materializes_when_effect_done(
+        self, spawn_manager_with_effects, mock_player_tank, mock_game_map
+    ):
+        """update() materializes the tank when spawn effect finishes."""
+        sm = spawn_manager_with_effects
+        assert len(sm._pending_spawns) == 1
+
+        sm._pending_spawns[0].effect.active = False
+        sm.update(0.01, mock_player_tank, mock_game_map)
+
+        assert len(sm._pending_spawns) == 0
+        assert len(sm.enemy_tanks) == 1
+
+    def test_update_keeps_active_pending_spawns(
+        self, spawn_manager_with_effects, mock_player_tank, mock_game_map
+    ):
+        """update() keeps pending spawns whose effect is still playing."""
+        sm = spawn_manager_with_effects
+        sm._pending_spawns[0].effect.active = True
+        sm.update(0.01, mock_player_tank, mock_game_map)
+
+        assert len(sm._pending_spawns) == 1
+        assert len(sm.enemy_tanks) == 0
+
+    def test_all_enemies_defeated_false_with_pending(
+        self, spawn_manager_with_effects
+    ):
+        """all_enemies_defeated() returns False while spawns are pending."""
+        sm = spawn_manager_with_effects
+        sm.total_enemy_spawns = sm.max_enemy_spawns
+        sm.enemy_tanks = []
+        assert not sm.all_enemies_defeated()
+
+    def test_all_enemies_defeated_true_when_clear(
+        self, spawn_manager_with_effects
+    ):
+        """all_enemies_defeated() returns True when no tanks or pending."""
+        sm = spawn_manager_with_effects
+        sm.total_enemy_spawns = sm.max_enemy_spawns
+        sm.enemy_tanks = []
+        sm._pending_spawns = []
+        assert sm.all_enemies_defeated()
+
+    @patch("random.choice")
+    def test_pending_spawn_blocks_same_location(
+        self,
+        mock_random_choice,
+        spawn_manager_with_effects,
+        mock_player_tank,
+        mock_game_map,
+    ):
+        """A new spawn at the same location is blocked by a pending one."""
+        sm = spawn_manager_with_effects
+        pending = sm._pending_spawns[0]
+
+        # Force next spawn to pick the same point as the pending spawn
+        grid_x = pending.x // SUB_TILE_SIZE
+        grid_y = pending.y // SUB_TILE_SIZE
+        mock_random_choice.return_value = (grid_x, grid_y)
+
+        result = sm.spawn_enemy(mock_player_tank, mock_game_map)
+        assert result is False

@@ -66,6 +66,11 @@ class TextureManager:
         "explosion_1": (32, 16),
         "explosion_2": (34, 16),
         "explosion_3": (36, 16),
+        # Spawn animation (4 frames: expanding sparkle/diamond)
+        "spawn_1": (32, 12),
+        "spawn_2": (34, 12),
+        "spawn_3": (36, 12),
+        "spawn_4": (38, 12),
     }
 
     # Bullet sprites: pixel rects (x, y, w, h) in the atlas.

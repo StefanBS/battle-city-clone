@@ -109,6 +109,7 @@ class GameManager:
             game_map=self.map,
             map_width_px=map_width_px,
             map_height_px=map_height_px,
+            effect_manager=self.effect_manager,
         )
 
         self.bullets: List[Bullet] = []
