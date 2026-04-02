@@ -9,6 +9,7 @@ from src.utils.constants import (
     TILE_SIZE,
     SMALL_EXPLOSION_FRAME_DURATION,
     LARGE_EXPLOSION_FRAME_DURATION,
+    SPAWN_FRAME_DURATION,
 )
 
 # Size of scaled-up explosion frames for large explosions
@@ -74,18 +75,38 @@ class EffectManager:
             LARGE_EXPLOSION_FRAME_DURATION,
         )
 
-    def spawn(self, effect_type: EffectType, x: float, y: float) -> None:
+        # Spawn animation: 4 frames cycled 3 times (1→2→3→4→3→2→1→2→3→4→3→2)
+        spawn_frames_raw = [
+            self._apply_colorkey(texture_manager.get_sprite(f"spawn_{i}"))
+            for i in range(1, 5)
+        ]
+        spawn_cycle = (
+            spawn_frames_raw
+            + spawn_frames_raw[2:0:-1]  # 3→2
+            + spawn_frames_raw
+            + spawn_frames_raw[2:0:-1]  # 3→2
+        )
+        self._effect_data[EffectType.SPAWN] = (
+            spawn_cycle,
+            SPAWN_FRAME_DURATION,
+        )
+
+    def spawn(self, effect_type: EffectType, x: float, y: float) -> Effect:
         """Spawn a new effect at the given center position.
 
         Args:
             effect_type: Type of effect to spawn.
             x: Center x position.
             y: Center y position.
+
+        Returns:
+            The created Effect instance.
         """
         frames, duration = self._effect_data[effect_type]
         effect = Effect(x, y, frames, duration)
         self.effects.append(effect)
         logger.trace(f"Spawned {effect_type.name} at ({x:.1f}, {y:.1f})")
+        return effect
 
     def update(self, dt: float) -> None:
         """Update all effects and remove inactive ones.

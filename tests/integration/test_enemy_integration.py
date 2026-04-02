@@ -6,6 +6,25 @@ from src.core.tile import Tile, TileType
 from src.core.enemy_tank import EnemyTank
 import random
 
+
+def _complete_pending_spawns(game_manager, max_ticks=100):
+    """Tick effect updates until all pending spawn animations finish."""
+    dt = 1.0 / FPS
+    sm = game_manager.spawn_manager
+    em = game_manager.effect_manager
+    for _ in range(max_ticks):
+        if not sm._pending_spawns:
+            break
+        # Only tick effects and check pending spawns — don't advance spawn timer
+        em.update(dt)
+        still_pending = []
+        for pending in sm._pending_spawns:
+            if not pending.effect.active:
+                sm._materialize_enemy(pending.x, pending.y, pending.tank_type)
+            else:
+                still_pending.append(pending)
+        sm._pending_spawns = still_pending
+
 # Tests related to enemy behavior: spawning, movement, shooting
 
 
@@ -21,8 +40,14 @@ def test_enemy_spawning_rules(game_manager_fixture):
 
     # --- 1. Initial Spawn Verification --- #
     logger.info("Verifying initial enemy spawn...")
+    # Run updates to let spawn animation finish and materialize the enemy
+    dt = 1.0 / FPS
+    for _ in range(100):
+        game_manager.update()
+        if game_manager.spawn_manager.enemy_tanks:
+            break
     assert len(game_manager.spawn_manager.enemy_tanks) == 1, (
-        "GameManager should initialize with 1 enemy."
+        "GameManager should have 1 enemy after spawn animation completes."
     )
     initial_enemy = game_manager.spawn_manager.enemy_tanks[0]
     initial_enemy_pos = initial_enemy.get_position()
@@ -82,7 +107,18 @@ def test_enemy_spawning_rules(game_manager_fixture):
                 f"Before: {total_spawned_before}, "
                 f"After: {total_spawned_after}"
             )
+            # Let spawn animation complete so tank materializes
+            for _ in range(100):
+                game_manager.spawn_manager.update(
+                    dt, game_manager.player_tank, game_manager.map
+                )
+                game_manager.effect_manager.update(dt)
+                if game_manager.spawn_manager.enemy_tanks:
+                    break
             # Verify the newly spawned enemy position
+            assert game_manager.spawn_manager.enemy_tanks, (
+                "Enemy should have materialized after spawn animation"
+            )
             new_enemy = game_manager.spawn_manager.enemy_tanks[-1]
             new_enemy_pos = new_enemy.get_position()
             assert new_enemy_pos in spawn_points_pixels, (
@@ -155,6 +191,7 @@ def test_enemy_spawn_blocked(game_manager_fixture):
 
     # --- Reset Enemy State --- #
     game_manager.spawn_manager.enemy_tanks = []
+    game_manager.spawn_manager._pending_spawns = []
     game_manager.spawn_manager.total_enemy_spawns = 0
     max_spawns = game_manager.spawn_manager.max_enemy_spawns
     logger.debug(f"Cleared initial enemies. Will attempt to spawn up to {max_spawns}.")
@@ -176,6 +213,8 @@ def test_enemy_spawn_blocked(game_manager_fixture):
         spawned_count_after = len(game_manager.spawn_manager.enemy_tanks)
 
         if spawn_success:
+            _complete_pending_spawns(game_manager)
+            spawned_count_after = len(game_manager.spawn_manager.enemy_tanks)
             assert spawned_count_after == spawned_count_before + 1
             new_enemy = game_manager.spawn_manager.enemy_tanks[-1]
             new_enemy_pos = new_enemy.get_position()

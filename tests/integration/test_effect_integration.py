@@ -64,17 +64,17 @@ class TestEffectLifecycle:
         )
 
     def test_effect_manager_reset_on_game_reset(self, game_manager_fixture):
-        """Resetting the game clears all active effects."""
+        """Resetting the game creates a fresh EffectManager."""
         gm = game_manager_fixture
 
         # Spawn an effect manually
         from src.utils.constants import EffectType
 
         gm.effect_manager.spawn(EffectType.SMALL_EXPLOSION, 100.0, 100.0)
-        assert len(gm.effect_manager.effects) == 1
+        old_effect_manager = gm.effect_manager
 
         # Reset the game
         gm._reset_game()
 
-        # New EffectManager should have no effects
-        assert len(gm.effect_manager.effects) == 0
+        # Should be a new EffectManager instance (old effects gone)
+        assert gm.effect_manager is not old_effect_manager
