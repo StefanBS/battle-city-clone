@@ -390,7 +390,7 @@ def test_score_accumulates_on_enemy_kill(game_manager_fixture):
     enemy.health = 1
 
     # Run updates until the enemy is destroyed or max iterations
-    for _ in range(200):
+    for _ in range(60):
         gm.update()
         if enemy not in gm.spawn_manager.enemy_tanks:
             break

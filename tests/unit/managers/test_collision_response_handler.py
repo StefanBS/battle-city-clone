@@ -12,6 +12,7 @@ from src.states.game_state import GameState
 from src.utils.constants import (
     Direction,
     EffectType,
+    TankType,
     TILE_SIZE,
     SEGMENT_LEFT,
     SEGMENT_RIGHT,
@@ -632,38 +633,27 @@ class TestExplosionEffects:
 class TestScoring:
     @pytest.mark.parametrize(
         "tank_type,expected_points",
-        [("basic", 100), ("fast", 200), ("power", 300), ("armor", 400)],
+        [
+            (TankType.BASIC, 100),
+            (TankType.FAST, 200),
+            (TankType.POWER, 300),
+            (TankType.ARMOR, 400),
+        ],
     )
     def test_enemy_destroyed_awards_points(
-        self, handler, mock_add_score, tank_type, expected_points
+        self, handler, mock_bullet, mock_enemy, mock_add_score,
+        tank_type, expected_points,
     ):
         """Destroying an enemy awards points based on tank type."""
-        bullet = MagicMock(spec=Bullet)
-        bullet.active = True
-        bullet.owner_type = "player"
-        bullet.owner = MagicMock()
-        bullet.rect = pygame.Rect(50, 50, 2, 2)
-        enemy = MagicMock(spec=EnemyTank)
-        enemy.owner_type = "enemy"
-        enemy.tank_type = tank_type
-        enemy.take_damage = MagicMock(return_value=True)
-        enemy.rect = pygame.Rect(100, 100, 32, 32)
-        handler.process_collisions([(bullet, enemy)])
+        mock_enemy.tank_type = tank_type
+        mock_enemy.take_damage.return_value = True
+        handler.process_collisions([(mock_bullet, mock_enemy)])
         mock_add_score.assert_called_once_with(expected_points)
 
     def test_enemy_damaged_not_destroyed_no_points(
-        self, handler, mock_add_score
+        self, handler, mock_bullet, mock_enemy, mock_add_score
     ):
         """Damaging but not destroying an enemy awards no points."""
-        bullet = MagicMock(spec=Bullet)
-        bullet.active = True
-        bullet.owner_type = "player"
-        bullet.owner = MagicMock()
-        bullet.rect = pygame.Rect(50, 50, 2, 2)
-        enemy = MagicMock(spec=EnemyTank)
-        enemy.owner_type = "enemy"
-        enemy.tank_type = "armor"
-        enemy.take_damage = MagicMock(return_value=False)
-        enemy.rect = pygame.Rect(100, 100, 32, 32)
-        handler.process_collisions([(bullet, enemy)])
+        mock_enemy.take_damage.return_value = False
+        handler.process_collisions([(mock_bullet, mock_enemy)])
         mock_add_score.assert_not_called()
