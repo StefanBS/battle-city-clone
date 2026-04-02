@@ -129,7 +129,7 @@ class CollisionResponseHandler:
         if destroyed:
             logger.info(f"Enemy tank (type: {enemy.tank_type}) destroyed.")
             enemies_to_remove.append(enemy)
-            self._add_score(ENEMY_POINTS.get(str(enemy.tank_type), 0))
+            self._add_score(ENEMY_POINTS.get(enemy.tank_type, 0))
             self._effect_manager.spawn(
                 EffectType.LARGE_EXPLOSION,
                 float(enemy.rect.centerx),

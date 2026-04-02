@@ -61,11 +61,11 @@ class TankType(str, Enum):
 
 
 # Points awarded per enemy tank type
-ENEMY_POINTS: dict[str, int] = {
-    "basic": 100,
-    "fast": 200,
-    "power": 300,
-    "armor": 400,
+ENEMY_POINTS: dict[TankType, int] = {
+    TankType.BASIC: 100,
+    TankType.FAST: 200,
+    TankType.POWER: 300,
+    TankType.ARMOR: 400,
 }
 
 
