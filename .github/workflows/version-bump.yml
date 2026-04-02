@@ -31,12 +31,20 @@ jobs:
         if: steps.bump-type.outputs.type == 'none'
         run: echo "No release label found. Skipping version bump."
 
+      - name: Generate GitHub App token
+        if: steps.bump-type.outputs.type != 'none'
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - name: Checkout
         if: steps.bump-type.outputs.type != 'none'
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.RELEASE_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Set up Python
         if: steps.bump-type.outputs.type != 'none'
