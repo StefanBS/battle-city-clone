@@ -135,6 +135,32 @@ def test_on_wall_hit(mock_random_choice, mock_texture_manager):
     assert tank.direction_timer == 0
 
 
+@patch("src.core.enemy_tank.random.choice")
+def test_on_wall_hit_cooldown(mock_random_choice, mock_texture_manager):
+    """Test that on_wall_hit ignores rapid calls (cornered tank)."""
+    mock_random_choice.return_value = Direction.DOWN
+    tank = EnemyTank(
+        0,
+        0,
+        TILE_SIZE,
+        mock_texture_manager,
+        tank_type="basic",
+        map_width_px=16 * TILE_SIZE,
+        map_height_px=16 * TILE_SIZE,
+    )
+    tank.direction = Direction.UP
+    tank.direction_timer = 1.0  # above cooldown — first hit fires
+    mock_random_choice.return_value = Direction.RIGHT
+    tank.on_wall_hit()
+    assert tank.direction == Direction.RIGHT
+    assert tank.direction_timer == 0
+
+    # Immediate second call should be ignored (timer just reset to 0)
+    mock_random_choice.return_value = Direction.LEFT
+    tank.on_wall_hit()
+    assert tank.direction == Direction.RIGHT  # unchanged
+
+
 def test_consume_shoot_after_timer(mock_texture_manager):
     """Test that EnemyTank signals shoot intent when timer fires."""
     tank = EnemyTank(

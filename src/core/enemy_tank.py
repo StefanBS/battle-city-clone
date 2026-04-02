@@ -147,8 +147,14 @@ class EnemyTank(Tank):
             return True
         return False
 
+    # Minimum time before on_wall_hit triggers another direction change,
+    # prevents rapid spinning when cornered on all sides.
+    _WALL_HIT_COOLDOWN = 0.3
+
     def on_wall_hit(self) -> None:
         """Handle collision with a wall by changing direction."""
+        if self.direction_timer < self._WALL_HIT_COOLDOWN:
+            return
         self._change_direction()
         self.direction_timer = 0
 
