@@ -40,6 +40,8 @@ class Bullet(GameObject):
         self.speed: float = speed
         self.active: bool = True
         self.color: Tuple[int, int, int] = WHITE
+        self.prev_x: float = x
+        self.prev_y: float = y
         self.owner = owner
         self.owner_type: OwnerType = owner.owner_type
         self.map_width_px: int = owner.map_width_px
@@ -59,6 +61,9 @@ class Bullet(GameObject):
         if not self.active:
             return
 
+        self.prev_x = self.x
+        self.prev_y = self.y
+
         dx, dy = self.direction.delta
         self.x += dx * self.speed * dt
         self.y += dy * self.speed * dt
@@ -75,6 +80,19 @@ class Bullet(GameObject):
 
         # Update the bullet's rect
         super().update(dt)
+
+    @property
+    def swept_rect(self) -> pygame.Rect:
+        """Return a rect covering both the previous and current positions.
+
+        Used for continuous collision detection so fast-moving bullets
+        cannot tunnel through each other between frames.
+        """
+        x1 = min(self.prev_x, self.x)
+        y1 = min(self.prev_y, self.y)
+        x2 = max(self.prev_x + self.width, self.x + self.width)
+        y2 = max(self.prev_y + self.height, self.y + self.height)
+        return pygame.Rect(round(x1), round(y1), round(x2 - x1), round(y2 - y1))
 
     def draw(self, surface: pygame.Surface) -> None:
         """

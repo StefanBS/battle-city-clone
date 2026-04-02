@@ -134,19 +134,6 @@ class GameManager:
 
         dt: float = 1.0 / self.fps
 
-        # --- Prepare data for Collision Manager ---
-        destructible_tiles: List[Tile] = self.map.get_tiles_by_type([TileType.BRICK])
-        impassable_tiles: List[Tile] = self.map.get_tiles_by_type(IMPASSABLE_TILE_TYPES)
-        player_base: Optional[Tile] = self.map.get_base()
-
-        player_bullets = [
-            b for b in self.bullets if b.owner_type == OwnerType.PLAYER and b.active
-        ]
-        enemy_bullets = [
-            b for b in self.bullets if b.owner_type == OwnerType.ENEMY and b.active
-        ]
-        # --- End Prepare data ---
-
         self.map.update(dt)
         # Drive player tank from input
         dx, dy = self.input_handler.get_movement_direction()
@@ -168,6 +155,19 @@ class GameManager:
         self.bullets = [b for b in self.bullets if b.active]
 
         self.spawn_manager.update(dt, self.player_tank, self.map)
+
+        # --- Prepare data for Collision Manager ---
+        # Built AFTER updates so newly fired bullets are included
+        destructible_tiles: List[Tile] = self.map.get_tiles_by_type([TileType.BRICK])
+        impassable_tiles: List[Tile] = self.map.get_tiles_by_type(IMPASSABLE_TILE_TYPES)
+        player_base: Optional[Tile] = self.map.get_base()
+
+        player_bullets = [
+            b for b in self.bullets if b.owner_type == OwnerType.PLAYER and b.active
+        ]
+        enemy_bullets = [
+            b for b in self.bullets if b.owner_type == OwnerType.ENEMY and b.active
+        ]
 
         self.collision_manager.check_collisions(
             player_tank=self.player_tank,
