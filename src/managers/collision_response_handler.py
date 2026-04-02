@@ -242,9 +242,9 @@ class CollisionResponseHandler:
     def _caused_collision(mover: Tank, other: Tank) -> bool:
         """Check if mover's movement contributed to the collision.
 
-        Returns True when mover's previous position does NOT overlap
-        with other's current position, meaning mover's movement closed
-        the gap and caused the collision.
+        Compares mover's previous position against other's current
+        (post-move) rect. Returns True when the previous position does
+        NOT overlap, meaning mover's movement closed the gap.
         """
         prev_rect = pygame.Rect(
             round(mover.prev_x), round(mover.prev_y),
@@ -267,9 +267,12 @@ class CollisionResponseHandler:
         if b_caused or neither:
             tank_b.revert_move()
 
-        if a_caused:
+        # Notify tanks that caused the collision so enemies change direction.
+        # In the 'neither' case (pre-existing overlap), notify both so they
+        # can escape rather than staying stuck indefinitely.
+        if a_caused or neither:
             tank_a.on_wall_hit()
-        if b_caused:
+        if b_caused or neither:
             tank_b.on_wall_hit()
         return True
 

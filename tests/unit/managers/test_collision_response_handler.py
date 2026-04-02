@@ -409,6 +409,18 @@ class TestTankVsTank:
         e1.on_wall_hit.assert_called_once()
         e2.on_wall_hit.assert_called_once()
 
+    def test_pre_existing_overlap_reverts_and_notifies_both(self, handler):
+        """When tanks are already overlapping (neither caused it),
+        both should be reverted and notified so they can escape."""
+        # Both at same position, neither moved
+        e1 = self._make_tank(EnemyTank, "enemy", 100, 100, 100, 100)
+        e2 = self._make_tank(EnemyTank, "enemy", 100, 100, 100, 100)
+        handler.process_collisions([(e1, e2)])
+        e1.revert_move.assert_called_once()
+        e2.revert_move.assert_called_once()
+        e1.on_wall_hit.assert_called_once()
+        e2.on_wall_hit.assert_called_once()
+
 
 class TestTankVsTile:
     def test_player_reverted_on_impassable(self, handler, mock_player, mock_tile):
