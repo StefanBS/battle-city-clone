@@ -56,6 +56,10 @@ class TextureManager:
         "base_destroyed": (40, 4),
         "water_1": (32, 6),
         "water_2": (34, 6),
+        # Explosions (3 frames: small burst, medium burst, large burst)
+        "explosion_1": (32, 16),
+        "explosion_2": (34, 16),
+        "explosion_3": (36, 16),
     }
 
     def _load_sprites(self):

@@ -20,6 +20,7 @@ class TestGameManager:
             patch("pygame.display.set_mode"),
             patch("pygame.font.SysFont"),
             patch("src.managers.game_manager.TextureManager") as MockTM,
+            patch("src.managers.game_manager.EffectManager"),
             patch("src.managers.game_manager.Renderer"),
             patch("src.managers.game_manager.SpawnManager"),
             patch("src.managers.game_manager.Map") as MockMap,

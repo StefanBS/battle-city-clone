@@ -181,8 +181,10 @@ class Tank(GameObject):
     def prev_rect(self) -> pygame.Rect:
         """Return a Rect at the tank's position from the start of this frame."""
         return pygame.Rect(
-            round(self.prev_x), round(self.prev_y),
-            self.width, self.height,
+            round(self.prev_x),
+            round(self.prev_y),
+            self.width,
+            self.height,
         )
 
     def on_movement_blocked(self) -> None:

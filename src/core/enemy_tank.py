@@ -120,9 +120,7 @@ class EnemyTank(Tank):
         # Fall back to unblocked only (allow opposite)
         if not candidates:
             candidates = [
-                d
-                for d in self._ALL_DIRECTIONS
-                if d not in self._blocked_directions
+                d for d in self._ALL_DIRECTIONS if d not in self._blocked_directions
             ]
         # All directions blocked — stay put and wait for one to open
         if not candidates:
