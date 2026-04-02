@@ -29,6 +29,20 @@ class EffectManager:
         ] = {}
         self._build_frame_cache(texture_manager)
 
+    @staticmethod
+    def _apply_colorkey(surface: pygame.Surface, key_color=(0, 0, 1)) -> pygame.Surface:
+        """Return a copy with key_color pixels made fully transparent.
+
+        The explosion sprites in the atlas have an opaque near-black
+        background (0,0,1) instead of true transparency. This converts
+        those pixels to alpha=0 so explosions don't overwrite the scene.
+        """
+        copy = surface.convert()
+        copy.set_colorkey(key_color)
+        result = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
+        result.blit(copy, (0, 0))
+        return result
+
     def _build_frame_cache(self, texture_manager: TextureManager) -> None:
         """Pre-load and cache sprite frames for each effect type.
 
@@ -36,9 +50,9 @@ class EffectManager:
         Large explosion uses the same 3 frames at 32x32 followed by
         explosion_2 and explosion_3 scaled up to 64x64.
         """
-        frame_1 = texture_manager.get_sprite("explosion_1")
-        frame_2 = texture_manager.get_sprite("explosion_2")
-        frame_3 = texture_manager.get_sprite("explosion_3")
+        frame_1 = self._apply_colorkey(texture_manager.get_sprite("explosion_1"))
+        frame_2 = self._apply_colorkey(texture_manager.get_sprite("explosion_2"))
+        frame_3 = self._apply_colorkey(texture_manager.get_sprite("explosion_3"))
 
         small_frames = [frame_1, frame_2, frame_3]
 
