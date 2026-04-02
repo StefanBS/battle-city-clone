@@ -56,6 +56,7 @@ class TestGetLogPath:
             patch.object(sys, "_MEIPASS", fake_meipass, create=True),
             patch("sys.platform", "linux"),
             patch.dict(os.environ, {"XDG_DATA_HOME": "/tmp/xdg_data"}, clear=False),
+            patch("src.utils.paths.os.makedirs"),
         ):
             result = get_log_path()
             assert result == os.path.join("/tmp/xdg_data", "BattleCity", "game.log")
@@ -70,6 +71,7 @@ class TestGetLogPath:
             patch.object(sys, "_MEIPASS", fake_meipass, create=True),
             patch("sys.platform", "win32"),
             patch.dict(os.environ, {"APPDATA": appdata}, clear=False),
+            patch("src.utils.paths.os.makedirs"),
         ):
             result = get_log_path()
             assert result == os.path.join(appdata, "BattleCity", "game.log")
@@ -85,6 +87,7 @@ class TestGetLogPath:
             patch.object(sys, "_MEIPASS", fake_meipass, create=True),
             patch("sys.platform", "linux"),
             patch.dict(os.environ, env, clear=True),
+            patch("src.utils.paths.os.makedirs"),
         ):
             result = get_log_path()
             expected = os.path.join(
