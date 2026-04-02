@@ -5,18 +5,23 @@ description = "Just a Battle City (NES) clone"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "mypy",
     "pygame",
     "loguru",
+    "pytmx",
 ]
 
 [project.optional-dependencies]
 dev = [
+    "mypy",
     "pre-commit",
     "pytest",
     "pytest-cov>=6.1.1",
     "pytest-mock>=3.14.0",
     "ruff",
+]
+build = [
+    "pyinstaller",
+    "bump-my-version",
 ]
 
 [tool.ruff]
