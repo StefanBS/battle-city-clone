@@ -358,19 +358,21 @@ class TestBulletVsBullet:
 
 
 class TestTankVsTank:
+    @staticmethod
+    def _make_tank(spec_class, owner_type, x, y, prev_x, prev_y):
+        """Create a mock tank with position and rect in sync."""
+        t = MagicMock(spec=spec_class)
+        t.owner_type = owner_type
+        t.x, t.y = x, y
+        t.prev_x, t.prev_y = prev_x, prev_y
+        t.width = t.height = TILE_SIZE
+        t.rect = pygame.Rect(round(x), round(y), TILE_SIZE, TILE_SIZE)
+        return t
+
     def test_both_moving_toward_each_other(self, handler):
         """Both tanks moving toward each other: both reverted."""
-        # Tank A at y=130 moved UP from y=134, Tank B at y=100 moved DOWN from y=96
-        a = MagicMock(spec=PlayerTank)
-        a.owner_type = "player"
-        a.x, a.y = 100.0, 130.0
-        a.prev_x, a.prev_y = 100.0, 134.0
-        a.width = a.height = TILE_SIZE
-        b = MagicMock(spec=EnemyTank)
-        b.owner_type = "enemy"
-        b.x, b.y = 100.0, 100.0
-        b.prev_x, b.prev_y = 100.0, 96.0
-        b.width = b.height = TILE_SIZE
+        a = self._make_tank(PlayerTank, "player", 100, 130, 100, 134)
+        b = self._make_tank(EnemyTank, "enemy", 100, 100, 100, 96)
         handler.process_collisions([(a, b)])
         a.revert_move.assert_called_once()
         b.revert_move.assert_called_once()
@@ -379,17 +381,8 @@ class TestTankVsTank:
 
     def test_only_aggressor_gets_wall_hit(self, handler):
         """Only the tank that moved into the other gets on_wall_hit."""
-        # Player at y=130 moved UP from y=134, enemy stationary at y=100
-        player = MagicMock(spec=PlayerTank)
-        player.owner_type = "player"
-        player.x, player.y = 100.0, 130.0
-        player.prev_x, player.prev_y = 100.0, 134.0
-        player.width = player.height = TILE_SIZE
-        enemy = MagicMock(spec=EnemyTank)
-        enemy.owner_type = "enemy"
-        enemy.x, enemy.y = 100.0, 100.0
-        enemy.prev_x, enemy.prev_y = 100.0, 100.0
-        enemy.width = enemy.height = TILE_SIZE
+        player = self._make_tank(PlayerTank, "player", 100, 130, 100, 134)
+        enemy = self._make_tank(EnemyTank, "enemy", 100, 100, 100, 100)
         handler.process_collisions([(player, enemy)])
         player.revert_move.assert_called_once()
         enemy.revert_move.assert_not_called()
@@ -398,17 +391,8 @@ class TestTankVsTank:
 
     def test_perpendicular_tank_not_reverted(self, handler):
         """Enemy moving perpendicular to collision axis is not reverted."""
-        # Player at y=130 moves UP from y=134, enemy at y=100 moves RIGHT from x=98
-        player = MagicMock(spec=PlayerTank)
-        player.owner_type = "player"
-        player.x, player.y = 100.0, 130.0
-        player.prev_x, player.prev_y = 100.0, 134.0
-        player.width = player.height = TILE_SIZE
-        enemy = MagicMock(spec=EnemyTank)
-        enemy.owner_type = "enemy"
-        enemy.x, enemy.y = 100.0, 100.0
-        enemy.prev_x, enemy.prev_y = 98.0, 100.0
-        enemy.width = enemy.height = TILE_SIZE
+        player = self._make_tank(PlayerTank, "player", 100, 130, 100, 134)
+        enemy = self._make_tank(EnemyTank, "enemy", 100, 100, 98, 100)
         handler.process_collisions([(player, enemy)])
         player.revert_move.assert_called_once()
         enemy.revert_move.assert_not_called()
@@ -417,21 +401,13 @@ class TestTankVsTank:
 
     def test_enemy_vs_enemy_both_moving_toward(self, handler):
         """Two enemies moving toward each other: both reverted."""
-        enemy1 = MagicMock(spec=EnemyTank)
-        enemy1.owner_type = "enemy"
-        enemy1.x, enemy1.y = 100.0, 100.0
-        enemy1.prev_x, enemy1.prev_y = 96.0, 100.0
-        enemy1.width = enemy1.height = TILE_SIZE
-        enemy2 = MagicMock(spec=EnemyTank)
-        enemy2.owner_type = "enemy"
-        enemy2.x, enemy2.y = 130.0, 100.0
-        enemy2.prev_x, enemy2.prev_y = 134.0, 100.0
-        enemy2.width = enemy2.height = TILE_SIZE
-        handler.process_collisions([(enemy1, enemy2)])
-        enemy1.revert_move.assert_called_once()
-        enemy2.revert_move.assert_called_once()
-        enemy1.on_wall_hit.assert_called_once()
-        enemy2.on_wall_hit.assert_called_once()
+        e1 = self._make_tank(EnemyTank, "enemy", 100, 100, 96, 100)
+        e2 = self._make_tank(EnemyTank, "enemy", 130, 100, 134, 100)
+        handler.process_collisions([(e1, e2)])
+        e1.revert_move.assert_called_once()
+        e2.revert_move.assert_called_once()
+        e1.on_wall_hit.assert_called_once()
+        e2.on_wall_hit.assert_called_once()
 
 
 class TestTankVsTile:

@@ -81,8 +81,7 @@ class PlayerTank(Tank):
             logger.info(
                 f"Player respawning at {self.initial_position}. Lives: {self.lives}"
             )
-            self.x, self.y = self.initial_position
-            self.rect.topleft = (round(self.x), round(self.y))
+            self.set_position(*self.initial_position)
             self.is_invincible = True
             self.invincibility_timer = 0
             self.blink_timer = 0

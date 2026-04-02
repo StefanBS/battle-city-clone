@@ -250,11 +250,7 @@ class CollisionResponseHandler:
             round(mover.prev_x), round(mover.prev_y),
             mover.width, mover.height,
         )
-        other_rect = pygame.Rect(
-            round(other.x), round(other.y),
-            other.width, other.height,
-        )
-        return not prev_rect.colliderect(other_rect)
+        return not prev_rect.colliderect(other.rect)
 
     def _handle_tank_vs_tank(
         self,
@@ -264,10 +260,11 @@ class CollisionResponseHandler:
     ) -> bool:
         a_caused = self._caused_collision(tank_a, tank_b)
         b_caused = self._caused_collision(tank_b, tank_a)
+        neither = not a_caused and not b_caused
 
-        if a_caused or not b_caused:
+        if a_caused or neither:
             tank_a.revert_move()
-        if b_caused or not a_caused:
+        if b_caused or neither:
             tank_b.revert_move()
 
         if a_caused:
