@@ -95,6 +95,7 @@ class EnemyTank(Tank):
         self.shoot_timer: float = 0
         self.shoot_interval: float = props["shoot_interval"]
         self._wants_to_shoot: bool = False
+        self._blocked_directions: set[Direction] = set()
         self._update_sprite()
         logger.debug(
             f"EnemyTank ({tank_type}) properties: speed={self.speed:.2f}, "
@@ -106,33 +107,33 @@ class EnemyTank(Tank):
     _ALL_DIRECTIONS = list(Direction)
 
     def _change_direction(self) -> None:
-        """Randomly change the tank's direction and update its sprite."""
+        """Randomly change the tank's direction, avoiding blocked ones."""
         old_direction = self.direction
-        new_direction = old_direction
 
-        # Try to avoid reversing first
-        possible_directions = [
-            d for d in self._ALL_DIRECTIONS if d != old_direction.opposite
+        # Prefer unblocked directions, excluding opposite to avoid reversing
+        opposite = old_direction.opposite
+        candidates = [
+            d
+            for d in self._ALL_DIRECTIONS
+            if d not in self._blocked_directions and d != opposite
         ]
-        if possible_directions:
-            new_direction = random.choice(possible_directions)
-
-        # If direction didn't change, pick any different direction (fallback)
-        if new_direction == old_direction:
-            possible_directions = [
-                d for d in self._ALL_DIRECTIONS if d != old_direction
+        # Fall back to unblocked only (allow opposite)
+        if not candidates:
+            candidates = [
+                d
+                for d in self._ALL_DIRECTIONS
+                if d not in self._blocked_directions
             ]
-            if possible_directions:
-                new_direction = random.choice(possible_directions)
+        # All directions blocked — stay put and wait for one to open
+        if not candidates:
+            return
 
-        # Only update sprite if the direction actually changed
+        new_direction = random.choice(candidates)
         if new_direction != old_direction:
             self.direction = new_direction
             logger.trace(
-                (
-                    f"EnemyTank ({self.tank_type}) changing direction "
-                    f"from {old_direction} to {self.direction}"
-                )
+                f"EnemyTank ({self.tank_type}) changing direction "
+                f"from {old_direction} to {self.direction}"
             )
             self._update_sprite()
         else:
@@ -147,14 +148,9 @@ class EnemyTank(Tank):
             return True
         return False
 
-    # Minimum time before on_wall_hit triggers another direction change,
-    # prevents rapid spinning when cornered on all sides.
-    _WALL_HIT_COOLDOWN = 0.3
-
-    def on_wall_hit(self) -> None:
+    def on_movement_blocked(self) -> None:
         """Handle collision with a wall by changing direction."""
-        if self.direction_timer < self._WALL_HIT_COOLDOWN:
-            return
+        self._blocked_directions.add(self.direction)
         self._change_direction()
         self.direction_timer = 0
 
@@ -165,6 +161,12 @@ class EnemyTank(Tank):
         Args:
             dt: Time elapsed since last update in seconds
         """
+        # Clear blocked directions once the tank successfully moved,
+        # meaning the path is no longer obstructed. Check before
+        # super().update() overwrites prev_x/prev_y.
+        if self.x != self.prev_x or self.y != self.prev_y:
+            self._blocked_directions.clear()
+
         # Update base tank state (this now stores prev_x/y)
         super().update(dt)
 

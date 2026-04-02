@@ -177,8 +177,16 @@ class Tank(GameObject):
 
         super().update(dt)
 
-    def on_wall_hit(self) -> None:
-        """Called when the tank collides with a wall tile. No-op by default."""
+    @property
+    def prev_rect(self) -> pygame.Rect:
+        """Return a Rect at the tank's position from the start of this frame."""
+        return pygame.Rect(
+            round(self.prev_x), round(self.prev_y),
+            self.width, self.height,
+        )
+
+    def on_movement_blocked(self) -> None:
+        """Called when movement is blocked (wall, boundary, tank). No-op by default."""
         pass
 
     def _align_to_grid(self, value: float, dt: float) -> float:
@@ -234,7 +242,7 @@ class Tank(GameObject):
 
         # Detect boundary hit (position was clamped)
         if self.x != target_x or self.y != target_y:
-            self.on_wall_hit()
+            self.on_movement_blocked()
 
         # Distance-based animation toggle
         distance = abs(dx * self.speed * dt) + abs(dy * self.speed * dt)

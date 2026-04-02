@@ -1,4 +1,3 @@
-import pygame
 from typing import Any, Callable, Dict, List, Tuple, Type
 from loguru import logger
 from src.core.bullet import Bullet
@@ -47,7 +46,7 @@ class CollisionResponseHandler:
             return []
 
         processed_bullets: set = set()
-        self._reverted_tanks: set = set()
+        reverted_tanks: set = set()
         enemies_to_remove: List[EnemyTank] = []
 
         for obj_a, obj_b in events:
@@ -79,18 +78,18 @@ class CollisionResponseHandler:
 
             # Tank collisions
             if isinstance(a, Tank) and isinstance(b, Tank):
-                if a not in self._reverted_tanks or b not in self._reverted_tanks:
+                if a not in reverted_tanks or b not in reverted_tanks:
                     if handler(a, b, enemies_to_remove):
-                        self._reverted_tanks.add(a)
-                        self._reverted_tanks.add(b)
+                        reverted_tanks.add(a)
+                        reverted_tanks.add(b)
             elif isinstance(a, Tank):
-                if a not in self._reverted_tanks:
+                if a not in reverted_tanks:
                     if handler(a, b, enemies_to_remove):
-                        self._reverted_tanks.add(a)
+                        reverted_tanks.add(a)
             elif isinstance(b, Tank):
-                if b not in self._reverted_tanks:
+                if b not in reverted_tanks:
                     if handler(a, b, enemies_to_remove):
-                        self._reverted_tanks.add(b)
+                        reverted_tanks.add(b)
 
         return enemies_to_remove
 
@@ -246,11 +245,7 @@ class CollisionResponseHandler:
         (post-move) rect. Returns True when the previous position does
         NOT overlap, meaning mover's movement closed the gap.
         """
-        prev_rect = pygame.Rect(
-            round(mover.prev_x), round(mover.prev_y),
-            mover.width, mover.height,
-        )
-        return not prev_rect.colliderect(other.rect)
+        return not mover.prev_rect.colliderect(other.rect)
 
     def _handle_tank_vs_tank(
         self,
@@ -265,16 +260,12 @@ class CollisionResponseHandler:
         # Revert and notify each tank that caused the collision.
         # In the 'neither' case (pre-existing overlap), apply to both
         # so enemies can escape via direction change.
-        # Skip on_wall_hit for tanks already handled by a tile collision
-        # this frame — they already got a direction change there.
         if a_caused or neither:
             tank_a.revert_move()
-            if tank_a not in self._reverted_tanks:
-                tank_a.on_wall_hit()
+            tank_a.on_movement_blocked()
         if b_caused or neither:
             tank_b.revert_move()
-            if tank_b not in self._reverted_tanks:
-                tank_b.on_wall_hit()
+            tank_b.on_movement_blocked()
         return True
 
     def _handle_tank_vs_tile(
@@ -285,6 +276,6 @@ class CollisionResponseHandler:
     ) -> bool:
         if tile.type in IMPASSABLE_TILE_TYPES:
             tank.revert_move(tile.rect)
-            tank.on_wall_hit()
+            tank.on_movement_blocked()
             return True
         return False
