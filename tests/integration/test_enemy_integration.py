@@ -7,7 +7,7 @@ from src.core.enemy_tank import EnemyTank
 import random
 
 
-def _complete_pending_spawns(game_manager, max_ticks=100):
+def _complete_pending_spawns(game_manager, max_ticks=60):
     """Tick effect updates until all pending spawn animations finish."""
     dt = 1.0 / FPS
     sm = game_manager.spawn_manager
@@ -41,8 +41,7 @@ def test_enemy_spawning_rules(game_manager_fixture):
     # --- 1. Initial Spawn Verification --- #
     logger.info("Verifying initial enemy spawn...")
     # Run updates to let spawn animation finish and materialize the enemy
-    dt = 1.0 / FPS
-    for _ in range(100):
+    for _ in range(60):
         game_manager.update()
         if game_manager.spawn_manager.enemy_tanks:
             break
@@ -107,14 +106,7 @@ def test_enemy_spawning_rules(game_manager_fixture):
                 f"Before: {total_spawned_before}, "
                 f"After: {total_spawned_after}"
             )
-            # Let spawn animation complete so tank materializes
-            for _ in range(100):
-                game_manager.spawn_manager.update(
-                    dt, game_manager.player_tank, game_manager.map
-                )
-                game_manager.effect_manager.update(dt)
-                if game_manager.spawn_manager.enemy_tanks:
-                    break
+            _complete_pending_spawns(game_manager)
             # Verify the newly spawned enemy position
             assert game_manager.spawn_manager.enemy_tanks, (
                 "Enemy should have materialized after spawn animation"

@@ -1,6 +1,6 @@
 import pytest
 import pygame
-from unittest.mock import patch, MagicMock
+from unittest.mock import ANY, patch, MagicMock
 from src.managers.spawn_manager import SpawnManager
 from src.managers.effect_manager import EffectManager
 from src.core.effect import Effect
@@ -329,9 +329,9 @@ class TestSpawnAnimation:
         assert len(sm.enemy_tanks) == 0
         assert len(sm._pending_spawns) == 1
         assert sm.total_enemy_spawns == 1
-        mock_effect_manager.spawn.assert_called_once()
-        call_args = mock_effect_manager.spawn.call_args
-        assert call_args.args[0] == EffectType.SPAWN
+        mock_effect_manager.spawn.assert_called_once_with(
+            EffectType.SPAWN, ANY, ANY
+        )
 
     def test_update_materializes_when_effect_done(
         self, spawn_manager_with_effects, mock_player_tank, mock_game_map

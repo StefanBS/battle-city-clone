@@ -5,7 +5,7 @@ plays through frames over multiple updates, and is cleaned up.
 """
 
 from src.core.tile import TileType
-from src.utils.constants import FPS
+from src.utils.constants import EffectType, FPS
 
 
 class TestEffectLifecycle:
@@ -66,9 +66,6 @@ class TestEffectLifecycle:
     def test_effect_manager_reset_on_game_reset(self, game_manager_fixture):
         """Resetting the game creates a fresh EffectManager."""
         gm = game_manager_fixture
-
-        # Spawn an effect manually
-        from src.utils.constants import EffectType
 
         gm.effect_manager.spawn(EffectType.SMALL_EXPLOSION, 100.0, 100.0)
         old_effect_manager = gm.effect_manager
