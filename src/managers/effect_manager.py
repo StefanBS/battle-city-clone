@@ -34,19 +34,18 @@ class EffectManager:
 
         Small explosion uses 3 frames at 32x32.
         Large explosion uses the same 3 frames at 32x32 followed by
-        explosion_3 and explosion_4 scaled up to 64x64.
+        explosion_2 and explosion_3 scaled up to 64x64.
         """
         frame_1 = texture_manager.get_sprite("explosion_1")
         frame_2 = texture_manager.get_sprite("explosion_2")
         frame_3 = texture_manager.get_sprite("explosion_3")
-        frame_4 = texture_manager.get_sprite("explosion_4")
 
         small_frames = [frame_1, frame_2, frame_3]
 
         size = (_LARGE_EXPLOSION_SIZE, _LARGE_EXPLOSION_SIZE)
         large_frames = small_frames + [
+            pygame.transform.scale(frame_2, size),
             pygame.transform.scale(frame_3, size),
-            pygame.transform.scale(frame_4, size),
         ]
 
         self._effect_data[EffectType.SMALL_EXPLOSION] = (
