@@ -7,6 +7,7 @@ from src.core.enemy_tank import EnemyTank
 from src.core.tile import Tile, TileType, IMPASSABLE_TILE_TYPES
 from src.utils.constants import (
     Direction,
+    EffectType,
     OwnerType,
     SEGMENT_LEFT,
     SEGMENT_RIGHT,
@@ -14,6 +15,7 @@ from src.utils.constants import (
     SEGMENT_BOTTOM,
 )
 from src.core.map import Map
+from src.managers.effect_manager import EffectManager
 from src.states.game_state import GameState
 
 
@@ -24,9 +26,11 @@ class CollisionResponseHandler:
         self,
         game_map: Map,
         set_game_state: Callable[[GameState], None],
+        effect_manager: EffectManager,
     ) -> None:
         self._map = game_map
         self._set_game_state = set_game_state
+        self._effect_manager = effect_manager
 
         self._handlers: Dict[Tuple[Type, Type], Callable[[Any, Any, List], bool]] = {
             (Bullet, EnemyTank): self._handle_bullet_vs_enemy,
@@ -122,6 +126,11 @@ class CollisionResponseHandler:
         if destroyed:
             logger.info(f"Enemy tank (type: {enemy.tank_type}) destroyed.")
             enemies_to_remove.append(enemy)
+            self._effect_manager.spawn(
+                EffectType.LARGE_EXPLOSION,
+                float(enemy.rect.centerx),
+                float(enemy.rect.centery),
+            )
         return True
 
     def _handle_bullet_vs_player(
@@ -140,6 +149,11 @@ class CollisionResponseHandler:
             destroyed = player.take_damage()
             if destroyed:
                 logger.info("Player tank destroyed.")
+                self._effect_manager.spawn(
+                    EffectType.LARGE_EXPLOSION,
+                    float(player.rect.centerx),
+                    float(player.rect.centery),
+                )
                 self._set_game_state(GameState.GAME_OVER)
             else:
                 player.respawn()
@@ -156,15 +170,30 @@ class CollisionResponseHandler:
         if tile.type == TileType.BRICK:
             logger.debug(f"Bullet hit brick tile at ({tile.x}, {tile.y})")
             bullet.active = False
+            self._effect_manager.spawn(
+                EffectType.SMALL_EXPLOSION,
+                float(bullet.rect.centerx),
+                float(bullet.rect.centery),
+            )
             self._destroy_brick_segments(tile, bullet)
             return True
         elif tile.type == TileType.STEEL:
             logger.debug(f"Bullet hit steel tile at ({tile.x}, {tile.y})")
             bullet.active = False
+            self._effect_manager.spawn(
+                EffectType.SMALL_EXPLOSION,
+                float(bullet.rect.centerx),
+                float(bullet.rect.centery),
+            )
             return True
         elif tile.type == TileType.BASE:
             logger.debug(f"Bullet hit base tile at ({tile.x}, {tile.y})")
             bullet.active = False
+            self._effect_manager.spawn(
+                EffectType.SMALL_EXPLOSION,
+                float(bullet.rect.centerx),
+                float(bullet.rect.centery),
+            )
             self._map.destroy_base_group(tile)
             self._set_game_state(GameState.GAME_OVER)
             return True
@@ -183,6 +212,16 @@ class CollisionResponseHandler:
         logger.debug("Bullet hit bullet. Both deactivated.")
         bullet_a.active = False
         bullet_b.active = False
+        self._effect_manager.spawn(
+            EffectType.SMALL_EXPLOSION,
+            float(bullet_a.rect.centerx),
+            float(bullet_a.rect.centery),
+        )
+        self._effect_manager.spawn(
+            EffectType.SMALL_EXPLOSION,
+            float(bullet_b.rect.centerx),
+            float(bullet_b.rect.centery),
+        )
         return True
 
     def _destroy_brick_segments(self, tile: Tile, bullet: Bullet) -> None:

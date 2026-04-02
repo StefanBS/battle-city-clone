@@ -18,6 +18,7 @@ from src.utils.constants import (
 )
 from src.managers.collision_manager import CollisionManager
 from src.managers.collision_response_handler import CollisionResponseHandler
+from src.managers.effect_manager import EffectManager
 from src.managers.texture_manager import TextureManager
 from src.managers.input_handler import InputHandler
 from src.managers.spawn_manager import SpawnManager
@@ -64,11 +65,15 @@ class GameManager:
         map_width_px: int = self.map.width * self.map.tile_size
         map_height_px: int = self.map.height * self.map.tile_size
 
+        # Effect manager
+        self.effect_manager: EffectManager = EffectManager(self.texture_manager)
+
         # Collision response handler
         self.collision_response_handler: CollisionResponseHandler = (
             CollisionResponseHandler(
                 game_map=self.map,
                 set_game_state=self._set_game_state,
+                effect_manager=self.effect_manager,
             )
         )
 

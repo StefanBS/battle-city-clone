@@ -2,6 +2,7 @@ import pytest
 import pygame
 from unittest.mock import MagicMock
 from src.managers.collision_response_handler import CollisionResponseHandler
+from src.managers.effect_manager import EffectManager
 from src.core.bullet import Bullet
 from src.core.player_tank import PlayerTank
 from src.core.enemy_tank import EnemyTank
@@ -10,6 +11,7 @@ from src.core.map import Map
 from src.states.game_state import GameState
 from src.utils.constants import (
     Direction,
+    EffectType,
     TILE_SIZE,
     SEGMENT_LEFT,
     SEGMENT_RIGHT,
@@ -26,9 +28,18 @@ def mock_map():
 
 
 @pytest.fixture
-def handler(mock_map):
+def mock_effect_manager():
+    return MagicMock(spec=EffectManager)
+
+
+@pytest.fixture
+def handler(mock_map, mock_effect_manager):
     set_state = MagicMock()
-    return CollisionResponseHandler(game_map=mock_map, set_game_state=set_state)
+    return CollisionResponseHandler(
+        game_map=mock_map,
+        set_game_state=set_state,
+        effect_manager=mock_effect_manager,
+    )
 
 
 @pytest.fixture
@@ -37,6 +48,7 @@ def mock_bullet():
     b.active = True
     b.owner_type = "player"
     b.owner = MagicMock()
+    b.rect = pygame.Rect(0, 0, 2, 2)
     return b
 
 
@@ -48,6 +60,7 @@ def mock_enemy():
     e.take_damage = MagicMock(return_value=False)
     e.on_movement_blocked = MagicMock()
     e.revert_move = MagicMock()
+    e.rect = pygame.Rect(0, 0, 32, 32)
     return e
 
 
@@ -59,6 +72,7 @@ def mock_player():
     p.take_damage = MagicMock(return_value=False)
     p.respawn = MagicMock()
     p.revert_move = MagicMock()
+    p.rect = pygame.Rect(0, 0, 32, 32)
     return p
 
 
@@ -136,6 +150,7 @@ class TestBulletVsPlayer:
         bullet.active = True
         bullet.owner_type = "enemy"
         bullet.owner = MagicMock()
+        bullet.rect = pygame.Rect(0, 0, 2, 2)
         mock_player.take_damage.return_value = True
         handler.process_collisions([(bullet, mock_player)])
         handler._set_game_state.assert_called_with(GameState.GAME_OVER)
@@ -310,6 +325,7 @@ class TestBulletVsTile:
         bullet = MagicMock(spec=Bullet)
         bullet.active = True
         bullet.owner = MagicMock()
+        bullet.rect = pygame.Rect(0, 0, 2, 2)
         tile = MagicMock(spec=Tile)
         tile.type = TileType.STEEL
         tile.x, tile.y = 0, 0
@@ -321,6 +337,7 @@ class TestBulletVsTile:
         bullet = MagicMock(spec=Bullet)
         bullet.active = True
         bullet.owner = MagicMock()
+        bullet.rect = pygame.Rect(0, 0, 2, 2)
         tile = MagicMock(spec=Tile)
         tile.type = TileType.BASE
         tile.x, tile.y = 0, 0
@@ -336,8 +353,10 @@ class TestBulletVsBullet:
         b2 = MagicMock(spec=Bullet)
         b1.active = True
         b1.owner = MagicMock()
+        b1.rect = pygame.Rect(0, 0, 2, 2)
         b2.active = True
         b2.owner = MagicMock()
+        b2.rect = pygame.Rect(2, 0, 2, 2)
         handler.process_collisions([(b1, b2)])
         assert not b1.active
         assert not b2.active
@@ -511,3 +530,83 @@ class TestTracking:
             ]
         )
         mock_player.revert_move.assert_called_once()
+
+
+class TestExplosionEffects:
+    def test_bullet_vs_brick_spawns_small_explosion(
+        self, handler, mock_map, mock_effect_manager
+    ):
+        tile = Tile(TileType.BRICK, 4, 4)
+        mock_map.get_tile_at.return_value = Tile(TileType.EMPTY, 4, 5)
+        bullet = MagicMock(spec=Bullet)
+        bullet.active = True
+        bullet.owner = MagicMock()
+        bullet.direction = Direction.RIGHT
+        bullet.rect = pygame.Rect(64, 66, 2, 2)
+        handler.process_collisions([(bullet, tile)])
+        mock_effect_manager.spawn.assert_called_once_with(
+            EffectType.SMALL_EXPLOSION, 65.0, 67.0
+        )
+
+    def test_bullet_vs_steel_spawns_small_explosion(
+        self, handler, mock_effect_manager
+    ):
+        bullet = MagicMock(spec=Bullet)
+        bullet.active = True
+        bullet.owner = MagicMock()
+        bullet.rect = pygame.Rect(50, 50, 2, 2)
+        tile = MagicMock(spec=Tile)
+        tile.type = TileType.STEEL
+        tile.x, tile.y = 0, 0
+        handler.process_collisions([(bullet, tile)])
+        mock_effect_manager.spawn.assert_called_once_with(
+            EffectType.SMALL_EXPLOSION, 51.0, 51.0
+        )
+
+    def test_enemy_destroyed_spawns_large_explosion(
+        self, handler, mock_effect_manager
+    ):
+        bullet = MagicMock(spec=Bullet)
+        bullet.active = True
+        bullet.owner_type = "player"
+        bullet.owner = MagicMock()
+        bullet.rect = pygame.Rect(50, 50, 2, 2)
+        enemy = MagicMock(spec=EnemyTank)
+        enemy.owner_type = "enemy"
+        enemy.tank_type = "basic"
+        enemy.take_damage = MagicMock(return_value=True)
+        enemy.rect = pygame.Rect(100, 100, 32, 32)
+        handler.process_collisions([(bullet, enemy)])
+        mock_effect_manager.spawn.assert_called_once_with(
+            EffectType.LARGE_EXPLOSION, 116.0, 116.0
+        )
+
+    def test_bullet_vs_bullet_spawns_two_small_explosions(
+        self, handler, mock_effect_manager
+    ):
+        b1 = MagicMock(spec=Bullet)
+        b1.active = True
+        b1.owner = MagicMock()
+        b1.rect = pygame.Rect(50, 50, 2, 2)
+        b2 = MagicMock(spec=Bullet)
+        b2.active = True
+        b2.owner = MagicMock()
+        b2.rect = pygame.Rect(52, 50, 2, 2)
+        handler.process_collisions([(b1, b2)])
+        assert mock_effect_manager.spawn.call_count == 2
+
+    def test_player_destroyed_spawns_large_explosion(
+        self, handler, mock_player, mock_effect_manager
+    ):
+        bullet = MagicMock(spec=Bullet)
+        bullet.active = True
+        bullet.owner_type = "enemy"
+        bullet.owner = MagicMock()
+        bullet.rect = pygame.Rect(50, 50, 2, 2)
+        mock_player.take_damage.return_value = True
+        mock_player.rect = pygame.Rect(100, 100, 32, 32)
+        handler.process_collisions([(bullet, mock_player)])
+        calls = mock_effect_manager.spawn.call_args_list
+        assert any(
+            c.args[0] == EffectType.LARGE_EXPLOSION for c in calls
+        )
