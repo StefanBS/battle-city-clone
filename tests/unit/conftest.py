@@ -4,6 +4,8 @@ import pygame
 
 # Use a virtual framebuffer so unit tests don't open real windows.
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+# Disable audio to prevent hangs on CI runners without audio devices.
+os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 
 
 @pytest.fixture(scope="session", autouse=True)

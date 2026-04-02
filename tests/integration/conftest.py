@@ -6,6 +6,8 @@ from loguru import logger
 
 # Use a virtual framebuffer so integration tests don't open real windows.
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+# Disable audio to prevent hangs on CI runners without audio devices.
+os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 
 # Initialize pygame at import time so tests that construct GameManager
 # directly (without the fixture) still have a working pygame subsystem.
