@@ -58,7 +58,7 @@ class Renderer:
         player_tank,
         enemy_tanks: List,
         bullets: List,
-        effects: List,
+        effect_manager,
         state: GameState,
     ) -> None:
         """Render the complete game frame.
@@ -91,9 +91,7 @@ class Renderer:
             if bullet.active:
                 bullet.draw(self.map_surface)
 
-        # Draw effects (explosions) on top of entities
-        for effect in effects:
-            effect.draw(self.map_surface)
+        effect_manager.draw(self.map_surface)
 
         # Blit the map surface onto the logical surface at the offset
         self.game_surface.blit(self.map_surface, (self.map_offset_x, self.map_offset_y))

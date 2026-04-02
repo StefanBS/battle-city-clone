@@ -218,7 +218,7 @@ class GameManager:
             self.player_tank,
             self.spawn_manager.enemy_tanks,
             self.bullets,
-            self.effect_manager.effects,
+            self.effect_manager,
             self.state,
         )
 

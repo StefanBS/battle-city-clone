@@ -167,37 +167,23 @@ class CollisionResponseHandler:
     ) -> bool:
         if not bullet.active:
             return False
+        if tile.type not in (TileType.BRICK, TileType.STEEL, TileType.BASE):
+            return False
+
+        logger.debug(f"Bullet hit {tile.type.name} tile at ({tile.x}, {tile.y})")
+        bullet.active = False
+        self._effect_manager.spawn(
+            EffectType.SMALL_EXPLOSION,
+            float(bullet.rect.centerx),
+            float(bullet.rect.centery),
+        )
+
         if tile.type == TileType.BRICK:
-            logger.debug(f"Bullet hit brick tile at ({tile.x}, {tile.y})")
-            bullet.active = False
-            self._effect_manager.spawn(
-                EffectType.SMALL_EXPLOSION,
-                float(bullet.rect.centerx),
-                float(bullet.rect.centery),
-            )
             self._destroy_brick_segments(tile, bullet)
-            return True
-        elif tile.type == TileType.STEEL:
-            logger.debug(f"Bullet hit steel tile at ({tile.x}, {tile.y})")
-            bullet.active = False
-            self._effect_manager.spawn(
-                EffectType.SMALL_EXPLOSION,
-                float(bullet.rect.centerx),
-                float(bullet.rect.centery),
-            )
-            return True
         elif tile.type == TileType.BASE:
-            logger.debug(f"Bullet hit base tile at ({tile.x}, {tile.y})")
-            bullet.active = False
-            self._effect_manager.spawn(
-                EffectType.SMALL_EXPLOSION,
-                float(bullet.rect.centerx),
-                float(bullet.rect.centery),
-            )
             self._map.destroy_base_group(tile)
             self._set_game_state(GameState.GAME_OVER)
-            return True
-        return False
+        return True
 
     def _handle_bullet_vs_bullet(
         self,

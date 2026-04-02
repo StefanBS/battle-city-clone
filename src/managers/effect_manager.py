@@ -1,13 +1,17 @@
 import pygame
-from typing import Dict, List
+from typing import Dict, List, Tuple
 from loguru import logger
 from src.core.effect import Effect
 from src.managers.texture_manager import TextureManager
 from src.utils.constants import (
     EffectType,
+    TILE_SIZE,
     SMALL_EXPLOSION_FRAME_DURATION,
     LARGE_EXPLOSION_FRAME_DURATION,
 )
+
+# Size of scaled-up explosion frames for large explosions
+_LARGE_EXPLOSION_SIZE = TILE_SIZE * 2
 
 
 class EffectManager:
@@ -20,11 +24,9 @@ class EffectManager:
             texture_manager: TextureManager for loading sprites.
         """
         self.effects: List[Effect] = []
-        self._frame_cache: Dict[EffectType, List[pygame.Surface]] = {}
-        self._duration_map: Dict[EffectType, float] = {
-            EffectType.SMALL_EXPLOSION: SMALL_EXPLOSION_FRAME_DURATION,
-            EffectType.LARGE_EXPLOSION: LARGE_EXPLOSION_FRAME_DURATION,
-        }
+        self._effect_data: Dict[
+            EffectType, Tuple[List[pygame.Surface], float]
+        ] = {}
         self._build_frame_cache(texture_manager)
 
     def _build_frame_cache(self, texture_manager: TextureManager) -> None:
@@ -41,13 +43,20 @@ class EffectManager:
 
         small_frames = [frame_1, frame_2, frame_3]
 
-        # Scale frames 3 and 4 up to 64x64 for the large explosion
-        large_frame_1 = pygame.transform.scale(frame_3, (64, 64))
-        large_frame_2 = pygame.transform.scale(frame_4, (64, 64))
-        large_frames = [frame_1, frame_2, frame_3, large_frame_1, large_frame_2]
+        size = (_LARGE_EXPLOSION_SIZE, _LARGE_EXPLOSION_SIZE)
+        large_frames = small_frames + [
+            pygame.transform.scale(frame_3, size),
+            pygame.transform.scale(frame_4, size),
+        ]
 
-        self._frame_cache[EffectType.SMALL_EXPLOSION] = small_frames
-        self._frame_cache[EffectType.LARGE_EXPLOSION] = large_frames
+        self._effect_data[EffectType.SMALL_EXPLOSION] = (
+            small_frames,
+            SMALL_EXPLOSION_FRAME_DURATION,
+        )
+        self._effect_data[EffectType.LARGE_EXPLOSION] = (
+            large_frames,
+            LARGE_EXPLOSION_FRAME_DURATION,
+        )
 
     def spawn(self, effect_type: EffectType, x: float, y: float) -> None:
         """Spawn a new effect at the given center position.
@@ -57,8 +66,7 @@ class EffectManager:
             x: Center x position.
             y: Center y position.
         """
-        frames = self._frame_cache[effect_type]
-        duration = self._duration_map[effect_type]
+        frames, duration = self._effect_data[effect_type]
         effect = Effect(x, y, frames, duration)
         self.effects.append(effect)
         logger.trace(f"Spawned {effect_type.name} at ({x:.1f}, {y:.1f})")
@@ -69,9 +77,13 @@ class EffectManager:
         Args:
             dt: Time elapsed since last update in seconds.
         """
+        any_expired = False
         for effect in self.effects:
             effect.update(dt)
-        self.effects = [e for e in self.effects if e.active]
+            if not effect.active:
+                any_expired = True
+        if any_expired:
+            self.effects = [e for e in self.effects if e.active]
 
     def draw(self, surface: pygame.Surface) -> None:
         """Draw all active effects.
