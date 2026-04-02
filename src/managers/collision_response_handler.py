@@ -47,7 +47,7 @@ class CollisionResponseHandler:
             return []
 
         processed_bullets: set = set()
-        reverted_tanks: set = set()
+        self._reverted_tanks: set = set()
         enemies_to_remove: List[EnemyTank] = []
 
         for obj_a, obj_b in events:
@@ -79,18 +79,18 @@ class CollisionResponseHandler:
 
             # Tank collisions
             if isinstance(a, Tank) and isinstance(b, Tank):
-                if a not in reverted_tanks or b not in reverted_tanks:
+                if a not in self._reverted_tanks or b not in self._reverted_tanks:
                     if handler(a, b, enemies_to_remove):
-                        reverted_tanks.add(a)
-                        reverted_tanks.add(b)
+                        self._reverted_tanks.add(a)
+                        self._reverted_tanks.add(b)
             elif isinstance(a, Tank):
-                if a not in reverted_tanks:
+                if a not in self._reverted_tanks:
                     if handler(a, b, enemies_to_remove):
-                        reverted_tanks.add(a)
+                        self._reverted_tanks.add(a)
             elif isinstance(b, Tank):
-                if b not in reverted_tanks:
+                if b not in self._reverted_tanks:
                     if handler(a, b, enemies_to_remove):
-                        reverted_tanks.add(b)
+                        self._reverted_tanks.add(b)
 
         return enemies_to_remove
 
@@ -265,12 +265,16 @@ class CollisionResponseHandler:
         # Revert and notify each tank that caused the collision.
         # In the 'neither' case (pre-existing overlap), apply to both
         # so enemies can escape via direction change.
+        # Skip on_wall_hit for tanks already handled by a tile collision
+        # this frame — they already got a direction change there.
         if a_caused or neither:
             tank_a.revert_move()
-            tank_a.on_wall_hit()
+            if tank_a not in self._reverted_tanks:
+                tank_a.on_wall_hit()
         if b_caused or neither:
             tank_b.revert_move()
-            tank_b.on_wall_hit()
+            if tank_b not in self._reverted_tanks:
+                tank_b.on_wall_hit()
         return True
 
     def _handle_tank_vs_tile(

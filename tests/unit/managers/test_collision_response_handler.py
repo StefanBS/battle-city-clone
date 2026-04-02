@@ -421,6 +421,23 @@ class TestTankVsTank:
         e1.on_wall_hit.assert_called_once()
         e2.on_wall_hit.assert_called_once()
 
+    def test_cornered_tank_not_notified_twice(self, handler, mock_tile):
+        """A tank already reverted by a tile collision should not get
+        on_wall_hit again from a subsequent tank-vs-tank collision."""
+        mock_tile.type = TileType.STEEL
+        # Enemy cornered against a wall, pusher coming from the side
+        enemy = self._make_tank(EnemyTank, "enemy", 100, 100, 100, 100)
+        pusher = self._make_tank(PlayerTank, "player", 130, 100, 134, 100)
+        # Tile collision first, then tank-vs-tank in the same frame
+        handler.process_collisions([
+            (enemy, mock_tile),
+            (pusher, enemy),
+        ])
+        # Enemy gets on_wall_hit once (from the tile), not twice
+        enemy.on_wall_hit.assert_called_once()
+        # Pusher gets reverted and notified from the tank-vs-tank
+        pusher.revert_move.assert_called_once()
+
 
 class TestTankVsTile:
     def test_player_reverted_on_impassable(self, handler, mock_player, mock_tile):
