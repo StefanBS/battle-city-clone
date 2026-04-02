@@ -583,8 +583,7 @@ def test_player_tank_vs_enemy_tank_no_overlap(game_manager_fixture, mocker):
 
     # The tanks must NOT overlap
     assert not player_tank.rect.colliderect(enemy_tank.rect), (
-        f"Player rect {player_tank.rect} overlaps "
-        f"enemy rect {enemy_tank.rect}"
+        f"Player rect {player_tank.rect} overlaps enemy rect {enemy_tank.rect}"
     )
     # Player should be pushed back to just below the enemy
     assert player_tank.rect.top >= enemy_tank.rect.bottom, (

@@ -158,9 +158,7 @@ class Tile:
                 s = BRICK_SEGMENT_SIZE
                 src_x = self._sub_tile_source_rect.x + dx
                 src_y = self._sub_tile_source_rect.y + dy
-                draw_cache.append(
-                    ((sx, sy), pygame.Rect(src_x, src_y, s, s))
-                )
+                draw_cache.append(((sx, sy), pygame.Rect(src_x, src_y, s, s)))
         self.rect = pygame.Rect(min_x, min_y, max_x - min_x, max_y - min_y)
         self._segment_draw_cache = draw_cache
 

@@ -9,8 +9,10 @@ from src.utils.constants import EffectType
 @pytest.fixture
 def mock_texture_manager():
     tm = MagicMock(spec=TextureManager)
+
     def get_sprite(name):
         return pygame.Surface((32, 32))
+
     tm.get_sprite.side_effect = get_sprite
     return tm
 
