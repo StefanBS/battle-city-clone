@@ -75,7 +75,7 @@ class EffectManager:
             LARGE_EXPLOSION_FRAME_DURATION,
         )
 
-        # Spawn animation: 4 frames cycled 3 times (1→2→3→4→3→2→1→2→3→4→3→2)
+        # Spawn animation: 4 frames bounced twice (1→2→3→4→3→2→1→2→3→4→3→2)
         spawn_frames_raw = [
             self._apply_colorkey(texture_manager.get_sprite(f"spawn_{i}"))
             for i in range(1, 5)

@@ -126,4 +126,4 @@ BULLET_HEIGHT: int = BULLET_SIZE
 # Effect settings
 SMALL_EXPLOSION_FRAME_DURATION: float = 0.067  # ~0.2s total for 3 frames
 LARGE_EXPLOSION_FRAME_DURATION: float = 0.06  # ~0.3s total for 5 frames
-SPAWN_FRAME_DURATION: float = 0.067  # ~0.8s total for 12 frames (4 frames x 3 cycles)
+SPAWN_FRAME_DURATION: float = 0.067  # ~0.8s total, 12 frames
