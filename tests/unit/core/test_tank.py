@@ -299,20 +299,26 @@ class TestTank:
         bullet = tank.shoot()
         assert bullet.speed == 999.0
 
-    def test_shoot_passes_bullet_sprite(self, tank, mock_texture_manager):
+    @pytest.mark.parametrize(
+        "direction",
+        [Direction.UP, Direction.RIGHT, Direction.DOWN, Direction.LEFT],
+    )
+    def test_shoot_passes_bullet_sprite(
+        self, tank, mock_texture_manager, direction
+    ):
         """Test that shoot() passes the directional sprite to the bullet."""
-        tank.direction = Direction.UP
+        tank.direction = direction
         bullet = tank.shoot()
-        mock_texture_manager.get_sprite.assert_called_with("bullet_up")
+        mock_texture_manager.get_sprite.assert_called_with(
+            f"bullet_{direction}"
+        )
         assert bullet.sprite is mock_texture_manager.get_sprite.return_value
 
-    def test_shoot_sprite_none_when_missing(self, create_tank):
+    def test_shoot_sprite_none_when_missing(
+        self, create_tank, mock_texture_manager
+    ):
         """Test that bullet gets None sprite when texture is missing."""
-        from unittest.mock import MagicMock
-
-        mock_tm = MagicMock()
-        mock_tm.get_sprite.side_effect = KeyError("not found")
+        mock_texture_manager.get_sprite.side_effect = KeyError("not found")
         tank = create_tank()
-        tank.texture_manager = mock_tm
         bullet = tank.shoot()
         assert bullet.sprite is None
