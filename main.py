@@ -6,12 +6,13 @@ Battle City Clone - Main Entry Point
 import sys
 import pygame
 from loguru import logger
+from src.utils.paths import get_log_path
 from src.managers.game_manager import GameManager
 
 # Configure Loguru
 logger.remove()  # Remove default stderr handler
 logger.add(sys.stdout, level="INFO")  # Add stdout handler with INFO level
-logger.add("game.log", rotation="10 MB", level="INFO")  # Keep file handler
+logger.add(get_log_path(), rotation="10 MB", level="INFO")  # Keep file handler
 
 
 def main() -> None:

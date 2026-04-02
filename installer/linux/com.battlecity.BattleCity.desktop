@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Battle City
+Comment=Battle City (NES) clone built with Python and Pygame
+Exec=battle-city
+Icon=com.battlecity.BattleCity
+Terminal=false
+Categories=Game;ArcadeGame;
+Keywords=battle;city;tank;arcade;nes;

@@ -19,7 +19,8 @@ def mock_screen():
 def renderer(mock_screen):
     """Create a Renderer instance with mocked pygame fonts and surface."""
     with (
-        patch("pygame.font.SysFont"),
+        patch("src.managers.renderer.resource_path", return_value="fake_font.ttf"),
+        patch("pygame.font.Font"),
         patch("pygame.Surface", return_value=MagicMock(spec=pygame.Surface)),
     ):
         return Renderer(mock_screen, 512, 512, 416, 416)
@@ -30,7 +31,11 @@ class TestRendererInitialization:
 
     def test_initialization(self, mock_screen):
         """Renderer creates game_surface, fonts, and computes map offset."""
-        with patch("pygame.font.SysFont"), patch("pygame.Surface"):
+        with (
+            patch("src.managers.renderer.resource_path", return_value="fake_font.ttf"),
+            patch("pygame.font.Font"),
+            patch("pygame.Surface"),
+        ):
             renderer = Renderer(mock_screen, 512, 512, 416, 416)
 
         assert renderer.screen is mock_screen

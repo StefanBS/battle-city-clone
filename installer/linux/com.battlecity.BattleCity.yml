@@ -1,0 +1,42 @@
+app-id: com.battlecity.BattleCity
+runtime: org.freedesktop.Platform
+runtime-version: '23.08'
+sdk: org.freedesktop.Sdk
+command: battle-city
+
+finish-args:
+  - --socket=x11
+  - --socket=wayland
+  - --socket=pulseaudio
+  - --device=all
+  - --filesystem=xdg-data/BattleCity:create
+
+modules:
+  - name: battle-city
+    buildsystem: simple
+    build-commands:
+      - install -d /app/bin
+      - install -d /app/lib/battle-city
+      - cp -r BattleCity/* /app/lib/battle-city/
+      # Wrapper script that sets LD_LIBRARY_PATH to prioritize bundled libs
+      - |
+        cat > /app/bin/battle-city << 'WRAPPER'
+        #!/bin/bash
+        export LD_LIBRARY_PATH="/app/lib/battle-city:${LD_LIBRARY_PATH}"
+        exec /app/lib/battle-city/BattleCity "$@"
+        WRAPPER
+      - chmod +x /app/bin/battle-city
+      # Desktop entry and icons
+      - install -Dm644 com.battlecity.BattleCity.desktop /app/share/applications/com.battlecity.BattleCity.desktop
+      - install -Dm644 icons/battle-city-64.png /app/share/icons/hicolor/64x64/apps/com.battlecity.BattleCity.png
+      - install -Dm644 icons/battle-city-128.png /app/share/icons/hicolor/128x128/apps/com.battlecity.BattleCity.png
+      - install -Dm644 icons/battle-city-256.png /app/share/icons/hicolor/256x256/apps/com.battlecity.BattleCity.png
+    sources:
+      - type: dir
+        path: ../../dist/BattleCity
+        dest: BattleCity
+      - type: file
+        path: com.battlecity.BattleCity.desktop
+      - type: dir
+        path: ../../assets/icons
+        dest: icons

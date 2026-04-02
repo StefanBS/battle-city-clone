@@ -5,18 +5,23 @@ description = "Just a Battle City (NES) clone"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "mypy",
     "pygame",
     "loguru",
+    "pytmx",
 ]
 
 [project.optional-dependencies]
 dev = [
+    "mypy",
     "pre-commit",
     "pytest",
     "pytest-cov>=6.1.1",
     "pytest-mock>=3.14.0",
     "ruff",
+]
+build = [
+    "pyinstaller",
+    "bump-my-version",
 ]
 
 [tool.ruff]
@@ -39,3 +44,20 @@ pythonpath = [
     "src",
     "."
 ]
+
+[tool.bumpversion]
+current_version = "0.1.0"
+commit = true
+tag = true
+tag_name = "v{new_version}"
+message = "bump version {current_version} → {new_version}"
+
+[[tool.bumpversion.files]]
+filename = "pyproject.toml"
+search = 'version = "{current_version}"'
+replace = 'version = "{new_version}"'
+
+[[tool.bumpversion.files]]
+filename = "installer/windows/battle-city.iss"
+search = '#define MyAppVersion "{current_version}"'
+replace = '#define MyAppVersion "{new_version}"'

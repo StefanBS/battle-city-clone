@@ -22,6 +22,7 @@ from src.managers.texture_manager import TextureManager
 from src.managers.input_handler import InputHandler
 from src.managers.spawn_manager import SpawnManager
 from src.managers.renderer import Renderer
+from src.utils.paths import resource_path
 
 
 class GameManager:
@@ -39,7 +40,8 @@ class GameManager:
         pygame.display.set_caption(WINDOW_TITLE)
 
         # Persistent resources (once)
-        self.texture_manager = TextureManager("assets/sprites/sprites.png")
+        sprite_path = resource_path("assets/sprites/sprites.png")
+        self.texture_manager = TextureManager(sprite_path)
         self.clock: pygame.time.Clock = pygame.time.Clock()
         self.fps: int = FPS
         self.input_handler: InputHandler = InputHandler()
@@ -55,7 +57,8 @@ class GameManager:
         self.collision_manager: CollisionManager = CollisionManager()
 
         # Map
-        self.map: Map = Map("assets/maps/level_01.tmx", self.texture_manager)
+        map_path = resource_path("assets/maps/level_01.tmx")
+        self.map: Map = Map(map_path, self.texture_manager)
 
         # Compute map pixel dimensions (sub-tile grid * sub-tile size)
         map_width_px: int = self.map.width * self.map.tile_size
