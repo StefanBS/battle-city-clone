@@ -2,7 +2,7 @@
 Game constants and configuration values.
 """
 
-from enum import Enum
+from enum import Enum, auto
 from typing import Tuple
 
 
@@ -60,6 +60,11 @@ class TankType(str, Enum):
         return self.value
 
 
+class EffectType(Enum):
+    SMALL_EXPLOSION = auto()
+    LARGE_EXPLOSION = auto()
+
+
 # Window settings
 WINDOW_WIDTH: int = 1024  # Logical width (16*32) * 2
 WINDOW_HEIGHT: int = 1024  # Logical height (16*32) * 2
@@ -112,3 +117,7 @@ BRICK_SEGMENT_SIZE: int = SUB_TILE_SIZE // 2  # 8px — half a sub-tile (square)
 BULLET_SPEED: float = 180  # pixels per second (was 3, multiplied by FPS internally)
 BULLET_WIDTH: int = 2
 BULLET_HEIGHT: int = 2
+
+# Effect settings
+SMALL_EXPLOSION_FRAME_DURATION: float = 0.067  # ~0.2s total for 3 frames
+LARGE_EXPLOSION_FRAME_DURATION: float = 0.06   # ~0.3s total for 5 frames
