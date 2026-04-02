@@ -8,6 +8,7 @@ from src.core.tile import Tile, TileType, IMPASSABLE_TILE_TYPES
 from src.utils.constants import (
     Direction,
     EffectType,
+    ENEMY_POINTS,
     OwnerType,
     SEGMENT_LEFT,
     SEGMENT_RIGHT,
@@ -27,10 +28,12 @@ class CollisionResponseHandler:
         game_map: Map,
         set_game_state: Callable[[GameState], None],
         effect_manager: EffectManager,
+        add_score: Callable[[int], None] = lambda _: None,
     ) -> None:
         self._map = game_map
         self._set_game_state = set_game_state
         self._effect_manager = effect_manager
+        self._add_score = add_score
 
         self._handlers: Dict[Tuple[Type, Type], Callable[[Any, Any, List], bool]] = {
             (Bullet, EnemyTank): self._handle_bullet_vs_enemy,
@@ -126,6 +129,7 @@ class CollisionResponseHandler:
         if destroyed:
             logger.info(f"Enemy tank (type: {enemy.tank_type}) destroyed.")
             enemies_to_remove.append(enemy)
+            self._add_score(ENEMY_POINTS.get(str(enemy.tank_type), 0))
             self._effect_manager.spawn(
                 EffectType.LARGE_EXPLOSION,
                 float(enemy.rect.centerx),

@@ -192,8 +192,8 @@ class TestRendererHUD:
             mock_em = MagicMock()
             renderer.render(mock_map, mock_player, [], [], mock_em, GameState.RUNNING)
 
-        # small_font.render should be called twice: lives + invincibility
-        assert renderer.small_font.render.call_count == 2
+        # small_font.render: lives + score + invincibility
+        assert renderer.small_font.render.call_count == 3
 
     def test_overlay_screen_renders_title_and_subtitle(self, renderer):
         """Test that _draw_overlay_screen blits overlay, title, and subtitle."""

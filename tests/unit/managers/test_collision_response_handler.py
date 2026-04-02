@@ -33,12 +33,18 @@ def mock_effect_manager():
 
 
 @pytest.fixture
-def handler(mock_map, mock_effect_manager):
+def mock_add_score():
+    return MagicMock()
+
+
+@pytest.fixture
+def handler(mock_map, mock_effect_manager, mock_add_score):
     set_state = MagicMock()
     return CollisionResponseHandler(
         game_map=mock_map,
         set_game_state=set_state,
         effect_manager=mock_effect_manager,
+        add_score=mock_add_score,
     )
 
 
@@ -621,3 +627,43 @@ class TestExplosionEffects:
         mock_effect_manager.spawn.assert_called_once_with(
             EffectType.LARGE_EXPLOSION, 116.0, 116.0
         )
+
+
+class TestScoring:
+    @pytest.mark.parametrize(
+        "tank_type,expected_points",
+        [("basic", 100), ("fast", 200), ("power", 300), ("armor", 400)],
+    )
+    def test_enemy_destroyed_awards_points(
+        self, handler, mock_add_score, tank_type, expected_points
+    ):
+        """Destroying an enemy awards points based on tank type."""
+        bullet = MagicMock(spec=Bullet)
+        bullet.active = True
+        bullet.owner_type = "player"
+        bullet.owner = MagicMock()
+        bullet.rect = pygame.Rect(50, 50, 2, 2)
+        enemy = MagicMock(spec=EnemyTank)
+        enemy.owner_type = "enemy"
+        enemy.tank_type = tank_type
+        enemy.take_damage = MagicMock(return_value=True)
+        enemy.rect = pygame.Rect(100, 100, 32, 32)
+        handler.process_collisions([(bullet, enemy)])
+        mock_add_score.assert_called_once_with(expected_points)
+
+    def test_enemy_damaged_not_destroyed_no_points(
+        self, handler, mock_add_score
+    ):
+        """Damaging but not destroying an enemy awards no points."""
+        bullet = MagicMock(spec=Bullet)
+        bullet.active = True
+        bullet.owner_type = "player"
+        bullet.owner = MagicMock()
+        bullet.rect = pygame.Rect(50, 50, 2, 2)
+        enemy = MagicMock(spec=EnemyTank)
+        enemy.owner_type = "enemy"
+        enemy.tank_type = "armor"
+        enemy.take_damage = MagicMock(return_value=False)
+        enemy.rect = pygame.Rect(100, 100, 32, 32)
+        handler.process_collisions([(bullet, enemy)])
+        mock_add_score.assert_not_called()
