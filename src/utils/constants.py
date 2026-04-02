@@ -115,8 +115,9 @@ BRICK_SEGMENT_SIZE: int = SUB_TILE_SIZE // 2  # 8px — half a sub-tile (square)
 
 # Bullet settings
 BULLET_SPEED: float = 180  # pixels per second (was 3, multiplied by FPS internally)
-BULLET_WIDTH: int = 2
-BULLET_HEIGHT: int = 2
+BULLET_SIZE: int = SOURCE_TILE_SIZE  # 8px — scaled from 8x8 atlas sprite
+BULLET_WIDTH: int = BULLET_SIZE
+BULLET_HEIGHT: int = BULLET_SIZE
 
 # Effect settings
 SMALL_EXPLOSION_FRAME_DURATION: float = 0.067  # ~0.2s total for 3 frames

@@ -62,8 +62,44 @@ class TextureManager:
         "explosion_3": (36, 16),
     }
 
+    # Bullet sprites: 8x8 regions within the atlas.
+    # Coordinates are (gx, gy) in the 8px grid — same as _SPRITE_COORDS
+    # but each bullet is 1x1 source tile (8x8) instead of 2x2 (16x16).
+    _BULLET_COORDS: dict[str, tuple[int, int]] = {
+        "bullet_up": (40, 12),      # [20,6] left half
+        "bullet_left": (41, 12),    # [20,6] right half
+        "bullet_down": (42, 12),    # [21,6] left half
+        "bullet_right": (43, 12),   # [21,6] right half
+    }
+
     def _load_sprites(self):
         """Loads individual sprites from the texture atlas."""
+        self._load_tile_sprites()
+        self._load_bullet_sprites()
+
+    def _load_bullet_sprites(self):
+        """Load 8x8 bullet sprites (1x1 source tiles)."""
+        from src.utils.constants import BULLET_SIZE
+
+        for name, (gx, gy) in self._BULLET_COORDS.items():
+            rect = pygame.Rect(
+                gx * SOURCE_TILE_SIZE,
+                gy * SOURCE_TILE_SIZE,
+                SOURCE_TILE_SIZE,
+                SOURCE_TILE_SIZE,
+            )
+            try:
+                original = self.texture_atlas.subsurface(rect)
+                scaled = pygame.transform.scale(
+                    original, (BULLET_SIZE, BULLET_SIZE)
+                )
+                self.sprites[name] = scaled
+            except ValueError as e:
+                logger.error(f"Error loading bullet sprite '{name}': {e}")
+                raise ValueError(f"Failed to load sprite '{name}'") from e
+
+    def _load_tile_sprites(self):
+        """Loads 16x16 tile/tank sprites from the texture atlas."""
         sprite_size = SOURCE_TILE_SIZE * 2
 
         for name, (gx, gy) in self._SPRITE_COORDS.items():
