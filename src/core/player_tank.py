@@ -44,6 +44,13 @@ class PlayerTank(Tank):
         self.invincibility_duration = 3.0
         self._update_sprite()
 
+    def activate_invincibility(self, duration: float) -> None:
+        """Activate invincibility for the given duration."""
+        self.is_invincible = True
+        self.invincibility_timer = 0
+        self.blink_timer = 0
+        self.invincibility_duration = duration
+
     def move(self, dx: int, dy: int, dt: float) -> None:
         """
         Move the tank in the given direction.
@@ -84,8 +91,6 @@ class PlayerTank(Tank):
             self.set_position(*self.initial_position)
             self.prev_x = self.x
             self.prev_y = self.y
-            self.is_invincible = True
-            self.invincibility_timer = 0
-            self.blink_timer = 0
+            self.activate_invincibility(3.0)
             self.direction = Direction.UP
             self._update_sprite()

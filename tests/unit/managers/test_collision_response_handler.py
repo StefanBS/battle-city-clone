@@ -707,25 +707,49 @@ class TestPlayerVsPowerUp:
         )
         return h, score_tracker, mock_power_up_manager
 
-    def test_player_collects_power_up(self, handler_with_powerup):
-        handler, score_tracker, pu_manager = handler_with_powerup
-        player = MagicMock(spec=PlayerTank)
-        power_up = MagicMock(spec=PowerUp)
+    @pytest.fixture
+    def mock_player(self):
+        return MagicMock(spec=PlayerTank)
 
-        handler.process_collisions([(player, power_up)])
+    @pytest.fixture
+    def mock_power_up(self):
+        return MagicMock(spec=PowerUp)
+
+    def test_player_collects_power_up(
+        self, handler_with_powerup, mock_player, mock_power_up
+    ):
+        handler, score_tracker, pu_manager = handler_with_powerup
+        handler.process_collisions([(mock_player, mock_power_up)])
         pu_manager.collect_power_up.assert_called_once()
         assert score_tracker["score"] == POWERUP_COLLECT_POINTS
 
     def test_power_up_not_collected_without_manager(
-        self, mock_map, mock_effect_manager
+        self, mock_map, mock_effect_manager, mock_player, mock_power_up
     ):
         handler = CollisionResponseHandler(
             game_map=mock_map,
             set_game_state=MagicMock(),
             effect_manager=mock_effect_manager,
         )
-        player = MagicMock(spec=PlayerTank)
-        power_up = MagicMock(spec=PowerUp)
-        # Should not crash even without power_up_manager
-        result = handler.process_collisions([(player, power_up)])
+        result = handler.process_collisions([(mock_player, mock_power_up)])
         assert result == []
+
+    def test_collected_type_stored(
+        self, handler_with_powerup, mock_player, mock_power_up
+    ):
+        handler, score_tracker, pu_manager = handler_with_powerup
+        handler.process_collisions([(mock_player, mock_power_up)])
+        assert handler.collected_power_up_type == PowerUpType.HELMET
+
+    def test_consume_clears_stored_type(
+        self, handler_with_powerup, mock_player, mock_power_up
+    ):
+        handler, score_tracker, pu_manager = handler_with_powerup
+        handler.process_collisions([(mock_player, mock_power_up)])
+        result = handler.consume_collected_power_up()
+        assert result == PowerUpType.HELMET
+        assert handler.collected_power_up_type is None
+
+    def test_consume_returns_none_when_empty(self, handler_with_powerup):
+        handler, score_tracker, pu_manager = handler_with_powerup
+        assert handler.consume_collected_power_up() is None

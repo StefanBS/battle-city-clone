@@ -16,6 +16,7 @@ from src.utils.constants import (
     ENEMY_POINTS,
     OwnerType,
     POWERUP_COLLECT_POINTS,
+    PowerUpType,
     SEGMENT_LEFT,
     SEGMENT_RIGHT,
     SEGMENT_TOP,
@@ -42,6 +43,7 @@ class CollisionResponseHandler:
         self._effect_manager = effect_manager
         self._add_score = add_score
         self._power_up_manager = power_up_manager
+        self.collected_power_up_type: Optional[PowerUpType] = None
 
         self._handlers: Dict[Tuple[Type, Type], Callable[[Any, Any, List], bool]] = {
             (Bullet, EnemyTank): self._handle_bullet_vs_enemy,
@@ -230,7 +232,14 @@ class CollisionResponseHandler:
         if power_up_type is not None:
             self._add_score(POWERUP_COLLECT_POINTS)
             logger.info(f"Player collected power-up: {power_up_type.value}")
+            self.collected_power_up_type = power_up_type
         return True
+
+    def consume_collected_power_up(self) -> Optional[PowerUpType]:
+        """Return and clear the collected power-up type (one-shot read)."""
+        result = self.collected_power_up_type
+        self.collected_power_up_type = None
+        return result
 
     def _destroy_brick_segments(self, tile: Tile, bullet: Bullet) -> None:
         """Destroy brick quadrants hit by a bullet (4x4 segment model).
