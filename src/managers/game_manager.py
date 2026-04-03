@@ -142,7 +142,7 @@ class GameManager:
         self.bullets: List[Bullet] = []
         self.freeze_timer: float = 0.0
         self.shovel_timer: float = 0.0
-        self._shovel_original_tiles: list = []
+        self._shovel_original_tiles: List[tuple] = []
         self._shovel_flash_timer: float = 0.0
         self._shovel_flash_showing_steel: bool = True
         logger.info("Game reset complete.")

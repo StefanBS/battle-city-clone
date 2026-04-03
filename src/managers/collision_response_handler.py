@@ -199,7 +199,7 @@ class CollisionResponseHandler:
         )
 
         if tile.type == TileType.STEEL:
-            if getattr(bullet, "power_bullet", False):
+            if bullet.power_bullet:
                 self._map.set_tile_type(tile, TileType.EMPTY)
             return True
 

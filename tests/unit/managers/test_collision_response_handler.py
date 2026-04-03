@@ -336,6 +336,7 @@ class TestBulletVsTile:
         bullet = MagicMock(spec=Bullet)
         bullet.active = True
         bullet.owner = MagicMock()
+        bullet.power_bullet = False
         bullet.rect = pygame.Rect(0, 0, 2, 2)
         tile = MagicMock(spec=Tile)
         tile.type = TileType.STEEL
@@ -581,6 +582,7 @@ class TestExplosionEffects:
         bullet = MagicMock(spec=Bullet)
         bullet.active = True
         bullet.owner = MagicMock()
+        bullet.power_bullet = False
         bullet.rect = pygame.Rect(50, 50, 2, 2)
         tile = MagicMock(spec=Tile)
         tile.type = TileType.STEEL
