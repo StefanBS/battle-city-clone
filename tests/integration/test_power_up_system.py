@@ -7,7 +7,6 @@ import pytest
 from src.utils.constants import (
     FPS,
     POWERUP_CARRIER_INDICES,
-    POWERUP_COLLECT_POINTS,
     POWERUP_TIMEOUT,
 )
 
