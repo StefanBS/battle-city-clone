@@ -198,6 +198,11 @@ class CollisionResponseHandler:
             float(bullet.rect.centery),
         )
 
+        if tile.type == TileType.STEEL:
+            if getattr(bullet, "power_bullet", False):
+                self._map.set_tile_type(tile, TileType.EMPTY)
+            return True
+
         if tile.type == TileType.BRICK:
             self._destroy_brick_segments(tile, bullet)
         elif tile.type == TileType.BASE:
