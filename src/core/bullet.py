@@ -23,6 +23,7 @@ class Bullet(GameObject):
         owner,
         sprite: Optional[pygame.Surface] = None,
         speed: float = BULLET_SPEED,
+        power_bullet: bool = False,
     ) -> None:
         """
         Initialize the bullet.
@@ -46,6 +47,7 @@ class Bullet(GameObject):
         self.owner_type: OwnerType = owner.owner_type
         self.map_width_px: int = owner.map_width_px
         self.map_height_px: int = owner.map_height_px
+        self.power_bullet: bool = power_bullet
         logger.trace(
             f"Created bullet for {self.owner_type} "
             f"at ({x:.1f}, {y:.1f}) moving {direction}"
