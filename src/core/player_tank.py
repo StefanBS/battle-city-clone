@@ -80,6 +80,7 @@ class PlayerTank(Tank):
             try:
                 self.sprite = self.texture_manager.get_sprite(sprite_name)
             except KeyError:
+                logger.warning(f"Tier sprite '{sprite_name}' not found, using base")
                 super()._update_sprite()
         else:
             super()._update_sprite()

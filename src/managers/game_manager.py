@@ -335,19 +335,17 @@ class GameManager:
 
     def _apply_shovel(self) -> None:
         """Fortify base walls with steel."""
-        if self.shovel_timer > 0:
-            self.shovel_timer = SHOVEL_DURATION
-            self._shovel_flash_timer = 0.0
-            self._shovel_flash_showing_steel = True
-            return
-        tiles = self.map.get_base_surrounding_tiles()
-        self._shovel_original_tiles = [(t, t.type) for t in tiles]
-        for tile in tiles:
-            self.map.set_tile_type(tile, TileType.STEEL)
+        if not self._shovel_original_tiles:
+            tiles = self.map.get_base_surrounding_tiles()
+            self._shovel_original_tiles = [(t, t.type) for t in tiles]
+            for tile in tiles:
+                self.map.set_tile_type(tile, TileType.STEEL)
+            logger.info(
+                f"Shovel power-up applied: base fortified for {SHOVEL_DURATION}s"
+            )
         self.shovel_timer = SHOVEL_DURATION
         self._shovel_flash_timer = 0.0
         self._shovel_flash_showing_steel = True
-        logger.info(f"Shovel power-up applied: base fortified for {SHOVEL_DURATION}s")
 
     def _tick_shovel(self, dt: float) -> None:
         """Update shovel timer and flash logic."""
