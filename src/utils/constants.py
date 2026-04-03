@@ -75,6 +75,26 @@ class EffectType(Enum):
     SPAWN = auto()
 
 
+class PowerUpType(str, Enum):
+    HELMET = "helmet"
+    STAR = "star"
+    BOMB = "bomb"
+    CLOCK = "clock"
+    SHOVEL = "shovel"
+    EXTRA_LIFE = "extra_life"
+
+    def __str__(self) -> str:
+        return self.value
+
+
+# Power-up spawn settings
+POWERUP_CARRIER_INDICES: tuple[int, ...] = (3, 10, 17)  # 4th, 11th, 18th enemies
+POWERUP_BLINK_INTERVAL: float = 0.15
+POWERUP_TIMEOUT: float = 15.0
+POWERUP_COLLECT_POINTS: int = 500
+CARRIER_BLINK_INTERVAL: float = 0.15
+
+
 # Window settings
 WINDOW_WIDTH: int = 1024  # Logical width (16*32) * 2
 WINDOW_HEIGHT: int = 1024  # Logical height (16*32) * 2
