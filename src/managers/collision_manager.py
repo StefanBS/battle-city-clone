@@ -26,6 +26,7 @@ class CollisionManager:
         destructible_tiles: Sequence[Collidable],
         impassable_tiles: Sequence[Collidable],
         player_base: Optional[Collidable],
+        power_up: Optional[Collidable] = None,
     ) -> None:
         """
         Checks for collisions between different groups of game objects.
@@ -38,6 +39,7 @@ class CollisionManager:
             destructible_tiles: A list/group of destructible tile objects.
             impassable_tiles: A list/group of impassable tile objects.
             player_base: The player's base object, or None if not present.
+            power_up: An active power-up object, or None if not present.
         """
         self._collision_events.clear()
         self._seen_pairs.clear()
@@ -66,6 +68,11 @@ class CollisionManager:
         # Tank collisions
         self._check_group_vs_group(all_tanks, impassable_tiles)
         self._check_self_collisions(all_tanks)
+
+        # Power-up collection
+        if power_up and player_tank:
+            if player_tank.rect.colliderect(power_up.rect):
+                self._queue_collision(player_tank, power_up)
 
     def _check_group_vs_group(
         self,
