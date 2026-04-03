@@ -23,6 +23,8 @@ from src.utils.constants import (
     SHOVEL_FLASH_INTERVAL,
     ENEMY_POINTS,
     EffectType,
+    CURTAIN_CLOSE_DURATION,
+    CURTAIN_OPEN_DURATION,
 )
 from src.managers.collision_manager import CollisionManager
 from src.managers.collision_response_handler import CollisionResponseHandler
@@ -58,6 +60,7 @@ class GameManager:
 
         self.state: GameState = GameState.TITLE_SCREEN
         self._menu_selection: int = 0  # 0 = 1 Player, 1 = 2 Players
+        self._state_timer: float = 0.0
 
         # Renderer for title screen (recreated with map dims in _reset_game)
         self.renderer: Renderer = Renderer(
@@ -69,45 +72,65 @@ class GameManager:
         )
 
     def _reset_game(self) -> None:
-        """Resets per-level game state. Display and textures are preserved."""
-        logger.info("Resetting game state...")
+        """Backward-compatible alias. Use _new_game() for new code."""
+        self._new_game()
 
-        self.state: GameState = GameState.RUNNING
-        self.current_stage: int = 1
-        self.score: int = 0
-        self.collision_manager: CollisionManager = CollisionManager()
+    def _new_game(self) -> None:
+        """Full reset for starting a new game from title screen."""
+        self.current_stage = 1
+        self.score = 0
+        self._state_timer = 0.0
+        self._load_stage()
+        self.state = GameState.RUNNING
+
+    @property
+    def _curtain_progress(self) -> float:
+        """Compute curtain progress from _state_timer and current state."""
+        if self.state == GameState.STAGE_CURTAIN_CLOSE:
+            return min(1.0, self._state_timer / CURTAIN_CLOSE_DURATION)
+        elif self.state == GameState.STAGE_CURTAIN_OPEN:
+            return max(0.0, 1.0 - self._state_timer / CURTAIN_OPEN_DURATION)
+        return 0.0
+
+    def _load_stage(self) -> None:
+        """Load/reload a stage. Preserves score, current_stage, and player progress."""
+        logger.info(f"Loading stage {self.current_stage}...")
+
+        # Preserve player progress across stages
+        player_lives = self.player_tank.lives if hasattr(self, "player_tank") else 3
+        player_star_level = (
+            self.player_tank.star_level if hasattr(self, "player_tank") else 0
+        )
+
+        self.collision_manager = CollisionManager()
 
         # Map
         map_path = resource_path("assets/maps/level_01.tmx")
-        self.map: Map = Map(map_path, self.texture_manager)
+        self.map = Map(map_path, self.texture_manager)
 
         # Compute map pixel dimensions (sub-tile grid * sub-tile size)
-        map_width_px: int = self.map.width * self.map.tile_size
-        map_height_px: int = self.map.height * self.map.tile_size
+        map_width_px = self.map.width * self.map.tile_size
+        map_height_px = self.map.height * self.map.tile_size
 
         # Effect manager
-        self.effect_manager: EffectManager = EffectManager(self.texture_manager)
+        self.effect_manager = EffectManager(self.texture_manager)
 
         # Power-up manager (must be created before CollisionResponseHandler)
-        self.power_up_manager: PowerUpManager = PowerUpManager(
-            self.texture_manager, self.map
-        )
+        self.power_up_manager = PowerUpManager(self.texture_manager, self.map)
 
         # Collision response handler
-        self.collision_response_handler: CollisionResponseHandler = (
-            CollisionResponseHandler(
-                game_map=self.map,
-                set_game_state=self._set_game_state,
-                effect_manager=self.effect_manager,
-                add_score=self._add_score,
-                power_up_manager=self.power_up_manager,
-            )
+        self.collision_response_handler = CollisionResponseHandler(
+            game_map=self.map,
+            set_game_state=self._set_game_state,
+            effect_manager=self.effect_manager,
+            add_score=self._add_score,
+            power_up_manager=self.power_up_manager,
         )
 
         # Player tank (spawn coords are in sub-tile units)
-        start_x: int = self.map.player_spawn[0] * self.map.tile_size
-        start_y: int = self.map.player_spawn[1] * self.map.tile_size
-        self.player_tank: PlayerTank = PlayerTank(
+        start_x = self.map.player_spawn[0] * self.map.tile_size
+        start_y = self.map.player_spawn[1] * self.map.tile_size
+        self.player_tank = PlayerTank(
             start_x,
             start_y,
             self.tile_size,
@@ -117,7 +140,7 @@ class GameManager:
         )
 
         # Renderer (fixed logical surface with map centered inside)
-        self.renderer: Renderer = Renderer(
+        self.renderer = Renderer(
             self.screen,
             LOGICAL_WIDTH,
             LOGICAL_HEIGHT,
@@ -126,7 +149,7 @@ class GameManager:
         )
 
         # SpawnManager
-        self.spawn_manager: SpawnManager = SpawnManager(
+        self.spawn_manager = SpawnManager(
             tile_size=self.tile_size,
             texture_manager=self.texture_manager,
             spawn_points=self.map.spawn_points,
@@ -145,7 +168,15 @@ class GameManager:
         self._shovel_original_tiles: List[tuple] = []
         self._shovel_flash_timer: float = 0.0
         self._shovel_flash_showing_steel: bool = True
-        logger.info("Game reset complete.")
+
+        # Restore player progress
+        self.player_tank.lives = player_lives
+        if player_star_level > 0:
+            self.player_tank.star_level = player_star_level
+            self.player_tank._apply_star_stats()
+            self.player_tank._update_sprite()
+
+        logger.info("Stage load complete.")
 
     def handle_events(self) -> None:
         """Handle pygame events."""
