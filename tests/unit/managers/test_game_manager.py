@@ -10,38 +10,8 @@ class TestGameManager:
     """Unit test cases for the GameManager class."""
 
     @pytest.fixture
-    def game_manager(self):
-        """Create a game manager instance for testing."""
-        pygame.init()
-        # Keep mocks alive for the duration of the test so _reset_game
-        # can be called again (e.g. by pressing R to restart).
-        with (
-            patch("pygame.display.set_mode"),
-            patch("pygame.font.SysFont"),
-            patch("src.managers.game_manager.TextureManager") as MockTM,
-            patch("src.managers.game_manager.EffectManager"),
-            patch("src.managers.game_manager.Renderer"),
-            patch("src.managers.game_manager.SpawnManager"),
-            patch("src.managers.game_manager.Map") as MockMap,
-        ):
-            mock_tm_instance = MockTM.return_value
-            mock_tm_instance.get_sprite.return_value = MagicMock(spec=pygame.Surface)
-
-            mock_map_instance = MockMap.return_value
-            mock_map_instance.width = 16
-            mock_map_instance.height = 16
-            mock_map_instance.player_spawn = (4, 12)
-            mock_map_instance.spawn_points = [(3, 1), (8, 1), (12, 1)]
-
-            manager = GameManager()
-            manager._reset_game()
-            yield manager
-        pygame.quit()
-
-    @pytest.fixture
-    def game_manager_at_title(self):
-        """Create a GameManager at the title screen (no _reset_game)."""
-        pygame.init()
+    def _mock_game_deps(self):
+        """Shared mock setup for GameManager fixtures."""
         with (
             patch("pygame.display.set_mode"),
             patch("pygame.font.SysFont"),
@@ -60,9 +30,23 @@ class TestGameManager:
             mock_map_instance.height = 16
             mock_map_instance.player_spawn = (4, 12)
             mock_map_instance.spawn_points = [(3, 1), (8, 1), (12, 1)]
+            yield
 
-            manager = GameManager()
-            yield manager
+    @pytest.fixture
+    def game_manager(self, _mock_game_deps):
+        """Create a GameManager with game started (past title screen)."""
+        pygame.init()
+        manager = GameManager()
+        manager._reset_game()
+        yield manager
+        pygame.quit()
+
+    @pytest.fixture
+    def game_manager_at_title(self, _mock_game_deps):
+        """Create a GameManager at the title screen (no _reset_game)."""
+        pygame.init()
+        manager = GameManager()
+        yield manager
         pygame.quit()
 
     def test_initialization_starts_at_title_screen(

@@ -106,15 +106,16 @@ class Renderer:
         elif state == GameState.VICTORY:
             self._draw_victory()
 
-        # Scale the logical surface to the main screen (reuse pre-allocated surface)
+        self._present_surface()
+
+    def _present_surface(self) -> None:
+        """Scale the logical surface to the screen and flip the display."""
         pygame.transform.scale(
             self.game_surface,
             (self.screen.get_width(), self.screen.get_height()),
             self._scaled_surface,
         )
         self.screen.blit(self._scaled_surface, (0, 0))
-
-        # Update the display
         pygame.display.flip()
 
     def _draw_hud(self, player_tank, score: int = 0) -> None:
@@ -211,11 +212,4 @@ class Renderer:
         )
         self.game_surface.blit(cursor_text, cursor_rect)
 
-        # Scale and flip
-        pygame.transform.scale(
-            self.game_surface,
-            (self.screen.get_width(), self.screen.get_height()),
-            self._scaled_surface,
-        )
-        self.screen.blit(self._scaled_surface, (0, 0))
-        pygame.display.flip()
+        self._present_surface()
