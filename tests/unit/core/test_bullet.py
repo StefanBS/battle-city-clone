@@ -92,3 +92,15 @@ class TestBullet:
         bullet.active = False
         bullet.draw(mock_surface)
         mock_surface.blit.assert_not_called()
+
+
+class TestPowerBullet:
+    def test_bullet_power_bullet_default_false(self, create_tank):
+        bullet = create_tank().shoot()
+        assert bullet.power_bullet is False
+
+    def test_bullet_inherits_power_bullets_from_owner(self, create_tank):
+        tank = create_tank()
+        tank.power_bullets = True
+        bullet = tank.shoot()
+        assert bullet.power_bullet is True

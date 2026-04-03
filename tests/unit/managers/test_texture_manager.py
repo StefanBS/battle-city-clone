@@ -39,6 +39,20 @@ class TestPowerUpSprites:
         assert sprite is not None
 
 
+class TestPlayerTierSprites:
+    TIER_SPRITE_NAMES = [
+        f"player_tank_tier{tier}_{direction}_{frame}"
+        for tier in [1, 2, 3]
+        for direction in ["up", "down", "left", "right"]
+        for frame in [1, 2]
+    ]
+
+    @pytest.mark.parametrize("name", TIER_SPRITE_NAMES)
+    def test_tier_sprite_loaded(self, real_texture_manager, name):
+        sprite = real_texture_manager.get_sprite(name)
+        assert sprite is not None
+
+
 class TestTextureManagerErrors:
     """Tests for TextureManager error handling paths."""
 

@@ -2,7 +2,15 @@ import pytest
 import pygame
 from unittest.mock import MagicMock
 from src.core.player_tank import PlayerTank
-from src.utils.constants import Direction, TILE_SIZE, FPS, HELMET_INVINCIBILITY_DURATION
+from src.utils.constants import (
+    Direction,
+    TILE_SIZE,
+    FPS,
+    HELMET_INVINCIBILITY_DURATION,
+    BULLET_SPEED,
+    STAR_BULLET_SPEED_MULTIPLIER,
+    STAR_MAX_BULLETS,
+)
 
 
 class TestPlayerTank:
@@ -204,3 +212,55 @@ class TestActivateInvincibility:
         player.lives = 2
         player.respawn()
         assert player.invincibility_duration == 3.0
+
+
+class TestStarUpgrade:
+    @pytest.fixture
+    def player(self, mock_texture_manager):
+        return PlayerTank(
+            96, 96, TILE_SIZE, mock_texture_manager,
+            map_width_px=512, map_height_px=512,
+        )
+
+    def test_initial_star_level(self, player):
+        assert player.star_level == 0
+
+    def test_tier1_faster_bullets(self, player):
+        player.apply_star()
+        assert player.star_level == 1
+        assert player.bullet_speed == BULLET_SPEED * STAR_BULLET_SPEED_MULTIPLIER
+
+    def test_tier2_double_fire(self, player):
+        player.apply_star()
+        player.apply_star()
+        assert player.star_level == 2
+        assert player.max_bullets == STAR_MAX_BULLETS
+
+    def test_tier3_power_bullets(self, player):
+        for _ in range(3):
+            player.apply_star()
+        assert player.star_level == 3
+        assert player.power_bullets is True
+
+    def test_star_caps_at_tier3(self, player):
+        for _ in range(5):
+            player.apply_star()
+        assert player.star_level == 3
+
+    def test_respawn_resets_star_level(self, player):
+        player.apply_star()
+        player.apply_star()
+        player.lives = 2
+        player.respawn()
+        assert player.star_level == 0
+        assert player.bullet_speed == BULLET_SPEED
+        assert player.max_bullets == 1
+        assert player.power_bullets is False
+
+    def test_star_changes_sprite(self, player, mock_texture_manager):
+        mock_texture_manager.reset_mock()
+        player.apply_star()
+        called_names = [
+            c.args[0] for c in mock_texture_manager.get_sprite.call_args_list
+        ]
+        assert any("tier1" in name for name in called_names)

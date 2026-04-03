@@ -252,3 +252,31 @@ class Map:
         """Get a list of rectangles for all collidable tiles."""
         self._ensure_cache()
         return self._cached_collidable_rects
+
+    def get_base_surrounding_tiles(self) -> List[Tile]:
+        """Return non-empty tiles in the ring around the base group.
+
+        The base is a 2x2 sub-tile block. The surrounding ring is the
+        12 positions forming a 4x4 border minus the 2x2 center.
+        """
+        base = self.get_base()
+        if base is None:
+            return []
+
+        # Find the top-left of the 2x2 base group
+        group = base.group_tiles if base.group_tiles else [base]
+        min_x = min(t.x for t in group)
+        min_y = min(t.y for t in group)
+
+        # 4x4 ring around the 2x2 base center
+        surrounding = []
+        for dy in range(-1, 3):
+            for dx in range(-1, 3):
+                # Skip the 2x2 base interior
+                if 0 <= dx <= 1 and 0 <= dy <= 1:
+                    continue
+                sx, sy = min_x + dx, min_y + dy
+                tile = self.get_tile_at(sx, sy)
+                if tile is not None and tile.type != TileType.EMPTY:
+                    surrounding.append(tile)
+        return surrounding

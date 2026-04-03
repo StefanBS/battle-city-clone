@@ -17,6 +17,10 @@ from src.utils.constants import (
     LOGICAL_HEIGHT,
     PowerUpType,
     HELMET_INVINCIBILITY_DURATION,
+    CLOCK_FREEZE_DURATION,
+    SHOVEL_DURATION,
+    SHOVEL_WARNING_DURATION,
+    SHOVEL_FLASH_INTERVAL,
     ENEMY_POINTS,
     EffectType,
 )
@@ -136,6 +140,11 @@ class GameManager:
         )
 
         self.bullets: List[Bullet] = []
+        self.freeze_timer: float = 0.0
+        self.shovel_timer: float = 0.0
+        self._shovel_original_tiles: List[tuple] = []
+        self._shovel_flash_timer: float = 0.0
+        self._shovel_flash_showing_steel: bool = True
         logger.info("Game reset complete.")
 
     def handle_events(self) -> None:
@@ -190,10 +199,13 @@ class GameManager:
         if self.input_handler.consume_shoot():
             self._try_shoot(self.player_tank)
 
-        for enemy in self.spawn_manager.enemy_tanks:
-            enemy.update(dt)
-            if enemy.consume_shoot():
-                self._try_shoot(enemy)
+        if self.freeze_timer > 0:
+            self.freeze_timer -= dt
+        else:
+            for enemy in self.spawn_manager.enemy_tanks:
+                enemy.update(dt)
+                if enemy.consume_shoot():
+                    self._try_shoot(enemy)
 
         # Update all bullets
         for bullet in self.bullets:
@@ -203,6 +215,7 @@ class GameManager:
 
         self.spawn_manager.update(dt, self.player_tank, self.map)
         self.power_up_manager.update(dt)
+        self._tick_shovel(dt)
 
         # --- Prepare data for Collision Manager ---
         # Built AFTER updates so newly fired bullets are included
@@ -278,6 +291,12 @@ class GameManager:
             self._apply_extra_life()
         elif power_up_type == PowerUpType.BOMB:
             self._apply_bomb(already_scored if already_scored is not None else set())
+        elif power_up_type == PowerUpType.CLOCK:
+            self._apply_clock()
+        elif power_up_type == PowerUpType.SHOVEL:
+            self._apply_shovel()
+        elif power_up_type == PowerUpType.STAR:
+            self._apply_star()
         else:
             logger.warning(f"Unhandled power-up type: {power_up_type}")
 
@@ -306,6 +325,57 @@ class GameManager:
                 self._add_score(ENEMY_POINTS.get(enemy.tank_type, 0))
             self.spawn_manager.remove_enemy(enemy)
         logger.info("Bomb power-up applied: all enemies destroyed")
+
+    def _apply_clock(self) -> None:
+        """Freeze all enemies for the clock duration."""
+        self.freeze_timer = CLOCK_FREEZE_DURATION
+        logger.info(
+            f"Clock power-up applied: enemies frozen for {CLOCK_FREEZE_DURATION}s"
+        )
+
+    def _apply_shovel(self) -> None:
+        """Fortify base walls with steel."""
+        if not self._shovel_original_tiles:
+            tiles = self.map.get_base_surrounding_tiles()
+            self._shovel_original_tiles = [(t, t.type) for t in tiles]
+            for tile in tiles:
+                self.map.set_tile_type(tile, TileType.STEEL)
+            logger.info(
+                f"Shovel power-up applied: base fortified for {SHOVEL_DURATION}s"
+            )
+        self.shovel_timer = SHOVEL_DURATION
+        self._shovel_flash_timer = 0.0
+        self._shovel_flash_showing_steel = True
+
+    def _tick_shovel(self, dt: float) -> None:
+        """Update shovel timer and flash logic."""
+        if self.shovel_timer <= 0:
+            return
+        self.shovel_timer -= dt
+        if self.shovel_timer <= 0:
+            for tile, orig_type in self._shovel_original_tiles:
+                self.map.set_tile_type(tile, orig_type)
+            self._shovel_original_tiles = []
+            logger.info("Shovel expired: base walls reverted")
+            return
+        if self.shovel_timer <= SHOVEL_WARNING_DURATION:
+            self._shovel_flash_timer += dt
+            should_show_steel = (
+                self._shovel_flash_timer % (SHOVEL_FLASH_INTERVAL * 2)
+                < SHOVEL_FLASH_INTERVAL
+            )
+            if should_show_steel != self._shovel_flash_showing_steel:
+                self._shovel_flash_showing_steel = should_show_steel
+                for tile, orig_type in self._shovel_original_tiles:
+                    target = TileType.STEEL if should_show_steel else orig_type
+                    self.map.set_tile_type(tile, target)
+
+    def _apply_star(self) -> None:
+        """Apply star upgrade to the player tank."""
+        self.player_tank.apply_star()
+        logger.info(
+            f"Star power-up applied: player at tier {self.player_tank.star_level}"
+        )
 
     def render(self) -> None:
         """Render the game state."""

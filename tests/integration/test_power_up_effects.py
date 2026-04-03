@@ -5,9 +5,13 @@ Uses real objects (no mocks) with SDL_VIDEODRIVER=dummy for headless execution.
 
 import pytest
 from src.utils.constants import (
+    BULLET_SPEED,
+    CLOCK_FREEZE_DURATION,
     HELMET_INVINCIBILITY_DURATION,
+    STAR_BULLET_SPEED_MULTIPLIER,
     PowerUpType,
 )
+from src.core.tile import TileType
 from tests.integration.conftest import flush_pending_spawns, spawn_carrier
 
 
@@ -51,3 +55,26 @@ class TestPowerUpEffectsIntegration:
         self._collect_power_up(game, PowerUpType.BOMB)
         game.update()
         assert len(game.spawn_manager.enemy_tanks) == 0
+
+
+class TestRemainingPowerUpEffects:
+    @pytest.fixture
+    def game(self, game_manager_fixture):
+        return game_manager_fixture
+
+    def test_clock_effect(self, game):
+        game._apply_power_up(PowerUpType.CLOCK)
+        assert game.freeze_timer == CLOCK_FREEZE_DURATION
+
+    def test_shovel_effect(self, game):
+        game._apply_power_up(PowerUpType.SHOVEL)
+        assert game.shovel_timer > 0
+        tiles = game.map.get_base_surrounding_tiles()
+        steel_tiles = [t for t in tiles if t.type == TileType.STEEL]
+        assert len(steel_tiles) > 0
+
+    def test_star_effect(self, game):
+        game._apply_power_up(PowerUpType.STAR)
+        assert game.player_tank.star_level == 1
+        expected_speed = BULLET_SPEED * STAR_BULLET_SPEED_MULTIPLIER
+        assert game.player_tank.bullet_speed == expected_speed

@@ -67,6 +67,7 @@ class Tank(GameObject):
         self.map_height_px = map_height_px
         self.direction = Direction.UP  # Initial direction
         self.max_bullets: int = 1
+        self.power_bullets: bool = False
         self.tile_size = tile_size
         self.health: int = health
         self.max_health: int = health
@@ -161,6 +162,7 @@ class Tank(GameObject):
             owner=self,
             sprite=bullet_sprite,
             speed=self.bullet_speed,
+            power_bullet=self.power_bullets,
         )
 
     def update(self, dt: float) -> None:

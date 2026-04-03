@@ -336,6 +336,7 @@ class TestBulletVsTile:
         bullet = MagicMock(spec=Bullet)
         bullet.active = True
         bullet.owner = MagicMock()
+        bullet.power_bullet = False
         bullet.rect = pygame.Rect(0, 0, 2, 2)
         tile = MagicMock(spec=Tile)
         tile.type = TileType.STEEL
@@ -581,6 +582,7 @@ class TestExplosionEffects:
         bullet = MagicMock(spec=Bullet)
         bullet.active = True
         bullet.owner = MagicMock()
+        bullet.power_bullet = False
         bullet.rect = pygame.Rect(50, 50, 2, 2)
         tile = MagicMock(spec=Tile)
         tile.type = TileType.STEEL
@@ -753,3 +755,59 @@ class TestPlayerVsPowerUp:
     def test_consume_returns_none_when_empty(self, handler_with_powerup):
         handler, score_tracker, pu_manager = handler_with_powerup
         assert handler.consume_collected_power_up() is None
+
+
+class TestPowerBulletVsSteel:
+    @pytest.fixture
+    def power_bullet(self):
+        b = MagicMock(spec=Bullet)
+        b.active = True
+        b.owner_type = "player"
+        b.power_bullet = True
+        b.rect = pygame.Rect(100, 100, 4, 4)
+        b.direction = Direction.RIGHT
+        return b
+
+    @pytest.fixture
+    def normal_bullet(self):
+        b = MagicMock(spec=Bullet)
+        b.active = True
+        b.owner_type = "player"
+        b.power_bullet = False
+        b.rect = pygame.Rect(100, 100, 4, 4)
+        b.direction = Direction.RIGHT
+        return b
+
+    @pytest.fixture
+    def steel_tile(self):
+        t = MagicMock(spec=Tile)
+        t.type = TileType.STEEL
+        t.x = 6
+        t.y = 6
+        t.rect = pygame.Rect(96, 96, 16, 16)
+        return t
+
+    def test_power_bullet_destroys_steel(
+        self, handler, power_bullet, steel_tile, mock_map
+    ):
+        handler.process_collisions([(power_bullet, steel_tile)])
+        mock_map.set_tile_type.assert_called()
+        assert not power_bullet.active
+
+    def test_normal_bullet_blocked_by_steel(
+        self, handler, normal_bullet, steel_tile, mock_map
+    ):
+        handler.process_collisions([(normal_bullet, steel_tile)])
+        mock_map.set_tile_type.assert_not_called()
+        assert not normal_bullet.active
+
+    def test_power_bullet_does_not_change_base_behavior(
+        self, handler, power_bullet, mock_map
+    ):
+        base_tile = MagicMock(spec=Tile)
+        base_tile.type = TileType.BASE
+        base_tile.x = 8
+        base_tile.y = 14
+        base_tile.rect = pygame.Rect(128, 224, 16, 16)
+        handler.process_collisions([(power_bullet, base_tile)])
+        assert not power_bullet.active
