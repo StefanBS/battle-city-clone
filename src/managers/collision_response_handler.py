@@ -304,15 +304,24 @@ class CollisionResponseHandler:
         b_caused = self._caused_collision(tank_b, tank_a)
         neither = not a_caused and not b_caused
 
-        # Revert and notify each tank that caused the collision.
-        # In the 'neither' case (pre-existing overlap), apply to both
-        # so enemies can escape via direction change.
-        if a_caused or neither:
+        if neither:
+            # Pre-existing overlap (e.g. from spawn): prev positions
+            # already collided. Let both tanks move freely so they can
+            # separate instead of getting permanently stuck.
+            if tank_a.prev_rect.colliderect(tank_b.prev_rect):
+                return False
+            # Both moved into each other from non-overlapping positions
             tank_a.revert_move()
             tank_a.on_movement_blocked()
-        if b_caused or neither:
             tank_b.revert_move()
             tank_b.on_movement_blocked()
+        else:
+            if a_caused:
+                tank_a.revert_move()
+                tank_a.on_movement_blocked()
+            if b_caused:
+                tank_b.revert_move()
+                tank_b.on_movement_blocked()
         return True
 
     def _handle_tank_vs_tile(

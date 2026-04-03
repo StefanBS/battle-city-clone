@@ -411,8 +411,8 @@ class TestTankVsTank:
 
     def test_both_moving_toward_each_other(self, handler, mock_texture_manager):
         """Both tanks moving toward each other: both reverted."""
-        player = self._make_player(mock_texture_manager, 100, 130)
-        enemy = self._make_enemy(mock_texture_manager, 100, 100)
+        player = self._make_player(mock_texture_manager, 96, 128)
+        enemy = self._make_enemy(mock_texture_manager, 96, 96)
         enemy.direction = Direction.DOWN
         self._simulate_move(player, 0, -1)
         self._simulate_move(enemy, 0, 1)
@@ -423,8 +423,8 @@ class TestTankVsTank:
 
     def test_only_aggressor_reverted(self, handler, mock_texture_manager):
         """Stationary enemy is not reverted when player moves into it."""
-        player = self._make_player(mock_texture_manager, 100, 130)
-        enemy = self._make_enemy(mock_texture_manager, 100, 100)
+        player = self._make_player(mock_texture_manager, 96, 128)
+        enemy = self._make_enemy(mock_texture_manager, 96, 96)
         enemy_pos_before = (enemy.x, enemy.y)
         self._simulate_move(player, 0, -1)
         # Enemy didn't move (prev == current)
@@ -435,8 +435,8 @@ class TestTankVsTank:
 
     def test_perpendicular_tank_not_reverted(self, handler, mock_texture_manager):
         """Enemy moving perpendicular to collision axis keeps its move."""
-        player = self._make_player(mock_texture_manager, 100, 130)
-        enemy = self._make_enemy(mock_texture_manager, 100, 100)
+        player = self._make_player(mock_texture_manager, 96, 128)
+        enemy = self._make_enemy(mock_texture_manager, 96, 96)
         enemy.direction = Direction.RIGHT
         self._simulate_move(player, 0, -1)
         self._simulate_move(enemy, 1, 0)
@@ -448,8 +448,8 @@ class TestTankVsTank:
 
     def test_enemy_vs_enemy_both_moving_toward(self, handler, mock_texture_manager):
         """Two enemies moving toward each other: both reverted."""
-        e1 = self._make_enemy(mock_texture_manager, 100, 100)
-        e2 = self._make_enemy(mock_texture_manager, 130, 100)
+        e1 = self._make_enemy(mock_texture_manager, 96, 96)
+        e2 = self._make_enemy(mock_texture_manager, 128, 96)
         e1.direction = Direction.RIGHT
         e2.direction = Direction.LEFT
         self._simulate_move(e1, 1, 0)
@@ -458,17 +458,34 @@ class TestTankVsTank:
         assert e1.x == e1.prev_x and e1.y == e1.prev_y
         assert e2.x == e2.prev_x and e2.y == e2.prev_y
 
-    def test_pre_existing_overlap_reverts_both(self, handler, mock_texture_manager):
-        """When tanks are already overlapping (neither caused it),
-        both should be reverted."""
+    def test_pre_existing_overlap_allows_movement(self, handler, mock_texture_manager):
+        """When tanks are already overlapping (e.g. from spawn), neither
+        should be reverted — both must be free to move apart."""
         e1 = self._make_enemy(mock_texture_manager, 100, 100)
         e2 = self._make_enemy(mock_texture_manager, 100, 100)
-        # Neither moved
+        e1.direction = Direction.LEFT
+        e2.direction = Direction.RIGHT
+        self._simulate_move(e1, -1, 0)
+        self._simulate_move(e2, 1, 0)
+        e1_pos_after_move = (e1.x, e1.y)
+        e2_pos_after_move = (e2.x, e2.y)
+        handler.process_collisions([(e1, e2)])
+        # Neither should be reverted — they're moving apart
+        assert (e1.x, e1.y) == e1_pos_after_move
+        assert (e2.x, e2.y) == e2_pos_after_move
+
+    def test_pre_existing_overlap_no_blocked_directions(
+        self, handler, mock_texture_manager
+    ):
+        """Pre-existing overlap should not add blocked directions,
+        so tanks don't get permanently stuck."""
+        e1 = self._make_enemy(mock_texture_manager, 100, 100)
+        e2 = self._make_enemy(mock_texture_manager, 100, 100)
         e1.prev_x, e1.prev_y = e1.x, e1.y
         e2.prev_x, e2.prev_y = e2.x, e2.y
         handler.process_collisions([(e1, e2)])
-        assert e1.x == e1.prev_x and e1.y == e1.prev_y
-        assert e2.x == e2.prev_x and e2.y == e2.prev_y
+        assert len(e1._blocked_directions) == 0
+        assert len(e2._blocked_directions) == 0
 
     def test_cornered_enemy_blocked_direction_recorded(
         self, handler, mock_texture_manager, mock_tile
