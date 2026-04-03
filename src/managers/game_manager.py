@@ -15,6 +15,10 @@ from src.utils.constants import (
     WINDOW_HEIGHT,
     LOGICAL_WIDTH,
     LOGICAL_HEIGHT,
+    PowerUpType,
+    HELMET_INVINCIBILITY_DURATION,
+    ENEMY_POINTS,
+    EffectType,
 )
 from src.managers.collision_manager import CollisionManager
 from src.managers.collision_response_handler import CollisionResponseHandler
@@ -233,6 +237,11 @@ class GameManager:
                     self.player_tank, self.spawn_manager.enemy_tanks
                 )
 
+        # Apply deferred power-up effect (after collision processing)
+        collected = self.collision_response_handler.consume_collected_power_up()
+        if collected is not None:
+            self._apply_power_up(collected, set(enemies_to_remove))
+
         self.effect_manager.update(dt)
 
         if self.state == GameState.RUNNING:
@@ -256,6 +265,42 @@ class GameManager:
     def _add_score(self, points: int) -> None:
         """Add points to the player's score."""
         self.score += points
+
+    def _apply_power_up(
+        self, power_up_type: PowerUpType, already_scored: set = frozenset()
+    ) -> None:
+        """Dispatch power-up effect by type."""
+        if self.state != GameState.RUNNING:
+            return
+        if power_up_type == PowerUpType.HELMET:
+            self._apply_helmet()
+        elif power_up_type == PowerUpType.EXTRA_LIFE:
+            self._apply_extra_life()
+        elif power_up_type == PowerUpType.BOMB:
+            self._apply_bomb(already_scored)
+
+    def _apply_helmet(self) -> None:
+        """Grant temporary invincibility to the player."""
+        self.player_tank.activate_invincibility(HELMET_INVINCIBILITY_DURATION)
+        logger.info("Helmet power-up applied: player invincible for 10s")
+
+    def _apply_extra_life(self) -> None:
+        """Award the player one extra life."""
+        self.player_tank.lives += 1
+        logger.info(f"Extra Life power-up applied: lives now {self.player_tank.lives}")
+
+    def _apply_bomb(self, already_scored: set) -> None:
+        """Destroy all active enemies on the map."""
+        for enemy in list(self.spawn_manager.enemy_tanks):
+            self.effect_manager.spawn(
+                EffectType.LARGE_EXPLOSION,
+                float(enemy.rect.centerx),
+                float(enemy.rect.centery),
+            )
+            if enemy not in already_scored:
+                self._add_score(ENEMY_POINTS.get(enemy.tank_type, 0))
+            self.spawn_manager.remove_enemy(enemy)
+        logger.info("Bomb power-up applied: all enemies destroyed")
 
     def render(self) -> None:
         """Render the game state."""
