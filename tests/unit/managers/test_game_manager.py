@@ -96,6 +96,14 @@ class TestGameManager:
         game_manager.handle_events()
         assert game_manager.state == GameState.TITLE_SCREEN
 
+    def test_title_screen_r_does_nothing(
+        self, game_manager_at_title, key_down_event
+    ):
+        """Test that R key does nothing on title screen."""
+        pygame.event.post(key_down_event(pygame.K_r))
+        game_manager_at_title.handle_events()
+        assert game_manager_at_title.state == GameState.TITLE_SCREEN
+
     def test_handle_events_quit(self, game_manager):
         """Test handling quit event sets state to EXIT."""
         # with pytest.raises(SystemExit): # Should not raise SystemExit anymore
