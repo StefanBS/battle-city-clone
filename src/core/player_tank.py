@@ -1,7 +1,13 @@
 from loguru import logger
 from .tank import Tank
 from src.managers.texture_manager import TextureManager
-from src.utils.constants import Direction, OwnerType
+from src.utils.constants import (
+    Direction,
+    OwnerType,
+    BULLET_SPEED,
+    STAR_BULLET_SPEED_MULTIPLIER,
+    STAR_MAX_BULLETS,
+)
 
 
 class PlayerTank(Tank):
@@ -42,7 +48,41 @@ class PlayerTank(Tank):
         )
         self.initial_position = (self.x, self.y)
         self.invincibility_duration = 3.0
+        self.star_level: int = 0
         self._update_sprite()
+
+    def apply_star(self) -> None:
+        """Apply a star upgrade (up to tier 3)."""
+        if self.star_level < 3:
+            self.star_level += 1
+        self._apply_star_stats()
+        self._update_sprite()
+
+    def _apply_star_stats(self) -> None:
+        """Apply stats based on current star level."""
+        if self.star_level >= 1:
+            self.bullet_speed = BULLET_SPEED * STAR_BULLET_SPEED_MULTIPLIER
+        else:
+            self.bullet_speed = BULLET_SPEED
+        if self.star_level >= 2:
+            self.max_bullets = STAR_MAX_BULLETS
+        else:
+            self.max_bullets = 1
+        self.power_bullets = self.star_level >= 3
+
+    def _update_sprite(self) -> None:
+        """Update sprite using tier-specific sprites when upgraded."""
+        if self.star_level > 0:
+            sprite_name = (
+                f"player_tank_tier{self.star_level}"
+                f"_{self.direction}_{self.animation_frame}"
+            )
+            try:
+                self.sprite = self.texture_manager.get_sprite(sprite_name)
+            except KeyError:
+                super()._update_sprite()
+        else:
+            super()._update_sprite()
 
     def activate_invincibility(self, duration: float) -> None:
         """Activate invincibility for the given duration."""
@@ -92,5 +132,7 @@ class PlayerTank(Tank):
             self.prev_x = self.x
             self.prev_y = self.y
             self.activate_invincibility(3.0)
+            self.star_level = 0
+            self._apply_star_stats()
             self.direction = Direction.UP
             self._update_sprite()
