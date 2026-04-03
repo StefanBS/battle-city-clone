@@ -1,4 +1,8 @@
-from typing import Any, Callable, Dict, List, Tuple, Type
+from __future__ import annotations
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Type
+
+if TYPE_CHECKING:
+    from src.managers.power_up_manager import PowerUpManager
 from loguru import logger
 from src.core.bullet import Bullet
 from src.core.power_up import PowerUp
@@ -31,7 +35,7 @@ class CollisionResponseHandler:
         set_game_state: Callable[[GameState], None],
         effect_manager: EffectManager,
         add_score: Callable[[int], None] = lambda _: None,
-        power_up_manager=None,
+        power_up_manager: Optional[PowerUpManager] = None,
     ) -> None:
         self._map = game_map
         self._set_game_state = set_game_state

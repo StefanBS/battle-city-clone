@@ -61,7 +61,7 @@ class Renderer:
         effect_manager,
         state: GameState,
         score: int = 0,
-        power_up=None,
+        power_up=None,  # Optional[PowerUp]
     ) -> None:
         """Render the complete game frame.
 

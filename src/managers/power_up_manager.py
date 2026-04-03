@@ -6,6 +6,8 @@ from typing import List, Optional
 import pygame
 from loguru import logger
 
+from src.core.enemy_tank import EnemyTank
+from src.core.player_tank import PlayerTank
 from src.core.power_up import PowerUp
 from src.core.map import Map
 from src.managers.texture_manager import TextureManager
@@ -27,8 +29,8 @@ class PowerUpManager:
 
     def spawn_power_up(
         self,
-        player_tank,
-        enemy_tanks: List,
+        player_tank: PlayerTank,
+        enemy_tanks: List[EnemyTank],
         power_up_type: Optional[PowerUpType] = None,
     ) -> None:
         """Spawn a power-up at a random walkable position."""
@@ -70,7 +72,7 @@ class PowerUpManager:
         return power_up_type
 
     def _find_spawn_position(
-        self, player_tank, enemy_tanks: List
+        self, player_tank: PlayerTank, enemy_tanks: List[EnemyTank]
     ) -> Optional[tuple[int, int]]:
         """Find a random walkable tile position not occupied by any tank."""
         walkable = []
