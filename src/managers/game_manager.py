@@ -438,6 +438,15 @@ class GameManager:
             self.renderer.render_title_screen(self._menu_selection)
             return
 
+        if self.state in (
+            GameState.STAGE_CURTAIN_CLOSE,
+            GameState.STAGE_CURTAIN_OPEN,
+        ):
+            self.renderer.render_curtain(
+                self._curtain_progress, self.current_stage
+            )
+            return
+
         self.renderer.render(
             self.map,
             self.player_tank,

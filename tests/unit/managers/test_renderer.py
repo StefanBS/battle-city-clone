@@ -204,3 +204,46 @@ class TestRendererHUD:
 
         # Should blit: overlay background, title text, subtitle text
         assert renderer.game_surface.blit.call_count >= 3
+
+
+class TestRenderCurtain:
+    @pytest.fixture
+    def renderer(self):
+        pygame.init()
+        pygame.display.set_mode((1, 1), pygame.NOFRAME)
+        screen = pygame.Surface((1024, 1024))
+        return Renderer(screen, 512, 512, 416, 416)
+
+    def test_render_curtain_no_crash(self, renderer):
+        for progress in [0.0, 0.25, 0.5, 0.75, 1.0]:
+            renderer.render_curtain(progress, 1)
+
+    def test_render_curtain_shows_stage_text_when_closed(self, renderer):
+        """At progress=1.0, a STAGE N text surface is blitted to game_surface."""
+        font_render_calls = []
+        real_font_render = renderer.font.render
+
+        class SpyFont:
+            """Wraps a real pygame Font to record render calls."""
+
+            def __init__(self, real):
+                self._real = real
+
+            def render(self, text, antialias, color):
+                font_render_calls.append(text)
+                return self._real.render(text, antialias, color)
+
+            def size(self, text):
+                return self._real.size(text)
+
+        renderer.font = SpyFont(real_font_render.__self__)
+
+        with patch("pygame.display.flip"):
+            renderer.render_curtain(0.0, 3)
+            calls_at_open = len(font_render_calls)
+            renderer.render_curtain(1.0, 3)
+            calls_at_closed = len(font_render_calls)
+
+        # font.render should be called at progress=1.0 but not at 0.0
+        assert calls_at_closed > calls_at_open
+        assert any("STAGE 3" in c for c in font_render_calls)
