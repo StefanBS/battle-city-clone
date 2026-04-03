@@ -52,6 +52,9 @@ class Renderer:
         # Map area surface for rendering entities at map-relative positions
         self.map_surface: pygame.Surface = pygame.Surface((map_width_px, map_height_px))
 
+        # Cached text surface for game over animation (set on first use)
+        self._game_over_text: Optional[pygame.Surface] = None
+
     def render(
         self,
         game_map,
@@ -163,7 +166,9 @@ class Renderer:
         Args:
             progress: 0.0 (text at bottom) to 1.0 (text at center).
         """
-        text = self.font.render("GAME OVER", True, RED)
+        if self._game_over_text is None:
+            self._game_over_text = self.font.render("GAME OVER", True, RED)
+        text = self._game_over_text
         center_y = self.logical_height // 2
         bottom_y = self.logical_height + text.get_height()
         y = bottom_y + (center_y - bottom_y) * progress
