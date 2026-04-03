@@ -1,6 +1,7 @@
 from typing import Any, Callable, Dict, List, Tuple, Type
 from loguru import logger
 from src.core.bullet import Bullet
+from src.core.power_up import PowerUp
 from src.core.tank import Tank
 from src.core.player_tank import PlayerTank
 from src.core.enemy_tank import EnemyTank
@@ -10,6 +11,7 @@ from src.utils.constants import (
     EffectType,
     ENEMY_POINTS,
     OwnerType,
+    POWERUP_COLLECT_POINTS,
     SEGMENT_LEFT,
     SEGMENT_RIGHT,
     SEGMENT_TOP,
@@ -29,17 +31,20 @@ class CollisionResponseHandler:
         set_game_state: Callable[[GameState], None],
         effect_manager: EffectManager,
         add_score: Callable[[int], None] = lambda _: None,
+        power_up_manager=None,
     ) -> None:
         self._map = game_map
         self._set_game_state = set_game_state
         self._effect_manager = effect_manager
         self._add_score = add_score
+        self._power_up_manager = power_up_manager
 
         self._handlers: Dict[Tuple[Type, Type], Callable[[Any, Any, List], bool]] = {
             (Bullet, EnemyTank): self._handle_bullet_vs_enemy,
             (Bullet, PlayerTank): self._handle_bullet_vs_player,
             (Bullet, Tile): self._handle_bullet_vs_tile,
             (Bullet, Bullet): self._handle_bullet_vs_bullet,
+            (PlayerTank, PowerUp): self._handle_player_vs_powerup,
             (PlayerTank, EnemyTank): self._handle_tank_vs_tank,
             (PlayerTank, PlayerTank): self._handle_tank_vs_tank,
             (EnemyTank, EnemyTank): self._handle_tank_vs_tank,
@@ -81,6 +86,12 @@ class CollisionResponseHandler:
                     if isinstance(other, Bullet):
                         processed_bullets.add(other)
                 # Consumed — do not evaluate as tank collision
+                continue
+
+            # Power-up collection (must be before tank collision block
+            # since PlayerTank is a Tank subclass)
+            if isinstance(a, PowerUp) or isinstance(b, PowerUp):
+                handler(a, b, enemies_to_remove)
                 continue
 
             # Tank collisions
@@ -202,6 +213,20 @@ class CollisionResponseHandler:
         logger.debug("Bullet hit bullet. Both deactivated.")
         bullet_a.active = False
         bullet_b.active = False
+        return True
+
+    def _handle_player_vs_powerup(
+        self,
+        player: PlayerTank,
+        power_up: PowerUp,
+        enemies_to_remove: List[EnemyTank],
+    ) -> bool:
+        if self._power_up_manager is None:
+            return False
+        power_up_type = self._power_up_manager.collect_power_up()
+        if power_up_type is not None:
+            self._add_score(POWERUP_COLLECT_POINTS)
+            logger.info(f"Player collected power-up: {power_up_type.value}")
         return True
 
     def _destroy_brick_segments(self, tile: Tile, bullet: Bullet) -> None:

@@ -3,11 +3,13 @@ import pygame
 from unittest.mock import MagicMock
 from src.managers.collision_response_handler import CollisionResponseHandler
 from src.managers.effect_manager import EffectManager
+from src.managers.power_up_manager import PowerUpManager
 from src.core.bullet import Bullet
 from src.core.player_tank import PlayerTank
 from src.core.enemy_tank import EnemyTank
 from src.core.tile import Tile, TileType
 from src.core.map import Map
+from src.core.power_up import PowerUp
 from src.states.game_state import GameState
 from src.utils.constants import (
     Direction,
@@ -18,6 +20,8 @@ from src.utils.constants import (
     SEGMENT_RIGHT,
     SEGMENT_TOP,
     SEGMENT_BOTTOM,
+    PowerUpType,
+    POWERUP_COLLECT_POINTS,
 )
 
 
@@ -657,3 +661,54 @@ class TestScoring:
         mock_enemy.take_damage.return_value = False
         handler.process_collisions([(mock_bullet, mock_enemy)])
         mock_add_score.assert_not_called()
+
+
+class TestPlayerVsPowerUp:
+    """Tests for player-vs-powerup collision handling."""
+
+    @pytest.fixture
+    def mock_power_up_manager(self):
+        manager = MagicMock(spec=PowerUpManager)
+        manager.collect_power_up.return_value = PowerUpType.HELMET
+        return manager
+
+    @pytest.fixture
+    def handler_with_powerup(
+        self, mock_map, mock_effect_manager, mock_power_up_manager
+    ):
+        score_tracker = {"score": 0}
+
+        def add_score(pts):
+            score_tracker["score"] += pts
+
+        h = CollisionResponseHandler(
+            game_map=mock_map,
+            set_game_state=MagicMock(),
+            effect_manager=mock_effect_manager,
+            add_score=add_score,
+            power_up_manager=mock_power_up_manager,
+        )
+        return h, score_tracker, mock_power_up_manager
+
+    def test_player_collects_power_up(self, handler_with_powerup):
+        handler, score_tracker, pu_manager = handler_with_powerup
+        player = MagicMock(spec=PlayerTank)
+        power_up = MagicMock(spec=PowerUp)
+
+        handler.process_collisions([(player, power_up)])
+        pu_manager.collect_power_up.assert_called_once()
+        assert score_tracker["score"] == POWERUP_COLLECT_POINTS
+
+    def test_power_up_not_collected_without_manager(
+        self, mock_map, mock_effect_manager
+    ):
+        handler = CollisionResponseHandler(
+            game_map=mock_map,
+            set_game_state=MagicMock(),
+            effect_manager=mock_effect_manager,
+        )
+        player = MagicMock(spec=PlayerTank)
+        power_up = MagicMock(spec=PowerUp)
+        # Should not crash even without power_up_manager
+        result = handler.process_collisions([(player, power_up)])
+        assert result == []
