@@ -17,6 +17,7 @@ from src.utils.constants import (
     LOGICAL_HEIGHT,
     PowerUpType,
     HELMET_INVINCIBILITY_DURATION,
+    CLOCK_FREEZE_DURATION,
     ENEMY_POINTS,
     EffectType,
 )
@@ -136,6 +137,7 @@ class GameManager:
         )
 
         self.bullets: List[Bullet] = []
+        self.freeze_timer: float = 0.0
         logger.info("Game reset complete.")
 
     def handle_events(self) -> None:
@@ -190,10 +192,13 @@ class GameManager:
         if self.input_handler.consume_shoot():
             self._try_shoot(self.player_tank)
 
-        for enemy in self.spawn_manager.enemy_tanks:
-            enemy.update(dt)
-            if enemy.consume_shoot():
-                self._try_shoot(enemy)
+        if self.freeze_timer > 0:
+            self.freeze_timer -= dt
+        else:
+            for enemy in self.spawn_manager.enemy_tanks:
+                enemy.update(dt)
+                if enemy.consume_shoot():
+                    self._try_shoot(enemy)
 
         # Update all bullets
         for bullet in self.bullets:
@@ -278,6 +283,8 @@ class GameManager:
             self._apply_extra_life()
         elif power_up_type == PowerUpType.BOMB:
             self._apply_bomb(already_scored if already_scored is not None else set())
+        elif power_up_type == PowerUpType.CLOCK:
+            self._apply_clock()
         else:
             logger.warning(f"Unhandled power-up type: {power_up_type}")
 
@@ -306,6 +313,13 @@ class GameManager:
                 self._add_score(ENEMY_POINTS.get(enemy.tank_type, 0))
             self.spawn_manager.remove_enemy(enemy)
         logger.info("Bomb power-up applied: all enemies destroyed")
+
+    def _apply_clock(self) -> None:
+        """Freeze all enemies for the clock duration."""
+        self.freeze_timer = CLOCK_FREEZE_DURATION
+        logger.info(
+            f"Clock power-up applied: enemies frozen for {CLOCK_FREEZE_DURATION}s"
+        )
 
     def render(self) -> None:
         """Render the game state."""

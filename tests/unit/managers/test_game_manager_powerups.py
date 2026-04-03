@@ -5,6 +5,7 @@ from src.managers.game_manager import GameManager
 from src.utils.constants import (
     PowerUpType,
     HELMET_INVINCIBILITY_DURATION,
+    CLOCK_FREEZE_DURATION,
     ENEMY_POINTS,
     TankType,
     EffectType,
@@ -104,3 +105,26 @@ class TestPowerUpEffects:
         game.player_tank.activate_invincibility.assert_called_once_with(
             HELMET_INVINCIBILITY_DURATION
         )
+
+
+class TestClockEffect:
+    @pytest.fixture
+    def game(self):
+        gm = MagicMock(spec=GameManager)
+        gm._apply_power_up = GameManager._apply_power_up.__get__(gm)
+        gm._apply_clock = GameManager._apply_clock.__get__(gm)
+        gm.state = GameState.RUNNING
+        gm.score = 0
+        gm.freeze_timer = 0.0
+        gm.player_tank = MagicMock()
+        gm.player_tank.lives = 3
+        return gm
+
+    def test_clock_sets_freeze_timer(self, game):
+        game._apply_power_up(PowerUpType.CLOCK)
+        assert game.freeze_timer == CLOCK_FREEZE_DURATION
+
+    def test_clock_recollection_resets_timer(self, game):
+        game.freeze_timer = 3.0
+        game._apply_power_up(PowerUpType.CLOCK)
+        assert game.freeze_timer == CLOCK_FREEZE_DURATION
