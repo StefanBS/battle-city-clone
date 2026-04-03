@@ -1,6 +1,8 @@
 import pytest
 import pygame
 from unittest.mock import MagicMock
+from src.managers.texture_manager import TextureManager
+from src.utils.paths import resource_path
 
 
 @pytest.fixture
@@ -15,3 +17,8 @@ def create_mock_sprite():
         return sprite
 
     return _create
+
+
+@pytest.fixture(scope="session")
+def real_texture_manager(pygame_init):
+    return TextureManager(resource_path("assets/sprites/sprites.png"))

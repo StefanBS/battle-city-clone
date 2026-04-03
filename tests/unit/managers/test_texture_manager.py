@@ -4,6 +4,41 @@ from unittest.mock import patch, MagicMock
 from src.managers.texture_manager import TextureManager
 
 
+class TestPowerUpSprites:
+    """Test that power-up and red enemy tank sprites are loaded."""
+
+    POWERUP_SPRITE_NAMES = [
+        "powerup_helmet",
+        "powerup_clock",
+        "powerup_shovel",
+        "powerup_star",
+        "powerup_bomb",
+        "powerup_extra_life",
+        "powerup_gun",
+    ]
+
+    RED_TANK_SPRITE_NAMES = [
+        "enemy_tank_red_up_1",
+        "enemy_tank_red_up_2",
+        "enemy_tank_red_left_1",
+        "enemy_tank_red_left_2",
+        "enemy_tank_red_down_1",
+        "enemy_tank_red_down_2",
+        "enemy_tank_red_right_1",
+        "enemy_tank_red_right_2",
+    ]
+
+    @pytest.mark.parametrize("name", POWERUP_SPRITE_NAMES)
+    def test_powerup_sprite_loaded(self, real_texture_manager, name):
+        sprite = real_texture_manager.get_sprite(name)
+        assert sprite is not None
+
+    @pytest.mark.parametrize("name", RED_TANK_SPRITE_NAMES)
+    def test_red_tank_sprite_loaded(self, real_texture_manager, name):
+        sprite = real_texture_manager.get_sprite(name)
+        assert sprite is not None
+
+
 class TestTextureManagerErrors:
     """Tests for TextureManager error handling paths."""
 

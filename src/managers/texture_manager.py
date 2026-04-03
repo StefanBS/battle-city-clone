@@ -71,6 +71,23 @@ class TextureManager:
         "spawn_2": (34, 12),
         "spawn_3": (36, 12),
         "spawn_4": (38, 12),
+        # Red enemy tank (carrier flash variant)
+        "enemy_tank_red_up_1": (16, 16),
+        "enemy_tank_red_up_2": (18, 16),
+        "enemy_tank_red_left_1": (20, 16),
+        "enemy_tank_red_left_2": (22, 16),
+        "enemy_tank_red_down_1": (24, 16),
+        "enemy_tank_red_down_2": (26, 16),
+        "enemy_tank_red_right_1": (28, 16),
+        "enemy_tank_red_right_2": (30, 16),
+        # Power-ups
+        "powerup_helmet": (32, 14),
+        "powerup_clock": (34, 14),
+        "powerup_shovel": (36, 14),
+        "powerup_star": (38, 14),
+        "powerup_bomb": (40, 14),
+        "powerup_extra_life": (42, 14),
+        "powerup_gun": (44, 14),
     }
 
     # Bullet sprites: pixel rects (x, y, w, h) in the atlas.
