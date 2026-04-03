@@ -9,3 +9,5 @@ class GameState(Enum):
     GAME_OVER = 2
     VICTORY = 3
     EXIT = 4
+    STAGE_CURTAIN_CLOSE = 5
+    STAGE_CURTAIN_OPEN = 6

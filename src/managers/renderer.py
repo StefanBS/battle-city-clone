@@ -160,7 +160,39 @@ class Renderer:
 
     def _draw_victory(self) -> None:
         """Draw the victory screen."""
-        self._draw_overlay_screen("VICTORY!", GREEN, "Press R for Title")
+        self._draw_overlay_screen("VICTORY!", GREEN, "Next Stage...")
+
+    def render_curtain(self, progress: float, stage: int) -> None:
+        """Render the stage curtain animation.
+
+        Args:
+            progress: 0.0 (open) to 1.0 (fully closed).
+            stage: Current stage number to display when closed.
+        """
+        self.game_surface.fill(self.background_color)
+
+        half_height = self.logical_height // 2
+        curtain_height = int(progress * half_height)
+
+        if curtain_height > 0:
+            top_rect = pygame.Rect(0, 0, self.logical_width, curtain_height)
+            pygame.draw.rect(self.game_surface, self.border_color, top_rect)
+            bottom_rect = pygame.Rect(
+                0,
+                self.logical_height - curtain_height,
+                self.logical_width,
+                curtain_height,
+            )
+            pygame.draw.rect(self.game_surface, self.border_color, bottom_rect)
+
+        if progress >= 1.0:
+            stage_text = self.font.render(f"STAGE {stage}", True, WHITE)
+            stage_rect = stage_text.get_rect(
+                center=(self.logical_width // 2, self.logical_height // 2)
+            )
+            self.game_surface.blit(stage_text, stage_rect)
+
+        self._present_surface()
 
     def _draw_overlay_screen(
         self,
