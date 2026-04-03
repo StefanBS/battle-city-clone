@@ -11,7 +11,13 @@ from src.core.map import Map
 from src.core.player_tank import PlayerTank
 from src.managers.effect_manager import EffectManager
 from src.managers.texture_manager import TextureManager
-from src.utils.constants import EffectType, SUB_TILE_SIZE, TILE_SIZE, TankType
+from src.utils.constants import (
+    EffectType,
+    POWERUP_CARRIER_INDICES,
+    SUB_TILE_SIZE,
+    TILE_SIZE,
+    TankType,
+)
 from src.utils.level_data import STAGE_ENEMIES
 
 
@@ -23,6 +29,7 @@ class _PendingSpawn:
     y: int
     tank_type: TankType
     effect: Effect
+    is_carrier: bool = False
 
 
 class SpawnManager:
@@ -144,6 +151,7 @@ class SpawnManager:
 
         tank_type = self._spawn_queue.pop()
         self.total_enemy_spawns += 1
+        is_carrier = (self.total_enemy_spawns - 1) in POWERUP_CARRIER_INDICES
 
         if self._effect_manager is not None:
             # Play spawn animation, materialize tank when it finishes
@@ -153,7 +161,9 @@ class SpawnManager:
                 EffectType.SPAWN, center_x, center_y
             )
             self._pending_spawns.append(
-                _PendingSpawn(x=x, y=y, tank_type=tank_type, effect=effect)
+                _PendingSpawn(
+                    x=x, y=y, tank_type=tank_type, effect=effect, is_carrier=is_carrier
+                )
             )
             logger.debug(
                 f"Spawn animation started for enemy "
@@ -161,11 +171,13 @@ class SpawnManager:
                 f"at ({x}, {y}) type={tank_type}"
             )
         else:
-            self._materialize_enemy(x, y, tank_type)
+            self._materialize_enemy(x, y, tank_type, is_carrier)
 
         return True
 
-    def _materialize_enemy(self, x: int, y: int, tank_type: TankType) -> None:
+    def _materialize_enemy(
+        self, x: int, y: int, tank_type: TankType, is_carrier: bool = False
+    ) -> None:
         """Create the actual EnemyTank and add it to the active list."""
         enemy = EnemyTank(
             x,
@@ -175,10 +187,12 @@ class SpawnManager:
             tank_type=tank_type,
             map_width_px=self.map_width_px,
             map_height_px=self.map_height_px,
+            is_carrier=is_carrier,
         )
         self.enemy_tanks.append(enemy)
         logger.debug(
             f"Enemy materialized at ({x}, {y}) type={tank_type}"
+            f"{' [CARRIER]' if is_carrier else ''}"
         )
 
     def update(self, dt: float, player_tank: PlayerTank, game_map: Map) -> None:
@@ -197,7 +211,7 @@ class SpawnManager:
         for pending in self._pending_spawns:
             if not pending.effect.active:
                 self._materialize_enemy(
-                    pending.x, pending.y, pending.tank_type
+                    pending.x, pending.y, pending.tank_type, pending.is_carrier
                 )
             else:
                 still_pending.append(pending)

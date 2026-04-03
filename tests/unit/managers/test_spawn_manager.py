@@ -395,3 +395,100 @@ class TestSpawnAnimation:
 
         result = sm.spawn_enemy(mock_player_tank, mock_game_map)
         assert result is False
+
+
+class TestSpawnManagerCarrier:
+    """Tests for carrier index marking in SpawnManager."""
+
+    SPAWN_POINTS = TestSpawnManager.SPAWN_POINTS
+
+    @pytest.fixture
+    def mock_player_tank(self):
+        player = MagicMock()
+        player.rect = pygame.Rect(7 * TILE_SIZE, 14 * TILE_SIZE, TILE_SIZE, TILE_SIZE)
+        return player
+
+    @pytest.fixture
+    def mock_game_map(self):
+        game_map = MagicMock()
+        game_map.get_collidable_tiles.return_value = []
+        return game_map
+
+    @pytest.fixture
+    def spawn_manager(self, mock_texture_manager, mock_player_tank, mock_game_map):
+        return SpawnManager(
+            tile_size=TILE_SIZE,
+            texture_manager=mock_texture_manager,
+            spawn_points=self.SPAWN_POINTS,
+            stage=1,
+            spawn_interval=5.0,
+            player_tank=mock_player_tank,
+            game_map=mock_game_map,
+            map_width_px=16 * TILE_SIZE,
+            map_height_px=16 * TILE_SIZE,
+        )
+
+    def test_fourth_enemy_is_carrier(
+        self, spawn_manager, mock_player_tank, mock_game_map
+    ):
+        # Initial spawn was enemy 0 (index 0). Spawn indices 1, 2, 3.
+        # Clear enemy_tanks between spawns to avoid collision blocking.
+        spawn_manager.enemy_tanks = []
+        spawn_manager.spawn_enemy(mock_player_tank, mock_game_map)
+        spawn_manager.enemy_tanks = []
+        spawn_manager.spawn_enemy(mock_player_tank, mock_game_map)
+        spawn_manager.enemy_tanks = []
+        spawn_manager.spawn_enemy(mock_player_tank, mock_game_map)
+        # The 4th tank (index 3) should be the carrier
+        carrier_tanks = [t for t in spawn_manager.enemy_tanks if t.is_carrier]
+        assert len(carrier_tanks) == 1
+
+    def test_non_carrier_indices(self, spawn_manager, mock_player_tank, mock_game_map):
+        # Spawn indices 1 and 2 — neither should be a carrier.
+        spawn_manager.enemy_tanks = []
+        spawn_manager.spawn_enemy(mock_player_tank, mock_game_map)
+        spawn_manager.enemy_tanks = []
+        spawn_manager.spawn_enemy(mock_player_tank, mock_game_map)
+        # Enemies at indices 1 and 2 should not be carriers
+        carrier_tanks = [t for t in spawn_manager.enemy_tanks if t.is_carrier]
+        assert len(carrier_tanks) == 0
+
+    def test_carrier_survives_pending_spawn_path(
+        self, mock_texture_manager, mock_player_tank, mock_game_map
+    ):
+        mock_effect_manager = MagicMock(spec=EffectManager)
+        mock_effect = MagicMock(spec=Effect)
+        mock_effect.active = True
+        mock_effect_manager.spawn.return_value = mock_effect
+
+        manager = SpawnManager(
+            tile_size=TILE_SIZE,
+            texture_manager=mock_texture_manager,
+            spawn_points=self.SPAWN_POINTS,
+            stage=1,
+            spawn_interval=5.0,
+            player_tank=mock_player_tank,
+            game_map=mock_game_map,
+            map_width_px=16 * TILE_SIZE,
+            map_height_px=16 * TILE_SIZE,
+            effect_manager=mock_effect_manager,
+        )
+        # Materialize spawns 0, 1, 2 immediately, then spawn index 3 (carrier)
+        # via the pending path. Clear pending+tanks between to avoid collisions.
+        for _ in range(2):
+            mock_effect.active = False
+            manager.update(0.0, mock_player_tank, mock_game_map)
+            manager.enemy_tanks = []
+            mock_effect.active = True
+            manager.spawn_enemy(mock_player_tank, mock_game_map)
+        # Now materialize spawns so far, then spawn the carrier (index 3)
+        mock_effect.active = False
+        manager.update(0.0, mock_player_tank, mock_game_map)
+        manager.enemy_tanks = []
+        mock_effect.active = True
+        manager.spawn_enemy(mock_player_tank, mock_game_map)
+        # Complete the carrier's pending spawn animation
+        mock_effect.active = False
+        manager.update(0.0, mock_player_tank, mock_game_map)
+        carrier_tanks = [t for t in manager.enemy_tanks if t.is_carrier]
+        assert len(carrier_tanks) == 1
