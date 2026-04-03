@@ -55,10 +55,18 @@ class TestPowerUp:
         assert result == PowerUpType.HELMET
         assert power_up.active is False
 
-    def test_collect_each_type(self, mock_texture_manager):
-        for ptype in PowerUpType:
-            pu = PowerUp(0, 0, ptype, mock_texture_manager)
-            assert pu.collect() == ptype
+    @pytest.mark.parametrize("ptype", list(PowerUpType))
+    def test_collect_each_type(self, mock_texture_manager, ptype):
+        pu = PowerUp(0, 0, ptype, mock_texture_manager)
+        assert pu.collect() == ptype
+
+    def test_update_noop_after_collect(self, power_up):
+        power_up.collect()
+        timer_before = power_up.blink_timer
+        timeout_before = power_up.timeout_timer
+        power_up.update(1.0)
+        assert power_up.blink_timer == timer_before
+        assert power_up.timeout_timer == timeout_before
 
     def test_draw_skips_when_inactive(self, power_up):
         power_up.collect()

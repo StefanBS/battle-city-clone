@@ -316,3 +316,21 @@ class TestEnemyTankCarrier:
     def test_normal_tank_carrier_blink_timer_stays_zero(self, normal_tank):
         normal_tank.update(0.1)
         assert normal_tank.carrier_blink_timer == 0.0
+
+    def test_carrier_falls_back_on_missing_red_sprite(
+        self, carrier_tank, mock_texture_manager
+    ):
+        """When a red sprite is missing, carrier falls back to normal sprite."""
+        original_get = mock_texture_manager.get_sprite.side_effect
+
+        def reject_red(name):
+            if "red" in name:
+                raise KeyError(name)
+            return mock_texture_manager.get_sprite.return_value
+
+        mock_texture_manager.get_sprite.side_effect = reject_red
+        # Advance into red blink phase
+        carrier_tank.update(CARRIER_BLINK_INTERVAL + 0.01)
+        # Should not crash — falls back to normal sprite
+        assert carrier_tank.sprite is not None
+        mock_texture_manager.get_sprite.side_effect = original_get

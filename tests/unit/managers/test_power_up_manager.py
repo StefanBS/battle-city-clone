@@ -79,3 +79,25 @@ class TestPowerUpManager:
         if manager.active_power_up:
             pu_rect = manager.active_power_up.rect
             assert not pu_rect.colliderect(mock_player_tank.rect)
+
+    def test_spawn_skips_when_no_valid_position(self, mock_texture_manager):
+        """When all tiles are non-empty, spawn has nowhere to place the power-up."""
+        game_map = MagicMock()
+        game_map.width = 4
+        game_map.height = 4
+        game_map.tile_size = 16
+        # Fill every tile with a non-EMPTY mock tile
+        mock_tile = MagicMock()
+        mock_tile.type.name = "BRICK"
+        # Use an enum-like that != TileType.EMPTY
+        from src.core.tile import TileType
+
+        brick_tile = MagicMock()
+        brick_tile.type = TileType.BRICK
+        game_map.tiles = [[brick_tile for _ in range(4)] for _ in range(4)]
+
+        manager = PowerUpManager(mock_texture_manager, game_map)
+        player = MagicMock()
+        player.rect = pygame.Rect(0, 0, TILE_SIZE, TILE_SIZE)
+        manager.spawn_power_up(player, [])
+        assert manager.active_power_up is None

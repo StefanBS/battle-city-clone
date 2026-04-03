@@ -16,6 +16,11 @@ def _flush_pending_spawns(game, max_ticks=120):
 
     This is needed because SpawnManager uses spawn animations (EffectManager),
     so tanks only appear in enemy_tanks once the animation completes.
+
+    NOTE: Accesses SpawnManager private internals (_pending_spawns,
+    _materialize_enemy) because the public API (update) also advances the
+    spawn timer and may trigger additional spawns. If SpawnManager internals
+    change, this helper must be updated accordingly.
     """
     dt = 1.0 / FPS
     sm = game.spawn_manager
