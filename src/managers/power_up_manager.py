@@ -7,8 +7,10 @@ import pygame
 from loguru import logger
 
 from src.core.power_up import PowerUp
+from src.core.map import Map
 from src.managers.texture_manager import TextureManager
 from src.utils.constants import PowerUpType, TILE_SIZE
+from src.core.tile import TileType
 
 
 class PowerUpManager:
@@ -17,7 +19,7 @@ class PowerUpManager:
     def __init__(
         self,
         texture_manager: TextureManager,
-        game_map,
+        game_map: Map,
     ) -> None:
         self._texture_manager = texture_manager
         self._game_map = game_map
@@ -86,7 +88,7 @@ class PowerUpManager:
                             all_empty = False
                             break
                         tile = grid[r][c]
-                        if tile is not None and tile.type.name != "EMPTY":
+                        if tile is not None and tile.type != TileType.EMPTY:
                             all_empty = False
                             break
                     if not all_empty:
