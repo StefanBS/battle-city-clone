@@ -298,16 +298,18 @@ class TestEnemyTankCarrier:
     ):
         mock_texture_manager.reset_mock()
         carrier_tank.update(CARRIER_BLINK_INTERVAL + 0.01)
-        calls = [str(c) for c in mock_texture_manager.get_sprite.call_args_list]
-        red_calls = [c for c in calls if "red" in c]
-        assert len(red_calls) > 0
+        called_names = [
+            c.args[0] for c in mock_texture_manager.get_sprite.call_args_list
+        ]
+        assert any("red" in name for name in called_names)
 
     def test_normal_tank_never_uses_red_sprite(self, normal_tank, mock_texture_manager):
         mock_texture_manager.reset_mock()
         normal_tank.update(1.0)
-        calls = [str(c) for c in mock_texture_manager.get_sprite.call_args_list]
-        red_calls = [c for c in calls if "red" in c]
-        assert len(red_calls) == 0
+        called_names = [
+            c.args[0] for c in mock_texture_manager.get_sprite.call_args_list
+        ]
+        assert not any("red" in name for name in called_names)
 
     def test_carrier_blink_timer_increments(self, carrier_tank):
         carrier_tank.update(0.1)
@@ -321,7 +323,7 @@ class TestEnemyTankCarrier:
         self, carrier_tank, mock_texture_manager
     ):
         """When a red sprite is missing, carrier falls back to normal sprite."""
-        original_get = mock_texture_manager.get_sprite.side_effect
+        original_side_effect = mock_texture_manager.get_sprite.side_effect
 
         def reject_red(name):
             if "red" in name:
@@ -329,8 +331,8 @@ class TestEnemyTankCarrier:
             return mock_texture_manager.get_sprite.return_value
 
         mock_texture_manager.get_sprite.side_effect = reject_red
-        # Advance into red blink phase
-        carrier_tank.update(CARRIER_BLINK_INTERVAL + 0.01)
-        # Should not crash — falls back to normal sprite
-        assert carrier_tank.sprite is not None
-        mock_texture_manager.get_sprite.side_effect = original_get
+        try:
+            carrier_tank.update(CARRIER_BLINK_INTERVAL + 0.01)
+            assert carrier_tank.sprite is not None
+        finally:
+            mock_texture_manager.get_sprite.side_effect = original_side_effect
