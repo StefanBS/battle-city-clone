@@ -1,6 +1,7 @@
 import pytest
 from src.core.map import Map
 from src.core.tile import TileType
+from src.utils.paths import resource_path
 
 TEST_MAP_PATH = "tests/assets/test_map.tmx"
 
@@ -105,3 +106,25 @@ class TestMapLoading:
         # All 4 should be BASE_DESTROYED
         for sx, sy in [(4, 8), (5, 8), (4, 9), (5, 9)]:
             assert game_map.get_tile_at(sx, sy).type == TileType.BASE_DESTROYED
+
+
+class TestGetBaseSurroundingTiles:
+    @pytest.fixture
+    def game_map(self, mock_texture_manager):
+        return Map(resource_path("assets/maps/level_01.tmx"), mock_texture_manager)
+
+    def test_returns_tiles_around_base(self, game_map):
+        tiles = game_map.get_base_surrounding_tiles()
+        assert len(tiles) > 0
+        base = game_map.get_base()
+        assert base is not None
+
+    def test_no_base_tiles_in_result(self, game_map):
+        tiles = game_map.get_base_surrounding_tiles()
+        for tile in tiles:
+            assert tile.type != TileType.BASE
+
+    def test_no_empty_tiles_in_result(self, game_map):
+        tiles = game_map.get_base_surrounding_tiles()
+        for tile in tiles:
+            assert tile.type != TileType.EMPTY
