@@ -1,5 +1,5 @@
 import pygame
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 from src.states.game_state import GameState
 from src.utils.constants import WHITE, YELLOW, BLACK, RED, GREEN, GRAY
 from src.utils.paths import resource_path
@@ -61,7 +61,7 @@ class Renderer:
         effect_manager,
         state: GameState,
         score: int = 0,
-        power_up=None,  # Optional[PowerUp]
+        power_up: Optional[object] = None,
     ) -> None:
         """Render the complete game frame.
 

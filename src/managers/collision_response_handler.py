@@ -92,8 +92,7 @@ class CollisionResponseHandler:
                 # Consumed — do not evaluate as tank collision
                 continue
 
-            # Power-up collection (must be before tank collision block
-            # since PlayerTank is a Tank subclass)
+            # Must be before tank block — PlayerTank is a Tank subclass
             if isinstance(a, PowerUp) or isinstance(b, PowerUp):
                 handler(a, b, enemies_to_remove)
                 continue

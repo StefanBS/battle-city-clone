@@ -1,4 +1,6 @@
+import pygame
 import pytest
+from unittest.mock import MagicMock
 from src.managers.collision_manager import CollisionManager
 from src.core.tile import TileType, Tile
 from src.core.player_tank import PlayerTank
@@ -280,10 +282,6 @@ class TestPowerUpCollision:
     """Tests for player-vs-powerup collision detection."""
 
     def test_player_powerup_collision_detected(self):
-        import pygame
-
-        from unittest.mock import MagicMock
-
         cm = CollisionManager()
         player = MagicMock()
         player.rect = pygame.Rect(100, 100, 32, 32)
@@ -306,10 +304,6 @@ class TestPowerUpCollision:
         assert power_up in events[0]
 
     def test_no_collision_when_apart(self):
-        import pygame
-
-        from unittest.mock import MagicMock
-
         cm = CollisionManager()
         player = MagicMock()
         player.rect = pygame.Rect(0, 0, 32, 32)
@@ -330,10 +324,6 @@ class TestPowerUpCollision:
         assert len(events) == 0
 
     def test_no_collision_when_power_up_none(self):
-        import pygame
-
-        from unittest.mock import MagicMock
-
         cm = CollisionManager()
         player = MagicMock()
         player.rect = pygame.Rect(0, 0, 32, 32)
