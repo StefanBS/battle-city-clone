@@ -21,4 +21,8 @@ def create_mock_sprite():
 
 @pytest.fixture(scope="session")
 def real_texture_manager(pygame_init):
+    # Ensure display is initialized (session-scoped fixtures may run
+    # after pygame.quit() in another conftest or before set_mode)
+    if not pygame.display.get_surface():
+        pygame.display.set_mode((1, 1), pygame.NOFRAME)
     return TextureManager(resource_path("assets/sprites/sprites.png"))
