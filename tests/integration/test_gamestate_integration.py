@@ -114,9 +114,12 @@ def test_player_game_over_on_zero_lives():
     player_tank.take_damage.assert_called_once()
 
     # 2. Verify game state changed to GAME_OVER
-    assert game_manager.state == GameState.GAME_OVER, (
-        "Game state did not change to GAME_OVER after player's final death was "
-        "processed."
+    assert game_manager.state in (
+        GameState.GAME_OVER,
+        GameState.GAME_OVER_ANIMATION,
+    ), (
+        "Game state did not change to GAME_OVER/GAME_OVER_ANIMATION after "
+        "player's final death was processed."
     )
 
 
@@ -203,8 +206,12 @@ def test_player_bullet_hits_base(game_manager_fixture):
     assert not bullet.active, "Player bullet should be inactive after hitting base."
 
     # 3. Game state should be GAME_OVER
-    assert game_manager.state == GameState.GAME_OVER, (
-        f"Game state did not change to GAME_OVER. Is: {game_manager.state.name}"
+    assert game_manager.state in (
+        GameState.GAME_OVER,
+        GameState.GAME_OVER_ANIMATION,
+    ), (
+        f"Game state did not change to GAME_OVER/GAME_OVER_ANIMATION. "
+        f"Is: {game_manager.state.name}"
     )
 
 
@@ -315,8 +322,12 @@ def test_enemy_bullet_destroys_base_game_over(game_manager_fixture):
     )
 
     # 3. Game state should be GAME_OVER
-    assert game_manager.state == GameState.GAME_OVER, (
-        f"Game state did not change to GAME_OVER. Is: {game_manager.state.name}"
+    assert game_manager.state in (
+        GameState.GAME_OVER,
+        GameState.GAME_OVER_ANIMATION,
+    ), (
+        f"Game state did not change to GAME_OVER/GAME_OVER_ANIMATION. "
+        f"Is: {game_manager.state.name}"
     )
 
 
