@@ -191,6 +191,8 @@ class TestActivateInvincibility:
         assert player.blink_timer == 0
 
     def test_respawn_uses_activate_invincibility(self, player):
+        # Set duration to something else first to prove respawn resets it
+        player.invincibility_duration = 99.0
         player.lives = 2
         player.respawn()
         assert player.is_invincible is True
