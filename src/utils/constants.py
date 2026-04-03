@@ -92,7 +92,7 @@ POWERUP_CARRIER_INDICES: tuple[int, ...] = (3, 10, 17)  # 4th, 11th, 18th enemie
 POWERUP_BLINK_INTERVAL: float = 0.15
 POWERUP_TIMEOUT: float = 15.0
 POWERUP_COLLECT_POINTS: int = 500
-CARRIER_BLINK_INTERVAL: float = 0.15
+CARRIER_BLINK_INTERVAL: float = 0.1
 
 
 # Window settings
