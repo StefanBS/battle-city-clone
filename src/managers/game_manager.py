@@ -267,7 +267,7 @@ class GameManager:
         self.score += points
 
     def _apply_power_up(
-        self, power_up_type: PowerUpType, already_scored: set = frozenset()
+        self, power_up_type: PowerUpType, already_scored: Optional[set] = None
     ) -> None:
         """Dispatch power-up effect by type."""
         if self.state != GameState.RUNNING:
@@ -277,12 +277,15 @@ class GameManager:
         elif power_up_type == PowerUpType.EXTRA_LIFE:
             self._apply_extra_life()
         elif power_up_type == PowerUpType.BOMB:
-            self._apply_bomb(already_scored)
+            self._apply_bomb(already_scored or set())
 
     def _apply_helmet(self) -> None:
         """Grant temporary invincibility to the player."""
         self.player_tank.activate_invincibility(HELMET_INVINCIBILITY_DURATION)
-        logger.info("Helmet power-up applied: player invincible for 10s")
+        logger.info(
+            f"Helmet power-up applied: player invincible "
+            f"for {HELMET_INVINCIBILITY_DURATION}s"
+        )
 
     def _apply_extra_life(self) -> None:
         """Award the player one extra life."""

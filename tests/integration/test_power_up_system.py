@@ -4,40 +4,8 @@ Uses real objects (no mocks) with SDL_VIDEODRIVER=dummy for headless execution.
 """
 
 import pytest
-from src.utils.constants import (
-    FPS,
-    POWERUP_CARRIER_INDICES,
-    POWERUP_TIMEOUT,
-)
-
-
-def _flush_pending_spawns(game, max_ticks=120):
-    """Tick effect updates until all pending spawn animations finish.
-
-    This is needed because SpawnManager uses spawn animations (EffectManager),
-    so tanks only appear in enemy_tanks once the animation completes.
-
-    NOTE: Accesses SpawnManager private internals (_pending_spawns,
-    _materialize_enemy) because the public API (update) also advances the
-    spawn timer and may trigger additional spawns. If SpawnManager internals
-    change, this helper must be updated accordingly.
-    """
-    dt = 1.0 / FPS
-    sm = game.spawn_manager
-    em = game.effect_manager
-    for _ in range(max_ticks):
-        if not sm._pending_spawns:
-            break
-        em.update(dt)
-        still_pending = []
-        for pending in sm._pending_spawns:
-            if not pending.effect.active:
-                sm._materialize_enemy(
-                    pending.x, pending.y, pending.tank_type, pending.is_carrier
-                )
-            else:
-                still_pending.append(pending)
-        sm._pending_spawns = still_pending
+from src.utils.constants import POWERUP_TIMEOUT
+from tests.integration.conftest import spawn_carrier
 
 
 class TestPowerUpIntegration:
@@ -49,22 +17,7 @@ class TestPowerUpIntegration:
 
     @pytest.fixture
     def carrier(self, game):
-        """Spawn enemies until the first carrier appears, return it.
-
-        Clears active enemies between spawn attempts to avoid blocking
-        the small test map's spawn points.
-        """
-        first_carrier_index = POWERUP_CARRIER_INDICES[0]
-        # Need exactly first_carrier_index + 1 spawns (indices 0..3)
-        while game.spawn_manager.total_enemy_spawns <= first_carrier_index:
-            game.spawn_manager.enemy_tanks = []
-            game.spawn_manager._pending_spawns = []
-            game.spawn_manager.spawn_enemy(game.player_tank, game.map)
-            _flush_pending_spawns(game)
-
-        carriers = [e for e in game.spawn_manager.enemy_tanks if e.is_carrier]
-        assert carriers, "No carrier found after spawning past carrier index"
-        return carriers[0]
+        return spawn_carrier(game)
 
     def test_carrier_enemy_exists(self, carrier):
         """The 4th spawned enemy should be a carrier."""

@@ -5,52 +5,10 @@ Uses real objects (no mocks) with SDL_VIDEODRIVER=dummy for headless execution.
 
 import pytest
 from src.utils.constants import (
-    FPS,
     HELMET_INVINCIBILITY_DURATION,
-    POWERUP_CARRIER_INDICES,
     PowerUpType,
 )
-
-
-def _flush_pending_spawns(game, max_ticks=120):
-    """Tick effect updates until all pending spawn animations finish.
-
-    NOTE: Accesses SpawnManager private internals (_pending_spawns,
-    _materialize_enemy) because the public API (update) also advances the
-    spawn timer and may trigger additional spawns.
-    """
-    dt = 1.0 / FPS
-    sm = game.spawn_manager
-    em = game.effect_manager
-    for _ in range(max_ticks):
-        if not sm._pending_spawns:
-            break
-        em.update(dt)
-        still_pending = []
-        for pending in sm._pending_spawns:
-            if not pending.effect.active:
-                sm._materialize_enemy(
-                    pending.x, pending.y, pending.tank_type, pending.is_carrier
-                )
-            else:
-                still_pending.append(pending)
-        sm._pending_spawns = still_pending
-
-
-def _spawn_carrier(game):
-    """Spawn enemies until a carrier appears."""
-    first_carrier_index = POWERUP_CARRIER_INDICES[0]
-    max_attempts = (first_carrier_index + 1) * 5
-    for _ in range(max_attempts):
-        if game.spawn_manager.total_enemy_spawns > first_carrier_index:
-            break
-        game.spawn_manager.enemy_tanks = []
-        game.spawn_manager._pending_spawns = []
-        game.spawn_manager.spawn_enemy(game.player_tank, game.map)
-        _flush_pending_spawns(game)
-    carriers = [e for e in game.spawn_manager.enemy_tanks if e.is_carrier]
-    assert carriers, "No carrier found"
-    return carriers[0]
+from tests.integration.conftest import flush_pending_spawns, spawn_carrier
 
 
 class TestPowerUpEffectsIntegration:
@@ -60,7 +18,7 @@ class TestPowerUpEffectsIntegration:
 
     def _collect_power_up(self, game, power_up_type):
         """Spawn a carrier, destroy it, spawn a specific power-up, collect it."""
-        carrier = _spawn_carrier(game)
+        carrier = spawn_carrier(game)
         carrier.health = 0
         game.spawn_manager.remove_enemy(carrier)
         game.power_up_manager.spawn_power_up(
@@ -87,7 +45,7 @@ class TestPowerUpEffectsIntegration:
         assert game.player_tank.lives == lives_before + 1
 
     def test_bomb_effect(self, game):
-        _flush_pending_spawns(game)
+        flush_pending_spawns(game)
         enemies_before = len(game.spawn_manager.enemy_tanks)
         assert enemies_before > 0
         self._collect_power_up(game, PowerUpType.BOMB)
