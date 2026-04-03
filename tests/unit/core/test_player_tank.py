@@ -2,7 +2,7 @@ import pytest
 import pygame
 from unittest.mock import MagicMock
 from src.core.player_tank import PlayerTank
-from src.utils.constants import Direction, TILE_SIZE, FPS
+from src.utils.constants import Direction, TILE_SIZE, FPS, HELMET_INVINCIBILITY_DURATION
 
 
 class TestPlayerTank:
@@ -165,3 +165,40 @@ class TestPlayerTank:
             round(player_tank.initial_position[1]),
         )
         assert player_tank.rect.topleft != moved_rect.topleft
+
+
+class TestActivateInvincibility:
+    @pytest.fixture
+    def player(self, mock_texture_manager):
+        return PlayerTank(
+            96, 96, TILE_SIZE, mock_texture_manager,
+            map_width_px=512, map_height_px=512,
+        )
+
+    def test_sets_invincible(self, player):
+        player.activate_invincibility(5.0)
+        assert player.is_invincible is True
+
+    def test_sets_duration(self, player):
+        player.activate_invincibility(5.0)
+        assert player.invincibility_duration == 5.0
+
+    def test_resets_timers(self, player):
+        player.invincibility_timer = 2.0
+        player.blink_timer = 1.5
+        player.activate_invincibility(5.0)
+        assert player.invincibility_timer == 0
+        assert player.blink_timer == 0
+
+    def test_respawn_uses_activate_invincibility(self, player):
+        player.lives = 2
+        player.respawn()
+        assert player.is_invincible is True
+        assert player.invincibility_duration == 3.0
+
+    def test_respawn_after_helmet_restores_short_duration(self, player):
+        player.activate_invincibility(HELMET_INVINCIBILITY_DURATION)
+        player.is_invincible = False
+        player.lives = 2
+        player.respawn()
+        assert player.invincibility_duration == 3.0
