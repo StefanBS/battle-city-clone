@@ -6,12 +6,16 @@ from src.utils.constants import (
     PowerUpType,
     HELMET_INVINCIBILITY_DURATION,
     CLOCK_FREEZE_DURATION,
+    SHOVEL_DURATION,
+    SHOVEL_WARNING_DURATION,
+    SHOVEL_FLASH_INTERVAL,
     ENEMY_POINTS,
     TankType,
     EffectType,
     TILE_SIZE,
 )
 from src.states.game_state import GameState
+from src.core.tile import TileType
 
 
 class TestPowerUpEffects:
@@ -128,3 +132,67 @@ class TestClockEffect:
         game.freeze_timer = 3.0
         game._apply_power_up(PowerUpType.CLOCK)
         assert game.freeze_timer == CLOCK_FREEZE_DURATION
+
+
+class TestShovelEffect:
+    @pytest.fixture
+    def game(self):
+        gm = MagicMock(spec=GameManager)
+        gm._apply_power_up = GameManager._apply_power_up.__get__(gm)
+        gm._apply_shovel = GameManager._apply_shovel.__get__(gm)
+        gm._tick_shovel = GameManager._tick_shovel.__get__(gm)
+        gm.state = GameState.RUNNING
+        gm.score = 0
+        gm.freeze_timer = 0.0
+        gm.shovel_timer = 0.0
+        gm._shovel_original_tiles = []
+        gm._shovel_flash_timer = 0.0
+        gm._shovel_flash_showing_steel = True
+        gm.player_tank = MagicMock()
+        gm.player_tank.lives = 3
+        mock_tiles = []
+        for _ in range(4):
+            t = MagicMock()
+            t.type = TileType.BRICK
+            mock_tiles.append(t)
+        gm.map = MagicMock()
+        gm.map.get_base_surrounding_tiles.return_value = mock_tiles
+        gm.map.set_tile_type = MagicMock()
+        return gm
+
+    def test_shovel_fortifies_base(self, game):
+        game._apply_power_up(PowerUpType.SHOVEL)
+        assert game.shovel_timer == SHOVEL_DURATION
+        calls = game.map.set_tile_type.call_args_list
+        for call in calls:
+            assert call.args[1] == TileType.STEEL
+
+    def test_shovel_stores_originals(self, game):
+        game._apply_power_up(PowerUpType.SHOVEL)
+        assert len(game._shovel_original_tiles) == 4
+        for tile, orig_type in game._shovel_original_tiles:
+            assert orig_type == TileType.BRICK
+
+    def test_shovel_reverts_after_duration(self, game):
+        game._apply_power_up(PowerUpType.SHOVEL)
+        game.map.set_tile_type.reset_mock()
+        game._tick_shovel(SHOVEL_DURATION + 0.1)
+        assert game.shovel_timer <= 0
+        calls = game.map.set_tile_type.call_args_list
+        for call in calls:
+            assert call.args[1] == TileType.BRICK
+
+    def test_shovel_recollection_resets_timer(self, game):
+        game._apply_power_up(PowerUpType.SHOVEL)
+        original_tiles = game._shovel_original_tiles
+        game.shovel_timer = 5.0
+        game._apply_shovel()
+        assert game.shovel_timer == SHOVEL_DURATION
+        assert game._shovel_original_tiles is original_tiles
+
+    def test_shovel_flashes_during_warning(self, game):
+        game._apply_power_up(PowerUpType.SHOVEL)
+        game.map.set_tile_type.reset_mock()
+        game._tick_shovel(SHOVEL_DURATION - SHOVEL_WARNING_DURATION + 0.5)
+        game._tick_shovel(SHOVEL_FLASH_INTERVAL + 0.01)
+        assert game.map.set_tile_type.called

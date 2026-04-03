@@ -18,6 +18,9 @@ from src.utils.constants import (
     PowerUpType,
     HELMET_INVINCIBILITY_DURATION,
     CLOCK_FREEZE_DURATION,
+    SHOVEL_DURATION,
+    SHOVEL_WARNING_DURATION,
+    SHOVEL_FLASH_INTERVAL,
     ENEMY_POINTS,
     EffectType,
 )
@@ -138,6 +141,10 @@ class GameManager:
 
         self.bullets: List[Bullet] = []
         self.freeze_timer: float = 0.0
+        self.shovel_timer: float = 0.0
+        self._shovel_original_tiles: list = []
+        self._shovel_flash_timer: float = 0.0
+        self._shovel_flash_showing_steel: bool = True
         logger.info("Game reset complete.")
 
     def handle_events(self) -> None:
@@ -208,6 +215,7 @@ class GameManager:
 
         self.spawn_manager.update(dt, self.player_tank, self.map)
         self.power_up_manager.update(dt)
+        self._tick_shovel(dt)
 
         # --- Prepare data for Collision Manager ---
         # Built AFTER updates so newly fired bullets are included
@@ -285,6 +293,8 @@ class GameManager:
             self._apply_bomb(already_scored if already_scored is not None else set())
         elif power_up_type == PowerUpType.CLOCK:
             self._apply_clock()
+        elif power_up_type == PowerUpType.SHOVEL:
+            self._apply_shovel()
         else:
             logger.warning(f"Unhandled power-up type: {power_up_type}")
 
@@ -320,6 +330,45 @@ class GameManager:
         logger.info(
             f"Clock power-up applied: enemies frozen for {CLOCK_FREEZE_DURATION}s"
         )
+
+    def _apply_shovel(self) -> None:
+        """Fortify base walls with steel."""
+        if self.shovel_timer > 0:
+            self.shovel_timer = SHOVEL_DURATION
+            self._shovel_flash_timer = 0.0
+            self._shovel_flash_showing_steel = True
+            return
+        tiles = self.map.get_base_surrounding_tiles()
+        self._shovel_original_tiles = [(t, t.type) for t in tiles]
+        for tile in tiles:
+            self.map.set_tile_type(tile, TileType.STEEL)
+        self.shovel_timer = SHOVEL_DURATION
+        self._shovel_flash_timer = 0.0
+        self._shovel_flash_showing_steel = True
+        logger.info(f"Shovel power-up applied: base fortified for {SHOVEL_DURATION}s")
+
+    def _tick_shovel(self, dt: float) -> None:
+        """Update shovel timer and flash logic."""
+        if self.shovel_timer <= 0:
+            return
+        self.shovel_timer -= dt
+        if self.shovel_timer <= 0:
+            for tile, orig_type in self._shovel_original_tiles:
+                self.map.set_tile_type(tile, orig_type)
+            self._shovel_original_tiles = []
+            logger.info("Shovel expired: base walls reverted")
+            return
+        if self.shovel_timer <= SHOVEL_WARNING_DURATION:
+            self._shovel_flash_timer += dt
+            should_show_steel = (
+                self._shovel_flash_timer % (SHOVEL_FLASH_INTERVAL * 2)
+                < SHOVEL_FLASH_INTERVAL
+            )
+            if should_show_steel != self._shovel_flash_showing_steel:
+                self._shovel_flash_showing_steel = should_show_steel
+                for tile, orig_type in self._shovel_original_tiles:
+                    target = TileType.STEEL if should_show_steel else orig_type
+                    self.map.set_tile_type(tile, target)
 
     def render(self) -> None:
         """Render the game state."""
