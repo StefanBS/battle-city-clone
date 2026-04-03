@@ -19,4 +19,6 @@ def game_manager_fixture():
     """Fixture to provide a standard GameManager instance for integration tests."""
     pygame.init()
     manager = GameManager()
+    # Start the game (skip title screen)
+    manager._reset_game()
     return manager

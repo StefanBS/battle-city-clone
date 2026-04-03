@@ -4,18 +4,14 @@ from unittest.mock import patch, MagicMock
 from src.managers.game_manager import GameManager
 from src.states.game_state import GameState
 from src.core.enemy_tank import EnemyTank
-from src.utils.constants import FPS
 
 
 class TestGameManager:
     """Unit test cases for the GameManager class."""
 
     @pytest.fixture
-    def game_manager(self):
-        """Create a game manager instance for testing."""
-        pygame.init()
-        # Keep mocks alive for the duration of the test so _reset_game
-        # can be called again (e.g. by pressing R to restart).
+    def _mock_game_deps(self):
+        """Shared mock setup for GameManager fixtures."""
         with (
             patch("pygame.display.set_mode"),
             patch("pygame.font.SysFont"),
@@ -26,24 +22,87 @@ class TestGameManager:
             patch("src.managers.game_manager.Map") as MockMap,
         ):
             mock_tm_instance = MockTM.return_value
-            mock_tm_instance.get_sprite.return_value = MagicMock(spec=pygame.Surface)
-
+            mock_tm_instance.get_sprite.return_value = MagicMock(
+                spec=pygame.Surface
+            )
             mock_map_instance = MockMap.return_value
             mock_map_instance.width = 16
             mock_map_instance.height = 16
             mock_map_instance.player_spawn = (4, 12)
             mock_map_instance.spawn_points = [(3, 1), (8, 1), (12, 1)]
+            yield
 
-            manager = GameManager()
-            yield manager
+    @pytest.fixture
+    def game_manager(self, _mock_game_deps):
+        """Create a GameManager with game started (past title screen)."""
+        pygame.init()
+        manager = GameManager()
+        manager._reset_game()
+        yield manager
         pygame.quit()
 
-    def test_initialization(self, game_manager):
-        """Test that the game manager initializes correctly."""
-        assert game_manager.state == GameState.RUNNING
-        assert game_manager.fps == FPS
-        assert game_manager.spawn_manager is not None
-        assert game_manager.renderer is not None
+    @pytest.fixture
+    def game_manager_at_title(self, _mock_game_deps):
+        """Create a GameManager at the title screen (no _reset_game)."""
+        pygame.init()
+        manager = GameManager()
+        yield manager
+        pygame.quit()
+
+    def test_initialization_starts_at_title_screen(
+        self, game_manager_at_title
+    ):
+        """Test that GameManager starts at the title screen."""
+        assert game_manager_at_title.state == GameState.TITLE_SCREEN
+        assert game_manager_at_title._menu_selection == 0
+
+    def test_title_screen_cursor_moves(
+        self, game_manager_at_title, key_down_event
+    ):
+        """Test up/down keys toggle menu selection on title screen."""
+        gm = game_manager_at_title
+        assert gm._menu_selection == 0
+        pygame.event.post(key_down_event(pygame.K_DOWN))
+        gm.handle_events()
+        assert gm._menu_selection == 1
+        pygame.event.post(key_down_event(pygame.K_UP))
+        gm.handle_events()
+        assert gm._menu_selection == 0
+
+    def test_title_screen_enter_starts_game(
+        self, game_manager_at_title, key_down_event
+    ):
+        """Test Enter on '1 PLAYER' starts the game."""
+        gm = game_manager_at_title
+        gm._menu_selection = 0
+        pygame.event.post(key_down_event(pygame.K_RETURN))
+        gm.handle_events()
+        assert gm.state == GameState.RUNNING
+
+    def test_title_screen_enter_on_disabled_does_nothing(
+        self, game_manager_at_title, key_down_event
+    ):
+        """Test Enter on '2 PLAYERS' (disabled) does nothing."""
+        gm = game_manager_at_title
+        gm._menu_selection = 1
+        pygame.event.post(key_down_event(pygame.K_RETURN))
+        gm.handle_events()
+        assert gm.state == GameState.TITLE_SCREEN
+
+    def test_victory_r_returns_to_title(self, game_manager, key_down_event):
+        """Test pressing R on victory returns to title screen."""
+        game_manager.state = GameState.VICTORY
+        pygame.event.post(key_down_event(pygame.K_r))
+        game_manager.handle_events()
+        assert game_manager.state == GameState.TITLE_SCREEN
+
+    def test_title_screen_r_does_nothing(
+        self, game_manager_at_title, key_down_event
+    ):
+        """Test that R key does nothing on title screen."""
+        pygame.event.post(key_down_event(pygame.K_r))
+        game_manager_at_title.handle_events()
+        assert game_manager_at_title.state == GameState.TITLE_SCREEN
 
     def test_handle_events_quit(self, game_manager):
         """Test handling quit event sets state to EXIT."""
@@ -61,11 +120,11 @@ class TestGameManager:
         assert game_manager.state == GameState.EXIT
 
     def test_handle_events_restart(self, game_manager, key_down_event):
-        """Test handling restart key event."""
+        """Test pressing R on game over returns to title screen."""
         game_manager.state = GameState.GAME_OVER
         pygame.event.post(key_down_event(pygame.K_r))
         game_manager.handle_events()
-        assert game_manager.state == GameState.RUNNING
+        assert game_manager.state == GameState.TITLE_SCREEN
 
     def test_handle_events_restart_not_game_over(self, game_manager, key_down_event):
         """Test that restart key does nothing when game is running."""

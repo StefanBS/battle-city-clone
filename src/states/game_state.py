@@ -4,7 +4,8 @@ from enum import Enum
 class GameState(Enum):
     """Possible states of the game."""
 
-    RUNNING = 0
-    GAME_OVER = 1
-    VICTORY = 2
-    EXIT = 3
+    TITLE_SCREEN = 0
+    RUNNING = 1
+    GAME_OVER = 2
+    VICTORY = 3
+    EXIT = 4

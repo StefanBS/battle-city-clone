@@ -47,7 +47,17 @@ class GameManager:
         self.fps: int = FPS
         self.input_handler: InputHandler = InputHandler()
 
-        self._reset_game()
+        self.state: GameState = GameState.TITLE_SCREEN
+        self._menu_selection: int = 0  # 0 = 1 Player, 1 = 2 Players
+
+        # Renderer for title screen (recreated with map dims in _reset_game)
+        self.renderer: Renderer = Renderer(
+            self.screen,
+            LOGICAL_WIDTH,
+            LOGICAL_HEIGHT,
+            LOGICAL_WIDTH,
+            LOGICAL_HEIGHT,
+        )
 
     def _reset_game(self) -> None:
         """Resets per-level game state. Display and textures are preserved."""
@@ -127,13 +137,29 @@ class GameManager:
                 if event.key == pygame.K_ESCAPE:
                     logger.info("Escape key pressed, quitting game.")
                     self._quit_game()
-                elif event.key == pygame.K_r and self.state != GameState.RUNNING:
-                    logger.info("R key pressed, resetting game.")
-                    self._reset_game()
+                elif self.state == GameState.TITLE_SCREEN:
+                    self._handle_title_input(event.key)
+                elif event.key == pygame.K_r and self.state in (
+                    GameState.GAME_OVER,
+                    GameState.VICTORY,
+                ):
+                    logger.info("R key pressed, returning to title screen.")
+                    self.state = GameState.TITLE_SCREEN
+                    self._menu_selection = 0
 
             # Pass events to input handler only if game is running
             if self.state == GameState.RUNNING:
                 self.input_handler.handle_event(event)
+
+    def _handle_title_input(self, key: int) -> None:
+        """Handle keyboard input on the title screen."""
+        if key in (pygame.K_UP, pygame.K_DOWN):
+            self._menu_selection = 1 - self._menu_selection
+        elif key == pygame.K_RETURN:
+            if self._menu_selection == 0:
+                logger.info("1 Player selected, starting game.")
+                self._reset_game()
+            # 2 Players (index 1) is disabled — do nothing
 
     def update(self) -> None:
         """Update game state."""
@@ -220,6 +246,10 @@ class GameManager:
 
     def render(self) -> None:
         """Render the game state."""
+        if self.state == GameState.TITLE_SCREEN:
+            self.renderer.render_title_screen(self._menu_selection)
+            return
+
         self.renderer.render(
             self.map,
             self.player_tank,

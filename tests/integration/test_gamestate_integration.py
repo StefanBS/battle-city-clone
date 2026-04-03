@@ -74,6 +74,7 @@ def test_player_game_over_on_zero_lives():
     """Test game state changes to GAME_OVER when player takes fatal damage."""
     # Use a fresh instance as we are mocking methods
     game_manager = GameManager()
+    game_manager._reset_game()
     player_tank = game_manager.player_tank
     # collision_manager variable removed as it wasn't used
 
