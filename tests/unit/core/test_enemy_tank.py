@@ -8,6 +8,7 @@ from src.utils.constants import (
     FPS,
     TankType,
     Direction,
+    CARRIER_BLINK_INTERVAL,
 )
 
 # Define expected properties based on EnemyTank.TANK_PROPERTIES for easier assertion
@@ -258,3 +259,80 @@ def test_update_moves_in_current_direction(
 
     assert tank.x > initial_x
     assert tank.y == pytest.approx(0.0)
+
+
+class TestEnemyTankCarrier:
+    """Tests for the power-up carrier mechanic."""
+
+    @pytest.fixture
+    def carrier_tank(self, mock_texture_manager):
+        with patch("src.core.enemy_tank.random.choice", return_value=Direction.DOWN):
+            tank = EnemyTank(
+                100, 100, TILE_SIZE, mock_texture_manager,
+                tank_type=TankType.BASIC,
+                map_width_px=512, map_height_px=512,
+                is_carrier=True,
+            )
+        tank.direction = Direction.DOWN
+        return tank
+
+    @pytest.fixture
+    def normal_tank(self, mock_texture_manager):
+        with patch("src.core.enemy_tank.random.choice", return_value=Direction.DOWN):
+            tank = EnemyTank(
+                100, 100, TILE_SIZE, mock_texture_manager,
+                tank_type=TankType.BASIC,
+                map_width_px=512, map_height_px=512,
+            )
+        tank.direction = Direction.DOWN
+        return tank
+
+    def test_carrier_flag_default_false(self, normal_tank):
+        assert normal_tank.is_carrier is False
+
+    def test_carrier_flag_set_true(self, carrier_tank):
+        assert carrier_tank.is_carrier is True
+
+    def test_carrier_uses_red_sprite_during_blink(
+        self, carrier_tank, mock_texture_manager
+    ):
+        mock_texture_manager.reset_mock()
+        carrier_tank.update(CARRIER_BLINK_INTERVAL + 0.01)
+        called_names = [
+            c.args[0] for c in mock_texture_manager.get_sprite.call_args_list
+        ]
+        assert any("red" in name for name in called_names)
+
+    def test_normal_tank_never_uses_red_sprite(self, normal_tank, mock_texture_manager):
+        mock_texture_manager.reset_mock()
+        normal_tank.update(1.0)
+        called_names = [
+            c.args[0] for c in mock_texture_manager.get_sprite.call_args_list
+        ]
+        assert not any("red" in name for name in called_names)
+
+    def test_carrier_blink_timer_increments(self, carrier_tank):
+        carrier_tank.update(0.1)
+        assert carrier_tank.carrier_blink_timer > 0
+
+    def test_normal_tank_carrier_blink_timer_stays_zero(self, normal_tank):
+        normal_tank.update(0.1)
+        assert normal_tank.carrier_blink_timer == 0.0
+
+    def test_carrier_falls_back_on_missing_red_sprite(
+        self, carrier_tank, mock_texture_manager
+    ):
+        """When a red sprite is missing, carrier falls back to normal sprite."""
+        original_side_effect = mock_texture_manager.get_sprite.side_effect
+
+        def reject_red(name):
+            if "red" in name:
+                raise KeyError(name)
+            return mock_texture_manager.get_sprite.return_value
+
+        mock_texture_manager.get_sprite.side_effect = reject_red
+        try:
+            carrier_tank.update(CARRIER_BLINK_INTERVAL + 0.01)
+            assert carrier_tank.sprite is not None
+        finally:
+            mock_texture_manager.get_sprite.side_effect = original_side_effect

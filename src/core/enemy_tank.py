@@ -2,7 +2,14 @@ import random
 from loguru import logger
 from .tank import Tank
 from typing import Dict, TypedDict
-from src.utils.constants import Direction, OwnerType, TankType, TANK_SPEED, BULLET_SPEED
+from src.utils.constants import (
+    Direction,
+    OwnerType,
+    TankType,
+    TANK_SPEED,
+    BULLET_SPEED,
+    CARRIER_BLINK_INTERVAL,
+)
 from src.managers.texture_manager import TextureManager
 
 
@@ -59,6 +66,7 @@ class EnemyTank(Tank):
         *,
         map_width_px: int,
         map_height_px: int,
+        is_carrier: bool = False,
     ) -> None:
         """
         Initialize the enemy tank based on its type.
@@ -96,6 +104,8 @@ class EnemyTank(Tank):
         self.shoot_interval: float = props["shoot_interval"]
         self._wants_to_shoot: bool = False
         self._blocked_directions: set[Direction] = set()
+        self.is_carrier: bool = is_carrier
+        self.carrier_blink_timer: float = 0.0
         self._update_sprite()
         logger.debug(
             f"EnemyTank ({tank_type}) properties: speed={self.speed:.2f}, "
@@ -105,6 +115,23 @@ class EnemyTank(Tank):
         )
 
     _ALL_DIRECTIONS = list(Direction)
+
+    def _update_sprite(self) -> None:
+        """Update sprite, using red variant when carrier is in blink phase."""
+        if (
+            self.is_carrier
+            and self.carrier_blink_timer % (CARRIER_BLINK_INTERVAL * 2)
+            >= CARRIER_BLINK_INTERVAL
+        ):
+            sprite_name = (
+                f"enemy_tank_red_{self.direction}_{self.animation_frame}"
+            )
+            try:
+                self.sprite = self.texture_manager.get_sprite(sprite_name)
+            except KeyError:
+                super()._update_sprite()
+        else:
+            super()._update_sprite()
 
     def _change_direction(self) -> None:
         """Randomly change the tank's direction, avoiding blocked ones."""
@@ -167,6 +194,10 @@ class EnemyTank(Tank):
 
         # Update base tank state (this now stores prev_x/y)
         super().update(dt)
+
+        if self.is_carrier:
+            self.carrier_blink_timer += dt
+            self._update_sprite()
 
         # Update timers
         self.direction_timer += dt

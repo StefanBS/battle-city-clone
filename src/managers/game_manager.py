@@ -23,6 +23,7 @@ from src.managers.texture_manager import TextureManager
 from src.managers.input_handler import InputHandler
 from src.managers.spawn_manager import SpawnManager
 from src.managers.renderer import Renderer
+from src.managers.power_up_manager import PowerUpManager
 from src.utils.paths import resource_path
 
 
@@ -79,6 +80,11 @@ class GameManager:
         # Effect manager
         self.effect_manager: EffectManager = EffectManager(self.texture_manager)
 
+        # Power-up manager (must be created before CollisionResponseHandler)
+        self.power_up_manager: PowerUpManager = PowerUpManager(
+            self.texture_manager, self.map
+        )
+
         # Collision response handler
         self.collision_response_handler: CollisionResponseHandler = (
             CollisionResponseHandler(
@@ -86,6 +92,7 @@ class GameManager:
                 set_game_state=self._set_game_state,
                 effect_manager=self.effect_manager,
                 add_score=self._add_score,
+                power_up_manager=self.power_up_manager,
             )
         )
 
@@ -191,6 +198,7 @@ class GameManager:
         self.bullets = [b for b in self.bullets if b.active]
 
         self.spawn_manager.update(dt, self.player_tank, self.map)
+        self.power_up_manager.update(dt)
 
         # --- Prepare data for Collision Manager ---
         # Built AFTER updates so newly fired bullets are included
@@ -213,12 +221,17 @@ class GameManager:
             destructible_tiles=destructible_tiles,
             impassable_tiles=impassable_tiles,
             player_base=player_base,
+            power_up=self.power_up_manager.get_power_up(),
         )
 
         events = self.collision_manager.get_collision_events()
         enemies_to_remove = self.collision_response_handler.process_collisions(events)
         for enemy in enemies_to_remove:
             self.spawn_manager.remove_enemy(enemy)
+            if enemy.is_carrier:
+                self.power_up_manager.spawn_power_up(
+                    self.player_tank, self.spawn_manager.enemy_tanks
+                )
 
         self.effect_manager.update(dt)
 
@@ -258,6 +271,7 @@ class GameManager:
             self.effect_manager,
             self.state,
             self.score,
+            power_up=self.power_up_manager.get_power_up(),
         )
 
     def run(self) -> None:

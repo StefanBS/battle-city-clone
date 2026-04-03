@@ -1,4 +1,6 @@
+import pygame
 import pytest
+from unittest.mock import MagicMock
 from src.managers.collision_manager import CollisionManager
 from src.core.tile import TileType, Tile
 from src.core.player_tank import PlayerTank
@@ -274,3 +276,48 @@ class TestCollisionManager:
         # Should only have ONE event, not two
         assert len(events) == 1
         assert (p_bullet, brick) in events or (brick, p_bullet) in events
+
+
+class TestPowerUpCollision:
+    """Tests for player-vs-powerup collision detection."""
+
+    @pytest.fixture
+    def cm(self):
+        return CollisionManager()
+
+    @pytest.fixture
+    def player(self):
+        p = MagicMock()
+        p.rect = pygame.Rect(100, 100, 32, 32)
+        return p
+
+    def _check(self, cm, player, power_up):
+        cm.check_collisions(
+            player_tank=player,
+            player_bullets=[],
+            enemy_tanks=[],
+            enemy_bullets=[],
+            destructible_tiles=[],
+            impassable_tiles=[],
+            player_base=None,
+            power_up=power_up,
+        )
+        return cm.get_collision_events()
+
+    def test_player_powerup_collision_detected(self, cm, player):
+        power_up = MagicMock()
+        power_up.rect = pygame.Rect(100, 100, 32, 32)
+        events = self._check(cm, player, power_up)
+        assert len(events) == 1
+        assert player in events[0]
+        assert power_up in events[0]
+
+    def test_no_collision_when_apart(self, cm, player):
+        power_up = MagicMock()
+        power_up.rect = pygame.Rect(200, 200, 32, 32)
+        events = self._check(cm, player, power_up)
+        assert len(events) == 0
+
+    def test_no_collision_when_power_up_none(self, cm, player):
+        events = self._check(cm, player, None)
+        assert len(events) == 0
