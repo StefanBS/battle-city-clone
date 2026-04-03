@@ -72,12 +72,12 @@ class TestGameManager:
     def test_title_screen_enter_starts_game(
         self, game_manager_at_title, key_down_event
     ):
-        """Test Enter on '1 PLAYER' starts the game."""
+        """Test Enter on '1 PLAYER' begins the curtain-close transition."""
         gm = game_manager_at_title
         gm._menu_selection = 0
         pygame.event.post(key_down_event(pygame.K_RETURN))
         gm.handle_events()
-        assert gm.state == GameState.RUNNING
+        assert gm.state == GameState.STAGE_CURTAIN_CLOSE
 
     def test_title_screen_enter_on_disabled_does_nothing(
         self, game_manager_at_title, key_down_event
@@ -89,12 +89,13 @@ class TestGameManager:
         gm.handle_events()
         assert gm.state == GameState.TITLE_SCREEN
 
-    def test_victory_r_returns_to_title(self, game_manager, key_down_event):
-        """Test pressing R on victory returns to title screen."""
+    def test_victory_r_does_nothing(self, game_manager, key_down_event):
+        """Test pressing R during VICTORY does nothing (auto-advances instead)."""
         game_manager.state = GameState.VICTORY
+        game_manager._state_timer = 0.0
         pygame.event.post(key_down_event(pygame.K_r))
         game_manager.handle_events()
-        assert game_manager.state == GameState.TITLE_SCREEN
+        assert game_manager.state == GameState.VICTORY
 
     def test_title_screen_r_does_nothing(
         self, game_manager_at_title, key_down_event

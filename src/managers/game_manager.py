@@ -25,6 +25,8 @@ from src.utils.constants import (
     EffectType,
     CURTAIN_CLOSE_DURATION,
     CURTAIN_OPEN_DURATION,
+    CURTAIN_STAGE_DISPLAY,
+    VICTORY_PAUSE_DURATION,
 )
 from src.managers.collision_manager import CollisionManager
 from src.managers.collision_response_handler import CollisionResponseHandler
@@ -190,10 +192,7 @@ class GameManager:
                     self._quit_game()
                 elif self.state == GameState.TITLE_SCREEN:
                     self._handle_title_input(event.key)
-                elif event.key == pygame.K_r and self.state in (
-                    GameState.GAME_OVER,
-                    GameState.VICTORY,
-                ):
+                elif event.key == pygame.K_r and self.state == GameState.GAME_OVER:
                     logger.info("R key pressed, returning to title screen.")
                     self.state = GameState.TITLE_SCREEN
                     self._menu_selection = 0
@@ -209,15 +208,40 @@ class GameManager:
         elif key == pygame.K_RETURN:
             if self._menu_selection == 0:
                 logger.info("1 Player selected, starting game.")
-                self._reset_game()
+                self._new_game()
+                self.state = GameState.STAGE_CURTAIN_CLOSE
+                self._state_timer = 0.0
             # 2 Players (index 1) is disabled — do nothing
 
     def update(self) -> None:
         """Update game state."""
-        if self.state != GameState.RUNNING:
+        dt: float = 1.0 / self.fps
+
+        if self.state == GameState.VICTORY:
+            self._state_timer += dt
+            if self._state_timer >= VICTORY_PAUSE_DURATION:
+                self.current_stage += 1
+                self._load_stage()
+                self.state = GameState.STAGE_CURTAIN_CLOSE
+                self._state_timer = 0.0
             return
 
-        dt: float = 1.0 / self.fps
+        if self.state == GameState.STAGE_CURTAIN_CLOSE:
+            self._state_timer += dt
+            total = CURTAIN_CLOSE_DURATION + CURTAIN_STAGE_DISPLAY
+            if self._state_timer >= total:
+                self.state = GameState.STAGE_CURTAIN_OPEN
+                self._state_timer = 0.0
+            return
+
+        if self.state == GameState.STAGE_CURTAIN_OPEN:
+            self._state_timer += dt
+            if self._state_timer >= CURTAIN_OPEN_DURATION:
+                self.state = GameState.RUNNING
+            return
+
+        if self.state != GameState.RUNNING:
+            return
 
         self.map.update(dt)
         # Update player tank (stores prev position) BEFORE movement
@@ -292,7 +316,7 @@ class GameManager:
             if self.spawn_manager.all_enemies_defeated():
                 logger.info("All enemies defeated. Victory!")
                 self.state = GameState.VICTORY
-                self.current_stage += 1
+                self._state_timer = 0.0
 
     def _try_shoot(self, tank) -> None:
         """Attempt to fire a bullet for the given tank, respecting max_bullets."""

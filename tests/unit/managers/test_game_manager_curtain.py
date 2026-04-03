@@ -1,6 +1,13 @@
 import pytest
 import pygame
 from src.managers.game_manager import GameManager
+from src.states.game_state import GameState
+from src.utils.constants import (
+    CURTAIN_CLOSE_DURATION,
+    CURTAIN_OPEN_DURATION,
+    CURTAIN_STAGE_DISPLAY,
+    VICTORY_PAUSE_DURATION,
+)
 
 
 class TestNewGameAndLoadStage:
@@ -31,3 +38,95 @@ class TestNewGameAndLoadStage:
         game.player_tank.apply_star()
         game._load_stage()
         assert game.player_tank.star_level == 2
+
+
+class TestCurtainTransitions:
+    @pytest.fixture
+    def game(self):
+        pygame.init()
+        pygame.display.set_mode((1, 1), pygame.NOFRAME)
+        gm = GameManager()
+        gm._new_game()
+        gm.state = GameState.RUNNING
+        return gm
+
+    def test_victory_auto_transitions_to_curtain(self, game):
+        game.state = GameState.VICTORY
+        game._state_timer = 0.0
+        for _ in range(int(VICTORY_PAUSE_DURATION * game.fps) + 1):
+            game.update()
+        assert game.state == GameState.STAGE_CURTAIN_CLOSE
+
+    def test_curtain_close_shows_stage_then_opens(self, game):
+        game.state = GameState.STAGE_CURTAIN_CLOSE
+        game._state_timer = 0.0
+        total = CURTAIN_CLOSE_DURATION + CURTAIN_STAGE_DISPLAY
+        for _ in range(int(total * game.fps) + 1):
+            game.update()
+        assert game.state == GameState.STAGE_CURTAIN_OPEN
+
+    def test_curtain_open_transitions_to_running(self, game):
+        game.state = GameState.STAGE_CURTAIN_OPEN
+        game._state_timer = 0.0
+        for _ in range(int(CURTAIN_OPEN_DURATION * game.fps) + 1):
+            game.update()
+        assert game.state == GameState.RUNNING
+
+    def test_curtain_progress_clamps(self, game):
+        game.state = GameState.STAGE_CURTAIN_CLOSE
+        game._state_timer = CURTAIN_CLOSE_DURATION * 2
+        assert game._curtain_progress == 1.0
+        game.state = GameState.STAGE_CURTAIN_OPEN
+        game._state_timer = CURTAIN_OPEN_DURATION * 2
+        assert game._curtain_progress == 0.0
+
+    def test_no_double_stage_increment(self, game):
+        game.state = GameState.VICTORY
+        game._state_timer = 0.0
+        initial_stage = game.current_stage
+        for _ in range(300):
+            game.update()
+            if game.state == GameState.RUNNING:
+                break
+        assert game.current_stage == initial_stage + 1
+
+    def test_load_stage_increments_stage(self, game):
+        game.state = GameState.VICTORY
+        game._state_timer = 0.0
+        for _ in range(300):
+            game.update()
+            if game.state == GameState.RUNNING:
+                break
+        assert game.current_stage == 2
+
+    def test_r_key_does_nothing_during_victory(self, game):
+        game.state = GameState.VICTORY
+        game._state_timer = 0.0
+        event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_r)
+        pygame.event.post(event)
+        game.handle_events()
+        assert game.state == GameState.VICTORY
+
+    def test_escape_works_during_curtain(self, game):
+        game.state = GameState.STAGE_CURTAIN_CLOSE
+        event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_ESCAPE)
+        pygame.event.post(event)
+        game.handle_events()
+        assert game.state == GameState.EXIT
+
+    def test_title_start_triggers_curtain(self, game):
+        game.state = GameState.TITLE_SCREEN
+        game._menu_selection = 0
+        event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RETURN)
+        pygame.event.post(event)
+        game.handle_events()
+        assert game.state == GameState.STAGE_CURTAIN_CLOSE
+
+    def test_curtain_close_progresses(self, game):
+        game.state = GameState.STAGE_CURTAIN_CLOSE
+        game._state_timer = 0.0
+        assert game._curtain_progress == 0.0
+        game._state_timer = CURTAIN_CLOSE_DURATION / 2
+        assert 0.4 < game._curtain_progress < 0.6
+        game._state_timer = CURTAIN_CLOSE_DURATION
+        assert game._curtain_progress == 1.0
