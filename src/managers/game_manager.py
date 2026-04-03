@@ -237,7 +237,7 @@ class GameManager:
                     self.player_tank, self.spawn_manager.enemy_tanks
                 )
 
-        # Apply deferred power-up effect (after collision processing)
+        # Apply deferred power-up effect
         collected = self.collision_response_handler.consume_collected_power_up()
         if collected is not None:
             self._apply_power_up(collected, set(enemies_to_remove))
@@ -277,7 +277,9 @@ class GameManager:
         elif power_up_type == PowerUpType.EXTRA_LIFE:
             self._apply_extra_life()
         elif power_up_type == PowerUpType.BOMB:
-            self._apply_bomb(already_scored or set())
+            self._apply_bomb(already_scored if already_scored is not None else set())
+        else:
+            logger.warning(f"Unhandled power-up type: {power_up_type}")
 
     def _apply_helmet(self) -> None:
         """Grant temporary invincibility to the player."""
