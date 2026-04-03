@@ -186,13 +186,20 @@ class TestShovelEffect:
         game._apply_power_up(PowerUpType.SHOVEL)
         original_tiles = game._shovel_original_tiles
         game.shovel_timer = 5.0
+        game.map.set_tile_type.reset_mock()
         game._apply_shovel()
         assert game.shovel_timer == SHOVEL_DURATION
         assert game._shovel_original_tiles is original_tiles
+        game.map.set_tile_type.assert_not_called()
 
     def test_shovel_flashes_during_warning(self, game):
         game._apply_power_up(PowerUpType.SHOVEL)
         game.map.set_tile_type.reset_mock()
+        # Advance into warning phase
         game._tick_shovel(SHOVEL_DURATION - SHOVEL_WARNING_DURATION + 0.5)
+        # Advance past one flash interval to trigger toggle
         game._tick_shovel(SHOVEL_FLASH_INTERVAL + 0.01)
-        assert game.map.set_tile_type.called
+        # Verify toggle happened: tiles set to original type (BRICK)
+        assert game._shovel_flash_showing_steel is False
+        last_call = game.map.set_tile_type.call_args_list[-1]
+        assert last_call.args[1] == TileType.BRICK

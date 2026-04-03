@@ -2,10 +2,8 @@ import pytest
 import pygame
 from unittest.mock import MagicMock, patch
 from src.core.bullet import Bullet
-from src.core.tank import Tank
 from src.utils.constants import (
     Direction,
-    OwnerType,
     BULLET_SPEED,
     BULLET_WIDTH,
     BULLET_HEIGHT,
@@ -97,29 +95,12 @@ class TestBullet:
 
 
 class TestPowerBullet:
-    def test_bullet_power_bullet_default_false(self, mock_texture_manager):
-        tank = Tank(
-            0,
-            0,
-            mock_texture_manager,
-            tile_size=32,
-            owner_type=OwnerType.PLAYER,
-            map_width_px=512,
-            map_height_px=512,
-        )
-        bullet = tank.shoot()
+    def test_bullet_power_bullet_default_false(self, create_tank):
+        bullet = create_tank().shoot()
         assert bullet.power_bullet is False
 
-    def test_bullet_inherits_power_bullets_from_owner(self, mock_texture_manager):
-        tank = Tank(
-            0,
-            0,
-            mock_texture_manager,
-            tile_size=32,
-            owner_type=OwnerType.PLAYER,
-            map_width_px=512,
-            map_height_px=512,
-        )
+    def test_bullet_inherits_power_bullets_from_owner(self, create_tank):
+        tank = create_tank()
         tank.power_bullets = True
         bullet = tank.shoot()
         assert bullet.power_bullet is True
