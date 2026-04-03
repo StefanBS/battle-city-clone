@@ -11,3 +11,4 @@ class GameState(Enum):
     EXIT = 4
     STAGE_CURTAIN_CLOSE = 5
     STAGE_CURTAIN_OPEN = 6
+    GAME_OVER_ANIMATION = 7

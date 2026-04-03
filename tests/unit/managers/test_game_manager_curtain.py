@@ -7,6 +7,8 @@ from src.utils.constants import (
     CURTAIN_OPEN_DURATION,
     CURTAIN_STAGE_DISPLAY,
     VICTORY_PAUSE_DURATION,
+    GAME_OVER_RISE_DURATION,
+    GAME_OVER_HOLD_DURATION,
 )
 
 
@@ -130,3 +132,45 @@ class TestCurtainTransitions:
         assert 0.4 < game._curtain_progress < 0.6
         game._state_timer = CURTAIN_CLOSE_DURATION
         assert game._curtain_progress == 1.0
+
+
+class TestGameOverAnimation:
+    @pytest.fixture
+    def game(self):
+        pygame.init()
+        pygame.display.set_mode((1, 1), pygame.NOFRAME)
+        gm = GameManager()
+        gm._new_game()
+        gm.state = GameState.RUNNING
+        return gm
+
+    def test_game_over_triggers_animation(self, game):
+        """Setting GAME_OVER via _set_game_state should enter animation."""
+        game._set_game_state(GameState.GAME_OVER)
+        assert game.state == GameState.GAME_OVER_ANIMATION
+
+    def test_animation_transitions_to_game_over(self, game):
+        """After rise + hold duration, state becomes GAME_OVER."""
+        game.state = GameState.GAME_OVER_ANIMATION
+        game._state_timer = 0.0
+        total = GAME_OVER_RISE_DURATION + GAME_OVER_HOLD_DURATION
+        for _ in range(int(total * game.fps) + 1):
+            game.update()
+        assert game.state == GameState.GAME_OVER
+
+    def test_animation_freezes_gameplay(self, game):
+        """During animation, game subsystems should not update."""
+        game.state = GameState.GAME_OVER_ANIMATION
+        game._state_timer = 0.0
+        initial_pos = (game.player_tank.x, game.player_tank.y)
+        game.update()
+        assert (game.player_tank.x, game.player_tank.y) == initial_pos
+
+    def test_r_key_does_nothing_during_animation(self, game):
+        """R key should not work during the rising text animation."""
+        game.state = GameState.GAME_OVER_ANIMATION
+        game._state_timer = 0.0
+        event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_r)
+        pygame.event.post(event)
+        game.handle_events()
+        assert game.state == GameState.GAME_OVER_ANIMATION

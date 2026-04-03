@@ -27,6 +27,8 @@ from src.utils.constants import (
     CURTAIN_OPEN_DURATION,
     CURTAIN_STAGE_DISPLAY,
     VICTORY_PAUSE_DURATION,
+    GAME_OVER_RISE_DURATION,
+    GAME_OVER_HOLD_DURATION,
 )
 from src.managers.collision_manager import CollisionManager
 from src.managers.collision_response_handler import CollisionResponseHandler
@@ -240,6 +242,13 @@ class GameManager:
                 self.state = GameState.RUNNING
             return
 
+        if self.state == GameState.GAME_OVER_ANIMATION:
+            self._state_timer += dt
+            total = GAME_OVER_RISE_DURATION + GAME_OVER_HOLD_DURATION
+            if self._state_timer >= total:
+                self.state = GameState.GAME_OVER
+            return
+
         if self.state != GameState.RUNNING:
             return
 
@@ -327,7 +336,11 @@ class GameManager:
                 self.bullets.append(bullet)
 
     def _set_game_state(self, state: GameState) -> None:
-        """Set the game state."""
+        """Set the game state. Intercepts GAME_OVER to play rising text animation."""
+        if state == GameState.GAME_OVER:
+            self.state = GameState.GAME_OVER_ANIMATION
+            self._state_timer = 0.0
+            return
         self.state = state
 
     def _add_score(self, points: int) -> None:
@@ -447,6 +460,12 @@ class GameManager:
             )
             return
 
+        game_over_rise_progress = None
+        if self.state == GameState.GAME_OVER_ANIMATION:
+            game_over_rise_progress = min(
+                1.0, self._state_timer / GAME_OVER_RISE_DURATION
+            )
+
         self.renderer.render(
             self.map,
             self.player_tank,
@@ -456,6 +475,7 @@ class GameManager:
             self.state,
             self.score,
             power_up=self.power_up_manager.get_power_up(),
+            game_over_rise_progress=game_over_rise_progress,
         )
 
     def run(self) -> None:

@@ -232,8 +232,8 @@ def test_player_bullet_destroys_enemy_tank(game_manager_fixture, mocker):
     "player_initial_lives, player_is_invincible, expected_game_state, "
     "expected_player_lives_after_hit",
     [
-        # Case 1: Vulnerable player, final life -> Game Over
-        (1, False, GameState.GAME_OVER, 0),
+        # Case 1: Vulnerable player, final life -> Game Over animation
+        (1, False, GameState.GAME_OVER_ANIMATION, 0),
         # Case 2: Vulnerable player, multiple lives -> Respawn
         (3, False, GameState.RUNNING, 2),
         # Case 3: Invincible player -> No effect
@@ -349,12 +349,16 @@ def test_enemy_bullet_hits_player_tank(
                 )
                 interaction_processed = True
                 break
-            if (
-                current_state == GameState.GAME_OVER
-                and expected_game_state == GameState.GAME_OVER
+            if current_state in (
+                GameState.GAME_OVER,
+                GameState.GAME_OVER_ANIMATION,
+            ) and expected_game_state in (
+                GameState.GAME_OVER,
+                GameState.GAME_OVER_ANIMATION,
             ):
                 logger.debug(
-                    f"Game state became GAME_OVER as expected after {i + 1} updates."
+                    f"Game state became {current_state.name} as expected "
+                    f"after {i + 1} updates."
                 )
                 interaction_processed = True
                 break
@@ -390,7 +394,8 @@ def test_enemy_bullet_hits_player_tank(
         # If an interaction was processed, and player was vulnerable, bullet should be inactive.
         if (
             player_tank.lives < original_player_lives
-            or game_manager.state == GameState.GAME_OVER
+            or game_manager.state
+            in (GameState.GAME_OVER, GameState.GAME_OVER_ANIMATION)
         ):
             assert not enemy_bullet.active, (
                 "Enemy bullet should be inactive after damaging player or causing game over."
