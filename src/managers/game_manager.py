@@ -64,7 +64,7 @@ class GameManager:
         self._menu_selection: int = 0  # 0 = 1 Player, 1 = 2 Players
         self._state_timer: float = 0.0
 
-        # Renderer for title screen (recreated with map dims in _reset_game)
+        # Renderer for title screen (recreated with map dims in _load_stage)
         self.renderer: Renderer = Renderer(
             self.screen,
             LOGICAL_WIDTH,
@@ -76,14 +76,14 @@ class GameManager:
     def _reset_game(self) -> None:
         """Backward-compatible alias. Use _new_game() for new code."""
         self._new_game()
+        self.state = GameState.RUNNING
 
     def _new_game(self) -> None:
-        """Full reset for starting a new game from title screen."""
+        """Full reset for starting a new game. Does not set state."""
         self.current_stage = 1
         self.score = 0
         self._state_timer = 0.0
         self._load_stage()
-        self.state = GameState.RUNNING
 
     @property
     def _curtain_progress(self) -> float:
