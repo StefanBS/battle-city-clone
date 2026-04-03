@@ -387,8 +387,10 @@ def test_score_accumulates_on_enemy_kill(game_manager_fixture):
     gm.spawn_manager.enemy_tanks = [enemy]
     gm.spawn_manager._pending_spawns = []
 
-    # Set enemy to 1 HP so it dies in one hit
+    # Set enemy to 1 HP so it dies in one hit, and freeze it in place
+    # so it doesn't move out of the bullet's path (enemy AI is random)
     enemy.health = 1
+    enemy.speed = 0
 
     # Run updates until the enemy is destroyed or max iterations
     for _ in range(60):
