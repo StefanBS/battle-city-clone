@@ -61,6 +61,7 @@ class Renderer:
         effect_manager,
         state: GameState,
         score: int = 0,
+        power_up=None,
     ) -> None:
         """Render the complete game frame.
 
@@ -70,6 +71,8 @@ class Renderer:
             enemy_tanks: List of enemy tanks.
             bullets: List of bullets.
             state: Current game state.
+            score: Current player score.
+            power_up: Optional active power-up to draw.
         """
         # Fill logical surface with border color (gray)
         self.game_surface.fill(self.border_color)
@@ -86,6 +89,10 @@ class Renderer:
         # Draw enemy tanks onto the map surface
         for enemy in enemy_tanks:
             enemy.draw(self.map_surface)
+
+        # Draw power-up
+        if power_up:
+            power_up.draw(self.map_surface)
 
         # Draw all bullets
         for bullet in bullets:
