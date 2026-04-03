@@ -76,4 +76,5 @@ class TestRemainingPowerUpEffects:
     def test_star_effect(self, game):
         game._apply_power_up(PowerUpType.STAR)
         assert game.player_tank.star_level == 1
-        assert game.player_tank.bullet_speed == BULLET_SPEED * STAR_BULLET_SPEED_MULTIPLIER
+        expected_speed = BULLET_SPEED * STAR_BULLET_SPEED_MULTIPLIER
+        assert game.player_tank.bullet_speed == expected_speed
