@@ -295,6 +295,8 @@ class GameManager:
             self._apply_clock()
         elif power_up_type == PowerUpType.SHOVEL:
             self._apply_shovel()
+        elif power_up_type == PowerUpType.STAR:
+            self._apply_star()
         else:
             logger.warning(f"Unhandled power-up type: {power_up_type}")
 
@@ -369,6 +371,13 @@ class GameManager:
                 for tile, orig_type in self._shovel_original_tiles:
                     target = TileType.STEEL if should_show_steel else orig_type
                     self.map.set_tile_type(tile, target)
+
+    def _apply_star(self) -> None:
+        """Apply star upgrade to the player tank."""
+        self.player_tank.apply_star()
+        logger.info(
+            f"Star power-up applied: player at tier {self.player_tank.star_level}"
+        )
 
     def render(self) -> None:
         """Render the game state."""
