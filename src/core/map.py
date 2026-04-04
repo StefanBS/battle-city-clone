@@ -68,7 +68,14 @@ class Map:
                 tile_layer = layer
                 break
 
+        # Pre-build shared water animation frames list (all water tiles share it)
+        shared_water_frames: list = []
+        if self._water_frame_sprites:
+            frames = sorted(self._water_frame_sprites.keys())
+            shared_water_frames = [self._water_frame_sprites[f] for f in frames]
+
         if tile_layer is not None:
+            scaled_cache: dict[int, Optional[pygame.Surface]] = {}
             for x, y, gid in tile_layer.iter_data():
                 tile_type = TileType.EMPTY
                 brick_variant = "full"
@@ -82,12 +89,17 @@ class Map:
                             tile_type = TileType[tile_type_str.strip()]
                         brick_variant = props.get("brick_variant") or "full"
 
-                    raw_img = tiled_map.get_tile_image_by_gid(gid)
-                    if raw_img:
-                        tile_image = pygame.transform.scale(
-                            raw_img,
-                            (SUB_TILE_SIZE, SUB_TILE_SIZE),
-                        )
+                    # Cache scaled sprites by GID to avoid redundant scaling
+                    if gid not in scaled_cache:
+                        raw_img = tiled_map.get_tile_image_by_gid(gid)
+                        if raw_img:
+                            scaled_cache[gid] = pygame.transform.scale(
+                                raw_img,
+                                (SUB_TILE_SIZE, SUB_TILE_SIZE),
+                            )
+                        else:
+                            scaled_cache[gid] = None
+                    tile_image = scaled_cache[gid]
 
                 tile = Tile(
                     tile_type,
@@ -98,12 +110,8 @@ class Map:
                     brick_variant=brick_variant,
                 )
 
-                # Set up water animation with TMX sprites if available
-                if tile_type == TileType.WATER and self._water_frame_sprites:
-                    frames = sorted(self._water_frame_sprites.keys())
-                    tile.animation_sprites = [
-                        self._water_frame_sprites[f] for f in frames
-                    ]
+                if tile_type == TileType.WATER and shared_water_frames:
+                    tile.animation_sprites = shared_water_frames
 
                 self.tiles[y][x] = tile
 
@@ -149,10 +157,15 @@ class Map:
                         )
             elif tt == "WATER":
                 frame = props.get("water_frame")
-                if frame is not None and int(frame) not in self._water_frame_sprites:
-                    raw_img = tiled_map.get_tile_image_by_gid(gid)
-                    if raw_img:
-                        self._water_frame_sprites[int(frame)] = (
+                if frame is not None:
+                    try:
+                        frame_num = int(frame)
+                    except (ValueError, TypeError):
+                        continue
+                    if frame_num not in self._water_frame_sprites:
+                        raw_img = tiled_map.get_tile_image_by_gid(gid)
+                        if raw_img:
+                            self._water_frame_sprites[frame_num] = (
                             pygame.transform.scale(
                                 raw_img, (SUB_TILE_SIZE, SUB_TILE_SIZE)
                             )
@@ -233,10 +246,12 @@ class Map:
             return
 
         if tile.brick_variant == "full":
-            surviving_variant = self._DIRECTION_TO_VARIANT.get(
-                bullet_direction, "full"
+            surviving_variant = self._DIRECTION_TO_VARIANT.get(bullet_direction)
+            sprite = (
+                self._brick_variant_sprites.get(surviving_variant)
+                if surviving_variant
+                else None
             )
-            sprite = self._brick_variant_sprites.get(surviving_variant)
             if sprite:
                 tile.brick_variant = surviving_variant
                 tile.tmx_sprite = sprite

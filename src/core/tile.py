@@ -100,6 +100,11 @@ class Tile:
         if self.type == TileType.EMPTY:
             return
 
+        # Fast path: non-animated tile with TMX sprite (most common)
+        if self.tmx_sprite is not None and not self.is_animated:
+            surface.blit(self.tmx_sprite, self.rect.topleft)
+            return
+
         # Animated tiles: use TMX animation sprites if available
         if self.is_animated:
             if self.animation_sprites:
@@ -113,11 +118,6 @@ class Tile:
                     self.rect.topleft,
                 )
                 return
-
-        # Use TMX sprite if available
-        if self.tmx_sprite is not None:
-            surface.blit(self.tmx_sprite, self.rect.topleft)
-            return
 
         # Fallback: use type-based sprite lookup
         sprite_name = self.SPRITE_NAME_MAP.get(self.type)
