@@ -232,8 +232,8 @@ def test_enemy_bullet_destroys_base_game_over(game_manager_fixture):
     enemy_type = "basic"
     enemy_x_grid = base_x_grid
     enemy_y_grid = (
-        base_y_grid - 4
-    )  # Place enemy 4 sub-tiles (2 tank heights) above base
+        base_y_grid - 6
+    )  # Place enemy well above base perimeter bricks
 
     enemy_start_x = enemy_x_grid * SUB_TILE_SIZE
     enemy_start_y = enemy_y_grid * SUB_TILE_SIZE
@@ -248,9 +248,10 @@ def test_enemy_bullet_destroys_base_game_over(game_manager_fixture):
             f"is out of bounds. Skipping."
         )
 
-    # Clear sub-tiles between enemy and base so bullet can reach the base
+    # Clear tiles between enemy and base so bullet can reach the base
+    # Clear 4 columns wide to cover the full tank width
     for y in range(enemy_y_grid, base_y_grid):
-        for dx in range(2):
+        for dx in range(4):
             tile = game_map.get_tile_at(enemy_x_grid + dx, y)
             if tile and tile.type != TileType.EMPTY and tile.type != TileType.BASE:
                 game_map.place_tile(
@@ -272,6 +273,9 @@ def test_enemy_bullet_destroys_base_game_over(game_manager_fixture):
     )
     enemy_tank.direction = Direction.DOWN  # Aim at base
     game_manager.spawn_manager.enemy_tanks = [enemy_tank]  # Replace default enemies
+    # Move player out of the bullet path
+    game_manager.player_tank.set_position(0, 0)
+    game_manager.player_tank.rect.topleft = (0, 0)
     logger.debug(
         f"Manually added {enemy_type} enemy at ({enemy_x_grid}, {enemy_y_grid}) "
         f"aiming {enemy_tank.direction}"
@@ -293,7 +297,7 @@ def test_enemy_bullet_destroys_base_game_over(game_manager_fixture):
 
     # --- Simulate game time until bullet should hit base --- #
     dt = 1.0 / FPS
-    update_duration = 0.4  # Time to cross ~2 tiles
+    update_duration = 1.0  # Time for bullet to reach base
     num_updates = int(update_duration / dt)
     hit_processed = False
 
