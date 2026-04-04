@@ -4,6 +4,7 @@ from src.core.bullet import Bullet
 from src.utils.constants import (
     Direction,
     TILE_SIZE,
+    SUB_TILE_SIZE,
     TANK_SPEED,
     TANK_ALIGN_THRESHOLD,
     BULLET_WIDTH,
@@ -161,36 +162,36 @@ class TestTank:
     def test_steering_assist_nudges_within_threshold(self, create_tank):
         """Moving horizontally nudges Y toward nearest grid line."""
         tank = create_tank(x=0, y=0)
-        self._offset_tank(tank, y=TILE_SIZE + 5)
+        self._offset_tank(tank, y=SUB_TILE_SIZE + 3)
         dt = 1.0 / FPS
         tank._move(1, 0, dt)
-        assert tank.y < TILE_SIZE + 5
+        assert tank.y < SUB_TILE_SIZE + 3
 
     def test_steering_assist_snaps_when_close(self, create_tank):
         """Small offset snaps exactly to grid in one frame."""
         tank = create_tank(x=0, y=0)
-        self._offset_tank(tank, y=TILE_SIZE + 1)
+        self._offset_tank(tank, y=SUB_TILE_SIZE + 1)
         dt = 1.0 / FPS
         tank._move(1, 0, dt)
-        assert tank.y == pytest.approx(float(TILE_SIZE))
+        assert tank.y == pytest.approx(float(SUB_TILE_SIZE))
 
     def test_steering_assist_ignores_beyond_threshold(self, create_tank):
         """Offset beyond threshold is not corrected."""
         tank = create_tank(x=0, y=0)
         offset = TANK_ALIGN_THRESHOLD + 1
-        self._offset_tank(tank, y=TILE_SIZE + offset)
+        self._offset_tank(tank, y=SUB_TILE_SIZE + offset)
         dt = 1.0 / FPS
         tank._move(1, 0, dt)
-        assert tank.y == pytest.approx(TILE_SIZE + offset)
+        assert tank.y == pytest.approx(SUB_TILE_SIZE + offset)
 
     def test_steering_assist_vertical_nudges_x(self, create_tank):
         """Moving vertically nudges X toward nearest grid line."""
         tank = create_tank(x=0, y=0)
-        self._offset_tank(tank, x=TILE_SIZE + 3)
+        self._offset_tank(tank, x=SUB_TILE_SIZE + 2)
         dt = 1.0 / FPS
         tank._move(0, 1, dt)
-        # X should move toward TILE_SIZE but may not arrive in one frame
-        assert tank.x < TILE_SIZE + 3
+        # X should move toward SUB_TILE_SIZE but may not arrive in one frame
+        assert tank.x < SUB_TILE_SIZE + 2
 
     @pytest.mark.parametrize(
         "start_x,start_y,dx,dy",

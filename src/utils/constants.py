@@ -139,7 +139,7 @@ TANK_SPEED: float = 80  # pixels per second (was 12 px/step)
 TANK_WIDTH: int = TILE_SIZE
 TANK_HEIGHT: int = TILE_SIZE
 TANK_ANIMATION_DISTANCE: float = 4  # pixels traveled between animation frame toggles
-TANK_ALIGN_THRESHOLD: float = 8.0  # max px offset for steering assist (half a sub-tile)
+TANK_ALIGN_THRESHOLD: float = 4.0  # max px offset for steering assist (quarter sub-tile)
 
 # Atlas background color used as colorkey for transparency
 ATLAS_BG_COLOR: tuple[int, int, int] = (0, 0, 1)
