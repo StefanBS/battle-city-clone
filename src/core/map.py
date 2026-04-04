@@ -75,8 +75,20 @@ class Map:
                     else:
                         tile_type = TileType.EMPTY
 
+                # Get the actual tile image from the TMX for visual fidelity.
+                # Scale from native 16x16 to TILE_SIZE (32x32) to match
+                # the 2x2 sub-tile group and sprite coordinate system.
+                tile_image = None
+                if gid:
+                    raw_img = tiled_map.get_tile_image_by_gid(gid)
+                    if raw_img:
+                        tile_image = pygame.transform.scale(
+                            raw_img,
+                            (SUB_TILE_SIZE * 2, SUB_TILE_SIZE * 2),
+                        )
+
                 # Expand each TMX tile to 2x2 sub-tiles
-                self._place_tile_group(x * 2, y * 2, tile_type)
+                self._place_tile_group(x * 2, y * 2, tile_type, tile_image)
 
         # Fill any remaining None tiles with EMPTY
         for y in range(self.height):
@@ -87,7 +99,9 @@ class Map:
         # Read spawn points from object layer (convert to sub-tile coords)
         self._load_spawn_points(tiled_map)
 
-    def _place_tile_group(self, sub_x: int, sub_y: int, tile_type: TileType) -> None:
+    def _place_tile_group(
+        self, sub_x: int, sub_y: int, tile_type: TileType, tile_image=None
+    ) -> None:
         """Place a 2x2 group of sub-tiles at the given sub-tile coordinates."""
         group_tiles = []
         for dy in range(2):
@@ -102,6 +116,7 @@ class Map:
                     is_group_primary=is_primary,
                     group_dx=dx,
                     group_dy=dy,
+                    tmx_sprite=tile_image,
                 )
                 self.tiles[sy][sx] = tile
                 group_tiles.append(tile)

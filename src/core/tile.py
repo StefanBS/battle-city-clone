@@ -69,6 +69,7 @@ class Tile:
         is_group_primary: bool = False,
         group_dx: int = 0,
         group_dy: int = 0,
+        tmx_sprite: Optional[pygame.Surface] = None,
     ) -> None:
         logger.trace(f"Creating Tile ({tile_type.name}) at grid ({x}, {y})")
         self.type = tile_type
@@ -90,6 +91,10 @@ class Tile:
         self.brick_segments: int = SEGMENT_FULL if tile_type == TileType.BRICK else 0
         # Cached draw data for partial bricks: list of (dest, source_rect)
         self._segment_draw_cache: List = []
+
+        # TMX sprite: the actual tile image from the TMX file (if available).
+        # Used for rendering instead of the generic type-based sprite.
+        self.tmx_sprite: Optional[pygame.Surface] = tmx_sprite
 
         # Animation attributes
         self.is_animated: bool = False
@@ -164,6 +169,11 @@ class Tile:
 
     def draw(self, surface: pygame.Surface, texture_manager: TextureManager) -> None:
         """Draw the tile on the given surface using textures."""
+        # Use TMX sprite if available (exact tile image from the map editor)
+        if self.tmx_sprite is not None and not self.is_animated:
+            self._draw_with_tmx_sprite(surface)
+            return
+
         sprite_name: Optional[str] = None
 
         if self.is_animated:
@@ -192,3 +202,19 @@ class Tile:
             if not self.is_group_primary:
                 return
             surface.blit(sprite, self.rect.topleft)
+
+    def _draw_with_tmx_sprite(self, surface: pygame.Surface) -> None:
+        """Draw using the TMX sprite image directly."""
+        if self.type == TileType.BRICK and self._segment_draw_cache:
+            # Partially destroyed brick — draw remaining segments
+            for dest, source_rect in self._segment_draw_cache:
+                surface.blit(self.tmx_sprite, dest, source_rect)
+        elif self.type == TileType.BRICK and not self._group_intact:
+            # Sibling damaged — render only our quarter
+            surface.blit(
+                self.tmx_sprite, self.rect.topleft, self._sub_tile_source_rect
+            )
+        elif self.is_group_primary:
+            # Primary tile draws the full TMX sprite (16x16 = sub-tile size)
+            surface.blit(self.tmx_sprite, self.rect.topleft)
+        # Non-primary sub-tiles: skip (primary draws the whole tile)
