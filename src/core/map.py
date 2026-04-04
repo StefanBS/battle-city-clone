@@ -11,9 +11,8 @@ from src.utils.constants import SUB_TILE_SIZE
 class Map:
     """Manages the game map and its tiles.
 
-    Internally uses a sub-tile grid (16x16 cells). Each TMX tile is expanded
-    to a 2x2 block of sub-tiles. Bricks are independently destructible.
-    Base tiles are grouped — destroying any sub-tile destroys the whole group.
+    Uses a grid where each cell is one TMX tile (8x8 in the atlas,
+    rendered at SUB_TILE_SIZE). Each TMX cell maps 1:1 to one grid cell.
     """
 
     def __init__(self, map_file: str, texture_manager: TextureManager) -> None:
@@ -34,21 +33,17 @@ class Map:
         self._rebuild_tile_caches()
 
         logger.info(
-            f"Map loaded from {map_file}: {self.width}x{self.height} sub-tiles, "
+            f"Map loaded from {map_file}: {self.width}x{self.height} tiles, "
             f"{len(self.spawn_points)} spawn points, "
             f"player spawn at {self.player_spawn}"
         )
 
     def _load_from_tmx(self, map_file: str) -> None:
-        """Load map data from a TMX file and expand to sub-tile grid."""
+        """Load map data from a TMX file. Each TMX cell maps 1:1 to a grid cell."""
         tiled_map = load_pygame(map_file)
 
-        tmx_width = tiled_map.width
-        tmx_height = tiled_map.height
-
-        # Sub-tile grid is 2x the TMX grid
-        self.width = tmx_width * 2
-        self.height = tmx_height * 2
+        self.width = tiled_map.width
+        self.height = tiled_map.height
 
         # Initialize grid
         self.tiles = [[None for _ in range(self.width)] for _ in range(self.height)]
@@ -75,20 +70,19 @@ class Map:
                     else:
                         tile_type = TileType.EMPTY
 
-                # Get the actual tile image from the TMX for visual fidelity.
-                # Scale from native 16x16 to TILE_SIZE (32x32) to match
-                # the 2x2 sub-tile group and sprite coordinate system.
+                # Get the actual tile image from the TMX, scaled to SUB_TILE_SIZE
                 tile_image = None
                 if gid:
                     raw_img = tiled_map.get_tile_image_by_gid(gid)
                     if raw_img:
                         tile_image = pygame.transform.scale(
                             raw_img,
-                            (SUB_TILE_SIZE * 2, SUB_TILE_SIZE * 2),
+                            (SUB_TILE_SIZE, SUB_TILE_SIZE),
                         )
 
-                # Expand each TMX tile to 2x2 sub-tiles
-                self._place_tile_group(x * 2, y * 2, tile_type, tile_image)
+                self.tiles[y][x] = Tile(
+                    tile_type, x, y, self.tile_size, tmx_sprite=tile_image
+                )
 
         # Fill any remaining None tiles with EMPTY
         for y in range(self.height):
@@ -96,38 +90,13 @@ class Map:
                 if self.tiles[y][x] is None:
                     self.tiles[y][x] = Tile(TileType.EMPTY, x, y, self.tile_size)
 
-        # Read spawn points from object layer (convert to sub-tile coords)
+        # Read spawn points from object layer
         self._load_spawn_points(tiled_map)
-
-    def _place_tile_group(
-        self, sub_x: int, sub_y: int, tile_type: TileType, tile_image=None
-    ) -> None:
-        """Place a 2x2 group of sub-tiles at the given sub-tile coordinates."""
-        group_tiles = []
-        for dy in range(2):
-            for dx in range(2):
-                sx, sy = sub_x + dx, sub_y + dy
-                is_primary = dx == 0 and dy == 0
-                tile = Tile(
-                    tile_type,
-                    sx,
-                    sy,
-                    self.tile_size,
-                    is_group_primary=is_primary,
-                    group_dx=dx,
-                    group_dy=dy,
-                    tmx_sprite=tile_image,
-                )
-                self.tiles[sy][sx] = tile
-                group_tiles.append(tile)
-
-        for tile in group_tiles:
-            tile.group_tiles = group_tiles
 
     def _load_spawn_points(self, tiled_map: pytmx.TiledMap) -> None:
         """Read spawn points and player spawn from TMX object layers.
 
-        Converts TMX pixel coordinates to sub-tile grid coordinates.
+        Converts TMX pixel coordinates to grid coordinates.
         """
         try:
             spawn_layer = tiled_map.get_layer_by_name("spawn_points")
@@ -137,10 +106,12 @@ class Map:
             return
 
         player_spawn_found = False
+        tmx_tw = tiled_map.tilewidth
+        tmx_th = tiled_map.tileheight
         for obj in spawn_layer:
-            # Convert pixel coords to sub-tile coords
-            grid_x = int(obj.x // tiled_map.tilewidth) * 2
-            grid_y = int(obj.y // tiled_map.tileheight) * 2
+            # Convert pixel coords to grid coords using TMX tile dimensions
+            grid_x = int(obj.x // tmx_tw)
+            grid_y = int(obj.y // tmx_th)
 
             if obj.name == "player_spawn":
                 self.player_spawn = (grid_x, grid_y)
@@ -178,13 +149,10 @@ class Map:
             tile.draw(surface, self.texture_manager)
 
     def get_tile_at(self, x: int, y: int) -> Optional[Tile]:
-        """Get the tile at the specified sub-tile grid coordinates."""
+        """Get the tile at the specified grid coordinates."""
         if 0 <= y < self.height and 0 <= x < self.width:
-            logger.trace(f"Getting tile at ({x}, {y})")
             return self.tiles[y][x]
-        else:
-            logger.warning(f"Attempted to get tile outside map bounds at ({x}, {y})")
-            return None
+        return None
 
     def mark_tile_cache_dirty(self) -> None:
         """Mark tile caches as needing rebuild."""
@@ -195,17 +163,16 @@ class Map:
         old_type = tile.type
         tile.type = new_type
         self._tile_cache_dirty = True
-        # Keep drawable tiles list in sync
         if old_type == TileType.EMPTY and new_type != TileType.EMPTY:
             self._drawable_tiles.append(tile)
         elif old_type != TileType.EMPTY and new_type == TileType.EMPTY:
             if tile in self._drawable_tiles:
                 self._drawable_tiles.remove(tile)
 
-    def destroy_base_group(self, tile: Tile) -> None:
-        """Destroy all sub-tiles in a base group."""
-        group = tile.group_tiles if tile.group_tiles else [tile]
-        for t in group:
+    def destroy_base(self, tile: Tile) -> None:
+        """Destroy all BASE tiles adjacent to this one (the 2x2 base group)."""
+        base_tiles = self.get_tiles_by_type([TileType.BASE])
+        for t in base_tiles:
             self.set_tile_type(t, TileType.BASE_DESTROYED)
 
     def place_tile(self, x: int, y: int, tile: Tile) -> None:
@@ -269,29 +236,29 @@ class Map:
         return self._cached_collidable_rects
 
     def get_base_surrounding_tiles(self) -> List[Tile]:
-        """Return non-empty tiles in the ring around the base group.
+        """Return non-empty tiles in the ring around the base.
 
-        The base is a 2x2 sub-tile block. The surrounding ring is the
-        12 positions forming a 4x4 border minus the 2x2 center.
+        Finds all BASE tiles to determine the base bounds, then returns
+        non-empty, non-BASE tiles in a ring around them.
         """
-        base = self.get_base()
-        if base is None:
+        base_tiles = self.get_tiles_by_type([TileType.BASE])
+        if not base_tiles:
             return []
 
-        # Find the top-left of the 2x2 base group
-        group = base.group_tiles if base.group_tiles else [base]
-        min_x = min(t.x for t in group)
-        min_y = min(t.y for t in group)
+        # Find bounding box of all base tiles
+        min_x = min(t.x for t in base_tiles)
+        max_x = max(t.x for t in base_tiles)
+        min_y = min(t.y for t in base_tiles)
+        max_y = max(t.y for t in base_tiles)
+        base_positions = {(t.x, t.y) for t in base_tiles}
 
-        # 4x4 ring around the 2x2 base center
+        # Ring around the base bounding box
         surrounding = []
-        for dy in range(-1, 3):
-            for dx in range(-1, 3):
-                # Skip the 2x2 base interior
-                if 0 <= dx <= 1 and 0 <= dy <= 1:
+        for y in range(min_y - 1, max_y + 2):
+            for x in range(min_x - 1, max_x + 2):
+                if (x, y) in base_positions:
                     continue
-                sx, sy = min_x + dx, min_y + dy
-                tile = self.get_tile_at(sx, sy)
+                tile = self.get_tile_at(x, y)
                 if tile is not None and tile.type != TileType.EMPTY:
                     surrounding.append(tile)
         return surrounding
