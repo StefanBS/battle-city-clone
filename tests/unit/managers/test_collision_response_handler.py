@@ -205,7 +205,9 @@ class TestBulletVsTile:
         tile = Tile(TileType.BRICK, 4, 4)
         handler.process_collisions([(bullet, tile)])
         assert not bullet.active
-        mock_map.damage_brick.assert_called_once_with(tile, "right")
+        mock_map.damage_brick.assert_called_once_with(
+            tile, "right", bullet.rect
+        )
 
     def test_bullet_destroys_base(self, handler, mock_map):
         """Bullet hitting base triggers destroy_base and GAME_OVER."""

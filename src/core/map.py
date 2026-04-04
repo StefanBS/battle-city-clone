@@ -236,12 +236,50 @@ class Map:
         """Mark tile caches as needing rebuild."""
         self._tile_cache_dirty = True
 
-    def damage_brick(self, tile: Tile, bullet_direction: str) -> None:
-        """Damage a brick tile based on bullet direction.
+    def damage_brick(
+        self, tile: Tile, bullet_direction: str, bullet_rect: pygame.Rect
+    ) -> None:
+        """Damage a brick tile and any adjacent brick the bullet overlaps.
 
         Full bricks become half-bricks (keeping the side opposite to impact).
         Half-bricks are destroyed entirely (set to EMPTY).
+        Adjacent tiles in the perpendicular direction are also damaged if
+        the bullet rect overlaps them.
         """
+        self._damage_single_brick(tile, bullet_direction)
+
+        # Check adjacent tile for multi-tile impact
+        if bullet_direction in ("left", "right"):
+            # Horizontal bullet: check tiles above and below
+            for dy in (-1, 1):
+                adj = self.get_tile_at(tile.x, tile.y + dy)
+                if (
+                    adj
+                    and adj.type == TileType.BRICK
+                    and bullet_rect.colliderect(adj.rect)
+                ):
+                    self._damage_single_brick(adj, bullet_direction)
+        elif bullet_direction in ("up", "down"):
+            # Vertical bullet: check tiles left and right
+            for dx in (-1, 1):
+                adj = self.get_tile_at(tile.x + dx, tile.y)
+                if (
+                    adj
+                    and adj.type == TileType.BRICK
+                    and bullet_rect.colliderect(adj.rect)
+                ):
+                    self._damage_single_brick(adj, bullet_direction)
+
+    # Half-brick rect offsets: variant → (dx, dy, w, h) as fractions of tile size
+    _VARIANT_RECT = {
+        "left": (0, 0, 0.5, 1),
+        "right": (0.5, 0, 0.5, 1),
+        "top": (0, 0, 1, 0.5),
+        "bottom": (0, 0.5, 1, 0.5),
+    }
+
+    def _damage_single_brick(self, tile: Tile, bullet_direction: str) -> None:
+        """Damage one brick tile. Full → half, half → destroyed."""
         if tile.type != TileType.BRICK:
             return
 
@@ -255,11 +293,22 @@ class Map:
             if sprite:
                 tile.brick_variant = surviving_variant
                 tile.tmx_sprite = sprite
+                # Shrink collision rect to match the surviving half
+                fracs = self._VARIANT_RECT.get(surviving_variant)
+                if fracs:
+                    dx, dy, w, h = fracs
+                    base_x = tile.x * tile.size
+                    base_y = tile.y * tile.size
+                    tile.rect = pygame.Rect(
+                        int(base_x + dx * tile.size),
+                        int(base_y + dy * tile.size),
+                        int(w * tile.size),
+                        int(h * tile.size),
+                    )
+                self._tile_cache_dirty = True
             else:
-                # No half-brick sprite available — destroy entirely
                 self.set_tile_type(tile, TileType.EMPTY)
         else:
-            # Half-brick hit — destroy entirely
             self.set_tile_type(tile, TileType.EMPTY)
 
     def set_tile_type(self, tile: Tile, new_type: TileType) -> None:
