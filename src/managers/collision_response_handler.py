@@ -199,7 +199,7 @@ class CollisionResponseHandler:
             return True
 
         if tile.type == TileType.BRICK:
-            self._map.set_tile_type(tile, TileType.EMPTY)
+            self._map.damage_brick(tile, str(bullet.direction))
         elif tile.type == TileType.BASE:
             self._map.destroy_base()
             self._set_game_state(GameState.GAME_OVER)

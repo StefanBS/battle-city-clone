@@ -16,7 +16,7 @@ class TileType(Enum):
     BRICK = auto()
     STEEL = auto()
     WATER = auto()
-    BUSH = auto()  # Tile that can be driven over but hides tanks
+    BUSH = auto()
     ICE = auto()
     BASE = auto()
     BASE_DESTROYED = auto()
@@ -32,8 +32,7 @@ class Tile:
     """Represents a single 8x8 tile in the game map, rendered at SUB_TILE_SIZE.
 
     Each tile has a type that determines its collision behavior and a
-    TMX sprite that determines its visual appearance. Bricks are
-    destroyed as whole tiles when hit by bullets.
+    TMX sprite that determines its visual appearance.
     """
 
     # Fallback sprite names when no TMX sprite is available
@@ -53,6 +52,7 @@ class Tile:
         y: int,
         size: int = SUB_TILE_SIZE,
         tmx_sprite: Optional[pygame.Surface] = None,
+        brick_variant: str = "full",
     ) -> None:
         logger.trace(f"Creating Tile ({tile_type.name}) at grid ({x}, {y})")
         self.type = tile_type
@@ -61,12 +61,16 @@ class Tile:
         self.size = size
         self.rect = pygame.Rect(x * size, y * size, size, size)
 
-        # TMX sprite: the actual tile image from the map editor (if available)
+        # TMX sprite: the actual tile image from the map editor
         self.tmx_sprite: Optional[pygame.Surface] = tmx_sprite
+
+        # Brick variant: "full", "left", "right", "top", "bottom"
+        self.brick_variant: str = brick_variant
 
         # Animation attributes
         self.is_animated: bool = False
-        self.animation_frames: List[str] = []
+        self.animation_sprites: List[pygame.Surface] = []
+        self.animation_frames: List[str] = []  # fallback frame names
         self.current_frame_index: int = 0
         self.animation_timer: float = 0.0
         self.animation_interval: float = TILE_ANIMATION_INTERVAL
@@ -80,12 +84,14 @@ class Tile:
         if not self.is_animated:
             return False
 
+        frame_count = len(self.animation_sprites) or len(self.animation_frames)
+        if frame_count == 0:
+            return False
+
         self.animation_timer += dt
         if self.animation_timer >= self.animation_interval:
             self.animation_timer -= self.animation_interval
-            self.current_frame_index = (self.current_frame_index + 1) % len(
-                self.animation_frames
-            )
+            self.current_frame_index = (self.current_frame_index + 1) % frame_count
             return True
         return False
 
@@ -94,16 +100,27 @@ class Tile:
         if self.type == TileType.EMPTY:
             return
 
-        # Use TMX sprite if available and not animated
-        if self.tmx_sprite is not None and not self.is_animated:
+        # Animated tiles: use TMX animation sprites if available
+        if self.is_animated:
+            if self.animation_sprites:
+                sprite = self.animation_sprites[self.current_frame_index]
+                surface.blit(sprite, self.rect.topleft)
+                return
+            if self.animation_frames:
+                sprite_name = self.animation_frames[self.current_frame_index]
+                surface.blit(
+                    texture_manager.get_sub_sprite(sprite_name),
+                    self.rect.topleft,
+                )
+                return
+
+        # Use TMX sprite if available
+        if self.tmx_sprite is not None:
             surface.blit(self.tmx_sprite, self.rect.topleft)
             return
 
-        # Animated or fallback: resolve sprite name, look up sub-sprite
-        if self.is_animated and self.animation_frames:
-            sprite_name = self.animation_frames[self.current_frame_index]
-        else:
-            sprite_name = self.SPRITE_NAME_MAP.get(self.type)
+        # Fallback: use type-based sprite lookup
+        sprite_name = self.SPRITE_NAME_MAP.get(self.type)
         if sprite_name:
             surface.blit(
                 texture_manager.get_sub_sprite(sprite_name), self.rect.topleft

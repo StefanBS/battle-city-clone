@@ -194,8 +194,8 @@ class TestBulletVsTile:
     Brick tiles are destroyed as whole tiles when hit by a bullet.
     """
 
-    def test_bullet_destroys_brick(self, handler, mock_map):
-        """Bullet hitting a brick tile sets it to EMPTY."""
+    def test_bullet_damages_brick(self, handler, mock_map):
+        """Bullet hitting a brick tile calls damage_brick with direction."""
         bullet = MagicMock(spec=Bullet)
         bullet.active = True
         bullet.owner = MagicMock()
@@ -205,7 +205,7 @@ class TestBulletVsTile:
         tile = Tile(TileType.BRICK, 4, 4)
         handler.process_collisions([(bullet, tile)])
         assert not bullet.active
-        mock_map.set_tile_type.assert_called_once_with(tile, TileType.EMPTY)
+        mock_map.damage_brick.assert_called_once_with(tile, "right")
 
     def test_bullet_destroys_base(self, handler, mock_map):
         """Bullet hitting base triggers destroy_base and GAME_OVER."""

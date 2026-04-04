@@ -45,6 +45,11 @@ class Map:
         self.width = tiled_map.width
         self.height = tiled_map.height
 
+        # Scan tileset for brick variant and water frame sprites
+        self._brick_variant_sprites: dict[str, pygame.Surface] = {}
+        self._water_frame_sprites: dict[int, pygame.Surface] = {}
+        self._scan_tileset(tiled_map)
+
         # Initialize grid
         self.tiles = [[None for _ in range(self.width)] for _ in range(self.height)]
 
@@ -57,22 +62,18 @@ class Map:
 
         if tile_layer is not None:
             for x, y, gid in tile_layer.iter_data():
-                if gid == 0:
-                    tile_type = TileType.EMPTY
-                else:
+                tile_type = TileType.EMPTY
+                brick_variant = "full"
+                tile_image = None
+
+                if gid:
                     props = tiled_map.get_tile_properties_by_gid(gid)
                     if props:
                         tile_type_str = props.get("tile_type")
                         if tile_type_str and tile_type_str.strip():
                             tile_type = TileType[tile_type_str.strip()]
-                        else:
-                            tile_type = TileType.EMPTY
-                    else:
-                        tile_type = TileType.EMPTY
+                        brick_variant = props.get("brick_variant") or "full"
 
-                # Get the actual tile image from the TMX, scaled to SUB_TILE_SIZE
-                tile_image = None
-                if gid:
                     raw_img = tiled_map.get_tile_image_by_gid(gid)
                     if raw_img:
                         tile_image = pygame.transform.scale(
@@ -80,9 +81,23 @@ class Map:
                             (SUB_TILE_SIZE, SUB_TILE_SIZE),
                         )
 
-                self.tiles[y][x] = Tile(
-                    tile_type, x, y, self.tile_size, tmx_sprite=tile_image
+                tile = Tile(
+                    tile_type,
+                    x,
+                    y,
+                    self.tile_size,
+                    tmx_sprite=tile_image,
+                    brick_variant=brick_variant,
                 )
+
+                # Set up water animation with TMX sprites if available
+                if tile_type == TileType.WATER and self._water_frame_sprites:
+                    frames = sorted(self._water_frame_sprites.keys())
+                    tile.animation_sprites = [
+                        self._water_frame_sprites[f] for f in frames
+                    ]
+
+                self.tiles[y][x] = tile
 
         # Fill any remaining None tiles with EMPTY
         for y in range(self.height):
@@ -92,6 +107,37 @@ class Map:
 
         # Read spawn points from object layer
         self._load_spawn_points(tiled_map)
+
+    def _scan_tileset(self, tiled_map: pytmx.TiledMap) -> None:
+        """Scan the tileset for brick variant and water frame sprites."""
+        if not tiled_map.tilesets:
+            return
+        ts = tiled_map.tilesets[0]
+        for gid in range(ts.firstgid, ts.firstgid + ts.tilecount):
+            props = tiled_map.get_tile_properties_by_gid(gid)
+            if not props:
+                continue
+            tt = props.get("tile_type") or ""
+            if tt == "BRICK":
+                variant = props.get("brick_variant") or "full"
+                if variant not in self._brick_variant_sprites:
+                    raw_img = tiled_map.get_tile_image_by_gid(gid)
+                    if raw_img:
+                        self._brick_variant_sprites[variant] = (
+                            pygame.transform.scale(
+                                raw_img, (SUB_TILE_SIZE, SUB_TILE_SIZE)
+                            )
+                        )
+            elif tt == "WATER":
+                frame = props.get("water_frame")
+                if frame is not None and int(frame) not in self._water_frame_sprites:
+                    raw_img = tiled_map.get_tile_image_by_gid(gid)
+                    if raw_img:
+                        self._water_frame_sprites[int(frame)] = (
+                            pygame.transform.scale(
+                                raw_img, (SUB_TILE_SIZE, SUB_TILE_SIZE)
+                            )
+                        )
 
     def _load_spawn_points(self, tiled_map: pytmx.TiledMap) -> None:
         """Read spawn points and player spawn from TMX object layers.
@@ -157,6 +203,35 @@ class Map:
     def mark_tile_cache_dirty(self) -> None:
         """Mark tile caches as needing rebuild."""
         self._tile_cache_dirty = True
+
+    def damage_brick(self, tile: Tile, bullet_direction: str) -> None:
+        """Damage a brick tile based on bullet direction.
+
+        Full bricks become half-bricks (keeping the side opposite to impact).
+        Half-bricks are destroyed entirely (set to EMPTY).
+        """
+        if tile.type != TileType.BRICK:
+            return
+
+        if tile.brick_variant == "full":
+            # Map bullet direction to the half that survives
+            direction_to_variant = {
+                "right": "right",
+                "left": "left",
+                "down": "bottom",
+                "up": "top",
+            }
+            surviving_variant = direction_to_variant.get(bullet_direction, "full")
+            sprite = self._brick_variant_sprites.get(surviving_variant)
+            if sprite:
+                tile.brick_variant = surviving_variant
+                tile.tmx_sprite = sprite
+            else:
+                # No half-brick sprite available — destroy entirely
+                self.set_tile_type(tile, TileType.EMPTY)
+        else:
+            # Half-brick hit — destroy entirely
+            self.set_tile_type(tile, TileType.EMPTY)
 
     def set_tile_type(self, tile: Tile, new_type: TileType) -> None:
         """Change a tile's type and invalidate caches."""
