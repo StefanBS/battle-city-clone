@@ -169,10 +169,9 @@ class Map:
             if tile in self._drawable_tiles:
                 self._drawable_tiles.remove(tile)
 
-    def destroy_base(self, tile: Tile) -> None:
-        """Destroy all BASE tiles adjacent to this one (the 2x2 base group)."""
-        base_tiles = self.get_tiles_by_type([TileType.BASE])
-        for t in base_tiles:
+    def destroy_base(self) -> None:
+        """Destroy all BASE tiles on the map."""
+        for t in self.get_tiles_by_type([TileType.BASE]):
             self.set_tile_type(t, TileType.BASE_DESTROYED)
 
     def place_tile(self, x: int, y: int, tile: Tile) -> None:

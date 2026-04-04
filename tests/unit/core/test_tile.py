@@ -53,7 +53,6 @@ class TestTileDraw:
     @pytest.fixture
     def mock_tm(self):
         mock = MagicMock(spec=TextureManager)
-        mock.get_sprite.return_value = MagicMock(spec=pygame.Surface)
         mock.get_sub_sprite.return_value = MagicMock(spec=pygame.Surface)
         return mock
 
@@ -81,7 +80,6 @@ class TestTileDraw:
         tile = Tile(TileType.BRICK, 2, 3, tmx_sprite=tmx_sprite)
         tile.draw(mock_surface, mock_tm)
         mock_surface.blit.assert_called_once_with(tmx_sprite, tile.rect.topleft)
-        mock_tm.get_sprite.assert_not_called()
 
     def test_draw_fallback_uses_type_sprite(self, mock_surface, mock_tm):
         """Tile without TMX sprite falls back to type-based sub-sprite."""
@@ -94,7 +92,6 @@ class TestTileDraw:
         """EMPTY tile does not blit."""
         tile = Tile(TileType.EMPTY, 0, 0)
         tile.draw(mock_surface, mock_tm)
-        mock_tm.get_sprite.assert_not_called()
         mock_tm.get_sub_sprite.assert_not_called()
         mock_surface.blit.assert_not_called()
 

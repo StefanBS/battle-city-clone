@@ -220,7 +220,7 @@ class TestBulletVsTile:
         tile.x, tile.y = 0, 0
         handler.process_collisions([(bullet, tile)])
         assert not bullet.active
-        mock_map.destroy_base.assert_called_with(tile)
+        mock_map.destroy_base.assert_called_once()
 
     # -- Non-brick tiles --
 

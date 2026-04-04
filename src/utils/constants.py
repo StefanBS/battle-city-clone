@@ -116,7 +116,7 @@ FPS: int = 60
 
 # Grid settings
 SOURCE_TILE_SIZE: int = 8  # Original size for loading sprites
-SUB_TILE_SIZE: int = 16  # Sub-tile size for the internal grid (brick segments)
+SUB_TILE_SIZE: int = 16  # Rendered tile size for the map grid
 TILE_SIZE: int = 32  # Entity size (tanks) and visual tile size
 
 # Logical surface (fixed size, map centered inside with gray border)
@@ -140,21 +140,6 @@ TANK_WIDTH: int = TILE_SIZE
 TANK_HEIGHT: int = TILE_SIZE
 TANK_ANIMATION_DISTANCE: float = 4  # pixels traveled between animation frame toggles
 TANK_ALIGN_THRESHOLD: float = 8.0  # max px offset for steering assist (half a sub-tile)
-
-# Brick segment bitmask constants (each sub-tile has 4 quadrants, 8x8 each)
-SEGMENT_TOP_LEFT: int = 0b0001
-SEGMENT_TOP_RIGHT: int = 0b0010
-SEGMENT_BOTTOM_LEFT: int = 0b0100
-SEGMENT_BOTTOM_RIGHT: int = 0b1000
-SEGMENT_FULL: int = 0b1111
-
-# Composite masks for entry-side destruction
-SEGMENT_LEFT: int = SEGMENT_TOP_LEFT | SEGMENT_BOTTOM_LEFT
-SEGMENT_RIGHT: int = SEGMENT_TOP_RIGHT | SEGMENT_BOTTOM_RIGHT
-SEGMENT_TOP: int = SEGMENT_TOP_LEFT | SEGMENT_TOP_RIGHT
-SEGMENT_BOTTOM: int = SEGMENT_BOTTOM_LEFT | SEGMENT_BOTTOM_RIGHT
-
-BRICK_SEGMENT_SIZE: int = SUB_TILE_SIZE // 2  # 8px — half a sub-tile (square)
 
 # Atlas background color used as colorkey for transparency
 ATLAS_BG_COLOR: tuple[int, int, int] = (0, 0, 1)

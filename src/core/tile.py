@@ -94,20 +94,17 @@ class Tile:
         if self.type == TileType.EMPTY:
             return
 
-        # Animated tiles (water) use frame-based sprites
-        if self.is_animated and self.animation_frames:
-            sprite_name = self.animation_frames[self.current_frame_index]
-            sprite = texture_manager.get_sub_sprite(sprite_name)
-            surface.blit(sprite, self.rect.topleft)
-            return
-
-        # Use TMX sprite if available (exact tile image from map editor)
-        if self.tmx_sprite is not None:
+        # Use TMX sprite if available and not animated
+        if self.tmx_sprite is not None and not self.is_animated:
             surface.blit(self.tmx_sprite, self.rect.topleft)
             return
 
-        # Fallback: use type-based sprite lookup
-        sprite_name = self.SPRITE_NAME_MAP.get(self.type)
+        # Animated or fallback: resolve sprite name, look up sub-sprite
+        if self.is_animated and self.animation_frames:
+            sprite_name = self.animation_frames[self.current_frame_index]
+        else:
+            sprite_name = self.SPRITE_NAME_MAP.get(self.type)
         if sprite_name:
-            sprite = texture_manager.get_sub_sprite(sprite_name)
-            surface.blit(sprite, self.rect.topleft)
+            surface.blit(
+                texture_manager.get_sub_sprite(sprite_name), self.rect.topleft
+            )

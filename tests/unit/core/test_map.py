@@ -88,8 +88,7 @@ class TestMapLoading:
         for sx, sy in [(4, 8), (5, 8), (4, 9), (5, 9)]:
             assert game_map.get_tile_at(sx, sy).type == TileType.BASE
 
-        any_base = game_map.get_tile_at(5, 9)
-        game_map.destroy_base(any_base)
+        game_map.destroy_base()
 
         for sx, sy in [(4, 8), (5, 8), (4, 9), (5, 9)]:
             assert game_map.get_tile_at(sx, sy).type == TileType.BASE_DESTROYED
