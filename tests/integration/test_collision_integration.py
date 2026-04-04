@@ -11,7 +11,7 @@ from src.core.enemy_tank import EnemyTank
 @pytest.mark.parametrize(
     "tile_to_place, expected_bullet_active, expected_tile_type",
     [
-        (TileType.BRICK, False, None),  # Bullet damages brick (type may change)
+        (TileType.BRICK, False, TileType.BRICK),  # Bullet damages brick (full→half)
         (TileType.STEEL, False, TileType.STEEL),  # Bullet hits steel, steel unchanged
         (TileType.WATER, True, TileType.WATER),  # Bullet passes through water
         (TileType.BUSH, True, TileType.BUSH),  # Bullet passes through bush
@@ -95,14 +95,15 @@ def test_player_bullet_vs_tile(
     # 2. Verify the tile's final type
     final_tile = game_map.get_tile_at(target_x_grid, target_y_grid)
     assert final_tile is not None, "Target tile somehow disappeared."
-    if expected_tile_type is not None:
-        assert final_tile.type == expected_tile_type, (
-            f"Tile type mismatch for {tile_to_place.name}. "
-            f"Expected: {expected_tile_type.name}, Got: {final_tile.type.name}"
+    assert final_tile.type == expected_tile_type, (
+        f"Tile type mismatch for {tile_to_place.name}. "
+        f"Expected: {expected_tile_type.name}, Got: {final_tile.type.name}"
+    )
+    # For brick: verify it was damaged (no longer full variant)
+    if tile_to_place == TileType.BRICK and final_tile.type == TileType.BRICK:
+        assert final_tile.brick_variant != "full", (
+            "Brick should be damaged (not full) after being hit."
         )
-    else:
-        # Brick: may be half-brick (BRICK) or destroyed (EMPTY)
-        assert final_tile.type in (TileType.BRICK, TileType.EMPTY)
 
 
 def _clear_tiles(game_map, positions):

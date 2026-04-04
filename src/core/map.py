@@ -15,6 +15,14 @@ class Map:
     rendered at SUB_TILE_SIZE). Each TMX cell maps 1:1 to one grid cell.
     """
 
+    # Bullet direction → surviving brick half variant
+    _DIRECTION_TO_VARIANT = {
+        "right": "right",
+        "left": "left",
+        "down": "bottom",
+        "up": "top",
+    }
+
     def __init__(self, map_file: str, texture_manager: TextureManager) -> None:
         self.tile_size = SUB_TILE_SIZE
         self.texture_manager = texture_manager
@@ -109,11 +117,22 @@ class Map:
         self._load_spawn_points(tiled_map)
 
     def _scan_tileset(self, tiled_map: pytmx.TiledMap) -> None:
-        """Scan the tileset for brick variant and water frame sprites."""
+        """Scan the tileset for brick variant and water frame sprites.
+
+        Only iterates tiles that have custom properties defined,
+        skipping the majority of tiles in large tilesets.
+        """
         if not tiled_map.tilesets:
             return
         ts = tiled_map.tilesets[0]
-        for gid in range(ts.firstgid, ts.firstgid + ts.tilecount):
+        # Only iterate tiles with defined properties (sparse iteration)
+        tile_ids = getattr(ts, "tiles", {})
+        if not tile_ids:
+            # Fallback: iterate all GIDs if tileset doesn't expose tiles dict
+            gids = range(ts.firstgid, ts.firstgid + ts.tilecount)
+        else:
+            gids = [tid + ts.firstgid for tid in tile_ids]
+        for gid in gids:
             props = tiled_map.get_tile_properties_by_gid(gid)
             if not props:
                 continue
@@ -214,14 +233,9 @@ class Map:
             return
 
         if tile.brick_variant == "full":
-            # Map bullet direction to the half that survives
-            direction_to_variant = {
-                "right": "right",
-                "left": "left",
-                "down": "bottom",
-                "up": "top",
-            }
-            surviving_variant = direction_to_variant.get(bullet_direction, "full")
+            surviving_variant = self._DIRECTION_TO_VARIANT.get(
+                bullet_direction, "full"
+            )
             sprite = self._brick_variant_sprites.get(surviving_variant)
             if sprite:
                 tile.brick_variant = surviving_variant
