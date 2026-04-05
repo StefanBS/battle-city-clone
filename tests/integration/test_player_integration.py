@@ -376,6 +376,9 @@ def test_player_respawn():
 
     assert initial_lives > 1, "Test requires player to start with more than 1 life."
 
+    # Disable spawn invincibility so damage lands
+    player_tank.is_invincible = False
+
     # Simulate taking lethal damage (enough to reduce health to 0 or less)
     # We call take_damage directly to isolate the respawn logic test
     was_destroyed_permanently = player_tank.take_damage(amount=initial_health)

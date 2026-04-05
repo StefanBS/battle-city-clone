@@ -16,6 +16,7 @@ from src.utils.constants import (
     LOGICAL_WIDTH,
     LOGICAL_HEIGHT,
     PowerUpType,
+    SPAWN_INVINCIBILITY_DURATION,
     HELMET_INVINCIBILITY_DURATION,
     CLOCK_FREEZE_DURATION,
     SHOVEL_DURATION,
@@ -186,6 +187,9 @@ class GameManager:
             self.player_tank.star_level = player_star_level
             self.player_tank._apply_star_stats()
             self.player_tank._update_sprite()
+
+        # Grant spawn invincibility (after progress restoration)
+        self.player_tank.activate_invincibility(SPAWN_INVINCIBILITY_DURATION)
 
         if self._demo_mode:
             self._spawn_demo_power_ups()

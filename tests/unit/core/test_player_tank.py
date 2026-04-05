@@ -7,6 +7,8 @@ from src.utils.constants import (
     TILE_SIZE,
     FPS,
     HELMET_INVINCIBILITY_DURATION,
+    SPAWN_INVINCIBILITY_DURATION,
+    SHIELD_FLICKER_INTERVAL,
     BULLET_SPEED,
     STAR_BULLET_SPEED_MULTIPLIER,
     STAR_MAX_BULLETS,
@@ -35,7 +37,6 @@ class TestPlayerTank:
         assert player_tank.initial_position == (0, 0)
         assert player_tank.lives == 3
         assert player_tank.health == 1
-        assert player_tank.invincibility_duration == 3.0
         assert not player_tank.is_invincible
 
     def test_player_tank_no_input_handler(self, player_tank):
@@ -131,29 +132,32 @@ class TestPlayerTank:
 
         mock_surface.blit.assert_not_called()
 
-    def test_draw_invincible_visible_phase(self, player_tank):
-        """Test drawing when invincible during the visible phase of blinking."""
+    def test_draw_invincible_shows_tank_and_shield(self, player_tank):
+        """Test drawing when invincible always shows tank + shield (no blink)."""
         mock_surface = MagicMock(spec=pygame.Surface)
         mock_sprite = MagicMock(spec=pygame.Surface)
         player_tank.is_invincible = True
-        player_tank.blink_timer = player_tank.blink_interval * 0.5
+        player_tank.invincibility_timer = 0.0
         player_tank.sprite = mock_sprite
 
         player_tank.draw(mock_surface)
 
-        mock_surface.blit.assert_called_once_with(mock_sprite, player_tank.rect)
+        # Tank sprite + shield overlay = 2 blits
+        assert mock_surface.blit.call_count == 2
 
-    def test_draw_invincible_invisible_phase(self, player_tank):
-        """Test drawing when invincible during the invisible phase of blinking."""
+    def test_draw_invincible_never_blinks(self, player_tank):
+        """Test that invincible tank is always visible (shield replaces blink)."""
         mock_surface = MagicMock(spec=pygame.Surface)
         mock_sprite = MagicMock(spec=pygame.Surface)
         player_tank.is_invincible = True
+        # Even in what would be the "invisible" blink phase, tank is drawn
         player_tank.blink_timer = player_tank.blink_interval * 1.5
         player_tank.sprite = mock_sprite
 
         player_tank.draw(mock_surface)
 
-        mock_surface.blit.assert_not_called()
+        # Tank is always drawn when invincible (shield replaces blink)
+        assert mock_surface.blit.call_count == 2
 
     def test_respawn_syncs_rect(self, player_tank):
         """Test that respawn() updates rect to match the new position."""
@@ -204,14 +208,14 @@ class TestActivateInvincibility:
         player.lives = 2
         player.respawn()
         assert player.is_invincible is True
-        assert player.invincibility_duration == 3.0
+        assert player.invincibility_duration == SPAWN_INVINCIBILITY_DURATION
 
     def test_respawn_after_helmet_restores_short_duration(self, player):
         player.activate_invincibility(HELMET_INVINCIBILITY_DURATION)
         player.is_invincible = False
         player.lives = 2
         player.respawn()
-        assert player.invincibility_duration == 3.0
+        assert player.invincibility_duration == SPAWN_INVINCIBILITY_DURATION
 
 
 class TestStarUpgrade:
@@ -264,3 +268,95 @@ class TestStarUpgrade:
             c.args[0] for c in mock_texture_manager.get_sprite.call_args_list
         ]
         assert any("tier1" in name for name in called_names)
+
+
+class TestShieldAnimation:
+    @pytest.fixture
+    def mock_texture_manager(self):
+        """Override to return distinct surfaces per sprite name."""
+        from src.managers.texture_manager import TextureManager
+
+        mock_tm = MagicMock(spec=TextureManager)
+        sprite_cache: dict = {}
+
+        def get_sprite(name: str) -> MagicMock:
+            if name not in sprite_cache:
+                sprite_cache[name] = MagicMock(spec=pygame.Surface)
+            return sprite_cache[name]
+
+        mock_tm.get_sprite.side_effect = get_sprite
+        return mock_tm
+
+    @pytest.fixture
+    def player_tank(self, mock_texture_manager):
+        return PlayerTank(
+            5, 12, TILE_SIZE, mock_texture_manager,
+            map_width_px=16 * TILE_SIZE, map_height_px=16 * TILE_SIZE,
+        )
+
+    def test_is_invincible_false_when_not_invincible(self, player_tank):
+        assert player_tank.is_invincible is False
+
+    def test_is_invincible_true_when_invincible(self, player_tank):
+        player_tank.activate_invincibility(10.0)
+        assert player_tank.is_invincible is True
+
+    def test_is_invincible_true_during_warning_phase(self, player_tank):
+        """Shield stays active during warning — just flickers faster."""
+        player_tank.activate_invincibility(10.0)
+        player_tank.invincibility_timer = 8.5
+        assert player_tank.is_invincible is True
+
+    def test_is_invincible_true_entire_short_duration(self, player_tank):
+        player_tank.activate_invincibility(1.5)
+        player_tank.invincibility_timer = 1.0
+        assert player_tank.is_invincible is True
+
+    def test_shield_frames_cached_at_init(self, player_tank):
+        assert len(player_tank._shield_frames) == 2
+
+    def test_draw_blits_shield_when_invincible(self, player_tank):
+        player_tank.activate_invincibility(10.0)
+        player_tank.sprite = MagicMock()
+        mock_surface = MagicMock()
+        player_tank.draw(mock_surface)
+        assert mock_surface.blit.call_count == 2
+
+    def test_draw_delegates_to_super_when_not_invincible(self, player_tank):
+        player_tank.sprite = MagicMock()
+        mock_surface = MagicMock()
+        player_tank.draw(mock_surface)
+        assert mock_surface.blit.call_count == 1
+
+    def test_shield_frame_alternates_with_timer(self, player_tank):
+        player_tank.activate_invincibility(10.0)
+        player_tank.invincibility_timer = SHIELD_FLICKER_INTERVAL * 0.5
+        player_tank.sprite = MagicMock()
+        surface = MagicMock()
+        player_tank.draw(surface)
+        first_shield = surface.blit.call_args_list[1][0][0]
+
+        surface.reset_mock()
+        player_tank.invincibility_timer = SHIELD_FLICKER_INTERVAL * 1.5
+        player_tank.draw(surface)
+        second_shield = surface.blit.call_args_list[1][0][0]
+
+        assert first_shield != second_shield
+
+    def test_shield_uses_normal_flicker_before_warning(self, player_tank):
+        player_tank.activate_invincibility(10.0)
+        player_tank.invincibility_timer = 2.0  # 8s remaining, well before warning
+        assert player_tank.shield_flicker_interval == SHIELD_FLICKER_INTERVAL
+
+    def test_shield_uses_fast_flicker_during_warning(self, player_tank):
+        from src.utils.constants import SHIELD_FAST_FLICKER_INTERVAL
+
+        player_tank.activate_invincibility(10.0)
+        player_tank.invincibility_timer = 8.5  # 1.5s remaining, in warning phase
+        assert player_tank.shield_flicker_interval == SHIELD_FAST_FLICKER_INTERVAL
+
+    def test_shield_uses_normal_flicker_for_short_duration(self, player_tank):
+        """Short invincibility (< warning) uses normal speed the whole time."""
+        player_tank.activate_invincibility(1.5)
+        player_tank.invincibility_timer = 1.0
+        assert player_tank.shield_flicker_interval == SHIELD_FLICKER_INTERVAL
