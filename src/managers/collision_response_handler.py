@@ -232,6 +232,7 @@ class CollisionResponseHandler:
         logger.debug("Bullet hit bullet. Both deactivated.")
         bullet_a.active = False
         bullet_b.active = False
+        self._play_sound("play_bullet_hit_bullet")
         return True
 
     def _handle_player_vs_powerup(

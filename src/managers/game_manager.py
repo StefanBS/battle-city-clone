@@ -250,6 +250,7 @@ class GameManager:
             else:
                 pos = (pos + 1) % len(indices)
             self._menu_selection = indices[pos]
+            self.sound_manager.play_menu_select()
         elif key == pygame.K_RETURN:
             if self._menu_selection in (0, 2):
                 self._demo_mode = self._menu_selection == 2
@@ -258,6 +259,7 @@ class GameManager:
                 self._new_game()
                 self.state = GameState.STAGE_CURTAIN_CLOSE
                 self._state_timer = 0.0
+                self.sound_manager.play_stage_start()
 
     def update(self) -> None:
         """Update game state."""
@@ -270,6 +272,7 @@ class GameManager:
                 self._load_stage()
                 self.state = GameState.STAGE_CURTAIN_CLOSE
                 self._state_timer = 0.0
+                self.sound_manager.play_stage_start()
             return
 
         if self.state == GameState.STAGE_CURTAIN_CLOSE:
@@ -308,9 +311,11 @@ class GameManager:
         self.player_tank.on_ice = self._is_on_ice(self.player_tank)
         if self.player_tank.on_ice and not self.player_tank.is_sliding:
             if not has_valid_input:
-                self.player_tank.start_slide()
+                if self.player_tank.start_slide():
+                    self.sound_manager.play_ice_slide()
             elif (dx, dy) != self.player_tank.direction.delta:
-                self.player_tank.start_slide()
+                if self.player_tank.start_slide():
+                    self.sound_manager.play_ice_slide()
 
         if has_valid_input and not self.player_tank.is_sliding:
             self.player_tank.move(dx, dy, dt)
@@ -325,6 +330,12 @@ class GameManager:
                 enemy.on_ice = self._is_on_ice(enemy)
                 if enemy.consume_shoot():
                     self._try_shoot(enemy)
+
+        # Engine sound: plays when any tank is moving
+        any_moving = self.player_tank.is_moving or any(
+            e.is_moving for e in self.spawn_manager.enemy_tanks
+        )
+        self.sound_manager.update_engine(any_moving)
 
         # Update all bullets
         for bullet in self.bullets:
@@ -374,13 +385,17 @@ class GameManager:
         if collected is not None:
             self._apply_power_up(collected)
 
+        # Powerup blink sound: plays when any powerup is active
+        self.sound_manager.update_powerup_blink(
+            bool(self.power_up_manager.get_power_ups())
+        )
+
         self.effect_manager.update(dt)
 
         if self.state == GameState.RUNNING:
             if self.spawn_manager.all_enemies_defeated():
                 logger.info("All enemies defeated. Victory!")
-                self.state = GameState.VICTORY
-                self._state_timer = 0.0
+                self._set_game_state(GameState.VICTORY)
 
     def _try_shoot(self, tank) -> None:
         """Attempt to fire a bullet for the given tank, respecting max_bullets."""
@@ -392,11 +407,18 @@ class GameManager:
                 self.sound_manager.play_shoot()
 
     def _set_game_state(self, state: GameState) -> None:
-        """Set the game state. Intercepts GAME_OVER to play rising text animation."""
+        """Set the game state with sound management."""
         if state == GameState.GAME_OVER:
+            self.sound_manager.stop_loops()
             self.state = GameState.GAME_OVER_ANIMATION
             self._state_timer = 0.0
             self.sound_manager.play_game_over()
+            return
+        if state == GameState.VICTORY:
+            self.sound_manager.stop_loops()
+            self.state = GameState.VICTORY
+            self._state_timer = 0.0
+            self.sound_manager.play_victory()
             return
         self.state = state
 
@@ -568,4 +590,5 @@ class GameManager:
     def _quit_game(self) -> None:
         """Cleanly exit the game."""
         logger.info("Setting game state to EXIT.")
+        self.sound_manager.stop_loops()
         self.state = GameState.EXIT
