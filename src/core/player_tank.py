@@ -52,7 +52,6 @@ class PlayerTank(Tank):
             map_height_px=map_height_px,
         )
         self.initial_position = (self.x, self.y)
-        self.invincibility_duration = SPAWN_INVINCIBILITY_DURATION
         self.star_level: int = 0
         self._update_sprite()
         self._shield_frames: list[pygame.Surface] = [
@@ -80,14 +79,9 @@ class PlayerTank(Tank):
         self.power_bullets = self.star_level >= 3
 
     @property
-    def is_shield_active(self) -> bool:
-        """Whether the shield overlay should render."""
-        return self.is_invincible
-
-    @property
-    def _shield_flicker_interval(self) -> float:
+    def shield_flicker_interval(self) -> float:
         """Current shield flicker speed — faster during warning phase."""
-        if self.invincibility_duration > SHIELD_WARNING_DURATION:
+        if self.invincibility_duration >= SHIELD_WARNING_DURATION:
             remaining = self.invincibility_duration - self.invincibility_timer
             if remaining <= SHIELD_WARNING_DURATION:
                 return SHIELD_FAST_FLICKER_INTERVAL
@@ -163,10 +157,10 @@ class PlayerTank(Tank):
 
     def draw(self, surface: pygame.Surface) -> None:
         """Draw the player tank with shield overlay when invincible."""
-        if self.is_shield_active:
+        if self.is_invincible:
             if self.sprite:
                 surface.blit(self.sprite, self.rect)
-            interval = self._shield_flicker_interval
+            interval = self.shield_flicker_interval
             frame_idx = int(
                 self.invincibility_timer % (interval * 2) >= interval
             )

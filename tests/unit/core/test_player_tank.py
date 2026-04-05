@@ -37,7 +37,6 @@ class TestPlayerTank:
         assert player_tank.initial_position == (0, 0)
         assert player_tank.lives == 3
         assert player_tank.health == 1
-        assert player_tank.invincibility_duration == SPAWN_INVINCIBILITY_DURATION
         assert not player_tank.is_invincible
 
     def test_player_tank_no_input_handler(self, player_tank):
@@ -295,23 +294,23 @@ class TestShieldAnimation:
             map_width_px=16 * TILE_SIZE, map_height_px=16 * TILE_SIZE,
         )
 
-    def test_is_shield_active_false_when_not_invincible(self, player_tank):
-        assert player_tank.is_shield_active is False
+    def test_is_invincible_false_when_not_invincible(self, player_tank):
+        assert player_tank.is_invincible is False
 
-    def test_is_shield_active_true_when_invincible(self, player_tank):
+    def test_is_invincible_true_when_invincible(self, player_tank):
         player_tank.activate_invincibility(10.0)
-        assert player_tank.is_shield_active is True
+        assert player_tank.is_invincible is True
 
-    def test_is_shield_active_true_during_warning_phase(self, player_tank):
+    def test_is_invincible_true_during_warning_phase(self, player_tank):
         """Shield stays active during warning — just flickers faster."""
         player_tank.activate_invincibility(10.0)
         player_tank.invincibility_timer = 8.5
-        assert player_tank.is_shield_active is True
+        assert player_tank.is_invincible is True
 
-    def test_is_shield_active_true_entire_short_duration(self, player_tank):
+    def test_is_invincible_true_entire_short_duration(self, player_tank):
         player_tank.activate_invincibility(1.5)
         player_tank.invincibility_timer = 1.0
-        assert player_tank.is_shield_active is True
+        assert player_tank.is_invincible is True
 
     def test_shield_frames_cached_at_init(self, player_tank):
         assert len(player_tank._shield_frames) == 2
@@ -347,17 +346,17 @@ class TestShieldAnimation:
     def test_shield_uses_normal_flicker_before_warning(self, player_tank):
         player_tank.activate_invincibility(10.0)
         player_tank.invincibility_timer = 2.0  # 8s remaining, well before warning
-        assert player_tank._shield_flicker_interval == SHIELD_FLICKER_INTERVAL
+        assert player_tank.shield_flicker_interval == SHIELD_FLICKER_INTERVAL
 
     def test_shield_uses_fast_flicker_during_warning(self, player_tank):
         from src.utils.constants import SHIELD_FAST_FLICKER_INTERVAL
 
         player_tank.activate_invincibility(10.0)
         player_tank.invincibility_timer = 8.5  # 1.5s remaining, in warning phase
-        assert player_tank._shield_flicker_interval == SHIELD_FAST_FLICKER_INTERVAL
+        assert player_tank.shield_flicker_interval == SHIELD_FAST_FLICKER_INTERVAL
 
     def test_shield_uses_normal_flicker_for_short_duration(self, player_tank):
         """Short invincibility (< warning) uses normal speed the whole time."""
         player_tank.activate_invincibility(1.5)
         player_tank.invincibility_timer = 1.0
-        assert player_tank._shield_flicker_interval == SHIELD_FLICKER_INTERVAL
+        assert player_tank.shield_flicker_interval == SHIELD_FLICKER_INTERVAL
