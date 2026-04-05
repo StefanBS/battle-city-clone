@@ -134,6 +134,13 @@ class TestGameManager:
         game_manager.handle_events()
         assert game_manager.state == initial_state
 
+    def test_restart_after_game_over_resets_lives(self, game_manager):
+        """Test that restarting after game over restores default lives."""
+        game_manager.player_tank.lives = 0
+        game_manager.state = GameState.GAME_OVER
+        game_manager._reset_game()
+        assert game_manager.player_tank.lives == 3
+
     # --- Game State Tests --- #
 
     def test_current_stage_initialized(self, game_manager):

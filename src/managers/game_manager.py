@@ -85,6 +85,8 @@ class GameManager:
         self.current_stage = 1
         self.score = 0
         self._state_timer = 0.0
+        if hasattr(self, "player_tank"):
+            del self.player_tank
         self._load_stage()
 
     @property
