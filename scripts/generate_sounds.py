@@ -12,7 +12,9 @@ import wave
 
 SAMPLE_RATE = 22050
 MAX_AMPLITUDE = 32767
-OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "sounds")
+OUTPUT_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)), "assets", "sounds"
+)
 
 
 def write_wav(filename: str, samples: list[float]) -> None:
@@ -22,7 +24,10 @@ def write_wav(filename: str, samples: list[float]) -> None:
         wf.setnchannels(1)
         wf.setsampwidth(2)  # 16-bit
         wf.setframerate(SAMPLE_RATE)
-        packed = struct.pack(f"<{len(samples)}h", *(int(s * MAX_AMPLITUDE) for s in samples))
+        packed = struct.pack(
+            f"<{len(samples)}h",
+            *(int(s * MAX_AMPLITUDE) for s in samples),
+        )
         wf.writeframes(packed)
     print(f"  wrote {path} ({len(samples)} samples, {len(samples) / SAMPLE_RATE:.3f}s)")
 
