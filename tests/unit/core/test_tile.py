@@ -79,7 +79,8 @@ class TestTileDraw:
         tmx_sprite = MagicMock(spec=pygame.Surface)
         tile = Tile(TileType.BRICK, 2, 3, tmx_sprite=tmx_sprite)
         tile.draw(mock_surface, mock_tm)
-        mock_surface.blit.assert_called_once_with(tmx_sprite, tile.rect.topleft)
+        expected_pos = (2 * SUB_TILE_SIZE, 3 * SUB_TILE_SIZE)
+        mock_surface.blit.assert_called_once_with(tmx_sprite, expected_pos)
 
     def test_draw_fallback_uses_type_sprite(self, mock_surface, mock_tm):
         """Tile without TMX sprite falls back to type-based sub-sprite."""

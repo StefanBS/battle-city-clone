@@ -99,11 +99,13 @@ def test_player_bullet_vs_tile(
         f"Tile type mismatch for {tile_to_place.name}. "
         f"Expected: {expected_tile_type.name}, Got: {final_tile.type.name}"
     )
-    # For brick: verify it was damaged (no longer full variant)
-    if tile_to_place == TileType.BRICK and final_tile.type == TileType.BRICK:
-        assert final_tile.brick_variant != "full", (
-            "Brick should be damaged (not full) after being hit."
+    # For brick: verify it was damaged or destroyed
+    if tile_to_place == TileType.BRICK:
+        damaged = (
+            final_tile.type == TileType.EMPTY
+            or final_tile.brick_variant != "full"
         )
+        assert damaged, "Brick should be damaged or destroyed after being hit."
 
 
 def _clear_tiles(game_map, positions):

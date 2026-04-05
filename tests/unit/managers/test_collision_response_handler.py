@@ -185,13 +185,10 @@ class TestBulletVsPlayer:
 
 
 class TestBulletVsTile:
-    """Brick quadrant destruction tests (4x4 segment model).
-
-    Each 32x32 brick = 4 sub-tiles (16x16, 2x2 grid).
-    Each sub-tile has 4 quadrants (8x8, 2x2 grid) = 16 segments total.
+    """Bullet-vs-tile collision tests.
 
     Each tile is an 8x8 unit rendered at SUB_TILE_SIZE (16x16).
-    Brick tiles are destroyed as whole tiles when hit by a bullet.
+    Full bricks become half-bricks on first hit, then destroyed on second.
     """
 
     def test_bullet_damages_brick(self, handler, mock_map):
@@ -223,6 +220,7 @@ class TestBulletVsTile:
         handler.process_collisions([(bullet, tile)])
         assert not bullet.active
         mock_map.destroy_base.assert_called_once()
+        handler._set_game_state.assert_called_with(GameState.GAME_OVER)
 
     # -- Non-brick tiles --
 
