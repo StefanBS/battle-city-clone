@@ -198,9 +198,9 @@ def generate_ice_slide() -> None:
 def generate_powerup_spawn() -> None:
     """Short blip + silence for looping blink sound.
 
-    Total duration = POWERUP_BLINK_INTERVAL * 2 = 0.3s.
+    Total duration = 1.0s so the blip repeats once per second.
     """
-    total_duration = 0.3
+    total_duration = 1.0
     blip_duration = 0.05
     blip_samples = int(SAMPLE_RATE * blip_duration)
     total_samples = int(SAMPLE_RATE * total_duration)
