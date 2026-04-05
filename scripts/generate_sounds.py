@@ -134,40 +134,35 @@ def generate_bullet_hit_bullet() -> None:
     write_wav("bullet_hit_bullet.wav", samples)
 
 
-def generate_stage_start() -> None:
-    """Ascending 4-note fanfare (C4-E4-G4-C5), ~2.0s."""
-    note_duration = 0.4
-    gap_duration = 0.04
+def _generate_fanfare(
+    filename: str,
+    freqs: list[float],
+    note_duration: float = 0.4,
+    gap_duration: float = 0.04,
+    fade: float = 0.3,
+) -> None:
+    """Generate a multi-note square wave fanfare."""
     note_samples = int(SAMPLE_RATE * note_duration)
     gap_samples = int(SAMPLE_RATE * gap_duration)
-    freqs = [261.6, 329.6, 392.0, 523.3]  # C4, E4, G4, C5
     samples = []
     for freq in freqs:
         for i in range(note_samples):
             t = i / SAMPLE_RATE
             progress = i / note_samples
-            amplitude = 1.0 - progress * 0.3
+            amplitude = 1.0 - progress * fade
             samples.append(square_wave(freq, t) * amplitude)
         samples.extend([0.0] * gap_samples)
-    write_wav("stage_start.wav", samples)
+    write_wav(filename, samples)
+
+
+def generate_stage_start() -> None:
+    """Ascending 4-note fanfare (C4-E4-G4-C5), ~2.0s."""
+    _generate_fanfare("stage_start.wav", [261.6, 329.6, 392.0, 523.3])
 
 
 def generate_victory() -> None:
     """Triumphant 3-note ascending chord (G4-B4-D5), ~1.5s."""
-    note_duration = 0.4
-    gap_duration = 0.04
-    note_samples = int(SAMPLE_RATE * note_duration)
-    gap_samples = int(SAMPLE_RATE * gap_duration)
-    freqs = [392.0, 493.9, 587.3]  # G4, B4, D5
-    samples = []
-    for freq in freqs:
-        for i in range(note_samples):
-            t = i / SAMPLE_RATE
-            progress = i / note_samples
-            amplitude = 1.0 - progress * 0.3
-            samples.append(square_wave(freq, t) * amplitude)
-        samples.extend([0.0] * gap_samples)
-    write_wav("victory.wav", samples)
+    _generate_fanfare("victory.wav", [392.0, 493.9, 587.3])
 
 
 def generate_menu_select() -> None:

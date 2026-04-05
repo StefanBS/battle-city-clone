@@ -177,8 +177,7 @@ class CollisionResponseHandler:
                     float(player.rect.centerx),
                     float(player.rect.centery),
                 )
-                if self._sound_manager:
-                    self._sound_manager.play_explosion()
+                self._play_sound("play_explosion")
                 self._set_game_state(GameState.GAME_OVER)
             else:
                 player.respawn()

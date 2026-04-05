@@ -360,6 +360,8 @@ class GameManager:
             b for b in self.bullets if b.owner_type == OwnerType.ENEMY and b.active
         ]
 
+        active_power_ups = self.power_up_manager.get_power_ups()
+
         self.collision_manager.check_collisions(
             player_tank=self.player_tank,
             player_bullets=player_bullets,
@@ -368,7 +370,7 @@ class GameManager:
             destructible_tiles=destructible_tiles,
             impassable_tiles=impassable_tiles,
             player_base=player_base,
-            power_ups=self.power_up_manager.get_power_ups(),
+            power_ups=active_power_ups,
         )
 
         events = self.collision_manager.get_collision_events()
@@ -386,9 +388,7 @@ class GameManager:
             self._apply_power_up(collected)
 
         # Powerup blink sound: plays when any powerup is active
-        self.sound_manager.update_powerup_blink(
-            bool(self.power_up_manager.get_power_ups())
-        )
+        self.sound_manager.update_powerup_blink(bool(active_power_ups))
 
         self.effect_manager.update(dt)
 
