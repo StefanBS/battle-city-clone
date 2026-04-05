@@ -103,6 +103,117 @@ def generate_game_over() -> None:
     write_wav("game_over.wav", samples)
 
 
+def generate_engine() -> None:
+    """Low-frequency square wave buzz for tank engine, ~0.3s seamless loop."""
+    duration = 0.3
+    num_samples = int(SAMPLE_RATE * duration)
+    samples = []
+    for i in range(num_samples):
+        t = i / SAMPLE_RATE
+        freq = 70 + 10 * math.sin(2 * math.pi * 3 * t)
+        amplitude = 0.6
+        samples.append(square_wave(freq, t) * amplitude)
+    write_wav("engine.wav", samples)
+
+
+def generate_bullet_hit_bullet() -> None:
+    """Short metallic ping, ~0.05s."""
+    duration = 0.05
+    num_samples = int(SAMPLE_RATE * duration)
+    samples = []
+    for i in range(num_samples):
+        t = i / SAMPLE_RATE
+        progress = i / num_samples
+        decay = math.exp(-progress * 12)
+        samples.append(square_wave(1200, t) * decay)
+    write_wav("bullet_hit_bullet.wav", samples)
+
+
+def generate_stage_start() -> None:
+    """Ascending 4-note fanfare (C4-E4-G4-C5), ~2.0s."""
+    note_duration = 0.4
+    gap_duration = 0.04
+    note_samples = int(SAMPLE_RATE * note_duration)
+    gap_samples = int(SAMPLE_RATE * gap_duration)
+    freqs = [261.6, 329.6, 392.0, 523.3]  # C4, E4, G4, C5
+    samples = []
+    for freq in freqs:
+        for i in range(note_samples):
+            t = i / SAMPLE_RATE
+            progress = i / note_samples
+            amplitude = 1.0 - progress * 0.3
+            samples.append(square_wave(freq, t) * amplitude)
+        samples.extend([0.0] * gap_samples)
+    write_wav("stage_start.wav", samples)
+
+
+def generate_victory() -> None:
+    """Triumphant 3-note ascending chord (G4-B4-D5), ~1.5s."""
+    note_duration = 0.4
+    gap_duration = 0.04
+    note_samples = int(SAMPLE_RATE * note_duration)
+    gap_samples = int(SAMPLE_RATE * gap_duration)
+    freqs = [392.0, 493.9, 587.3]  # G4, B4, D5
+    samples = []
+    for freq in freqs:
+        for i in range(note_samples):
+            t = i / SAMPLE_RATE
+            progress = i / note_samples
+            amplitude = 1.0 - progress * 0.3
+            samples.append(square_wave(freq, t) * amplitude)
+        samples.extend([0.0] * gap_samples)
+    write_wav("victory.wav", samples)
+
+
+def generate_menu_select() -> None:
+    """Quick tick/blip, ~0.03s."""
+    duration = 0.03
+    num_samples = int(SAMPLE_RATE * duration)
+    samples = []
+    for i in range(num_samples):
+        t = i / SAMPLE_RATE
+        progress = i / num_samples
+        amplitude = 1.0 - progress * 0.5
+        samples.append(square_wave(800, t) * amplitude)
+    write_wav("menu_select.wav", samples)
+
+
+def generate_ice_slide() -> None:
+    """White noise burst with decay, lower freq than brick_hit, ~0.15s."""
+    duration = 0.15
+    num_samples = int(SAMPLE_RATE * duration)
+    samples = []
+    rng = random.Random(99)
+    for i in range(num_samples):
+        progress = i / num_samples
+        decay = math.exp(-progress * 6)
+        noise = rng.uniform(-1.0, 1.0)
+        raw = noise * decay
+        if samples:
+            raw = 0.6 * raw + 0.4 * samples[-1]
+        samples.append(raw)
+    write_wav("ice_slide.wav", samples)
+
+
+def generate_powerup_spawn() -> None:
+    """Short blip + silence for looping blink sound.
+
+    Total duration = POWERUP_BLINK_INTERVAL * 2 = 0.3s.
+    """
+    total_duration = 0.3
+    blip_duration = 0.05
+    blip_samples = int(SAMPLE_RATE * blip_duration)
+    total_samples = int(SAMPLE_RATE * total_duration)
+    samples = []
+    for i in range(blip_samples):
+        t = i / SAMPLE_RATE
+        progress = i / blip_samples
+        amplitude = 1.0 - progress * 0.5
+        samples.append(square_wave(1000, t) * amplitude)
+    samples.extend([0.0] * (total_samples - blip_samples))
+    write_wav("powerup_spawn.wav", samples)
+
+
 def main() -> None:
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     print(f"Generating sounds in {OUTPUT_DIR}/")
@@ -111,6 +222,13 @@ def main() -> None:
     generate_explosion()
     generate_powerup()
     generate_game_over()
+    generate_engine()
+    generate_bullet_hit_bullet()
+    generate_stage_start()
+    generate_victory()
+    generate_menu_select()
+    generate_ice_slide()
+    generate_powerup_spawn()
     print("Done.")
 
 
