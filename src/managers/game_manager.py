@@ -299,15 +299,20 @@ class GameManager:
 
         # Drive player tank from input
         dx, dy = self.input_handler.get_movement_direction()
-        if dx != 0 or dy != 0:
+        # Effective direction: only valid for single-axis input (no diagonal)
+        has_valid_input = (dx != 0 or dy != 0) and not (dx != 0 and dy != 0)
+        if has_valid_input:
             self.player_tank.move(dx, dy, dt)
         if self.input_handler.consume_shoot():
             self._try_shoot(self.player_tank)
 
-        # Ice detection and slide trigger for player
+        # Ice slide: trigger when player stops or changes direction on ice
         self.player_tank._on_ice = self._is_on_ice(self.player_tank)
-        if dx == 0 and dy == 0 and self.player_tank._on_ice:
-            self.player_tank.start_slide()
+        if self.player_tank._on_ice and not self.player_tank._sliding:
+            if not has_valid_input:
+                self.player_tank.start_slide()
+            elif (dx, dy) != self.player_tank.direction.delta:
+                self.player_tank.start_slide()
 
         if self.freeze_timer > 0:
             self.freeze_timer -= dt
