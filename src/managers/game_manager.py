@@ -180,6 +180,9 @@ class GameManager:
         self._shovel_flash_timer: float = 0.0
         self._shovel_flash_showing_steel: bool = True
 
+        # Grant spawn invincibility
+        self.player_tank.activate_invincibility(3.0)
+
         # Restore player progress
         self.player_tank.lives = player_lives
         if player_star_level > 0:

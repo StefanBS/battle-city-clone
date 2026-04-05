@@ -84,6 +84,9 @@ def test_player_game_over_on_zero_lives():
     # Set lives to 1 to guarantee game over on next death
     player_tank.lives = 1
 
+    # Disable spawn invincibility so damage can land
+    player_tank.is_invincible = False
+
     # Assert initial game state is RUNNING
     assert game_manager.state == GameState.RUNNING, (
         "Game should start in RUNNING state."
