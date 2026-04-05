@@ -133,33 +133,32 @@ class TestPlayerTank:
 
         mock_surface.blit.assert_not_called()
 
-    def test_draw_invincible_visible_phase(self, player_tank):
-        """Test drawing when invincible during the visible phase of blinking."""
+    def test_draw_invincible_shows_tank_and_shield(self, player_tank):
+        """Test drawing when invincible always shows tank + shield (no blink)."""
         mock_surface = MagicMock(spec=pygame.Surface)
         mock_sprite = MagicMock(spec=pygame.Surface)
         player_tank.is_invincible = True
-        # Put timer in warning phase so shield is inactive and blink logic runs
-        player_tank.invincibility_timer = player_tank.invincibility_duration - 1.0
-        player_tank.blink_timer = player_tank.blink_interval * 0.5
+        player_tank.invincibility_timer = 0.0
         player_tank.sprite = mock_sprite
 
         player_tank.draw(mock_surface)
 
-        mock_surface.blit.assert_called_once_with(mock_sprite, player_tank.rect)
+        # Tank sprite + shield overlay = 2 blits
+        assert mock_surface.blit.call_count == 2
 
-    def test_draw_invincible_invisible_phase(self, player_tank):
-        """Test drawing when invincible during the invisible phase of blinking."""
+    def test_draw_invincible_never_blinks(self, player_tank):
+        """Test that invincible tank is always visible (shield replaces blink)."""
         mock_surface = MagicMock(spec=pygame.Surface)
         mock_sprite = MagicMock(spec=pygame.Surface)
         player_tank.is_invincible = True
-        # Put timer in warning phase so shield is inactive and blink logic runs
-        player_tank.invincibility_timer = player_tank.invincibility_duration - 1.0
+        # Even in what would be the "invisible" blink phase, tank is drawn
         player_tank.blink_timer = player_tank.blink_interval * 1.5
         player_tank.sprite = mock_sprite
 
         player_tank.draw(mock_surface)
 
-        mock_surface.blit.assert_not_called()
+        # Tank is always drawn when invincible (shield replaces blink)
+        assert mock_surface.blit.call_count == 2
 
     def test_respawn_syncs_rect(self, player_tank):
         """Test that respawn() updates rect to match the new position."""
@@ -299,21 +298,17 @@ class TestShieldAnimation:
     def test_is_shield_active_false_when_not_invincible(self, player_tank):
         assert player_tank.is_shield_active is False
 
-    def test_is_shield_active_true_at_start_of_invincibility(self, player_tank):
+    def test_is_shield_active_true_when_invincible(self, player_tank):
         player_tank.activate_invincibility(10.0)
         assert player_tank.is_shield_active is True
 
-    def test_is_shield_active_false_during_warning_phase(self, player_tank):
+    def test_is_shield_active_true_during_warning_phase(self, player_tank):
+        """Shield stays active during warning — just flickers faster."""
         player_tank.activate_invincibility(10.0)
         player_tank.invincibility_timer = 8.5
-        assert player_tank.is_shield_active is False
-
-    def test_is_shield_active_true_just_before_warning(self, player_tank):
-        player_tank.activate_invincibility(10.0)
-        player_tank.invincibility_timer = 7.5
         assert player_tank.is_shield_active is True
 
-    def test_is_shield_active_true_entire_duration_when_short(self, player_tank):
+    def test_is_shield_active_true_entire_short_duration(self, player_tank):
         player_tank.activate_invincibility(1.5)
         player_tank.invincibility_timer = 1.0
         assert player_tank.is_shield_active is True
@@ -321,14 +316,14 @@ class TestShieldAnimation:
     def test_shield_frames_cached_at_init(self, player_tank):
         assert len(player_tank._shield_frames) == 2
 
-    def test_draw_blits_shield_when_active(self, player_tank):
+    def test_draw_blits_shield_when_invincible(self, player_tank):
         player_tank.activate_invincibility(10.0)
         player_tank.sprite = MagicMock()
         mock_surface = MagicMock()
         player_tank.draw(mock_surface)
         assert mock_surface.blit.call_count == 2
 
-    def test_draw_delegates_to_super_when_shield_inactive(self, player_tank):
+    def test_draw_delegates_to_super_when_not_invincible(self, player_tank):
         player_tank.sprite = MagicMock()
         mock_surface = MagicMock()
         player_tank.draw(mock_surface)
@@ -336,7 +331,6 @@ class TestShieldAnimation:
 
     def test_shield_frame_alternates_with_timer(self, player_tank):
         player_tank.activate_invincibility(10.0)
-        # First half of flicker cycle: frame 0
         player_tank.invincibility_timer = SHIELD_FLICKER_INTERVAL * 0.5
         player_tank.sprite = MagicMock()
         surface = MagicMock()
@@ -344,9 +338,26 @@ class TestShieldAnimation:
         first_shield = surface.blit.call_args_list[1][0][0]
 
         surface.reset_mock()
-        # Second half of flicker cycle: frame 1
         player_tank.invincibility_timer = SHIELD_FLICKER_INTERVAL * 1.5
         player_tank.draw(surface)
         second_shield = surface.blit.call_args_list[1][0][0]
 
         assert first_shield != second_shield
+
+    def test_shield_uses_normal_flicker_before_warning(self, player_tank):
+        player_tank.activate_invincibility(10.0)
+        player_tank.invincibility_timer = 2.0  # 8s remaining, well before warning
+        assert player_tank._shield_flicker_interval == SHIELD_FLICKER_INTERVAL
+
+    def test_shield_uses_fast_flicker_during_warning(self, player_tank):
+        from src.utils.constants import SHIELD_FAST_FLICKER_INTERVAL
+
+        player_tank.activate_invincibility(10.0)
+        player_tank.invincibility_timer = 8.5  # 1.5s remaining, in warning phase
+        assert player_tank._shield_flicker_interval == SHIELD_FAST_FLICKER_INTERVAL
+
+    def test_shield_uses_normal_flicker_for_short_duration(self, player_tank):
+        """Short invincibility (< warning) uses normal speed the whole time."""
+        player_tank.activate_invincibility(1.5)
+        player_tank.invincibility_timer = 1.0
+        assert player_tank._shield_flicker_interval == SHIELD_FLICKER_INTERVAL

@@ -1,6 +1,9 @@
 """Integration tests for player shield animation with real game objects."""
 
-from src.utils.constants import FPS
+from src.utils.constants import (
+    FPS,
+    SHIELD_FAST_FLICKER_INTERVAL,
+)
 
 
 class TestShieldIntegration:
@@ -10,12 +13,15 @@ class TestShieldIntegration:
         assert gm.player_tank.is_invincible
         assert gm.player_tank.is_shield_active
 
-    def test_shield_deactivates_during_warning(self, game_manager_fixture):
-        """Shield deactivates when remaining time <= warning duration."""
+    def test_shield_stays_active_during_warning_phase(self, game_manager_fixture):
+        """Shield remains active in warning phase but flickers faster."""
         gm = game_manager_fixture
-        # 3s duration - 2s warning = 1s shield. At 1.5s, only 1.5s remain < 2s warning
+        # 3s duration, at 1.5s elapsed → 1.5s remaining (in warning phase)
         gm.player_tank.invincibility_timer = 1.5
-        assert gm.player_tank.is_shield_active is False
+        assert gm.player_tank.is_shield_active is True
+        assert (
+            gm.player_tank._shield_flicker_interval == SHIELD_FAST_FLICKER_INTERVAL
+        )
 
     def test_draw_with_shield_does_not_raise(self, game_manager_fixture):
         """Verify draw() works during shield phase."""

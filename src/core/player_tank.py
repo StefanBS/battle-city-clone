@@ -11,6 +11,7 @@ from src.utils.constants import (
     STAR_MAX_BULLETS,
     SHIELD_WARNING_DURATION,
     SHIELD_FLICKER_INTERVAL,
+    SHIELD_FAST_FLICKER_INTERVAL,
 )
 
 
@@ -81,12 +82,16 @@ class PlayerTank(Tank):
     @property
     def is_shield_active(self) -> bool:
         """Whether the shield overlay should render."""
-        if not self.is_invincible:
-            return False
-        if self.invincibility_duration <= SHIELD_WARNING_DURATION:
-            return True
-        remaining = self.invincibility_duration - self.invincibility_timer
-        return remaining > SHIELD_WARNING_DURATION
+        return self.is_invincible
+
+    @property
+    def _shield_flicker_interval(self) -> float:
+        """Current shield flicker speed — faster during warning phase."""
+        if self.invincibility_duration > SHIELD_WARNING_DURATION:
+            remaining = self.invincibility_duration - self.invincibility_timer
+            if remaining <= SHIELD_WARNING_DURATION:
+                return SHIELD_FAST_FLICKER_INTERVAL
+        return SHIELD_FLICKER_INTERVAL
 
     def _update_sprite(self) -> None:
         """Update sprite using tier-specific sprites when upgraded."""
@@ -157,13 +162,13 @@ class PlayerTank(Tank):
             self._update_sprite()
 
     def draw(self, surface: pygame.Surface) -> None:
-        """Draw the player tank with shield overlay when active."""
+        """Draw the player tank with shield overlay when invincible."""
         if self.is_shield_active:
             if self.sprite:
                 surface.blit(self.sprite, self.rect)
+            interval = self._shield_flicker_interval
             frame_idx = int(
-                self.invincibility_timer % (SHIELD_FLICKER_INTERVAL * 2)
-                >= SHIELD_FLICKER_INTERVAL
+                self.invincibility_timer % (interval * 2) >= interval
             )
             surface.blit(self._shield_frames[frame_idx], self.rect)
         else:
