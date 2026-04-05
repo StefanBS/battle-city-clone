@@ -248,9 +248,14 @@ class Map:
         """
         self._damage_single_brick(tile, bullet_direction)
 
-        # Check all 4 adjacent tiles — the bullet may straddle
-        # two tiles in any direction
-        for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+        # Check adjacent tiles PERPENDICULAR to bullet direction.
+        # The bullet may straddle two tiles across its narrow axis.
+        if bullet_direction in ("left", "right"):
+            offsets = [(0, -1), (0, 1)]  # above and below
+        else:
+            offsets = [(-1, 0), (1, 0)]  # left and right
+
+        for dx, dy in offsets:
             adj = self.get_tile_at(tile.x + dx, tile.y + dy)
             if (
                 adj

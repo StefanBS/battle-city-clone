@@ -101,8 +101,9 @@ class Tile:
             return
 
         # Fast path: non-animated tile with TMX sprite (most common)
+        # Draw at grid position (not rect.topleft, which may be offset for half-bricks)
         if self.tmx_sprite is not None and not self.is_animated:
-            surface.blit(self.tmx_sprite, self.rect.topleft)
+            surface.blit(self.tmx_sprite, (self.x * self.size, self.y * self.size))
             return
 
         # Animated tiles: use TMX animation sprites if available
