@@ -89,6 +89,8 @@ class Tank(GameObject):
         self._sliding: bool = False
         self._slide_direction: Direction = Direction.UP
         self._slide_remaining: float = 0.0
+        self._was_moving: bool = False
+        self._moving_this_frame: bool = False
 
     def _update_sprite(self) -> None:
         """Updates the tank's sprite based on direction and animation frame."""
@@ -181,6 +183,8 @@ class Tank(GameObject):
         # Store position before any potential movement this frame
         self.prev_x = self.x
         self.prev_y = self.y
+        self._was_moving = self._moving_this_frame
+        self._moving_this_frame = False
 
         # Update invincibility timer
         if self.is_invincible:
@@ -227,7 +231,7 @@ class Tank(GameObject):
 
     def start_slide(self) -> None:
         """Begin sliding on ice in the current direction."""
-        if not self._on_ice or self._sliding:
+        if not self._on_ice or self._sliding or not self._was_moving:
             return
         self._sliding = True
         self._slide_direction = self.direction
@@ -299,6 +303,7 @@ class Tank(GameObject):
         # Update rect immediately after position change
         self.rect.topleft = (round(self.x), round(self.y))
 
+        self._moving_this_frame = True
         return True  # Movement was attempted
 
     def revert_move(self, obstacle_rect: Optional[pygame.Rect] = None) -> None:

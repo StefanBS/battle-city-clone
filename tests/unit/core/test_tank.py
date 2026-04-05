@@ -339,6 +339,7 @@ class TestIceSlide:
     def test_start_slide_when_on_ice(self, tank):
         tank._on_ice = True
         tank.direction = Direction.RIGHT
+        tank._was_moving = True
         tank.start_slide()
         assert tank._sliding is True
         assert tank._slide_direction == Direction.RIGHT
@@ -346,11 +347,19 @@ class TestIceSlide:
 
     def test_start_slide_ignored_when_not_on_ice(self, tank):
         tank._on_ice = False
+        tank._was_moving = True
+        tank.start_slide()
+        assert tank._sliding is False
+
+    def test_start_slide_ignored_when_not_moving(self, tank):
+        tank._on_ice = True
+        tank._was_moving = False
         tank.start_slide()
         assert tank._sliding is False
 
     def test_start_slide_ignored_when_already_sliding(self, tank):
         tank._on_ice = True
+        tank._was_moving = True
         tank.direction = Direction.RIGHT
         tank.start_slide()
         tank._slide_remaining = 10.0
@@ -361,6 +370,7 @@ class TestIceSlide:
 
     def test_slide_moves_tank(self, tank):
         tank._on_ice = True
+        tank._was_moving = True
         tank.direction = Direction.RIGHT
         tank.start_slide()
         old_x = tank.x
@@ -371,6 +381,7 @@ class TestIceSlide:
 
     def test_slide_stops_when_distance_exhausted(self, tank):
         tank._on_ice = True
+        tank._was_moving = True
         tank.direction = Direction.RIGHT
         tank.start_slide()
         dt = 1.0 / 60
@@ -381,6 +392,7 @@ class TestIceSlide:
 
     def test_on_movement_blocked_cancels_slide(self, tank):
         tank._on_ice = True
+        tank._was_moving = True
         tank.direction = Direction.RIGHT
         tank.start_slide()
         tank.on_movement_blocked()

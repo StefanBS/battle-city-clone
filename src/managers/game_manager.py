@@ -309,7 +309,7 @@ class GameManager:
             elif (dx, dy) != self.player_tank.direction.delta:
                 self.player_tank.start_slide()
 
-        if has_valid_input:
+        if has_valid_input and not self.player_tank._sliding:
             self.player_tank.move(dx, dy, dt)
         if self.input_handler.consume_shoot():
             self._try_shoot(self.player_tank)

@@ -351,6 +351,7 @@ class TestEnemyIceSlide:
 
     def test_direction_change_triggers_slide_on_ice(self, enemy):
         enemy._on_ice = True
+        enemy._was_moving = True
         enemy.direction = Direction.RIGHT
         old_direction = enemy.direction
         with patch("src.core.enemy_tank.random.choice", return_value=Direction.UP):
@@ -367,6 +368,7 @@ class TestEnemyIceSlide:
 
     def test_on_movement_blocked_cancels_slide(self, enemy):
         enemy._on_ice = True
+        enemy._was_moving = True
         enemy.direction = Direction.RIGHT
         enemy.start_slide()
         enemy.on_movement_blocked()
