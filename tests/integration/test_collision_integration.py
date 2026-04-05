@@ -561,7 +561,7 @@ def test_player_tank_vs_enemy_tank_no_overlap(game_manager_fixture, mocker):
         map_height_px=map_h_px,
     )
     # Make enemy stationary so only the player drives into it
-    enemy_tank.direction = Direction.DOWN
+    enemy_tank.speed = 0
     enemy_tank.direction_change_interval = 999
     enemy_tank.shoot_interval = 999
     game_manager.spawn_manager.enemy_tanks = [enemy_tank]

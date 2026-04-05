@@ -8,6 +8,7 @@ from src.utils.constants import (
     TankType,
     TANK_SPEED,
     BULLET_SPEED,
+    STAR_BULLET_SPEED_MULTIPLIER,
     CARRIER_BLINK_INTERVAL,
 )
 from src.managers.texture_manager import TextureManager
@@ -27,7 +28,7 @@ class EnemyTank(Tank):
 
     TANK_PROPERTIES: Dict[TankType, TankPropertyDict] = {
         TankType.BASIC: {
-            "speed": TANK_SPEED * 0.75,
+            "speed": TANK_SPEED,
             "bullet_speed": BULLET_SPEED,
             "health": 1,
             "shoot_interval": 2.0,
@@ -41,15 +42,15 @@ class EnemyTank(Tank):
             "direction_change_interval": 1.5,
         },
         TankType.POWER: {
-            "speed": TANK_SPEED,
-            "bullet_speed": BULLET_SPEED * 1.5,
+            "speed": TANK_SPEED * 1.15,
+            "bullet_speed": BULLET_SPEED * STAR_BULLET_SPEED_MULTIPLIER,
             "health": 1,
             "shoot_interval": 1.0,
             "direction_change_interval": 2.0,
         },
         TankType.ARMOR: {
-            "speed": TANK_SPEED,
-            "bullet_speed": BULLET_SPEED,
+            "speed": TANK_SPEED * 0.75,
+            "bullet_speed": BULLET_SPEED * STAR_BULLET_SPEED_MULTIPLIER,
             "health": 4,
             "shoot_interval": 1.5,
             "direction_change_interval": 2.0,
@@ -97,6 +98,7 @@ class EnemyTank(Tank):
             map_height_px=map_height_px,
         )
         self.tank_type = tank_type
+        self.power_bullets = tank_type == TankType.ARMOR
         self.direction = random.choice(list(Direction))
         self.direction_timer: float = 0
         self.direction_change_interval: float = props["direction_change_interval"]
