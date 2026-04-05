@@ -181,15 +181,15 @@ class GameManager:
         self._shovel_flash_timer: float = 0.0
         self._shovel_flash_showing_steel: bool = True
 
-        # Grant spawn invincibility
-        self.player_tank.activate_invincibility(SPAWN_INVINCIBILITY_DURATION)
-
         # Restore player progress
         self.player_tank.lives = player_lives
         if player_star_level > 0:
             self.player_tank.star_level = player_star_level
             self.player_tank._apply_star_stats()
             self.player_tank._update_sprite()
+
+        # Grant spawn invincibility (after progress restoration)
+        self.player_tank.activate_invincibility(SPAWN_INVINCIBILITY_DURATION)
 
         if self._demo_mode:
             self._spawn_demo_power_ups()

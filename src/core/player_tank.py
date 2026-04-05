@@ -85,9 +85,8 @@ class PlayerTank(Tank):
             return False
         if self.invincibility_duration <= SHIELD_WARNING_DURATION:
             return True
-        return (
-            self.invincibility_duration - self.invincibility_timer
-        ) > SHIELD_WARNING_DURATION
+        remaining = self.invincibility_duration - self.invincibility_timer
+        return remaining > SHIELD_WARNING_DURATION
 
     def _update_sprite(self) -> None:
         """Update sprite using tier-specific sprites when upgraded."""
