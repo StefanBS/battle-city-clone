@@ -44,6 +44,8 @@ from src.utils.paths import resource_path
 class GameManager:
     """Manages the core game loop and window."""
 
+    _SELECTABLE_MENU_INDICES = [0, 2]  # Skip disabled "2 PLAYERS" at index 1
+
     def __init__(self) -> None:
         """Initialize the game window and persistent resources."""
         logger.info("Initializing GameManager...")
@@ -65,6 +67,7 @@ class GameManager:
         self.state: GameState = GameState.TITLE_SCREEN
         self._menu_selection: int = 0  # 0 = 1 Player, 1 = 2 Players
         self._state_timer: float = 0.0
+        self._demo_mode: bool = False
 
         # Renderer for title screen (recreated with map dims in _load_stage)
         self.renderer: Renderer = Renderer(
@@ -110,7 +113,8 @@ class GameManager:
         self.collision_manager = CollisionManager()
 
         # Map
-        map_path = resource_path("assets/maps/level_01.tmx")
+        map_name = "demo_powerups.tmx" if self._demo_mode else "level_01.tmx"
+        map_path = resource_path(f"assets/maps/{map_name}")
         self.map = Map(map_path, self.texture_manager)
 
         # Compute map pixel dimensions (sub-tile grid * sub-tile size)
@@ -181,7 +185,28 @@ class GameManager:
             self.player_tank._apply_star_stats()
             self.player_tank._update_sprite()
 
+        if self._demo_mode:
+            self._spawn_demo_power_ups()
+
         logger.info("Stage load complete.")
+
+    def _spawn_demo_power_ups(self) -> None:
+        """Force-spawn all powerups at fixed positions for demo mode."""
+        demo_power_ups = [
+            (PowerUpType.STAR, (32, 32)),
+            (PowerUpType.STAR, (64, 32)),
+            (PowerUpType.STAR, (96, 32)),
+            (PowerUpType.HELMET, (32, 96)),
+            (PowerUpType.CLOCK, (64, 96)),
+            (PowerUpType.BOMB, (96, 96)),
+            (PowerUpType.SHOVEL, (32, 160)),
+            (PowerUpType.EXTRA_LIFE, (64, 160)),
+        ]
+        for power_up_type, position in demo_power_ups:
+            self.power_up_manager.spawn_power_up(
+                power_up_type=power_up_type, position=position
+            )
+        logger.info(f"Demo: spawned {len(demo_power_ups)} power-ups")
 
     def handle_events(self) -> None:
         """Handle pygame events."""
@@ -207,14 +232,29 @@ class GameManager:
     def _handle_title_input(self, key: int) -> None:
         """Handle keyboard input on the title screen."""
         if key in (pygame.K_UP, pygame.K_DOWN):
-            self._menu_selection = 1 - self._menu_selection
+            indices = self._SELECTABLE_MENU_INDICES
+            try:
+                pos = indices.index(self._menu_selection)
+            except ValueError:
+                pos = 0
+            if key == pygame.K_UP:
+                pos = (pos - 1) % len(indices)
+            else:
+                pos = (pos + 1) % len(indices)
+            self._menu_selection = indices[pos]
         elif key == pygame.K_RETURN:
             if self._menu_selection == 0:
                 logger.info("1 Player selected, starting game.")
+                self._demo_mode = False
                 self._new_game()
                 self.state = GameState.STAGE_CURTAIN_CLOSE
                 self._state_timer = 0.0
-            # 2 Players (index 1) is disabled — do nothing
+            elif self._menu_selection == 2:
+                logger.info("Demo selected, starting demo.")
+                self._demo_mode = True
+                self._new_game()
+                self.state = GameState.STAGE_CURTAIN_CLOSE
+                self._state_timer = 0.0
 
     def update(self) -> None:
         """Update game state."""

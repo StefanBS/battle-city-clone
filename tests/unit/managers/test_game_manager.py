@@ -22,9 +22,7 @@ class TestGameManager:
             patch("src.managers.game_manager.Map") as MockMap,
         ):
             mock_tm_instance = MockTM.return_value
-            mock_tm_instance.get_sprite.return_value = MagicMock(
-                spec=pygame.Surface
-            )
+            mock_tm_instance.get_sprite.return_value = MagicMock(spec=pygame.Surface)
             mock_map_instance = MockMap.return_value
             mock_map_instance.width = 16
             mock_map_instance.height = 16
@@ -49,22 +47,18 @@ class TestGameManager:
         yield manager
         pygame.quit()
 
-    def test_initialization_starts_at_title_screen(
-        self, game_manager_at_title
-    ):
+    def test_initialization_starts_at_title_screen(self, game_manager_at_title):
         """Test that GameManager starts at the title screen."""
         assert game_manager_at_title.state == GameState.TITLE_SCREEN
         assert game_manager_at_title._menu_selection == 0
 
-    def test_title_screen_cursor_moves(
-        self, game_manager_at_title, key_down_event
-    ):
-        """Test up/down keys toggle menu selection on title screen."""
+    def test_title_screen_cursor_moves(self, game_manager_at_title, key_down_event):
+        """Test up/down keys cycle through selectable items (0 and 2, skipping 1)."""
         gm = game_manager_at_title
         assert gm._menu_selection == 0
         pygame.event.post(key_down_event(pygame.K_DOWN))
         gm.handle_events()
-        assert gm._menu_selection == 1
+        assert gm._menu_selection == 2
         pygame.event.post(key_down_event(pygame.K_UP))
         gm.handle_events()
         assert gm._menu_selection == 0
@@ -97,9 +91,7 @@ class TestGameManager:
         game_manager.handle_events()
         assert game_manager.state == GameState.VICTORY
 
-    def test_title_screen_r_does_nothing(
-        self, game_manager_at_title, key_down_event
-    ):
+    def test_title_screen_r_does_nothing(self, game_manager_at_title, key_down_event):
         """Test that R key does nothing on title screen."""
         pygame.event.post(key_down_event(pygame.K_r))
         game_manager_at_title.handle_events()

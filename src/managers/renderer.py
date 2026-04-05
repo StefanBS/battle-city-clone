@@ -242,7 +242,7 @@ class Renderer:
         """Render the title screen with menu options.
 
         Args:
-            menu_selection: Currently selected menu item (0 or 1).
+            menu_selection: Currently selected menu item (0, 1, or 2).
         """
         self.game_surface.fill(BLACK)
 
@@ -255,8 +255,8 @@ class Renderer:
         self.game_surface.blit(title, title_rect)
 
         # Menu options
-        options = ["1 PLAYER", "2 PLAYERS"]
-        colors = [WHITE, GRAY]  # 2 Players is greyed out (disabled)
+        options = ["1 PLAYER", "2 PLAYERS", "DEMO"]
+        colors = [WHITE, GRAY, WHITE]  # 2 Players is greyed out (disabled)
         for i, (label, color) in enumerate(zip(options, colors)):
             text = self.small_font.render(label, True, color)
             text_rect = text.get_rect(center=(cx, cy + i * 30))
