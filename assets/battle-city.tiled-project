@@ -1,0 +1,54 @@
+{
+    "automappingRulesFile": "",
+    "commands": [],
+    "compatibilityVersion": 1100,
+    "extensionsPath": "extensions",
+    "folders": [
+        "."
+    ],
+    "properties": [],
+    "propertyTypes": [
+        {
+            "id": 1,
+            "name": "TileType",
+            "storageType": "string",
+            "type": "enum",
+            "values": [
+                "EMPTY",
+                "BRICK",
+                "STEEL",
+                "WATER",
+                "BUSH",
+                "ICE",
+                "BASE",
+                "BASE_DESTROYED"
+            ],
+            "valuesAsFlags": false
+        },
+        {
+            "id": 2,
+            "name": "BrickVariant",
+            "storageType": "string",
+            "type": "enum",
+            "values": [
+                "full",
+                "right",
+                "bottom",
+                "left",
+                "top"
+            ],
+            "valuesAsFlags": false
+        },
+        {
+            "id": 3,
+            "name": "SpawnPointType",
+            "storageType": "string",
+            "type": "enum",
+            "values": [
+                "player_spawn",
+                "enemy_spawn"
+            ],
+            "valuesAsFlags": false
+        }
+    ]
+}

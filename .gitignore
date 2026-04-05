@@ -177,5 +177,8 @@ cython_debug/
 # Private keys
 *.pem
 
+# Tiled session files
+*.tiled-session
+
 # Superpowers docs
 docs/superpowers/
