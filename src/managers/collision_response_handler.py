@@ -96,9 +96,8 @@ class CollisionResponseHandler:
 
             # Tank collisions
             if isinstance(a, Tank) and isinstance(b, Tank):
-                if (
-                    (a not in reverted_tanks or b not in reverted_tanks)
-                    and handler(a, b, enemies_to_remove)
+                if (a not in reverted_tanks or b not in reverted_tanks) and handler(
+                    a, b, enemies_to_remove
                 ):
                     reverted_tanks.add(a)
                     reverted_tanks.add(b)
@@ -199,9 +198,7 @@ class CollisionResponseHandler:
             return True
 
         if tile.type == TileType.BRICK:
-            self._map.damage_brick(
-                tile, str(bullet.direction), bullet.rect
-            )
+            self._map.damage_brick(tile, str(bullet.direction), bullet.rect)
         elif tile.type == TileType.BASE:
             self._map.destroy_base()
             self._set_game_state(GameState.GAME_OVER)
@@ -230,7 +227,7 @@ class CollisionResponseHandler:
     ) -> bool:
         if self._power_up_manager is None:
             return False
-        power_up_type = self._power_up_manager.collect_power_up()
+        power_up_type = self._power_up_manager.collect_power_up(power_up)
         if power_up_type is not None:
             self._add_score(POWERUP_COLLECT_POINTS)
             logger.info(f"Player collected power-up: {power_up_type.value}")

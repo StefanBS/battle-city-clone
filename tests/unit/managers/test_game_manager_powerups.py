@@ -56,19 +56,16 @@ class TestPowerUpEffects:
             e.rect = pygame.Rect(100, 100, TILE_SIZE, TILE_SIZE)
             enemies.append(e)
         game.spawn_manager.enemy_tanks = list(enemies)
-        game._apply_bomb(set())
+        game._apply_bomb()
         assert game.spawn_manager.remove_enemy.call_count == 3
-        expected_score = sum(
-            ENEMY_POINTS[tt] for tt in [TankType.BASIC, TankType.FAST, TankType.POWER]
-        )
-        assert game.score == expected_score
+        assert game.score == 0
 
     def test_bomb_spawns_explosions(self, game):
         enemy = MagicMock()
         enemy.tank_type = TankType.BASIC
         enemy.rect = pygame.Rect(100, 100, TILE_SIZE, TILE_SIZE)
         game.spawn_manager.enemy_tanks = [enemy]
-        game._apply_bomb(set())
+        game._apply_bomb()
         game.effect_manager.spawn.assert_called_once_with(
             EffectType.LARGE_EXPLOSION,
             float(enemy.rect.centerx),
@@ -81,18 +78,9 @@ class TestPowerUpEffects:
         carrier.is_carrier = True
         carrier.rect = pygame.Rect(100, 100, TILE_SIZE, TILE_SIZE)
         game.spawn_manager.enemy_tanks = [carrier]
-        game._apply_bomb(set())
+        game._apply_bomb()
         game.spawn_manager.remove_enemy.assert_called_once_with(carrier)
         game.power_up_manager.spawn_power_up.assert_not_called()
-
-    def test_bomb_no_double_scoring(self, game):
-        enemy = MagicMock()
-        enemy.tank_type = TankType.BASIC
-        enemy.rect = pygame.Rect(100, 100, TILE_SIZE, TILE_SIZE)
-        game.spawn_manager.enemy_tanks = [enemy]
-        game._apply_bomb(already_scored={enemy})
-        game.spawn_manager.remove_enemy.assert_called_once()
-        assert game.score == 0
 
     def test_power_up_not_applied_on_game_over(self, game):
         game.state = GameState.GAME_OVER
@@ -154,6 +142,7 @@ class TestShovelEffect:
         for _ in range(4):
             t = MagicMock()
             t.type = TileType.BRICK
+            t.brick_variant = "full"
             mock_tiles.append(t)
         gm.map = MagicMock()
         gm.map.get_base_surrounding_tiles.return_value = mock_tiles

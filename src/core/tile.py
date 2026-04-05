@@ -79,6 +79,11 @@ class Tile:
             self.is_animated = True
             self.animation_frames = ["water_1", "water_2"]
 
+    def reset_rect(self) -> None:
+        """Reset the collision rect to full tile size."""
+        s = self.size
+        self.rect = pygame.Rect(self.x * s, self.y * s, s, s)
+
     def update(self, dt: float) -> bool:
         """Update tile animation state."""
         if not self.is_animated:

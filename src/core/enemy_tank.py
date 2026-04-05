@@ -8,6 +8,7 @@ from src.utils.constants import (
     TankType,
     TANK_SPEED,
     BULLET_SPEED,
+    STAR_BULLET_SPEED_MULTIPLIER,
     CARRIER_BLINK_INTERVAL,
 )
 from src.managers.texture_manager import TextureManager
@@ -20,6 +21,7 @@ class TankPropertyDict(TypedDict):
     health: int
     shoot_interval: float
     direction_change_interval: float
+    power_bullets: bool
 
 
 class EnemyTank(Tank):
@@ -27,11 +29,12 @@ class EnemyTank(Tank):
 
     TANK_PROPERTIES: Dict[TankType, TankPropertyDict] = {
         TankType.BASIC: {
-            "speed": TANK_SPEED * 0.75,
+            "speed": TANK_SPEED,
             "bullet_speed": BULLET_SPEED,
             "health": 1,
             "shoot_interval": 2.0,
             "direction_change_interval": 2.5,
+            "power_bullets": False,
         },
         TankType.FAST: {
             "speed": TANK_SPEED * 1.5,
@@ -39,20 +42,23 @@ class EnemyTank(Tank):
             "health": 1,
             "shoot_interval": 1.8,
             "direction_change_interval": 1.5,
+            "power_bullets": False,
         },
         TankType.POWER: {
-            "speed": TANK_SPEED,
-            "bullet_speed": BULLET_SPEED * 1.5,
+            "speed": TANK_SPEED * 1.15,
+            "bullet_speed": BULLET_SPEED * STAR_BULLET_SPEED_MULTIPLIER,
             "health": 1,
             "shoot_interval": 1.0,
             "direction_change_interval": 2.0,
+            "power_bullets": False,
         },
         TankType.ARMOR: {
-            "speed": TANK_SPEED,
-            "bullet_speed": BULLET_SPEED,
+            "speed": TANK_SPEED * 0.75,
+            "bullet_speed": BULLET_SPEED * STAR_BULLET_SPEED_MULTIPLIER,
             "health": 4,
             "shoot_interval": 1.5,
             "direction_change_interval": 2.0,
+            "power_bullets": True,
         },
     }
 
@@ -97,6 +103,7 @@ class EnemyTank(Tank):
             map_height_px=map_height_px,
         )
         self.tank_type = tank_type
+        self.power_bullets = props["power_bullets"]
         self.direction = random.choice(list(Direction))
         self.direction_timer: float = 0
         self.direction_change_interval: float = props["direction_change_interval"]

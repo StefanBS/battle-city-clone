@@ -5,6 +5,7 @@ from src.utils.constants import (
     TILE_SIZE,
     TANK_SPEED,
     BULLET_SPEED,
+    STAR_BULLET_SPEED_MULTIPLIER,
     FPS,
     TankType,
     Direction,
@@ -14,7 +15,7 @@ from src.utils.constants import (
 # Define expected properties based on EnemyTank.TANK_PROPERTIES for easier assertion
 EXPECTED_PROPERTIES = {
     "basic": {
-        "speed": TANK_SPEED * 0.75,
+        "speed": TANK_SPEED,
         "bullet_speed": BULLET_SPEED,
         "health": 1,
         "shoot_interval": 2.0,
@@ -28,15 +29,15 @@ EXPECTED_PROPERTIES = {
         "direction_change_interval": 1.5,
     },
     "power": {
-        "speed": TANK_SPEED,
-        "bullet_speed": BULLET_SPEED * 1.5,
+        "speed": TANK_SPEED * 1.15,
+        "bullet_speed": BULLET_SPEED * STAR_BULLET_SPEED_MULTIPLIER,
         "health": 1,
         "shoot_interval": 1.0,
         "direction_change_interval": 2.0,
     },
     "armor": {
-        "speed": TANK_SPEED,
-        "bullet_speed": BULLET_SPEED,
+        "speed": TANK_SPEED * 0.75,
+        "bullet_speed": BULLET_SPEED * STAR_BULLET_SPEED_MULTIPLIER,
         "health": 4,
         "shoot_interval": 1.5,
         "direction_change_interval": 2.0,
