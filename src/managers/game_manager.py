@@ -359,7 +359,7 @@ class GameManager:
         # Apply deferred power-up effect
         collected = self.collision_response_handler.consume_collected_power_up()
         if collected is not None:
-            self._apply_power_up(collected, set(enemies_to_remove))
+            self._apply_power_up(collected)
 
         self.effect_manager.update(dt)
 
@@ -389,9 +389,7 @@ class GameManager:
         """Add points to the player's score."""
         self.score += points
 
-    def _apply_power_up(
-        self, power_up_type: PowerUpType, already_scored: Optional[set] = None
-    ) -> None:
+    def _apply_power_up(self, power_up_type: PowerUpType) -> None:
         """Dispatch power-up effect by type."""
         if self.state != GameState.RUNNING:
             return
@@ -400,7 +398,7 @@ class GameManager:
         elif power_up_type == PowerUpType.EXTRA_LIFE:
             self._apply_extra_life()
         elif power_up_type == PowerUpType.BOMB:
-            self._apply_bomb(already_scored if already_scored is not None else set())
+            self._apply_bomb()
         elif power_up_type == PowerUpType.CLOCK:
             self._apply_clock()
         elif power_up_type == PowerUpType.SHOVEL:
@@ -423,16 +421,14 @@ class GameManager:
         self.player_tank.lives += 1
         logger.info(f"Extra Life power-up applied: lives now {self.player_tank.lives}")
 
-    def _apply_bomb(self, already_scored: set) -> None:
-        """Destroy all active enemies on the map."""
+    def _apply_bomb(self) -> None:
+        """Destroy all active enemies on the map without awarding points."""
         for enemy in list(self.spawn_manager.enemy_tanks):
             self.effect_manager.spawn(
                 EffectType.LARGE_EXPLOSION,
                 float(enemy.rect.centerx),
                 float(enemy.rect.centery),
             )
-            if enemy not in already_scored:
-                self._add_score(ENEMY_POINTS.get(enemy.tank_type, 0))
             self.spawn_manager.remove_enemy(enemy)
         logger.info("Bomb power-up applied: all enemies destroyed")
 
