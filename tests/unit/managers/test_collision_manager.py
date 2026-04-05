@@ -291,7 +291,7 @@ class TestPowerUpCollision:
         p.rect = pygame.Rect(100, 100, 32, 32)
         return p
 
-    def _check(self, cm, player, power_up):
+    def _check(self, cm, player, power_ups):
         cm.check_collisions(
             player_tank=player,
             player_bullets=[],
@@ -300,14 +300,14 @@ class TestPowerUpCollision:
             destructible_tiles=[],
             impassable_tiles=[],
             player_base=None,
-            power_up=power_up,
+            power_ups=power_ups,
         )
         return cm.get_collision_events()
 
     def test_player_powerup_collision_detected(self, cm, player):
         power_up = MagicMock()
         power_up.rect = pygame.Rect(100, 100, 32, 32)
-        events = self._check(cm, player, power_up)
+        events = self._check(cm, player, [power_up])
         assert len(events) == 1
         assert player in events[0]
         assert power_up in events[0]
@@ -315,9 +315,22 @@ class TestPowerUpCollision:
     def test_no_collision_when_apart(self, cm, player):
         power_up = MagicMock()
         power_up.rect = pygame.Rect(200, 200, 32, 32)
-        events = self._check(cm, player, power_up)
+        events = self._check(cm, player, [power_up])
         assert len(events) == 0
 
-    def test_no_collision_when_power_up_none(self, cm, player):
-        events = self._check(cm, player, None)
+    def test_no_collision_when_power_ups_empty(self, cm, player):
+        events = self._check(cm, player, [])
         assert len(events) == 0
+
+    def test_multiple_powerups_collision(self, cm, player):
+        """3 power-ups, 2 overlap player → 2 events."""
+        pu1 = MagicMock()
+        pu1.rect = pygame.Rect(100, 100, 32, 32)  # overlaps player
+        pu2 = MagicMock()
+        pu2.rect = pygame.Rect(100, 100, 32, 32)  # overlaps player
+        pu3 = MagicMock()
+        pu3.rect = pygame.Rect(500, 500, 32, 32)  # far away
+        events = self._check(cm, player, [pu1, pu2, pu3])
+        assert len(events) == 2
+        assert any(player in e and pu1 in e for e in events)
+        assert any(player in e and pu2 in e for e in events)
