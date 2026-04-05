@@ -10,6 +10,7 @@ from src.utils.constants import (
     BULLET_WIDTH,
     BULLET_HEIGHT,
     FPS,
+    ICE_SLIDE_DISTANCE,
 )
 
 MAP_WIDTH_PX = 16 * TILE_SIZE
@@ -323,3 +324,65 @@ class TestTank:
         tank = create_tank()
         bullet = tank.shoot()
         assert bullet.sprite is None
+
+
+class TestIceSlide:
+    @pytest.fixture
+    def tank(self, create_tank):
+        return create_tank(x=128, y=128)
+
+    def test_initial_slide_state(self, tank):
+        assert tank._on_ice is False
+        assert tank._sliding is False
+        assert tank._slide_remaining == 0.0
+
+    def test_start_slide_when_on_ice(self, tank):
+        tank._on_ice = True
+        tank.direction = Direction.RIGHT
+        tank.start_slide()
+        assert tank._sliding is True
+        assert tank._slide_direction == Direction.RIGHT
+        assert tank._slide_remaining == ICE_SLIDE_DISTANCE
+
+    def test_start_slide_ignored_when_not_on_ice(self, tank):
+        tank._on_ice = False
+        tank.start_slide()
+        assert tank._sliding is False
+
+    def test_start_slide_ignored_when_already_sliding(self, tank):
+        tank._on_ice = True
+        tank.direction = Direction.RIGHT
+        tank.start_slide()
+        tank._slide_remaining = 10.0
+        tank.direction = Direction.LEFT
+        tank.start_slide()
+        assert tank._slide_direction == Direction.RIGHT
+        assert tank._slide_remaining == 10.0
+
+    def test_slide_moves_tank(self, tank):
+        tank._on_ice = True
+        tank.direction = Direction.RIGHT
+        tank.start_slide()
+        old_x = tank.x
+        dt = 1.0 / 60
+        tank.update(dt)
+        assert tank.x > old_x
+        assert tank._slide_remaining < ICE_SLIDE_DISTANCE
+
+    def test_slide_stops_when_distance_exhausted(self, tank):
+        tank._on_ice = True
+        tank.direction = Direction.RIGHT
+        tank.start_slide()
+        dt = 1.0 / 60
+        for _ in range(120):
+            tank.update(dt)
+        assert tank._sliding is False
+        assert tank._slide_remaining <= 0.0
+
+    def test_on_movement_blocked_cancels_slide(self, tank):
+        tank._on_ice = True
+        tank.direction = Direction.RIGHT
+        tank.start_slide()
+        tank.on_movement_blocked()
+        assert tank._sliding is False
+        assert tank._slide_remaining == 0.0

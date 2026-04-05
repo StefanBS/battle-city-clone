@@ -140,6 +140,7 @@ TANK_WIDTH: int = TILE_SIZE
 TANK_HEIGHT: int = TILE_SIZE
 TANK_ANIMATION_DISTANCE: float = 4  # pixels traveled between animation frame toggles
 TANK_ALIGN_THRESHOLD: float = 4.0  # max px offset for steering assist (quarter sub-tile)
+ICE_SLIDE_DISTANCE: float = 32.0  # pixels a tank slides after leaving ice
 
 # Atlas background color used as colorkey for transparency
 ATLAS_BG_COLOR: tuple[int, int, int] = (0, 0, 1)
