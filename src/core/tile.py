@@ -100,29 +100,25 @@ class Tile:
         if self.type == TileType.EMPTY:
             return
 
+        # Draw position: always at grid origin (rect may be offset for half-bricks)
+        draw_pos = (self.x * self.size, self.y * self.size)
+
         # Fast path: non-animated tile with TMX sprite (most common)
-        # Draw at grid position (not rect.topleft, which may be offset for half-bricks)
         if self.tmx_sprite is not None and not self.is_animated:
-            surface.blit(self.tmx_sprite, (self.x * self.size, self.y * self.size))
+            surface.blit(self.tmx_sprite, draw_pos)
             return
 
         # Animated tiles: use TMX animation sprites if available
         if self.is_animated:
             if self.animation_sprites:
-                sprite = self.animation_sprites[self.current_frame_index]
-                surface.blit(sprite, self.rect.topleft)
+                surface.blit(self.animation_sprites[self.current_frame_index], draw_pos)
                 return
             if self.animation_frames:
                 sprite_name = self.animation_frames[self.current_frame_index]
-                surface.blit(
-                    texture_manager.get_sub_sprite(sprite_name),
-                    self.rect.topleft,
-                )
+                surface.blit(texture_manager.get_sub_sprite(sprite_name), draw_pos)
                 return
 
         # Fallback: use type-based sprite lookup
         sprite_name = self.SPRITE_NAME_MAP.get(self.type)
         if sprite_name:
-            surface.blit(
-                texture_manager.get_sub_sprite(sprite_name), self.rect.topleft
-            )
+            surface.blit(texture_manager.get_sub_sprite(sprite_name), draw_pos)

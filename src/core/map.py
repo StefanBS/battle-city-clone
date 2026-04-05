@@ -166,10 +166,10 @@ class Map:
                         raw_img = tiled_map.get_tile_image_by_gid(gid)
                         if raw_img:
                             self._water_frame_sprites[frame_num] = (
-                            pygame.transform.scale(
-                                raw_img, (SUB_TILE_SIZE, SUB_TILE_SIZE)
+                                pygame.transform.scale(
+                                    raw_img, (SUB_TILE_SIZE, SUB_TILE_SIZE)
+                                )
                             )
-                        )
 
     def _load_spawn_points(self, tiled_map: pytmx.TiledMap) -> None:
         """Read spawn points and player spawn from TMX object layers.
