@@ -1,3 +1,4 @@
+import pytest
 from unittest.mock import patch, MagicMock
 from src.managers.sound_manager import SoundManager
 
@@ -113,3 +114,88 @@ class TestLoopManagement:
             channel_a.fadeout.assert_called_once_with(50)
             channel_b.fadeout.assert_called_once_with(50)
             assert len(sm._looping_channels) == 0
+
+
+class TestNewPlayMethods:
+    @pytest.mark.parametrize("method", [
+        "play_bullet_hit_bullet",
+        "play_stage_start",
+        "play_victory",
+        "play_menu_select",
+        "play_ice_slide",
+    ])
+    def test_oneshot_methods_call_sound_play(self, method):
+        with patch("src.managers.sound_manager.pygame") as mock_pg:
+            mock_sound = MagicMock()
+            mock_pg.mixer.Sound.return_value = mock_sound
+            sm = SoundManager()
+            getattr(sm, method)()
+            mock_sound.play.assert_called()
+
+    @pytest.mark.parametrize("method", [
+        "play_bullet_hit_bullet",
+        "play_stage_start",
+        "play_victory",
+        "play_menu_select",
+        "play_ice_slide",
+    ])
+    def test_oneshot_methods_noop_when_disabled(self, method):
+        with patch("src.managers.sound_manager.pygame") as mock_pg:
+            mock_pg.error = type("error", (Exception,), {})
+            mock_pg.mixer.init.side_effect = mock_pg.error("no audio")
+            sm = SoundManager()
+            getattr(sm, method)()  # should not raise
+
+
+class TestUpdateEngine:
+    def test_update_engine_true_starts_loop(self):
+        with patch("src.managers.sound_manager.pygame") as mock_pg:
+            mock_pg.mixer.Sound.return_value = MagicMock()
+            mock_channel = MagicMock()
+            mock_pg.mixer.find_channel.return_value = mock_channel
+            sm = SoundManager()
+            sm.update_engine(True)
+            assert "engine" in sm._looping_channels
+
+    def test_update_engine_false_stops_loop(self):
+        with patch("src.managers.sound_manager.pygame") as mock_pg:
+            mock_pg.mixer.Sound.return_value = MagicMock()
+            mock_channel = MagicMock()
+            mock_pg.mixer.find_channel.return_value = mock_channel
+            sm = SoundManager()
+            sm.update_engine(True)
+            sm.update_engine(False)
+            assert "engine" not in sm._looping_channels
+            mock_channel.fadeout.assert_called_once_with(50)
+
+    def test_update_engine_repeated_true_is_noop(self):
+        with patch("src.managers.sound_manager.pygame") as mock_pg:
+            mock_pg.mixer.Sound.return_value = MagicMock()
+            mock_channel = MagicMock()
+            mock_pg.mixer.find_channel.return_value = mock_channel
+            sm = SoundManager()
+            sm.update_engine(True)
+            mock_channel.play.reset_mock()
+            sm.update_engine(True)
+            mock_channel.play.assert_not_called()
+
+
+class TestUpdatePowerupBlink:
+    def test_update_powerup_blink_true_starts_loop(self):
+        with patch("src.managers.sound_manager.pygame") as mock_pg:
+            mock_pg.mixer.Sound.return_value = MagicMock()
+            mock_channel = MagicMock()
+            mock_pg.mixer.find_channel.return_value = mock_channel
+            sm = SoundManager()
+            sm.update_powerup_blink(True)
+            assert "powerup_spawn" in sm._looping_channels
+
+    def test_update_powerup_blink_false_stops_loop(self):
+        with patch("src.managers.sound_manager.pygame") as mock_pg:
+            mock_pg.mixer.Sound.return_value = MagicMock()
+            mock_channel = MagicMock()
+            mock_pg.mixer.find_channel.return_value = mock_channel
+            sm = SoundManager()
+            sm.update_powerup_blink(True)
+            sm.update_powerup_blink(False)
+            assert "powerup_spawn" not in sm._looping_channels

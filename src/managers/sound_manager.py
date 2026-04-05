@@ -15,6 +15,13 @@ class SoundManager:
         "explosion": "assets/sounds/explosion.wav",
         "powerup": "assets/sounds/powerup.wav",
         "game_over": "assets/sounds/game_over.wav",
+        "engine": "assets/sounds/engine.wav",
+        "bullet_hit_bullet": "assets/sounds/bullet_hit_bullet.wav",
+        "stage_start": "assets/sounds/stage_start.wav",
+        "victory": "assets/sounds/victory.wav",
+        "menu_select": "assets/sounds/menu_select.wav",
+        "ice_slide": "assets/sounds/ice_slide.wav",
+        "powerup_spawn": "assets/sounds/powerup_spawn.wav",
     }
 
     def __init__(self) -> None:
@@ -63,6 +70,35 @@ class SoundManager:
 
     def play_game_over(self) -> None:
         self._play("game_over")
+
+    def play_bullet_hit_bullet(self) -> None:
+        self._play("bullet_hit_bullet")
+
+    def play_stage_start(self) -> None:
+        self._play("stage_start")
+
+    def play_victory(self) -> None:
+        self._play("victory")
+
+    def play_menu_select(self) -> None:
+        self._play("menu_select")
+
+    def play_ice_slide(self) -> None:
+        self._play("ice_slide")
+
+    def update_engine(self, any_moving: bool) -> None:
+        """Start or stop engine loop based on whether any tank is moving."""
+        if any_moving:
+            self._start_loop("engine")
+        else:
+            self._stop_loop("engine")
+
+    def update_powerup_blink(self, any_active: bool) -> None:
+        """Start or stop powerup blink loop based on active powerups."""
+        if any_active:
+            self._start_loop("powerup_spawn")
+        else:
+            self._stop_loop("powerup_spawn")
 
     def _start_loop(self, name: str) -> None:
         """Start looping a sound. No-op if already looping or not loaded."""
