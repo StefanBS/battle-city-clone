@@ -8,6 +8,7 @@ from src.utils.constants import (
     FPS,
     HELMET_INVINCIBILITY_DURATION,
     SPAWN_INVINCIBILITY_DURATION,
+    SHIELD_FLICKER_INTERVAL,
     BULLET_SPEED,
     STAR_BULLET_SPEED_MULTIPLIER,
     STAR_MAX_BULLETS,
@@ -335,14 +336,16 @@ class TestShieldAnimation:
 
     def test_shield_frame_alternates_with_timer(self, player_tank):
         player_tank.activate_invincibility(10.0)
-        player_tank.invincibility_timer = 0.02
+        # First half of flicker cycle: frame 0
+        player_tank.invincibility_timer = SHIELD_FLICKER_INTERVAL * 0.5
         player_tank.sprite = MagicMock()
         surface = MagicMock()
         player_tank.draw(surface)
         first_shield = surface.blit.call_args_list[1][0][0]
 
         surface.reset_mock()
-        player_tank.invincibility_timer = 0.06
+        # Second half of flicker cycle: frame 1
+        player_tank.invincibility_timer = SHIELD_FLICKER_INTERVAL * 1.5
         player_tank.draw(surface)
         second_shield = surface.blit.call_args_list[1][0][0]
 
