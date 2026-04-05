@@ -398,3 +398,56 @@ class TestIceSlide:
         tank.on_movement_blocked()
         assert tank._sliding is False
         assert tank._slide_remaining == 0.0
+
+
+class TestIsMoving:
+    def test_is_moving_false_by_default(self, create_tank):
+        tank = create_tank()
+        assert tank.is_moving is False
+
+    def test_is_moving_true_after_move(self, create_tank):
+        tank = create_tank()
+        tank._move(1, 0, 1.0 / 60)
+        assert tank.is_moving is True
+
+    def test_is_moving_true_when_sliding(self, create_tank):
+        tank = create_tank()
+        tank._on_ice = True
+        tank._was_moving = True
+        tank.start_slide()
+        tank._moving_this_frame = False
+        assert tank.is_moving is True
+
+    def test_is_moving_resets_after_update(self, create_tank):
+        tank = create_tank()
+        tank._move(1, 0, 1.0 / 60)
+        assert tank.is_moving is True
+        tank.update(1.0 / 60)
+        assert tank.is_moving is False
+
+
+class TestStartSlideReturnValue:
+    def test_start_slide_returns_true_when_slide_begins(self, create_tank):
+        tank = create_tank()
+        tank._on_ice = True
+        tank._was_moving = True
+        assert tank.start_slide() is True
+        assert tank.is_sliding is True
+
+    def test_start_slide_returns_false_when_not_on_ice(self, create_tank):
+        tank = create_tank()
+        tank._was_moving = True
+        assert tank.start_slide() is False
+
+    def test_start_slide_returns_false_when_already_sliding(self, create_tank):
+        tank = create_tank()
+        tank._on_ice = True
+        tank._was_moving = True
+        tank.start_slide()
+        assert tank.start_slide() is False
+
+    def test_start_slide_returns_false_when_not_moving(self, create_tank):
+        tank = create_tank()
+        tank._on_ice = True
+        tank._was_moving = False
+        assert tank.start_slide() is False

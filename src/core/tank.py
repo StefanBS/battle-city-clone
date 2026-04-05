@@ -237,13 +237,23 @@ class Tank(GameObject):
         """Whether this tank is currently sliding on ice."""
         return self._sliding
 
-    def start_slide(self) -> None:
-        """Begin sliding on ice in the current direction."""
+    @property
+    def is_moving(self) -> bool:
+        """Whether this tank is moving this frame (includes sliding)."""
+        return self._moving_this_frame or self._sliding
+
+    def start_slide(self) -> bool:
+        """Begin sliding on ice in the current direction.
+
+        Returns:
+            True if slide started, False if guard rejected.
+        """
         if not self._on_ice or self._sliding or not self._was_moving:
-            return
+            return False
         self._sliding = True
         self._slide_direction = self.direction
         self._slide_remaining = ICE_SLIDE_DISTANCE
+        return True
 
     def _apply_clamped_position(self, target_x: float, target_y: float) -> None:
         """Move to target position, clamping to map bounds.
