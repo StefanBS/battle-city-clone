@@ -71,6 +71,9 @@ class TextureManager:
         "spawn_2": (34, 12),
         "spawn_3": (36, 12),
         "spawn_4": (38, 12),
+        # Shield (invincibility overlay, 2 frames)
+        "shield_1": (32, 10),
+        "shield_2": (34, 10),
         # Red enemy tank (carrier flash variant)
         "enemy_tank_red_up_1": (16, 16),
         "enemy_tank_red_up_2": (18, 16),
