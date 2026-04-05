@@ -61,7 +61,9 @@ GameObject (base: position, rect, draw, update)
 
 ### Map and Tiles
 
-Grid is 16x16 tiles, each 32x32px. Tile types: EMPTY, BRICK (destructible), STEEL (indestructible), WATER (blocks tanks, not bullets), BUSH (visual only), ICE, BASE, BASE_DESTROYED. Currently uses a hardcoded test map in `Map._create_test_map()`. The `feature/use-pytmx` branch has TMX assets (`assets/maps/level_01.tmx`) but pytmx loading is not yet wired into the code.
+Maps are authored in [Tiled](https://www.mapeditor.org/) and loaded via `pytmx`. The Tiled project file (`assets/battle-city.tiled-project`) defines custom enums (`TileType`, `BrickVariant`, `SpawnPointType`) shared across all maps and tilesets. The tileset is `assets/sprites/sprites.tsx` (8x8 source tiles from `sprites.png`).
+
+Grid is 26x26 sub-tiles (8x8px each), scaled to 32x32px at display. Tile types: EMPTY, BRICK (destructible, with variants: full/right/bottom/left/top), STEEL (indestructible), WATER (blocks tanks, not bullets), BUSH (visual only), ICE, BASE, BASE_DESTROYED. Level maps live in `assets/maps/` (e.g., `level_01.tmx`). Each map has a `spawn_points` object layer for player and enemy spawn positions.
 
 ### TextureManager
 

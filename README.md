@@ -33,7 +33,8 @@ battle-city-clone/
 │       └── level_data.py           # Level definitions
 │
 ├── assets/
-│   ├── sprites/                    # Sprite sheets (sprites.png atlas)
+│   ├── battle-city.tiled-project   # Tiled project (custom types and enums)
+│   ├── sprites/                    # Sprite sheet (sprites.png) and tileset (sprites.tsx)
 │   ├── sounds/                     # Sound effects and music (placeholder)
 │   └── maps/                       # TMX level map files
 │
