@@ -56,6 +56,7 @@ class Map:
         # Scan tileset for brick variant and water frame sprites
         self._brick_variant_sprites: dict[str, pygame.Surface] = {}
         self._water_frame_sprites: dict[int, pygame.Surface] = {}
+        self._tile_type_sprites: dict[str, pygame.Surface] = {}
         self._scan_tileset(tiled_map)
 
         # Initialize grid
@@ -136,6 +137,10 @@ class Map:
             if not props:
                 continue
             tt = props.get("tile_type") or ""
+            if tt and tt not in self._tile_type_sprites:
+                self._cache_sprite(
+                    self._tile_type_sprites, tt, tiled_map, gid
+                )
             if tt == "BRICK":
                 key = props.get("brick_variant") or "full"
                 self._cache_sprite(
@@ -305,7 +310,7 @@ class Map:
         """Change a tile's type and invalidate caches."""
         old_type = tile.type
         tile.type = new_type
-        tile.tmx_sprite = None
+        tile.tmx_sprite = self._tile_type_sprites.get(new_type.name)
         self._tile_cache_dirty = True
         if old_type == TileType.EMPTY and new_type != TileType.EMPTY:
             self._drawable_tiles.append(tile)
