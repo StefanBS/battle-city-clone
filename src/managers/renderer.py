@@ -116,6 +116,8 @@ class Renderer:
             self._draw_game_over()
         elif state == GameState.VICTORY:
             self._draw_victory()
+        elif state == GameState.GAME_COMPLETE:
+            self._draw_overlay_screen("GAME COMPLETE!", GREEN, "Press R for Title")
         elif game_over_rise_progress is not None:
             self._draw_game_over_rising(game_over_rise_progress)
 
