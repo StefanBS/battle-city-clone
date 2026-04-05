@@ -383,11 +383,17 @@ class Map:
         self._ensure_cache()
         return self._cached_collidable_rects
 
-    def get_base_surrounding_tiles(self) -> List[Tile]:
-        """Return non-empty tiles in the ring around the base.
+    def get_base_surrounding_tiles(
+        self, include_empty: bool = False
+    ) -> List[Tile]:
+        """Return tiles in the ring around the base.
 
         Finds all BASE tiles to determine the base bounds, then returns
-        non-empty, non-BASE tiles in a ring around them.
+        non-BASE tiles in a ring around them.
+
+        Args:
+            include_empty: If True, include EMPTY tiles in the result.
+                Useful for restoring destroyed base walls.
         """
         base_tiles = self.get_tiles_by_type([TileType.BASE])
         if not base_tiles:
@@ -407,6 +413,8 @@ class Map:
                 if (x, y) in base_positions:
                     continue
                 tile = self.get_tile_at(x, y)
-                if tile is not None and tile.type != TileType.EMPTY:
+                if tile is None:
+                    continue
+                if tile.type != TileType.EMPTY or include_empty:
                     surrounding.append(tile)
         return surrounding

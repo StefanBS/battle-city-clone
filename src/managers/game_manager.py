@@ -443,10 +443,19 @@ class GameManager:
         )
 
     def _apply_shovel(self) -> None:
-        """Fortify base walls with steel."""
+        """Fortify base walls with steel, restoring destroyed bricks first."""
         if not self._shovel_original_tiles:
-            tiles = self.map.get_base_surrounding_tiles()
+            tiles = self.map.get_base_surrounding_tiles(include_empty=True)
             self._shovel_original_tiles = [(t, t.type) for t in tiles]
+            # Restore destroyed (EMPTY) tiles to BRICK before fortifying
+            for tile in tiles:
+                if tile.type == TileType.EMPTY:
+                    self.map.set_tile_type(tile, TileType.BRICK)
+                    tile.brick_variant = "full"
+                    tile.rect = pygame.Rect(
+                        tile.x * tile.size, tile.y * tile.size,
+                        tile.size, tile.size,
+                    )
             for tile in tiles:
                 self.map.set_tile_type(tile, TileType.STEEL)
             logger.info(
