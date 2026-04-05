@@ -20,6 +20,7 @@ class SoundManager:
     def __init__(self) -> None:
         self._enabled: bool = False
         self._sounds: dict[str, pygame.mixer.Sound] = {}
+        self._looping_channels: dict[str, pygame.mixer.Channel] = {}
 
         try:
             pygame.mixer.init()
@@ -62,3 +63,27 @@ class SoundManager:
 
     def play_game_over(self) -> None:
         self._play("game_over")
+
+    def _start_loop(self, name: str) -> None:
+        """Start looping a sound. No-op if already looping or not loaded."""
+        if not self._enabled or name in self._looping_channels:
+            return
+        sound = self._sounds.get(name)
+        if sound is None:
+            return
+        channel = pygame.mixer.find_channel()
+        if channel is not None:
+            channel.play(sound, loops=-1)
+            self._looping_channels[name] = channel
+
+    def _stop_loop(self, name: str) -> None:
+        """Stop a looping sound with short fadeout to avoid audio pops."""
+        channel = self._looping_channels.pop(name, None)
+        if channel is not None:
+            channel.fadeout(50)
+
+    def stop_loops(self) -> None:
+        """Stop all looping sounds. Does not affect one-shot sounds."""
+        for channel in self._looping_channels.values():
+            channel.fadeout(50)
+        self._looping_channels.clear()
