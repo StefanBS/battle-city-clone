@@ -209,12 +209,12 @@ class SpawnManager:
         # Materialize tanks whose spawn animation is done
         still_pending = []
         for pending in self._pending_spawns:
-            if not pending.effect.active:
-                self._materialize_enemy(
-                    pending.x, pending.y, pending.tank_type, pending.is_carrier
-                )
-            else:
+            if pending.effect.active:
                 still_pending.append(pending)
+                continue
+            self._materialize_enemy(
+                pending.x, pending.y, pending.tank_type, pending.is_carrier
+            )
         self._pending_spawns = still_pending
 
         self.spawn_timer += dt
