@@ -174,6 +174,7 @@ class TextureManager:
                 scaled_sprite = pygame.transform.scale(
                     original_sprite, (TILE_SIZE, TILE_SIZE)
                 )
+                scaled_sprite.set_colorkey(ATLAS_BG_COLOR)
 
                 self.sprites[name] = scaled_sprite
 
@@ -182,6 +183,7 @@ class TextureManager:
                     sub_sprite = pygame.transform.scale(
                         original_sprite, (SUB_TILE_SIZE, SUB_TILE_SIZE)
                     )
+                    sub_sprite.set_colorkey(ATLAS_BG_COLOR)
                     self.sub_sprites[name] = sub_sprite
                 else:
                     self.sub_sprites[name] = scaled_sprite
