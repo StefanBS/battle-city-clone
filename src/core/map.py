@@ -75,7 +75,7 @@ class Map:
             shared_water_frames = [self._water_frame_sprites[f] for f in frames]
 
         if tile_layer is not None:
-            scaled_cache: dict[int, Optional[pygame.Surface]] = {}
+            scaled_cache: dict[int, pygame.Surface] = {}
             for x, y, gid in tile_layer.iter_data():
                 tile_type = TileType.EMPTY
                 brick_variant = "full"
@@ -84,22 +84,13 @@ class Map:
                 if gid:
                     props = tiled_map.get_tile_properties_by_gid(gid)
                     if props:
-                        tile_type_str = props.get("tile_type")
-                        if tile_type_str and tile_type_str.strip():
-                            tile_type = TileType[tile_type_str.strip()]
+                        tile_type_str = (props.get("tile_type") or "").strip()
+                        if tile_type_str:
+                            tile_type = TileType[tile_type_str]
                         brick_variant = props.get("brick_variant") or "full"
 
-                    # Cache scaled sprites by GID to avoid redundant scaling
-                    if gid not in scaled_cache:
-                        raw_img = tiled_map.get_tile_image_by_gid(gid)
-                        if raw_img:
-                            scaled_cache[gid] = pygame.transform.scale(
-                                raw_img,
-                                (SUB_TILE_SIZE, SUB_TILE_SIZE),
-                            )
-                        else:
-                            scaled_cache[gid] = None
-                    tile_image = scaled_cache[gid]
+                    self._cache_sprite(scaled_cache, gid, tiled_map, gid)
+                    tile_image = scaled_cache.get(gid)
 
                 tile = Tile(
                     tile_type,
@@ -176,9 +167,11 @@ class Map:
 
         Converts TMX pixel coordinates to grid coordinates.
         """
-        try:
-            spawn_layer = tiled_map.get_layer_by_name("spawn_points")
-        except ValueError:
+        spawn_layer = next(
+            (g for g in tiled_map.objectgroups if g.name == "spawn_points"),
+            None,
+        )
+        if spawn_layer is None:
             logger.warning("No 'spawn_points' object layer found in TMX")
             self.player_spawn = (self.width // 2 - 1, self.height - 2)
             return
@@ -279,11 +272,10 @@ class Map:
 
         if tile.brick_variant == "full":
             surviving_variant = self._DIRECTION_TO_VARIANT.get(bullet_direction)
-            sprite = (
-                self._brick_variant_sprites.get(surviving_variant)
-                if surviving_variant
-                else None
-            )
+            if surviving_variant is None:
+                self.set_tile_type(tile, TileType.EMPTY)
+                return
+            sprite = self._brick_variant_sprites.get(surviving_variant)
             if sprite:
                 tile.brick_variant = surviving_variant
                 tile.tmx_sprite = sprite
