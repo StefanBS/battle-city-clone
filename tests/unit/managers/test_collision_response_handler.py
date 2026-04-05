@@ -202,9 +202,7 @@ class TestBulletVsTile:
         tile = Tile(TileType.BRICK, 4, 4)
         handler.process_collisions([(bullet, tile)])
         assert not bullet.active
-        mock_map.damage_brick.assert_called_once_with(
-            tile, "right", bullet.rect
-        )
+        mock_map.damage_brick.assert_called_once_with(tile, "right", bullet.rect)
 
     def test_bullet_destroys_base(self, handler, mock_map):
         """Bullet hitting base triggers destroy_base and GAME_OVER."""
@@ -502,9 +500,7 @@ class TestExplosionEffects:
             EffectType.LARGE_EXPLOSION, 116.0, 116.0
         )
 
-    def test_bullet_vs_bullet_no_explosion(
-        self, handler, mock_effect_manager
-    ):
+    def test_bullet_vs_bullet_no_explosion(self, handler, mock_effect_manager):
         b1 = MagicMock(spec=Bullet)
         b1.active = True
         b1.owner = MagicMock()
@@ -543,8 +539,13 @@ class TestScoring:
         ],
     )
     def test_enemy_destroyed_awards_points(
-        self, handler, mock_bullet, mock_enemy, mock_add_score,
-        tank_type, expected_points,
+        self,
+        handler,
+        mock_bullet,
+        mock_enemy,
+        mock_add_score,
+        tank_type,
+        expected_points,
     ):
         """Destroying an enemy awards points based on tank type."""
         mock_enemy.tank_type = tank_type
@@ -601,7 +602,7 @@ class TestPlayerVsPowerUp:
     ):
         handler, score_tracker, pu_manager = handler_with_powerup
         handler.process_collisions([(mock_player, mock_power_up)])
-        pu_manager.collect_power_up.assert_called_once()
+        pu_manager.collect_power_up.assert_called_once_with(mock_power_up)
         assert score_tracker["score"] == POWERUP_COLLECT_POINTS
 
     def test_power_up_not_collected_without_manager(
