@@ -1,3 +1,4 @@
+import os
 import pygame
 from typing import List, Optional
 from loguru import logger
@@ -29,6 +30,7 @@ from src.utils.constants import (
     VICTORY_PAUSE_DURATION,
     GAME_OVER_RISE_DURATION,
     GAME_OVER_HOLD_DURATION,
+    MAX_STAGE,
 )
 from src.managers.collision_manager import CollisionManager
 from src.managers.collision_response_handler import CollisionResponseHandler
@@ -115,8 +117,16 @@ class GameManager:
         self.collision_manager = CollisionManager()
 
         # Map
-        map_name = "demo_powerups.tmx" if self._demo_mode else "level_01.tmx"
+        if self._demo_mode:
+            map_name = "demo_powerups.tmx"
+        else:
+            map_name = f"level_{self.current_stage:02d}.tmx"
         map_path = resource_path(f"assets/maps/{map_name}")
+        if not self._demo_mode and not os.path.exists(map_path):
+            logger.error(
+                f"Map file not found: {map_name}; falling back to level_01.tmx"
+            )
+            map_path = resource_path("assets/maps/level_01.tmx")
         self.map = Map(map_path, self.texture_manager)
 
         # Compute map pixel dimensions (sub-tile grid * sub-tile size)
@@ -232,7 +242,10 @@ class GameManager:
                     self._quit_game()
                 elif self.state == GameState.TITLE_SCREEN:
                     self._handle_title_input(event.key)
-                elif event.key == pygame.K_r and self.state == GameState.GAME_OVER:
+                elif event.key == pygame.K_r and self.state in (
+                    GameState.GAME_OVER,
+                    GameState.GAME_COMPLETE,
+                ):
                     logger.info("R key pressed, returning to title screen.")
                     self.state = GameState.TITLE_SCREEN
                     self._menu_selection = 0
@@ -272,11 +285,14 @@ class GameManager:
         if self.state == GameState.VICTORY:
             self._state_timer += dt
             if self._state_timer >= VICTORY_PAUSE_DURATION:
-                self.current_stage += 1
-                self._load_stage()
-                self.state = GameState.STAGE_CURTAIN_CLOSE
-                self._state_timer = 0.0
-                self.sound_manager.play_stage_start()
+                if self.current_stage >= MAX_STAGE:
+                    self._set_game_state(GameState.GAME_COMPLETE)
+                else:
+                    self.current_stage += 1
+                    self._load_stage()
+                    self.state = GameState.STAGE_CURTAIN_CLOSE
+                    self._state_timer = 0.0
+                    self.sound_manager.play_stage_start()
             return
 
         if self.state == GameState.STAGE_CURTAIN_CLOSE:
@@ -412,17 +428,24 @@ class GameManager:
 
     def _set_game_state(self, state: GameState) -> None:
         """Set the game state with sound management."""
-        if state == GameState.GAME_OVER:
+        if state in (
+            GameState.GAME_OVER,
+            GameState.VICTORY,
+            GameState.GAME_COMPLETE,
+        ):
             self.sound_manager.stop_loops()
+        if state == GameState.GAME_OVER:
             self.state = GameState.GAME_OVER_ANIMATION
             self._state_timer = 0.0
             self.sound_manager.play_game_over()
             return
         if state == GameState.VICTORY:
-            self.sound_manager.stop_loops()
             self.state = GameState.VICTORY
             self._state_timer = 0.0
             self.sound_manager.play_victory()
+            return
+        if state == GameState.GAME_COMPLETE:
+            self.state = GameState.GAME_COMPLETE
             return
         self.state = state
 

@@ -4,6 +4,7 @@ from unittest.mock import patch, MagicMock
 from src.managers.game_manager import GameManager
 from src.states.game_state import GameState
 from src.core.enemy_tank import EnemyTank
+from src.utils.constants import MAX_STAGE, VICTORY_PAUSE_DURATION
 
 
 class TestGameManager:
@@ -232,3 +233,83 @@ class TestGameManagerSoundWiring:
         gm.sound_manager = MagicMock()
         gm._handle_title_input(pygame.K_DOWN)
         gm.sound_manager.play_menu_select.assert_called()
+
+
+class TestStageProgression:
+    @pytest.fixture
+    def _mock_game_deps(self):
+        """Shared mock setup for GameManager fixtures."""
+        with (
+            patch("pygame.display.set_mode"),
+            patch("pygame.font.SysFont"),
+            patch("src.managers.game_manager.TextureManager") as MockTM,
+            patch("src.managers.game_manager.EffectManager"),
+            patch("src.managers.game_manager.Renderer"),
+            patch("src.managers.game_manager.SpawnManager"),
+            patch("src.managers.game_manager.Map") as MockMap,
+        ):
+            mock_tm_instance = MockTM.return_value
+            mock_tm_instance.get_sprite.return_value = MagicMock(spec=pygame.Surface)
+            mock_map_instance = MockMap.return_value
+            mock_map_instance.width = 16
+            mock_map_instance.height = 16
+            mock_map_instance.player_spawn = (4, 12)
+            mock_map_instance.spawn_points = [(3, 1), (8, 1), (12, 1)]
+            yield
+
+    @pytest.fixture
+    def game_manager(self, _mock_game_deps):
+        """Create a GameManager with game started (past title screen)."""
+        pygame.init()
+        manager = GameManager()
+        manager._reset_game()
+        yield manager
+        pygame.quit()
+
+    def test_load_stage_uses_current_stage_for_map_name(self, game_manager):
+        game_manager.current_stage = 5
+        with patch("src.managers.game_manager.os.path.exists", return_value=True):
+            with patch("src.managers.game_manager.Map") as MockMap:
+                MockMap.return_value = game_manager.map
+                game_manager._load_stage()
+        call_args = MockMap.call_args[0][0]
+        assert "level_05.tmx" in call_args
+
+    def test_load_stage_falls_back_to_level_01_when_missing(self, game_manager):
+        game_manager.current_stage = 99
+        with patch("src.managers.game_manager.os.path.exists", return_value=False):
+            with patch("src.managers.game_manager.Map") as MockMap:
+                MockMap.return_value = game_manager.map
+                game_manager._load_stage()
+        call_args = MockMap.call_args[0][0]
+        assert "level_01.tmx" in call_args
+
+    def test_victory_transitions_to_game_complete_at_max_stage(self, game_manager):
+        game_manager.state = GameState.VICTORY
+        game_manager.current_stage = MAX_STAGE
+        game_manager._state_timer = VICTORY_PAUSE_DURATION + 0.1
+        game_manager.sound_manager = MagicMock()
+        game_manager.update()
+        assert game_manager.state == GameState.GAME_COMPLETE
+
+    def test_victory_advances_stage_when_below_max(self, game_manager):
+        game_manager.state = GameState.VICTORY
+        game_manager.current_stage = 1
+        game_manager._state_timer = VICTORY_PAUSE_DURATION + 0.1
+        game_manager.sound_manager = MagicMock()
+        original_stage = game_manager.current_stage
+        game_manager.update()
+        assert game_manager.current_stage == original_stage + 1
+
+    def test_set_game_state_game_complete_stops_loops(self, game_manager):
+        game_manager.sound_manager = MagicMock()
+        game_manager._set_game_state(GameState.GAME_COMPLETE)
+        game_manager.sound_manager.stop_loops.assert_called_once()
+        assert game_manager.state == GameState.GAME_COMPLETE
+
+    def test_key_r_returns_to_title_from_game_complete(self, game_manager):
+        game_manager.state = GameState.GAME_COMPLETE
+        event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_r)
+        with patch("pygame.event.get", return_value=[event]):
+            game_manager.handle_events()
+        assert game_manager.state == GameState.TITLE_SCREEN
