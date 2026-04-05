@@ -196,6 +196,7 @@ class GameManager:
             (PowerUpType.STAR, (32, 32)),
             (PowerUpType.STAR, (64, 32)),
             (PowerUpType.STAR, (96, 32)),
+            (PowerUpType.STAR, (128, 32)),
             (PowerUpType.HELMET, (32, 96)),
             (PowerUpType.CLOCK, (64, 96)),
             (PowerUpType.BOMB, (96, 96)),
