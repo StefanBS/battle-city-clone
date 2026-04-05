@@ -28,57 +28,82 @@ class TestPowerUpManager:
         return PowerUpManager(mock_texture_manager, mock_game_map)
 
     def test_initial_state(self, manager):
-        assert manager.active_power_up is None
+        assert manager.active_power_ups == []
 
     def test_spawn_creates_power_up(self, manager, mock_player_tank):
         manager.spawn_power_up(mock_player_tank, [])
-        assert manager.active_power_up is not None
+        assert len(manager.active_power_ups) == 1
 
-    def test_spawn_only_one_at_a_time(self, manager, mock_player_tank):
+    def test_spawn_multiple_allowed(self, manager, mock_player_tank):
         manager.spawn_power_up(mock_player_tank, [])
-        first = manager.active_power_up
         manager.spawn_power_up(mock_player_tank, [])
-        assert manager.active_power_up is first
+        assert len(manager.active_power_ups) == 2
 
     def test_spawn_with_specific_type(self, manager, mock_player_tank):
         manager.spawn_power_up(mock_player_tank, [], power_up_type=PowerUpType.BOMB)
-        assert manager.active_power_up.power_up_type == PowerUpType.BOMB
+        assert manager.active_power_ups[0].power_up_type == PowerUpType.BOMB
 
-    def test_get_power_up_returns_active(self, manager, mock_player_tank):
+    def test_spawn_at_explicit_position(self, manager):
+        manager.spawn_power_up(position=(64, 96), power_up_type=PowerUpType.STAR)
+        pu = manager.active_power_ups[0]
+        assert pu.x == 64
+        assert pu.y == 96
+        assert pu.power_up_type == PowerUpType.STAR
+
+    def test_get_power_ups_returns_list(self, manager, mock_player_tank):
         manager.spawn_power_up(mock_player_tank, [])
-        assert manager.get_power_up() is manager.active_power_up
+        result = manager.get_power_ups()
+        assert isinstance(result, list)
+        assert len(result) == 1
 
-    def test_get_power_up_returns_none_when_empty(self, manager):
-        assert manager.get_power_up() is None
+    def test_get_power_ups_returns_empty_when_none(self, manager):
+        assert manager.get_power_ups() == []
 
-    def test_collect_returns_type(self, manager, mock_player_tank):
+    def test_collect_specific_power_up(self, manager, mock_player_tank):
         manager.spawn_power_up(mock_player_tank, [], power_up_type=PowerUpType.CLOCK)
-        result = manager.collect_power_up()
+        pu = manager.active_power_ups[0]
+        result = manager.collect_power_up(pu)
         assert result == PowerUpType.CLOCK
+        assert pu not in manager.active_power_ups
 
-    def test_collect_clears_active(self, manager, mock_player_tank):
-        manager.spawn_power_up(mock_player_tank, [])
-        manager.collect_power_up()
-        assert manager.active_power_up is None
+    def test_collect_returns_none_for_missing(self, manager):
+        from src.core.power_up import PowerUp
 
-    def test_collect_returns_none_when_empty(self, manager):
-        assert manager.collect_power_up() is None
+        fake_pu = MagicMock(spec=PowerUp)
+        result = manager.collect_power_up(fake_pu)
+        assert result is None
+
+    def test_collect_removes_only_specified(self, manager, mock_player_tank):
+        manager.spawn_power_up(mock_player_tank, [], power_up_type=PowerUpType.CLOCK)
+        manager.spawn_power_up(mock_player_tank, [], power_up_type=PowerUpType.BOMB)
+        pu_clock = manager.active_power_ups[0]
+        manager.collect_power_up(pu_clock)
+        assert len(manager.active_power_ups) == 1
+        assert manager.active_power_ups[0].power_up_type == PowerUpType.BOMB
 
     def test_update_clears_timed_out_power_up(self, manager, mock_player_tank):
         manager.spawn_power_up(mock_player_tank, [])
         manager.update(POWERUP_TIMEOUT + 0.1)
-        assert manager.active_power_up is None
+        assert len(manager.active_power_ups) == 0
 
     def test_update_keeps_active_power_up(self, manager, mock_player_tank):
         manager.spawn_power_up(mock_player_tank, [])
         manager.update(1.0)
-        assert manager.active_power_up is not None
+        assert len(manager.active_power_ups) == 1
+
+    def test_update_removes_only_timed_out(self, manager, mock_player_tank):
+        manager.spawn_power_up(mock_player_tank, [], power_up_type=PowerUpType.CLOCK)
+        manager.spawn_power_up(mock_player_tank, [], power_up_type=PowerUpType.BOMB)
+        # advance past timeout for one
+        manager.active_power_ups[0].update(POWERUP_TIMEOUT + 0.1)
+        manager.update(0.0)
+        assert len(manager.active_power_ups) == 1
 
     def test_spawn_avoids_occupied_positions(self, manager, mock_player_tank):
         mock_player_tank.rect = pygame.Rect(0, 0, TILE_SIZE, TILE_SIZE)
         manager.spawn_power_up(mock_player_tank, [])
-        assert manager.active_power_up is not None
-        pu_rect = manager.active_power_up.rect
+        assert len(manager.active_power_ups) == 1
+        pu_rect = manager.active_power_ups[0].rect
         assert not pu_rect.colliderect(mock_player_tank.rect)
 
     def test_spawn_skips_when_no_valid_position(self, mock_texture_manager):
@@ -95,4 +120,4 @@ class TestPowerUpManager:
         player = MagicMock()
         player.rect = pygame.Rect(0, 0, TILE_SIZE, TILE_SIZE)
         manager.spawn_power_up(player, [])
-        assert manager.active_power_up is None
+        assert len(manager.active_power_ups) == 0

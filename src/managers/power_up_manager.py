@@ -16,7 +16,7 @@ from src.core.tile import TileType
 
 
 class PowerUpManager:
-    """Manages the active power-up on the map."""
+    """Manages active power-ups on the map."""
 
     def __init__(
         self,
@@ -25,54 +25,63 @@ class PowerUpManager:
     ) -> None:
         self._texture_manager = texture_manager
         self._game_map = game_map
-        self.active_power_up: Optional[PowerUp] = None
+        self.active_power_ups: List[PowerUp] = []
 
     def spawn_power_up(
         self,
-        player_tank: PlayerTank,
-        enemy_tanks: List[EnemyTank],
+        player_tank: Optional[PlayerTank] = None,
+        enemy_tanks: Optional[List[EnemyTank]] = None,
         power_up_type: Optional[PowerUpType] = None,
+        position: Optional[tuple[int, int]] = None,
     ) -> None:
-        """Spawn a power-up at a random walkable position."""
-        if self.active_power_up is not None:
-            return
+        """Spawn a power-up, appending it to the active list.
 
+        If ``position`` is given, spawn there directly without searching.
+        Otherwise, find a random walkable position not occupied by any tank.
+        """
         if power_up_type is None:
             power_up_type = random.choice(list(PowerUpType))
 
-        position = self._find_spawn_position(player_tank, enemy_tanks)
-        if position is None:
-            logger.warning("No valid position for power-up spawn.")
-            return
+        if position is not None:
+            x, y = position
+        else:
+            pos = self._find_spawn_position(
+                player_tank, enemy_tanks if enemy_tanks is not None else []
+            )
+            if pos is None:
+                logger.warning("No valid position for power-up spawn.")
+                return
+            x, y = pos
 
-        x, y = position
-        self.active_power_up = PowerUp(
-            x, y, power_up_type, self._texture_manager
-        )
+        power_up = PowerUp(x, y, power_up_type, self._texture_manager)
+        self.active_power_ups.append(power_up)
         logger.info(f"Power-up spawned: {power_up_type.value} at ({x}, {y})")
 
     def update(self, dt: float) -> None:
-        """Update the active power-up; clear if timed out."""
-        if self.active_power_up is not None:
-            self.active_power_up.update(dt)
-            if not self.active_power_up.active:
-                logger.debug("Power-up timed out.")
-                self.active_power_up = None
+        """Update all active power-ups; remove any that have timed out."""
+        for pu in self.active_power_ups:
+            pu.update(dt)
+        timed_out = [pu for pu in self.active_power_ups if not pu.active]
+        for pu in timed_out:
+            logger.debug("Power-up timed out.")
+            self.active_power_ups.remove(pu)
 
-    def get_power_up(self) -> Optional[PowerUp]:
-        """Return the active power-up for collision checking and rendering."""
-        return self.active_power_up
+    def get_power_ups(self) -> List[PowerUp]:
+        """Return the list of active power-ups for collision checking and rendering."""
+        return self.active_power_ups
 
-    def collect_power_up(self) -> Optional[PowerUpType]:
-        """Collect the active power-up. Returns its type, or None."""
-        if self.active_power_up is None:
+    def collect_power_up(self, power_up: PowerUp) -> Optional[PowerUpType]:
+        """Collect a specific power-up. Returns its type, or None if not found."""
+        if power_up not in self.active_power_ups:
             return None
-        power_up_type = self.active_power_up.collect()
-        self.active_power_up = None
+        power_up_type = power_up.collect()
+        self.active_power_ups.remove(power_up)
         return power_up_type
 
     def _find_spawn_position(
-        self, player_tank: PlayerTank, enemy_tanks: List[EnemyTank]
+        self,
+        player_tank: Optional[PlayerTank],
+        enemy_tanks: List[EnemyTank],
     ) -> Optional[tuple[int, int]]:
         """Find a random walkable tile position not occupied by any tank."""
         walkable = []
