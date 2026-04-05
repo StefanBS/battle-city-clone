@@ -24,7 +24,7 @@ class SoundManager:
         try:
             pygame.mixer.init()
             pygame.mixer.set_num_channels(16)
-        except Exception:
+        except pygame.error:
             logger.warning("Audio mixer failed to initialize; sounds disabled.")
             return
 
@@ -32,7 +32,7 @@ class SoundManager:
             try:
                 path = resource_path(rel_path)
                 self._sounds[name] = pygame.mixer.Sound(path)
-            except Exception:
+            except (pygame.error, FileNotFoundError):
                 logger.warning(f"Could not load sound '{rel_path}'; skipping.")
 
         self._enabled = True

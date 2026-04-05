@@ -56,6 +56,11 @@ class CollisionResponseHandler:
             (EnemyTank, Tile): self._handle_tank_vs_tile,
         }
 
+    def _play_sound(self, play_fn: str) -> None:
+        """Call a SoundManager play method if available."""
+        if self._sound_manager is not None:
+            getattr(self._sound_manager, play_fn)()
+
     def process_collisions(self, events: List[Tuple[Any, Any]]) -> List[EnemyTank]:
         """Process collision events and return list of enemies to remove."""
         if not events:
@@ -148,8 +153,7 @@ class CollisionResponseHandler:
                 float(enemy.rect.centerx),
                 float(enemy.rect.centery),
             )
-            if self._sound_manager:
-                self._sound_manager.play_explosion()
+            self._play_sound("play_explosion")
         return True
 
     def _handle_bullet_vs_player(
@@ -198,11 +202,10 @@ class CollisionResponseHandler:
             float(bullet.rect.centerx),
             float(bullet.rect.centery),
         )
-        if self._sound_manager:
-            if tile.type == TileType.BASE:
-                self._sound_manager.play_explosion()
-            else:
-                self._sound_manager.play_brick_hit()
+        if tile.type == TileType.BASE:
+            self._play_sound("play_explosion")
+        else:
+            self._play_sound("play_brick_hit")
 
         if tile.type == TileType.STEEL:
             if bullet.power_bullet:
@@ -242,8 +245,7 @@ class CollisionResponseHandler:
         power_up_type = self._power_up_manager.collect_power_up(power_up)
         if power_up_type is not None:
             self._add_score(POWERUP_COLLECT_POINTS)
-            if self._sound_manager:
-                self._sound_manager.play_powerup()
+            self._play_sound("play_powerup")
             logger.info(f"Player collected power-up: {power_up_type.value}")
             self.collected_power_up_type = power_up_type
         return True

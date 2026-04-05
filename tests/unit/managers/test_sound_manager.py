@@ -11,13 +11,15 @@ class TestSoundManager:
 
     def test_init_disabled_on_mixer_error(self):
         with patch("src.managers.sound_manager.pygame") as mock_pg:
-            mock_pg.mixer.init.side_effect = Exception("no audio")
+            mock_pg.error = type("error", (Exception,), {})
+            mock_pg.mixer.init.side_effect = mock_pg.error("no audio")
             sm = SoundManager()
             assert sm._enabled is False
 
     def test_play_methods_noop_when_disabled(self):
         with patch("src.managers.sound_manager.pygame") as mock_pg:
-            mock_pg.mixer.init.side_effect = Exception("no audio")
+            mock_pg.error = type("error", (Exception,), {})
+            mock_pg.mixer.init.side_effect = mock_pg.error("no audio")
             sm = SoundManager()
             sm.play_shoot()
             sm.play_brick_hit()
