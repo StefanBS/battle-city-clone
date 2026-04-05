@@ -305,6 +305,7 @@ class Map:
         """Change a tile's type and invalidate caches."""
         old_type = tile.type
         tile.type = new_type
+        tile.tmx_sprite = None
         self._tile_cache_dirty = True
         if old_type == TileType.EMPTY and new_type != TileType.EMPTY:
             self._drawable_tiles.append(tile)
