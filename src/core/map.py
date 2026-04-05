@@ -146,30 +146,30 @@ class Map:
                 continue
             tt = props.get("tile_type") or ""
             if tt == "BRICK":
-                variant = props.get("brick_variant") or "full"
-                if variant not in self._brick_variant_sprites:
-                    raw_img = tiled_map.get_tile_image_by_gid(gid)
-                    if raw_img:
-                        self._brick_variant_sprites[variant] = (
-                            pygame.transform.scale(
-                                raw_img, (SUB_TILE_SIZE, SUB_TILE_SIZE)
-                            )
-                        )
+                key = props.get("brick_variant") or "full"
+                self._cache_sprite(
+                    self._brick_variant_sprites, key, tiled_map, gid
+                )
             elif tt == "WATER":
-                frame = props.get("water_frame")
-                if frame is not None:
+                raw_frame = props.get("water_frame")
+                if raw_frame is not None:
                     try:
-                        frame_num = int(frame)
+                        key = int(raw_frame)
                     except (ValueError, TypeError):
                         continue
-                    if frame_num not in self._water_frame_sprites:
-                        raw_img = tiled_map.get_tile_image_by_gid(gid)
-                        if raw_img:
-                            self._water_frame_sprites[frame_num] = (
-                                pygame.transform.scale(
-                                    raw_img, (SUB_TILE_SIZE, SUB_TILE_SIZE)
-                                )
-                            )
+                    self._cache_sprite(
+                        self._water_frame_sprites, key, tiled_map, gid
+                    )
+
+    def _cache_sprite(self, cache: dict, key, tiled_map, gid: int) -> None:
+        """Store a scaled tile sprite in cache if not already present."""
+        if key in cache:
+            return
+        raw_img = tiled_map.get_tile_image_by_gid(gid)
+        if raw_img:
+            cache[key] = pygame.transform.scale(
+                raw_img, (SUB_TILE_SIZE, SUB_TILE_SIZE)
+            )
 
     def _load_spawn_points(self, tiled_map: pytmx.TiledMap) -> None:
         """Read spawn points and player spawn from TMX object layers.
