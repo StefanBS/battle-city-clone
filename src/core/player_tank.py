@@ -1,3 +1,4 @@
+import pygame
 from loguru import logger
 from .tank import Tank
 from src.managers.texture_manager import TextureManager
@@ -7,6 +8,8 @@ from src.utils.constants import (
     BULLET_SPEED,
     STAR_BULLET_SPEED_MULTIPLIER,
     STAR_MAX_BULLETS,
+    SHIELD_WARNING_DURATION,
+    SHIELD_FLICKER_INTERVAL,
 )
 
 
@@ -50,6 +53,10 @@ class PlayerTank(Tank):
         self.invincibility_duration = 3.0
         self.star_level: int = 0
         self._update_sprite()
+        self._shield_frames: list[pygame.Surface] = [
+            texture_manager.get_sprite("shield_1"),
+            texture_manager.get_sprite("shield_2"),
+        ]
 
     def apply_star(self) -> None:
         """Apply a star upgrade (up to tier 3)."""
@@ -69,6 +76,17 @@ class PlayerTank(Tank):
         else:
             self.max_bullets = 1
         self.power_bullets = self.star_level >= 3
+
+    @property
+    def is_shield_active(self) -> bool:
+        """Whether the shield overlay should render."""
+        if not self.is_invincible:
+            return False
+        if self.invincibility_duration <= SHIELD_WARNING_DURATION:
+            return True
+        return (
+            self.invincibility_duration - self.invincibility_timer
+        ) > SHIELD_WARNING_DURATION
 
     def _update_sprite(self) -> None:
         """Update sprite using tier-specific sprites when upgraded."""
@@ -137,3 +155,16 @@ class PlayerTank(Tank):
             self._apply_star_stats()
             self.direction = Direction.UP
             self._update_sprite()
+
+    def draw(self, surface: pygame.Surface) -> None:
+        """Draw the player tank with shield overlay when active."""
+        if self.is_shield_active:
+            if self.sprite:
+                surface.blit(self.sprite, self.rect)
+            frame_idx = int(
+                self.invincibility_timer % (SHIELD_FLICKER_INTERVAL * 2)
+                >= SHIELD_FLICKER_INTERVAL
+            )
+            surface.blit(self._shield_frames[frame_idx], self.rect)
+        else:
+            super().draw(surface)

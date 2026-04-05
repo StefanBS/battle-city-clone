@@ -136,6 +136,8 @@ class TestPlayerTank:
         mock_surface = MagicMock(spec=pygame.Surface)
         mock_sprite = MagicMock(spec=pygame.Surface)
         player_tank.is_invincible = True
+        # Put timer in warning phase so shield is inactive and blink logic runs
+        player_tank.invincibility_timer = player_tank.invincibility_duration - 1.0
         player_tank.blink_timer = player_tank.blink_interval * 0.5
         player_tank.sprite = mock_sprite
 
@@ -148,6 +150,8 @@ class TestPlayerTank:
         mock_surface = MagicMock(spec=pygame.Surface)
         mock_sprite = MagicMock(spec=pygame.Surface)
         player_tank.is_invincible = True
+        # Put timer in warning phase so shield is inactive and blink logic runs
+        player_tank.invincibility_timer = player_tank.invincibility_duration - 1.0
         player_tank.blink_timer = player_tank.blink_interval * 1.5
         player_tank.sprite = mock_sprite
 
@@ -264,3 +268,81 @@ class TestStarUpgrade:
             c.args[0] for c in mock_texture_manager.get_sprite.call_args_list
         ]
         assert any("tier1" in name for name in called_names)
+
+
+class TestShieldAnimation:
+    @pytest.fixture
+    def mock_texture_manager(self):
+        """Override to return distinct surfaces per sprite name."""
+        from src.managers.texture_manager import TextureManager
+
+        mock_tm = MagicMock(spec=TextureManager)
+        sprite_cache: dict = {}
+
+        def get_sprite(name: str) -> MagicMock:
+            if name not in sprite_cache:
+                sprite_cache[name] = MagicMock(spec=pygame.Surface)
+            return sprite_cache[name]
+
+        mock_tm.get_sprite.side_effect = get_sprite
+        return mock_tm
+
+    @pytest.fixture
+    def player_tank(self, mock_texture_manager):
+        return PlayerTank(
+            5, 12, TILE_SIZE, mock_texture_manager,
+            map_width_px=16 * TILE_SIZE, map_height_px=16 * TILE_SIZE,
+        )
+
+    def test_is_shield_active_false_when_not_invincible(self, player_tank):
+        assert player_tank.is_shield_active is False
+
+    def test_is_shield_active_true_at_start_of_invincibility(self, player_tank):
+        player_tank.activate_invincibility(10.0)
+        assert player_tank.is_shield_active is True
+
+    def test_is_shield_active_false_during_warning_phase(self, player_tank):
+        player_tank.activate_invincibility(10.0)
+        player_tank.invincibility_timer = 8.5
+        assert player_tank.is_shield_active is False
+
+    def test_is_shield_active_true_just_before_warning(self, player_tank):
+        player_tank.activate_invincibility(10.0)
+        player_tank.invincibility_timer = 7.5
+        assert player_tank.is_shield_active is True
+
+    def test_is_shield_active_true_entire_duration_when_short(self, player_tank):
+        player_tank.activate_invincibility(1.5)
+        player_tank.invincibility_timer = 1.0
+        assert player_tank.is_shield_active is True
+
+    def test_shield_frames_cached_at_init(self, player_tank):
+        assert len(player_tank._shield_frames) == 2
+
+    def test_draw_blits_shield_when_active(self, player_tank):
+        player_tank.activate_invincibility(10.0)
+        player_tank.sprite = MagicMock()
+        mock_surface = MagicMock()
+        player_tank.draw(mock_surface)
+        assert mock_surface.blit.call_count == 2
+
+    def test_draw_delegates_to_super_when_shield_inactive(self, player_tank):
+        player_tank.sprite = MagicMock()
+        mock_surface = MagicMock()
+        player_tank.draw(mock_surface)
+        assert mock_surface.blit.call_count == 1
+
+    def test_shield_frame_alternates_with_timer(self, player_tank):
+        player_tank.activate_invincibility(10.0)
+        player_tank.invincibility_timer = 0.02
+        player_tank.sprite = MagicMock()
+        surface = MagicMock()
+        player_tank.draw(surface)
+        first_shield = surface.blit.call_args_list[1][0][0]
+
+        surface.reset_mock()
+        player_tank.invincibility_timer = 0.06
+        player_tank.draw(surface)
+        second_shield = surface.blit.call_args_list[1][0][0]
+
+        assert first_shield != second_shield
