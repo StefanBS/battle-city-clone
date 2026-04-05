@@ -16,12 +16,11 @@ class Map:
     """
 
     # Bullet direction → surviving brick half variant
-    # A bullet going RIGHT destroys the left side, leaving the right half
     _DIRECTION_TO_VARIANT = {
-        "right": "left",
-        "left": "right",
-        "down": "top",
-        "up": "bottom",
+        "right": "right",
+        "left": "left",
+        "down": "bottom",
+        "up": "top",
     }
 
     def __init__(self, map_file: str, texture_manager: TextureManager) -> None:
@@ -249,27 +248,16 @@ class Map:
         """
         self._damage_single_brick(tile, bullet_direction)
 
-        # Check adjacent tile for multi-tile impact
-        if bullet_direction in ("left", "right"):
-            # Horizontal bullet: check tiles above and below
-            for dy in (-1, 1):
-                adj = self.get_tile_at(tile.x, tile.y + dy)
-                if (
-                    adj
-                    and adj.type == TileType.BRICK
-                    and bullet_rect.colliderect(adj.rect)
-                ):
-                    self._damage_single_brick(adj, bullet_direction)
-        elif bullet_direction in ("up", "down"):
-            # Vertical bullet: check tiles left and right
-            for dx in (-1, 1):
-                adj = self.get_tile_at(tile.x + dx, tile.y)
-                if (
-                    adj
-                    and adj.type == TileType.BRICK
-                    and bullet_rect.colliderect(adj.rect)
-                ):
-                    self._damage_single_brick(adj, bullet_direction)
+        # Check all 4 adjacent tiles — the bullet may straddle
+        # two tiles in any direction
+        for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+            adj = self.get_tile_at(tile.x + dx, tile.y + dy)
+            if (
+                adj
+                and adj.type == TileType.BRICK
+                and bullet_rect.colliderect(adj.rect)
+            ):
+                self._damage_single_brick(adj, bullet_direction)
 
     # Half-brick rect offsets: variant → (dx, dy, w, h) as fractions of tile size
     _VARIANT_RECT = {
