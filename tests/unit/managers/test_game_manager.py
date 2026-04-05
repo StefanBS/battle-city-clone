@@ -158,3 +158,77 @@ class TestGameManager:
         mock_enemy.update.assert_not_called()
         game_manager.spawn_manager.update.assert_not_called()
         game_manager.collision_response_handler.process_collisions.assert_not_called()
+
+
+class TestGameManagerSoundWiring:
+    @pytest.fixture
+    def _mock_game_deps(self):
+        """Shared mock setup for GameManager fixtures."""
+        with (
+            patch("pygame.display.set_mode"),
+            patch("pygame.font.SysFont"),
+            patch("src.managers.game_manager.TextureManager") as MockTM,
+            patch("src.managers.game_manager.EffectManager"),
+            patch("src.managers.game_manager.Renderer"),
+            patch("src.managers.game_manager.SpawnManager"),
+            patch("src.managers.game_manager.Map") as MockMap,
+        ):
+            mock_tm_instance = MockTM.return_value
+            mock_tm_instance.get_sprite.return_value = MagicMock(spec=pygame.Surface)
+            mock_map_instance = MockMap.return_value
+            mock_map_instance.width = 16
+            mock_map_instance.height = 16
+            mock_map_instance.player_spawn = (4, 12)
+            mock_map_instance.spawn_points = [(3, 1), (8, 1), (12, 1)]
+            yield
+
+    @pytest.fixture
+    def game_manager(self, _mock_game_deps):
+        """Create a GameManager with game started (past title screen)."""
+        pygame.init()
+        manager = GameManager()
+        manager._reset_game()
+        yield manager
+        pygame.quit()
+
+    @pytest.fixture
+    def game_manager_at_title(self, _mock_game_deps):
+        """Create a GameManager at the title screen (no _reset_game)."""
+        pygame.init()
+        manager = GameManager()
+        yield manager
+        pygame.quit()
+
+    @pytest.fixture
+    def gm_with_mock_sound(self, game_manager):
+        """GameManager with SoundManager replaced by a mock."""
+        game_manager.sound_manager = MagicMock()
+        return game_manager
+
+    def test_set_game_state_victory_stops_loops_and_plays_victory(
+        self, gm_with_mock_sound
+    ):
+        gm = gm_with_mock_sound
+        gm._set_game_state(GameState.VICTORY)
+        gm.sound_manager.stop_loops.assert_called_once()
+        gm.sound_manager.play_victory.assert_called_once()
+        assert gm.state == GameState.VICTORY
+
+    def test_set_game_state_game_over_stops_loops(self, gm_with_mock_sound):
+        gm = gm_with_mock_sound
+        gm._set_game_state(GameState.GAME_OVER)
+        gm.sound_manager.stop_loops.assert_called_once()
+        gm.sound_manager.play_game_over.assert_called_once()
+        assert gm.state == GameState.GAME_OVER_ANIMATION
+
+    def test_quit_game_stops_loops(self, gm_with_mock_sound):
+        gm = gm_with_mock_sound
+        gm._quit_game()
+        gm.sound_manager.stop_loops.assert_called_once()
+        assert gm.state == GameState.EXIT
+
+    def test_handle_title_input_plays_menu_select(self, game_manager_at_title):
+        gm = game_manager_at_title
+        gm.sound_manager = MagicMock()
+        gm._handle_title_input(pygame.K_DOWN)
+        gm.sound_manager.play_menu_select.assert_called()

@@ -12,7 +12,9 @@ import wave
 
 SAMPLE_RATE = 22050
 MAX_AMPLITUDE = 32767
-OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "sounds")
+OUTPUT_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)), "assets", "sounds"
+)
 
 
 def write_wav(filename: str, samples: list[float]) -> None:
@@ -22,7 +24,10 @@ def write_wav(filename: str, samples: list[float]) -> None:
         wf.setnchannels(1)
         wf.setsampwidth(2)  # 16-bit
         wf.setframerate(SAMPLE_RATE)
-        packed = struct.pack(f"<{len(samples)}h", *(int(s * MAX_AMPLITUDE) for s in samples))
+        packed = struct.pack(
+            f"<{len(samples)}h",
+            *(int(s * MAX_AMPLITUDE) for s in samples),
+        )
         wf.writeframes(packed)
     print(f"  wrote {path} ({len(samples)} samples, {len(samples) / SAMPLE_RATE:.3f}s)")
 
@@ -103,6 +108,112 @@ def generate_game_over() -> None:
     write_wav("game_over.wav", samples)
 
 
+def generate_engine() -> None:
+    """Low-frequency square wave buzz for tank engine, ~0.3s seamless loop."""
+    duration = 0.3
+    num_samples = int(SAMPLE_RATE * duration)
+    samples = []
+    for i in range(num_samples):
+        t = i / SAMPLE_RATE
+        freq = 70 + 10 * math.sin(2 * math.pi * 3 * t)
+        amplitude = 0.3
+        samples.append(square_wave(freq, t) * amplitude)
+    write_wav("engine.wav", samples)
+
+
+def generate_bullet_hit_bullet() -> None:
+    """Short metallic ping, ~0.05s."""
+    duration = 0.05
+    num_samples = int(SAMPLE_RATE * duration)
+    samples = []
+    for i in range(num_samples):
+        t = i / SAMPLE_RATE
+        progress = i / num_samples
+        decay = math.exp(-progress * 12)
+        samples.append(square_wave(1200, t) * decay)
+    write_wav("bullet_hit_bullet.wav", samples)
+
+
+def _generate_fanfare(
+    filename: str,
+    freqs: list[float],
+    note_duration: float = 0.4,
+    gap_duration: float = 0.04,
+    fade: float = 0.3,
+) -> None:
+    """Generate a multi-note square wave fanfare."""
+    note_samples = int(SAMPLE_RATE * note_duration)
+    gap_samples = int(SAMPLE_RATE * gap_duration)
+    samples = []
+    for freq in freqs:
+        for i in range(note_samples):
+            t = i / SAMPLE_RATE
+            progress = i / note_samples
+            amplitude = 1.0 - progress * fade
+            samples.append(square_wave(freq, t) * amplitude)
+        samples.extend([0.0] * gap_samples)
+    write_wav(filename, samples)
+
+
+def generate_stage_start() -> None:
+    """Ascending 4-note fanfare (C4-E4-G4-C5), ~2.0s."""
+    _generate_fanfare("stage_start.wav", [261.6, 329.6, 392.0, 523.3])
+
+
+def generate_victory() -> None:
+    """Triumphant 3-note ascending chord (G4-B4-D5), ~1.5s."""
+    _generate_fanfare("victory.wav", [392.0, 493.9, 587.3])
+
+
+def generate_menu_select() -> None:
+    """Quick tick/blip, ~0.03s."""
+    duration = 0.03
+    num_samples = int(SAMPLE_RATE * duration)
+    samples = []
+    for i in range(num_samples):
+        t = i / SAMPLE_RATE
+        progress = i / num_samples
+        amplitude = 1.0 - progress * 0.5
+        samples.append(square_wave(800, t) * amplitude)
+    write_wav("menu_select.wav", samples)
+
+
+def generate_ice_slide() -> None:
+    """White noise burst with decay, lower freq than brick_hit, ~0.15s."""
+    duration = 0.15
+    num_samples = int(SAMPLE_RATE * duration)
+    samples = []
+    rng = random.Random(99)
+    for i in range(num_samples):
+        progress = i / num_samples
+        decay = math.exp(-progress * 6)
+        noise = rng.uniform(-1.0, 1.0)
+        raw = noise * decay
+        if samples:
+            raw = 0.6 * raw + 0.4 * samples[-1]
+        samples.append(raw)
+    write_wav("ice_slide.wav", samples)
+
+
+def generate_powerup_spawn() -> None:
+    """Short blip + silence for looping blink sound.
+
+    Total duration = 1.0s so the blip repeats once per second.
+    """
+    total_duration = 1.0
+    blip_duration = 0.05
+    blip_samples = int(SAMPLE_RATE * blip_duration)
+    total_samples = int(SAMPLE_RATE * total_duration)
+    samples = []
+    for i in range(blip_samples):
+        t = i / SAMPLE_RATE
+        progress = i / blip_samples
+        amplitude = 1.0 - progress * 0.5
+        samples.append(square_wave(1000, t) * amplitude)
+    samples.extend([0.0] * (total_samples - blip_samples))
+    write_wav("powerup_spawn.wav", samples)
+
+
 def main() -> None:
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     print(f"Generating sounds in {OUTPUT_DIR}/")
@@ -111,6 +222,13 @@ def main() -> None:
     generate_explosion()
     generate_powerup()
     generate_game_over()
+    generate_engine()
+    generate_bullet_hit_bullet()
+    generate_stage_start()
+    generate_victory()
+    generate_menu_select()
+    generate_ice_slide()
+    generate_powerup_spawn()
     print("Done.")
 
 
