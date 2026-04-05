@@ -16,11 +16,12 @@ class Map:
     """
 
     # Bullet direction → surviving brick half variant
+    # A bullet going RIGHT destroys the left side, leaving the right half
     _DIRECTION_TO_VARIANT = {
-        "right": "right",
-        "left": "left",
-        "down": "bottom",
-        "up": "top",
+        "right": "left",
+        "left": "right",
+        "down": "top",
+        "up": "bottom",
     }
 
     def __init__(self, map_file: str, texture_manager: TextureManager) -> None:
