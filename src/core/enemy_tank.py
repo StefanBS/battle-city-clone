@@ -21,6 +21,7 @@ class TankPropertyDict(TypedDict):
     health: int
     shoot_interval: float
     direction_change_interval: float
+    power_bullets: bool
 
 
 class EnemyTank(Tank):
@@ -33,6 +34,7 @@ class EnemyTank(Tank):
             "health": 1,
             "shoot_interval": 2.0,
             "direction_change_interval": 2.5,
+            "power_bullets": False,
         },
         TankType.FAST: {
             "speed": TANK_SPEED * 1.5,
@@ -40,6 +42,7 @@ class EnemyTank(Tank):
             "health": 1,
             "shoot_interval": 1.8,
             "direction_change_interval": 1.5,
+            "power_bullets": False,
         },
         TankType.POWER: {
             "speed": TANK_SPEED * 1.15,
@@ -47,6 +50,7 @@ class EnemyTank(Tank):
             "health": 1,
             "shoot_interval": 1.0,
             "direction_change_interval": 2.0,
+            "power_bullets": False,
         },
         TankType.ARMOR: {
             "speed": TANK_SPEED * 0.75,
@@ -54,6 +58,7 @@ class EnemyTank(Tank):
             "health": 4,
             "shoot_interval": 1.5,
             "direction_change_interval": 2.0,
+            "power_bullets": True,
         },
     }
 
@@ -98,7 +103,7 @@ class EnemyTank(Tank):
             map_height_px=map_height_px,
         )
         self.tank_type = tank_type
-        self.power_bullets = tank_type == TankType.ARMOR
+        self.power_bullets = props["power_bullets"]
         self.direction = random.choice(list(Direction))
         self.direction_timer: float = 0
         self.direction_change_interval: float = props["direction_change_interval"]

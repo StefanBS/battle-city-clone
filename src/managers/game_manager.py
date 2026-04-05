@@ -21,7 +21,6 @@ from src.utils.constants import (
     SHOVEL_DURATION,
     SHOVEL_WARNING_DURATION,
     SHOVEL_FLASH_INTERVAL,
-    ENEMY_POINTS,
     EffectType,
     CURTAIN_CLOSE_DURATION,
     CURTAIN_OPEN_DURATION,
@@ -239,9 +238,9 @@ class GameManager:
         """Handle keyboard input on the title screen."""
         if key in (pygame.K_UP, pygame.K_DOWN):
             indices = self._SELECTABLE_MENU_INDICES
-            try:
+            if self._menu_selection in indices:
                 pos = indices.index(self._menu_selection)
-            except ValueError:
+            else:
                 pos = 0
             if key == pygame.K_UP:
                 pos = (pos - 1) % len(indices)
@@ -249,15 +248,10 @@ class GameManager:
                 pos = (pos + 1) % len(indices)
             self._menu_selection = indices[pos]
         elif key == pygame.K_RETURN:
-            if self._menu_selection == 0:
-                logger.info("1 Player selected, starting game.")
-                self._demo_mode = False
-                self._new_game()
-                self.state = GameState.STAGE_CURTAIN_CLOSE
-                self._state_timer = 0.0
-            elif self._menu_selection == 2:
-                logger.info("Demo selected, starting demo.")
-                self._demo_mode = True
+            if self._menu_selection in (0, 2):
+                self._demo_mode = self._menu_selection == 2
+                label = "Demo" if self._demo_mode else "1 Player"
+                logger.info(f"{label} selected, starting game.")
                 self._new_game()
                 self.state = GameState.STAGE_CURTAIN_CLOSE
                 self._state_timer = 0.0
@@ -453,10 +447,7 @@ class GameManager:
                 if tile.type == TileType.EMPTY or tile.brick_variant != "full":
                     self.map.set_tile_type(tile, TileType.BRICK)
                     tile.brick_variant = "full"
-                    tile.rect = pygame.Rect(
-                        tile.x * tile.size, tile.y * tile.size,
-                        tile.size, tile.size,
-                    )
+                    tile.reset_rect()
             # Save original types AFTER restoration (so BRICK, not EMPTY)
             self._shovel_original_tiles = [(t, t.type) for t in tiles]
             for tile in tiles:

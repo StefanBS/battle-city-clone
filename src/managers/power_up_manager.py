@@ -61,7 +61,8 @@ class PowerUpManager:
         """Update all active power-ups; remove any that have timed out."""
         for pu in self.active_power_ups:
             pu.update(dt)
-        self.active_power_ups = [pu for pu in self.active_power_ups if pu.active]
+        if any(not pu.active for pu in self.active_power_ups):
+            self.active_power_ups = [pu for pu in self.active_power_ups if pu.active]
 
     def get_power_ups(self) -> List[PowerUp]:
         """Return the list of active power-ups for collision checking and rendering."""
