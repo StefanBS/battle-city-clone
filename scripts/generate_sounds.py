@@ -116,7 +116,7 @@ def generate_engine() -> None:
     for i in range(num_samples):
         t = i / SAMPLE_RATE
         freq = 70 + 10 * math.sin(2 * math.pi * 3 * t)
-        amplitude = 0.6
+        amplitude = 0.3
         samples.append(square_wave(freq, t) * amplitude)
     write_wav("engine.wav", samples)
 
