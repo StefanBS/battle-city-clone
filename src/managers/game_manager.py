@@ -121,13 +121,12 @@ class GameManager:
             map_name = "demo_powerups.tmx"
         else:
             map_name = f"level_{self.current_stage:02d}.tmx"
-            map_path = resource_path(f"assets/maps/{map_name}")
-            if not os.path.exists(map_path):
-                logger.error(
-                    f"Map file not found: {map_name}; falling back to level_01.tmx"
-                )
-                map_name = "level_01.tmx"
         map_path = resource_path(f"assets/maps/{map_name}")
+        if not self._demo_mode and not os.path.exists(map_path):
+            logger.error(
+                f"Map file not found: {map_name}; falling back to level_01.tmx"
+            )
+            map_path = resource_path("assets/maps/level_01.tmx")
         self.map = Map(map_path, self.texture_manager)
 
         # Compute map pixel dimensions (sub-tile grid * sub-tile size)
