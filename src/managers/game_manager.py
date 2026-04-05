@@ -304,11 +304,17 @@ class GameManager:
         if self.input_handler.consume_shoot():
             self._try_shoot(self.player_tank)
 
+        # Ice detection and slide trigger for player
+        self.player_tank._on_ice = self._is_on_ice(self.player_tank)
+        if dx == 0 and dy == 0 and self.player_tank._on_ice:
+            self.player_tank.start_slide()
+
         if self.freeze_timer > 0:
             self.freeze_timer -= dt
         else:
             for enemy in self.spawn_manager.enemy_tanks:
                 enemy.update(dt)
+                enemy._on_ice = self._is_on_ice(enemy)
                 if enemy.consume_shoot():
                     self._try_shoot(enemy)
 
@@ -383,6 +389,15 @@ class GameManager:
             self._state_timer = 0.0
             return
         self.state = state
+
+    def _is_on_ice(self, tank) -> bool:
+        """Check if the tank's center is over an ice tile."""
+        center_x = int(tank.x + tank.width / 2)
+        center_y = int(tank.y + tank.height / 2)
+        grid_x = center_x // self.map.tile_size
+        grid_y = center_y // self.map.tile_size
+        tile = self.map.get_tile_at(grid_x, grid_y)
+        return tile is not None and tile.type == TileType.ICE
 
     def _add_score(self, points: int) -> None:
         """Add points to the player's score."""
