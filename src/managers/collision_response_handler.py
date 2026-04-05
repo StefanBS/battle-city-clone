@@ -96,18 +96,18 @@ class CollisionResponseHandler:
 
             # Tank collisions
             if isinstance(a, Tank) and isinstance(b, Tank):
-                if a not in reverted_tanks or b not in reverted_tanks:
-                    if handler(a, b, enemies_to_remove):
-                        reverted_tanks.add(a)
-                        reverted_tanks.add(b)
+                if (
+                    (a not in reverted_tanks or b not in reverted_tanks)
+                    and handler(a, b, enemies_to_remove)
+                ):
+                    reverted_tanks.add(a)
+                    reverted_tanks.add(b)
             elif isinstance(a, Tank):
-                if a not in reverted_tanks:
-                    if handler(a, b, enemies_to_remove):
-                        reverted_tanks.add(a)
+                if a not in reverted_tanks and handler(a, b, enemies_to_remove):
+                    reverted_tanks.add(a)
             elif isinstance(b, Tank):
-                if b not in reverted_tanks:
-                    if handler(a, b, enemies_to_remove):
-                        reverted_tanks.add(b)
+                if b not in reverted_tanks and handler(a, b, enemies_to_remove):
+                    reverted_tanks.add(b)
 
         return enemies_to_remove
 
@@ -263,24 +263,17 @@ class CollisionResponseHandler:
         b_caused = self._caused_collision(tank_b, tank_a)
         neither = not a_caused and not b_caused
 
-        if neither:
-            # Pre-existing overlap (e.g. from spawn): prev positions
-            # already collided. Let both tanks move freely so they can
-            # separate instead of getting permanently stuck.
-            if tank_a.prev_rect.colliderect(tank_b.prev_rect):
-                return False
-            # Both moved into each other from non-overlapping positions
+        # Pre-existing overlap (e.g. from spawn): let both tanks move
+        # freely so they can separate instead of getting permanently stuck.
+        if neither and tank_a.prev_rect.colliderect(tank_b.prev_rect):
+            return False
+
+        if neither or a_caused:
             tank_a.revert_move()
             tank_a.on_movement_blocked()
+        if neither or b_caused:
             tank_b.revert_move()
             tank_b.on_movement_blocked()
-        else:
-            if a_caused:
-                tank_a.revert_move()
-                tank_a.on_movement_blocked()
-            if b_caused:
-                tank_b.revert_move()
-                tank_b.on_movement_blocked()
         return True
 
     def _handle_tank_vs_tile(

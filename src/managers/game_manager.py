@@ -85,8 +85,7 @@ class GameManager:
         self.current_stage = 1
         self.score = 0
         self._state_timer = 0.0
-        if hasattr(self, "player_tank"):
-            del self.player_tank
+        self.player_tank = None
         self._load_stage()
 
     @property
@@ -103,9 +102,9 @@ class GameManager:
         logger.info(f"Loading stage {self.current_stage}...")
 
         # Preserve player progress across stages
-        player_lives = self.player_tank.lives if hasattr(self, "player_tank") else 3
+        player_lives = self.player_tank.lives if self.player_tank is not None else 3
         player_star_level = (
-            self.player_tank.star_level if hasattr(self, "player_tank") else 0
+            self.player_tank.star_level if self.player_tank is not None else 0
         )
 
         self.collision_manager = CollisionManager()

@@ -270,32 +270,36 @@ class Map:
         if tile.type != TileType.BRICK:
             return
 
-        if tile.brick_variant == "full":
-            surviving_variant = self._DIRECTION_TO_VARIANT.get(bullet_direction)
-            if surviving_variant is None:
-                self.set_tile_type(tile, TileType.EMPTY)
-                return
-            sprite = self._brick_variant_sprites.get(surviving_variant)
-            if sprite:
-                tile.brick_variant = surviving_variant
-                tile.tmx_sprite = sprite
-                # Shrink collision rect to match the surviving half
-                fracs = self._VARIANT_RECT.get(surviving_variant)
-                if fracs:
-                    dx, dy, w, h = fracs
-                    base_x = tile.x * tile.size
-                    base_y = tile.y * tile.size
-                    tile.rect = pygame.Rect(
-                        int(base_x + dx * tile.size),
-                        int(base_y + dy * tile.size),
-                        int(w * tile.size),
-                        int(h * tile.size),
-                    )
-                self._tile_cache_dirty = True
-            else:
-                self.set_tile_type(tile, TileType.EMPTY)
-        else:
+        # Non-full bricks are destroyed entirely
+        if tile.brick_variant != "full":
             self.set_tile_type(tile, TileType.EMPTY)
+            return
+
+        surviving_variant = self._DIRECTION_TO_VARIANT.get(bullet_direction)
+        sprite = (
+            self._brick_variant_sprites.get(surviving_variant)
+            if surviving_variant
+            else None
+        )
+        if not sprite:
+            self.set_tile_type(tile, TileType.EMPTY)
+            return
+
+        tile.brick_variant = surviving_variant
+        tile.tmx_sprite = sprite
+        # Shrink collision rect to match the surviving half
+        fracs = self._VARIANT_RECT.get(surviving_variant)
+        if fracs:
+            dx, dy, w, h = fracs
+            base_x = tile.x * tile.size
+            base_y = tile.y * tile.size
+            tile.rect = pygame.Rect(
+                int(base_x + dx * tile.size),
+                int(base_y + dy * tile.size),
+                int(w * tile.size),
+                int(h * tile.size),
+            )
+        self._tile_cache_dirty = True
 
     def set_tile_type(self, tile: Tile, new_type: TileType) -> None:
         """Change a tile's type and invalidate caches."""
