@@ -44,7 +44,7 @@ from src.utils.paths import resource_path
 class GameManager:
     """Manages the core game loop and window."""
 
-    _SELECTABLE_MENU_INDICES = [0, 2]  # Skip disabled "2 PLAYERS" at index 1
+    _SELECTABLE_MENU_INDICES = (0, 2)  # Skip disabled "2 PLAYERS" at index 1
 
     def __init__(self) -> None:
         """Initialize the game window and persistent resources."""
@@ -191,7 +191,12 @@ class GameManager:
         logger.info("Stage load complete.")
 
     def _spawn_demo_power_ups(self) -> None:
-        """Force-spawn all powerups at fixed positions for demo mode."""
+        """Force-spawn all powerups at fixed positions for demo mode.
+
+        Powerups are placed in the upper-left open area of the demo map,
+        arranged in rows: 4 stars (top), helmet/clock/bomb (middle),
+        shovel/extra_life (bottom). Pixel positions = sub-tile grid * 16.
+        """
         demo_power_ups = [
             (PowerUpType.STAR, (32, 32)),
             (PowerUpType.STAR, (64, 32)),
