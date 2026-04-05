@@ -161,6 +161,11 @@ class EnemyTank(Tank):
             return
 
         new_direction = random.choice(candidates)
+
+        # Trigger ice slide in old direction before changing
+        if new_direction != old_direction and self._on_ice:
+            self.start_slide()
+
         if new_direction != old_direction:
             self.direction = new_direction
             logger.trace(
@@ -182,8 +187,13 @@ class EnemyTank(Tank):
 
     def on_movement_blocked(self) -> None:
         """Handle collision with a wall by changing direction."""
+        super().on_movement_blocked()
         self._blocked_directions.add(self.direction)
+        # Temporarily suppress ice so _change_direction() won't trigger a new slide
+        was_on_ice = self._on_ice
+        self._on_ice = False
         self._change_direction()
+        self._on_ice = was_on_ice
         self.direction_timer = 0
 
     def update(self, dt: float) -> None:
@@ -222,5 +232,6 @@ class EnemyTank(Tank):
             self._wants_to_shoot = True
             self.shoot_timer = random.uniform(0, 0.3)  # Add small random offset
 
-        dx, dy = self.direction.delta
-        self._move(dx, dy, dt)
+        if not self._sliding:
+            dx, dy = self.direction.delta
+            self._move(dx, dy, dt)

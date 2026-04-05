@@ -337,3 +337,37 @@ class TestEnemyTankCarrier:
             assert carrier_tank.sprite is not None
         finally:
             mock_texture_manager.get_sprite.side_effect = original_side_effect
+
+
+class TestEnemyIceSlide:
+    """Tests for enemy tank sliding on ice."""
+
+    @pytest.fixture
+    def enemy(self, mock_texture_manager):
+        return EnemyTank(
+            128, 128, TILE_SIZE, mock_texture_manager, "basic",
+            map_width_px=16 * TILE_SIZE, map_height_px=16 * TILE_SIZE,
+        )
+
+    def test_direction_change_triggers_slide_on_ice(self, enemy):
+        enemy._on_ice = True
+        enemy.direction = Direction.RIGHT
+        old_direction = enemy.direction
+        with patch("src.core.enemy_tank.random.choice", return_value=Direction.UP):
+            enemy._change_direction()
+        assert enemy._sliding is True
+        assert enemy._slide_direction == old_direction
+
+    def test_direction_change_no_slide_off_ice(self, enemy):
+        enemy._on_ice = False
+        enemy.direction = Direction.RIGHT
+        with patch("src.core.enemy_tank.random.choice", return_value=Direction.UP):
+            enemy._change_direction()
+        assert enemy._sliding is False
+
+    def test_on_movement_blocked_cancels_slide(self, enemy):
+        enemy._on_ice = True
+        enemy.direction = Direction.RIGHT
+        enemy.start_slide()
+        enemy.on_movement_blocked()
+        assert enemy._sliding is False
