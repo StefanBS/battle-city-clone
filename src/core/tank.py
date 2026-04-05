@@ -202,13 +202,7 @@ class Tank(GameObject):
             self._slide_remaining -= distance
             target_x = self.x + dx * distance
             target_y = self.y + dy * distance
-            max_x = float(self.map_width_px - self.width)
-            max_y = float(self.map_height_px - self.height)
-            self.x = max(0.0, min(target_x, max_x))
-            self.y = max(0.0, min(target_y, max_y))
-            if self.x != target_x or self.y != target_y:
-                self.on_movement_blocked()
-            self.rect.topleft = (round(self.x), round(self.y))
+            self._apply_clamped_position(target_x, target_y)
             if self._slide_remaining <= 0:
                 self._sliding = False
 
@@ -229,6 +223,20 @@ class Tank(GameObject):
         self._sliding = False
         self._slide_remaining = 0.0
 
+    @property
+    def on_ice(self) -> bool:
+        """Whether this tank is currently on an ice tile."""
+        return self._on_ice
+
+    @on_ice.setter
+    def on_ice(self, value: bool) -> None:
+        self._on_ice = value
+
+    @property
+    def is_sliding(self) -> bool:
+        """Whether this tank is currently sliding on ice."""
+        return self._sliding
+
     def start_slide(self) -> None:
         """Begin sliding on ice in the current direction."""
         if not self._on_ice or self._sliding or not self._was_moving:
@@ -236,6 +244,19 @@ class Tank(GameObject):
         self._sliding = True
         self._slide_direction = self.direction
         self._slide_remaining = ICE_SLIDE_DISTANCE
+
+    def _apply_clamped_position(self, target_x: float, target_y: float) -> None:
+        """Move to target position, clamping to map bounds.
+
+        Calls on_movement_blocked() if the position was clamped.
+        """
+        max_x = float(self.map_width_px - self.width)
+        max_y = float(self.map_height_px - self.height)
+        self.x = max(0.0, min(target_x, max_x))
+        self.y = max(0.0, min(target_y, max_y))
+        if self.x != target_x or self.y != target_y:
+            self.on_movement_blocked()
+        self.rect.topleft = (round(self.x), round(self.y))
 
     def _align_to_grid(self, value: float, dt: float) -> float:
         """Nudge a coordinate toward the nearest SUB_TILE_SIZE grid line.
@@ -283,14 +304,7 @@ class Tank(GameObject):
         target_y = self.y + dy * self.speed * dt
 
         # Apply movement and clamp to map bounds
-        max_x = float(self.map_width_px - self.width)
-        max_y = float(self.map_height_px - self.height)
-        self.x = max(0.0, min(target_x, max_x))
-        self.y = max(0.0, min(target_y, max_y))
-
-        # Detect boundary hit (position was clamped)
-        if self.x != target_x or self.y != target_y:
-            self.on_movement_blocked()
+        self._apply_clamped_position(target_x, target_y)
 
         # Distance-based animation toggle
         distance = abs(dx * self.speed * dt) + abs(dy * self.speed * dt)
@@ -299,9 +313,6 @@ class Tank(GameObject):
             self.distance_since_last_toggle -= TANK_ANIMATION_DISTANCE
             self.animation_frame = 3 - self.animation_frame  # Toggle between 1 and 2
             self._update_sprite()
-
-        # Update rect immediately after position change
-        self.rect.topleft = (round(self.x), round(self.y))
 
         self._moving_this_frame = True
         return True  # Movement was attempted

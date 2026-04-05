@@ -302,14 +302,14 @@ class GameManager:
         has_valid_input = (dx != 0 or dy != 0) and not (dx != 0 and dy != 0)
 
         # Ice slide: trigger BEFORE move() so start_slide() captures the old direction
-        self.player_tank._on_ice = self._is_on_ice(self.player_tank)
-        if self.player_tank._on_ice and not self.player_tank._sliding:
+        self.player_tank.on_ice = self._is_on_ice(self.player_tank)
+        if self.player_tank.on_ice and not self.player_tank.is_sliding:
             if not has_valid_input:
                 self.player_tank.start_slide()
             elif (dx, dy) != self.player_tank.direction.delta:
                 self.player_tank.start_slide()
 
-        if has_valid_input and not self.player_tank._sliding:
+        if has_valid_input and not self.player_tank.is_sliding:
             self.player_tank.move(dx, dy, dt)
         if self.input_handler.consume_shoot():
             self._try_shoot(self.player_tank)
@@ -319,7 +319,7 @@ class GameManager:
         else:
             for enemy in self.spawn_manager.enemy_tanks:
                 enemy.update(dt)
-                enemy._on_ice = self._is_on_ice(enemy)
+                enemy.on_ice = self._is_on_ice(enemy)
                 if enemy.consume_shoot():
                     self._try_shoot(enemy)
 

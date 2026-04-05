@@ -84,7 +84,7 @@ class TestPlayerIceSlide:
         # Release keys — should start sliding UP
         _clear_input(game)
         _tick(game, 1)  # triggers slide
-        assert game.player_tank._sliding is True
+        assert game.player_tank.is_sliding is True
         assert game.player_tank._slide_direction == Direction.UP
 
         pos_before = game.player_tank.y
@@ -102,7 +102,7 @@ class TestPlayerIceSlide:
         # Now press LEFT (perpendicular) — should slide UP first
         _set_input(game, Direction.LEFT)
         _tick(game, 1)  # triggers slide
-        assert game.player_tank._sliding is True, (
+        assert game.player_tank.is_sliding is True, (
             "Tank should start sliding on perpendicular direction change"
         )
         assert game.player_tank._slide_direction == Direction.UP, (
@@ -132,7 +132,7 @@ class TestPlayerIceSlide:
         # Let slide complete
         for _ in range(120):
             _tick(game, 1)
-            if not game.player_tank._sliding:
+            if not game.player_tank.is_sliding:
                 break
 
         distance = game.player_tank.x - pos_before
@@ -148,7 +148,7 @@ class TestPlayerIceSlide:
         _clear_input(game)
         _tick(game, 1)
 
-        assert game.player_tank._sliding is False
+        assert game.player_tank.is_sliding is False
 
     def test_slide_cancelled_by_wall(self, ice_game):
         """Slide stops when tank hits a wall/obstacle."""
@@ -173,10 +173,10 @@ class TestPlayerIceSlide:
         # Tick until slide ends
         for _ in range(60):
             _tick(game, 1)
-            if not game.player_tank._sliding:
+            if not game.player_tank.is_sliding:
                 break
 
-        assert game.player_tank._sliding is False, "Slide should have been cancelled"
+        assert game.player_tank.is_sliding is False, "Slide should have been cancelled"
 
     def test_slide_on_opposite_direction(self, ice_game):
         """Player slides when pressing opposite direction on ice."""
@@ -189,7 +189,7 @@ class TestPlayerIceSlide:
         # Press DOWN (opposite) — direction change triggers slide
         _set_input(game, Direction.DOWN)
         _tick(game, 1)  # triggers slide
-        assert game.player_tank._sliding is True, (
+        assert game.player_tank.is_sliding is True, (
             "Tank should slide when pressing opposite direction"
         )
 

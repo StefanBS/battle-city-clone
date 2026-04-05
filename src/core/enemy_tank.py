@@ -140,7 +140,7 @@ class EnemyTank(Tank):
         else:
             super()._update_sprite()
 
-    def _change_direction(self) -> None:
+    def _change_direction(self, allow_slide: bool = True) -> None:
         """Randomly change the tank's direction, avoiding blocked ones."""
         old_direction = self.direction
 
@@ -163,7 +163,7 @@ class EnemyTank(Tank):
         new_direction = random.choice(candidates)
 
         # Trigger ice slide in old direction before changing
-        if new_direction != old_direction and self._on_ice:
+        if allow_slide and new_direction != old_direction and self._on_ice:
             self.start_slide()
 
         if new_direction != old_direction:
@@ -189,11 +189,7 @@ class EnemyTank(Tank):
         """Handle collision with a wall by changing direction."""
         super().on_movement_blocked()
         self._blocked_directions.add(self.direction)
-        # Temporarily suppress ice so _change_direction() won't trigger a new slide
-        was_on_ice = self._on_ice
-        self._on_ice = False
-        self._change_direction()
-        self._on_ice = was_on_ice
+        self._change_direction(allow_slide=False)
         self.direction_timer = 0
 
     def update(self, dt: float) -> None:
