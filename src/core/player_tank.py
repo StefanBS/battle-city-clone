@@ -6,6 +6,7 @@ from src.utils.constants import (
     Direction,
     OwnerType,
     BULLET_SPEED,
+    SPAWN_INVINCIBILITY_DURATION,
     STAR_BULLET_SPEED_MULTIPLIER,
     STAR_MAX_BULLETS,
     SHIELD_WARNING_DURATION,
@@ -50,7 +51,7 @@ class PlayerTank(Tank):
             map_height_px=map_height_px,
         )
         self.initial_position = (self.x, self.y)
-        self.invincibility_duration = 3.0
+        self.invincibility_duration = SPAWN_INVINCIBILITY_DURATION
         self.star_level: int = 0
         self._update_sprite()
         self._shield_frames: list[pygame.Surface] = [
@@ -150,7 +151,7 @@ class PlayerTank(Tank):
             self.set_position(*self.initial_position)
             self.prev_x = self.x
             self.prev_y = self.y
-            self.activate_invincibility(3.0)
+            self.activate_invincibility(SPAWN_INVINCIBILITY_DURATION)
             self.star_level = 0
             self._apply_star_stats()
             self.direction = Direction.UP

@@ -7,6 +7,7 @@ from src.utils.constants import (
     TILE_SIZE,
     FPS,
     HELMET_INVINCIBILITY_DURATION,
+    SPAWN_INVINCIBILITY_DURATION,
     BULLET_SPEED,
     STAR_BULLET_SPEED_MULTIPLIER,
     STAR_MAX_BULLETS,
@@ -35,7 +36,7 @@ class TestPlayerTank:
         assert player_tank.initial_position == (0, 0)
         assert player_tank.lives == 3
         assert player_tank.health == 1
-        assert player_tank.invincibility_duration == 3.0
+        assert player_tank.invincibility_duration == SPAWN_INVINCIBILITY_DURATION
         assert not player_tank.is_invincible
 
     def test_player_tank_no_input_handler(self, player_tank):
@@ -208,14 +209,14 @@ class TestActivateInvincibility:
         player.lives = 2
         player.respawn()
         assert player.is_invincible is True
-        assert player.invincibility_duration == 3.0
+        assert player.invincibility_duration == SPAWN_INVINCIBILITY_DURATION
 
     def test_respawn_after_helmet_restores_short_duration(self, player):
         player.activate_invincibility(HELMET_INVINCIBILITY_DURATION)
         player.is_invincible = False
         player.lives = 2
         player.respawn()
-        assert player.invincibility_duration == 3.0
+        assert player.invincibility_duration == SPAWN_INVINCIBILITY_DURATION
 
 
 class TestStarUpgrade:

@@ -16,6 +16,7 @@ from src.utils.constants import (
     LOGICAL_WIDTH,
     LOGICAL_HEIGHT,
     PowerUpType,
+    SPAWN_INVINCIBILITY_DURATION,
     HELMET_INVINCIBILITY_DURATION,
     CLOCK_FREEZE_DURATION,
     SHOVEL_DURATION,
@@ -181,7 +182,7 @@ class GameManager:
         self._shovel_flash_showing_steel: bool = True
 
         # Grant spawn invincibility
-        self.player_tank.activate_invincibility(3.0)
+        self.player_tank.activate_invincibility(SPAWN_INVINCIBILITY_DURATION)
 
         # Restore player progress
         self.player_tank.lives = player_lives
