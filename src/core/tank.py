@@ -8,6 +8,7 @@ from src.utils.constants import (
     Direction,
     OwnerType,
     TILE_SIZE,
+    SUB_TILE_SIZE,
     TANK_SPEED,
     TANK_WIDTH,
     TANK_HEIGHT,
@@ -201,12 +202,12 @@ class Tank(GameObject):
         pass
 
     def _align_to_grid(self, value: float, dt: float) -> float:
-        """Nudge a coordinate toward the nearest TILE_SIZE grid line.
+        """Nudge a coordinate toward the nearest SUB_TILE_SIZE grid line.
 
         If the offset is within TANK_ALIGN_THRESHOLD, move toward the grid
         line at the tank's speed so the correction feels natural.
         """
-        nearest = round(value / TILE_SIZE) * TILE_SIZE
+        nearest = round(value / SUB_TILE_SIZE) * SUB_TILE_SIZE
         offset = nearest - value
         if abs(offset) > TANK_ALIGN_THRESHOLD:
             return value

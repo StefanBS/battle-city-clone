@@ -11,16 +11,11 @@ from src.core.player_tank import PlayerTank
 from src.core.enemy_tank import EnemyTank
 from src.core.tile import Tile, TileType, IMPASSABLE_TILE_TYPES
 from src.utils.constants import (
-    Direction,
     EffectType,
     ENEMY_POINTS,
     OwnerType,
     POWERUP_COLLECT_POINTS,
     PowerUpType,
-    SEGMENT_LEFT,
-    SEGMENT_RIGHT,
-    SEGMENT_TOP,
-    SEGMENT_BOTTOM,
 )
 from src.core.map import Map
 from src.managers.effect_manager import EffectManager
@@ -204,9 +199,11 @@ class CollisionResponseHandler:
             return True
 
         if tile.type == TileType.BRICK:
-            self._destroy_brick_segments(tile, bullet)
+            self._map.damage_brick(
+                tile, str(bullet.direction), bullet.rect
+            )
         elif tile.type == TileType.BASE:
-            self._map.destroy_base_group(tile)
+            self._map.destroy_base()
             self._set_game_state(GameState.GAME_OVER)
         return True
 
@@ -245,58 +242,6 @@ class CollisionResponseHandler:
         result = self.collected_power_up_type
         self.collected_power_up_type = None
         return result
-
-    def _destroy_brick_segments(self, tile: Tile, bullet: Bullet) -> None:
-        """Destroy brick quadrants hit by a bullet (4x4 segment model).
-
-        Each 32x32 brick = 4 sub-tiles (2x2, 16x16 each).
-        Each sub-tile has 4 quadrants (2x2, 8x8 each) = 16 segments total.
-
-        A bullet destroys the full entry-side row/column of each sub-tile
-        it overlaps. For a RIGHT bullet that means both left-column quadrants
-        (TL+BL); for a DOWN bullet both top-row quadrants (TL+TR), etc.
-
-        If the entry side is already gone the bullet passes through and
-        destroys the remaining side instead.
-        """
-        direction = bullet.direction
-        bullet_rect = bullet.rect
-
-        if direction in (Direction.LEFT, Direction.RIGHT):
-            entry_mask = SEGMENT_LEFT if direction == Direction.RIGHT else SEGMENT_RIGHT
-            sibling = self._map.get_tile_at(tile.x, tile.y ^ 1)
-        else:
-            entry_mask = SEGMENT_TOP if direction == Direction.DOWN else SEGMENT_BOTTOM
-            sibling = self._map.get_tile_at(tile.x ^ 1, tile.y)
-
-        # Always destroy the full entry side of the primary tile
-        self._destroy_entry_side(tile, entry_mask)
-
-        # Sibling only if the bullet physically reaches it
-        if sibling and sibling.type == TileType.BRICK:
-            if bullet_rect.colliderect(sibling.rect):
-                self._destroy_entry_side(sibling, entry_mask)
-
-    def _destroy_entry_side(self, tile: Tile, entry_mask: int) -> None:
-        """Destroy the full entry-side of a sub-tile.
-
-        If entry side has remaining quadrants, destroy them all.
-        If entry side is already gone, destroy the opposite side (pass-through).
-        """
-        target = tile.brick_segments & entry_mask
-        if not target:
-            # Entry side gone — pass-through to remaining quadrants
-            target = tile.brick_segments
-        if target:
-            self._remove_segment(tile, target)
-
-    def _remove_segment(self, tile: Tile, segment: int) -> None:
-        """Remove one segment from a brick sub-tile; set EMPTY if none remain."""
-        tile.remove_brick_segment(segment)
-        if tile.brick_segments == 0:
-            self._map.set_tile_type(tile, TileType.EMPTY)
-        else:
-            self._map.mark_tile_cache_dirty()
 
     @staticmethod
     def _caused_collision(mover: Tank, other: Tank) -> bool:

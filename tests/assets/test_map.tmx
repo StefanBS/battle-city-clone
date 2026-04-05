@@ -1,13 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="5" height="5" tilewidth="16" tileheight="16" infinite="0" nextlayerid="3" nextobjectid="3">
- <tileset firstgid="1" source="../../assets/sprites/sprites.tsx"/>
- <layer id="1" name="Tile Layer 1" width="5" height="5">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="10" height="10" tilewidth="8" tileheight="8" infinite="0" nextlayerid="3" nextobjectid="3">
+ <tileset firstgid="1" source="../../assets/sprites/sprites_8x8.tsx"/>
+ <layer id="1" name="Tile Layer 1" width="10" height="10">
   <data encoding="csv">
-42,22,22,22,42,
-22,17,22,17,22,
-22,22,67,22,22,
-22,22,22,22,22,
-22,22,70,22,22
+483,483,0,0,0,0,0,0,483,483,
+483,483,0,0,0,0,0,0,483,483,
+0,0,433,433,0,0,433,433,0,0,
+0,0,433,433,0,0,433,433,0,0,
+0,0,0,0,533,533,0,0,0,0,
+0,0,0,0,533,533,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,239,239,0,0,0,0,
+0,0,0,0,239,239,0,0,0,0
 </data>
  </layer>
  <objectgroup id="2" name="spawn_points">

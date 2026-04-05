@@ -11,10 +11,17 @@ from src.utils.constants import SUB_TILE_SIZE
 class Map:
     """Manages the game map and its tiles.
 
-    Internally uses a sub-tile grid (16x16 cells). Each TMX tile is expanded
-    to a 2x2 block of sub-tiles. Bricks are independently destructible.
-    Base tiles are grouped — destroying any sub-tile destroys the whole group.
+    Uses a grid where each cell is one TMX tile (8x8 in the atlas,
+    rendered at SUB_TILE_SIZE). Each TMX cell maps 1:1 to one grid cell.
     """
+
+    # Bullet direction → surviving brick half variant
+    _DIRECTION_TO_VARIANT = {
+        "right": "right",
+        "left": "left",
+        "down": "bottom",
+        "up": "top",
+    }
 
     def __init__(self, map_file: str, texture_manager: TextureManager) -> None:
         self.tile_size = SUB_TILE_SIZE
@@ -34,21 +41,22 @@ class Map:
         self._rebuild_tile_caches()
 
         logger.info(
-            f"Map loaded from {map_file}: {self.width}x{self.height} sub-tiles, "
+            f"Map loaded from {map_file}: {self.width}x{self.height} tiles, "
             f"{len(self.spawn_points)} spawn points, "
             f"player spawn at {self.player_spawn}"
         )
 
     def _load_from_tmx(self, map_file: str) -> None:
-        """Load map data from a TMX file and expand to sub-tile grid."""
+        """Load map data from a TMX file. Each TMX cell maps 1:1 to a grid cell."""
         tiled_map = load_pygame(map_file)
 
-        tmx_width = tiled_map.width
-        tmx_height = tiled_map.height
+        self.width = tiled_map.width
+        self.height = tiled_map.height
 
-        # Sub-tile grid is 2x the TMX grid
-        self.width = tmx_width * 2
-        self.height = tmx_height * 2
+        # Scan tileset for brick variant and water frame sprites
+        self._brick_variant_sprites: dict[str, pygame.Surface] = {}
+        self._water_frame_sprites: dict[int, pygame.Surface] = {}
+        self._scan_tileset(tiled_map)
 
         # Initialize grid
         self.tiles = [[None for _ in range(self.width)] for _ in range(self.height)]
@@ -60,23 +68,43 @@ class Map:
                 tile_layer = layer
                 break
 
+        # Pre-build shared water animation frames list (all water tiles share it)
+        shared_water_frames: list = []
+        if self._water_frame_sprites:
+            frames = sorted(self._water_frame_sprites.keys())
+            shared_water_frames = [self._water_frame_sprites[f] for f in frames]
+
         if tile_layer is not None:
+            scaled_cache: dict[int, pygame.Surface] = {}
             for x, y, gid in tile_layer.iter_data():
-                if gid == 0:
-                    tile_type = TileType.EMPTY
-                else:
+                tile_type = TileType.EMPTY
+                brick_variant = "full"
+                tile_image = None
+
+                if gid:
                     props = tiled_map.get_tile_properties_by_gid(gid)
                     if props:
-                        tile_type_str = props.get("tile_type")
-                        if tile_type_str and tile_type_str.strip():
-                            tile_type = TileType[tile_type_str.strip()]
-                        else:
-                            tile_type = TileType.EMPTY
-                    else:
-                        tile_type = TileType.EMPTY
+                        tile_type_str = (props.get("tile_type") or "").strip()
+                        if tile_type_str:
+                            tile_type = TileType[tile_type_str]
+                        brick_variant = props.get("brick_variant") or "full"
 
-                # Expand each TMX tile to 2x2 sub-tiles
-                self._place_tile_group(x * 2, y * 2, tile_type)
+                    self._cache_sprite(scaled_cache, gid, tiled_map, gid)
+                    tile_image = scaled_cache.get(gid)
+
+                tile = Tile(
+                    tile_type,
+                    x,
+                    y,
+                    self.tile_size,
+                    tmx_sprite=tile_image,
+                    brick_variant=brick_variant,
+                )
+
+                if tile_type == TileType.WATER and shared_water_frames:
+                    tile.animation_sprites = shared_water_frames
+
+                self.tiles[y][x] = tile
 
         # Fill any remaining None tiles with EMPTY
         for y in range(self.height):
@@ -84,48 +112,77 @@ class Map:
                 if self.tiles[y][x] is None:
                     self.tiles[y][x] = Tile(TileType.EMPTY, x, y, self.tile_size)
 
-        # Read spawn points from object layer (convert to sub-tile coords)
+        # Read spawn points from object layer
         self._load_spawn_points(tiled_map)
 
-    def _place_tile_group(self, sub_x: int, sub_y: int, tile_type: TileType) -> None:
-        """Place a 2x2 group of sub-tiles at the given sub-tile coordinates."""
-        group_tiles = []
-        for dy in range(2):
-            for dx in range(2):
-                sx, sy = sub_x + dx, sub_y + dy
-                is_primary = dx == 0 and dy == 0
-                tile = Tile(
-                    tile_type,
-                    sx,
-                    sy,
-                    self.tile_size,
-                    is_group_primary=is_primary,
-                    group_dx=dx,
-                    group_dy=dy,
-                )
-                self.tiles[sy][sx] = tile
-                group_tiles.append(tile)
+    def _scan_tileset(self, tiled_map: pytmx.TiledMap) -> None:
+        """Scan the tileset for brick variant and water frame sprites.
 
-        for tile in group_tiles:
-            tile.group_tiles = group_tiles
+        Only iterates tiles that have custom properties defined,
+        skipping the majority of tiles in large tilesets.
+        """
+        if not tiled_map.tilesets:
+            return
+        ts = tiled_map.tilesets[0]
+        # Only iterate tiles with defined properties (sparse iteration)
+        tile_ids = getattr(ts, "tiles", {})
+        if not tile_ids:
+            # Fallback: iterate all GIDs if tileset doesn't expose tiles dict
+            gids = range(ts.firstgid, ts.firstgid + ts.tilecount)
+        else:
+            gids = [tid + ts.firstgid for tid in tile_ids]
+        for gid in gids:
+            props = tiled_map.get_tile_properties_by_gid(gid)
+            if not props:
+                continue
+            tt = props.get("tile_type") or ""
+            if tt == "BRICK":
+                key = props.get("brick_variant") or "full"
+                self._cache_sprite(
+                    self._brick_variant_sprites, key, tiled_map, gid
+                )
+            elif tt == "WATER":
+                raw_frame = props.get("water_frame")
+                if raw_frame is not None:
+                    try:
+                        key = int(raw_frame)
+                    except (ValueError, TypeError):
+                        continue
+                    self._cache_sprite(
+                        self._water_frame_sprites, key, tiled_map, gid
+                    )
+
+    def _cache_sprite(self, cache: dict, key, tiled_map, gid: int) -> None:
+        """Store a scaled tile sprite in cache if not already present."""
+        if key in cache:
+            return
+        raw_img = tiled_map.get_tile_image_by_gid(gid)
+        if raw_img:
+            cache[key] = pygame.transform.scale(
+                raw_img, (SUB_TILE_SIZE, SUB_TILE_SIZE)
+            )
 
     def _load_spawn_points(self, tiled_map: pytmx.TiledMap) -> None:
         """Read spawn points and player spawn from TMX object layers.
 
-        Converts TMX pixel coordinates to sub-tile grid coordinates.
+        Converts TMX pixel coordinates to grid coordinates.
         """
-        try:
-            spawn_layer = tiled_map.get_layer_by_name("spawn_points")
-        except ValueError:
+        spawn_layer = next(
+            (g for g in tiled_map.objectgroups if g.name == "spawn_points"),
+            None,
+        )
+        if spawn_layer is None:
             logger.warning("No 'spawn_points' object layer found in TMX")
             self.player_spawn = (self.width // 2 - 1, self.height - 2)
             return
 
         player_spawn_found = False
+        tmx_tw = tiled_map.tilewidth
+        tmx_th = tiled_map.tileheight
         for obj in spawn_layer:
-            # Convert pixel coords to sub-tile coords
-            grid_x = int(obj.x // tiled_map.tilewidth) * 2
-            grid_y = int(obj.y // tiled_map.tileheight) * 2
+            # Convert pixel coords to grid coords using TMX tile dimensions
+            grid_x = int(obj.x // tmx_tw)
+            grid_y = int(obj.y // tmx_th)
 
             if obj.name == "player_spawn":
                 self.player_spawn = (grid_x, grid_y)
@@ -163,34 +220,97 @@ class Map:
             tile.draw(surface, self.texture_manager)
 
     def get_tile_at(self, x: int, y: int) -> Optional[Tile]:
-        """Get the tile at the specified sub-tile grid coordinates."""
+        """Get the tile at the specified grid coordinates."""
         if 0 <= y < self.height and 0 <= x < self.width:
-            logger.trace(f"Getting tile at ({x}, {y})")
             return self.tiles[y][x]
-        else:
-            logger.warning(f"Attempted to get tile outside map bounds at ({x}, {y})")
-            return None
+        return None
 
     def mark_tile_cache_dirty(self) -> None:
         """Mark tile caches as needing rebuild."""
         self._tile_cache_dirty = True
+
+    def damage_brick(
+        self, tile: Tile, bullet_direction: str, bullet_rect: pygame.Rect
+    ) -> None:
+        """Damage a brick tile and any adjacent brick the bullet overlaps.
+
+        Full bricks become half-bricks (keeping the side opposite to impact).
+        Half-bricks are destroyed entirely (set to EMPTY).
+        Adjacent tiles in the perpendicular direction are also damaged if
+        the bullet rect overlaps them.
+        """
+        self._damage_single_brick(tile, bullet_direction)
+
+        # Check adjacent tiles PERPENDICULAR to bullet direction.
+        # The bullet may straddle two tiles across its narrow axis.
+        if bullet_direction in ("left", "right"):
+            offsets = [(0, -1), (0, 1)]  # above and below
+        else:
+            offsets = [(-1, 0), (1, 0)]  # left and right
+
+        for dx, dy in offsets:
+            adj = self.get_tile_at(tile.x + dx, tile.y + dy)
+            if (
+                adj
+                and adj.type == TileType.BRICK
+                and bullet_rect.colliderect(adj.rect)
+            ):
+                self._damage_single_brick(adj, bullet_direction)
+
+    # Half-brick rect offsets: variant → (dx, dy, w, h) as fractions of tile size
+    _VARIANT_RECT = {
+        "left": (0, 0, 0.5, 1),
+        "right": (0.5, 0, 0.5, 1),
+        "top": (0, 0, 1, 0.5),
+        "bottom": (0, 0.5, 1, 0.5),
+    }
+
+    def _damage_single_brick(self, tile: Tile, bullet_direction: str) -> None:
+        """Damage one brick tile. Full → half, half → destroyed."""
+        if tile.type != TileType.BRICK:
+            return
+
+        if tile.brick_variant == "full":
+            surviving_variant = self._DIRECTION_TO_VARIANT.get(bullet_direction)
+            if surviving_variant is None:
+                self.set_tile_type(tile, TileType.EMPTY)
+                return
+            sprite = self._brick_variant_sprites.get(surviving_variant)
+            if sprite:
+                tile.brick_variant = surviving_variant
+                tile.tmx_sprite = sprite
+                # Shrink collision rect to match the surviving half
+                fracs = self._VARIANT_RECT.get(surviving_variant)
+                if fracs:
+                    dx, dy, w, h = fracs
+                    base_x = tile.x * tile.size
+                    base_y = tile.y * tile.size
+                    tile.rect = pygame.Rect(
+                        int(base_x + dx * tile.size),
+                        int(base_y + dy * tile.size),
+                        int(w * tile.size),
+                        int(h * tile.size),
+                    )
+                self._tile_cache_dirty = True
+            else:
+                self.set_tile_type(tile, TileType.EMPTY)
+        else:
+            self.set_tile_type(tile, TileType.EMPTY)
 
     def set_tile_type(self, tile: Tile, new_type: TileType) -> None:
         """Change a tile's type and invalidate caches."""
         old_type = tile.type
         tile.type = new_type
         self._tile_cache_dirty = True
-        # Keep drawable tiles list in sync
         if old_type == TileType.EMPTY and new_type != TileType.EMPTY:
             self._drawable_tiles.append(tile)
         elif old_type != TileType.EMPTY and new_type == TileType.EMPTY:
             if tile in self._drawable_tiles:
                 self._drawable_tiles.remove(tile)
 
-    def destroy_base_group(self, tile: Tile) -> None:
-        """Destroy all sub-tiles in a base group."""
-        group = tile.group_tiles if tile.group_tiles else [tile]
-        for t in group:
+    def destroy_base(self) -> None:
+        """Destroy all BASE tiles on the map."""
+        for t in self.get_tiles_by_type([TileType.BASE]):
             self.set_tile_type(t, TileType.BASE_DESTROYED)
 
     def place_tile(self, x: int, y: int, tile: Tile) -> None:
@@ -254,29 +374,29 @@ class Map:
         return self._cached_collidable_rects
 
     def get_base_surrounding_tiles(self) -> List[Tile]:
-        """Return non-empty tiles in the ring around the base group.
+        """Return non-empty tiles in the ring around the base.
 
-        The base is a 2x2 sub-tile block. The surrounding ring is the
-        12 positions forming a 4x4 border minus the 2x2 center.
+        Finds all BASE tiles to determine the base bounds, then returns
+        non-empty, non-BASE tiles in a ring around them.
         """
-        base = self.get_base()
-        if base is None:
+        base_tiles = self.get_tiles_by_type([TileType.BASE])
+        if not base_tiles:
             return []
 
-        # Find the top-left of the 2x2 base group
-        group = base.group_tiles if base.group_tiles else [base]
-        min_x = min(t.x for t in group)
-        min_y = min(t.y for t in group)
+        # Find bounding box of all base tiles
+        min_x = min(t.x for t in base_tiles)
+        max_x = max(t.x for t in base_tiles)
+        min_y = min(t.y for t in base_tiles)
+        max_y = max(t.y for t in base_tiles)
+        base_positions = {(t.x, t.y) for t in base_tiles}
 
-        # 4x4 ring around the 2x2 base center
+        # Ring around the base bounding box
         surrounding = []
-        for dy in range(-1, 3):
-            for dx in range(-1, 3):
-                # Skip the 2x2 base interior
-                if 0 <= dx <= 1 and 0 <= dy <= 1:
+        for y in range(min_y - 1, max_y + 2):
+            for x in range(min_x - 1, max_x + 2):
+                if (x, y) in base_positions:
                     continue
-                sx, sy = min_x + dx, min_y + dy
-                tile = self.get_tile_at(sx, sy)
+                tile = self.get_tile_at(x, y)
                 if tile is not None and tile.type != TileType.EMPTY:
                     surrounding.append(tile)
         return surrounding
