@@ -37,6 +37,7 @@ from src.managers.input_handler import InputHandler
 from src.managers.spawn_manager import SpawnManager
 from src.managers.renderer import Renderer
 from src.managers.power_up_manager import PowerUpManager
+from src.managers.sound_manager import SoundManager
 from src.utils.paths import resource_path
 
 
@@ -62,6 +63,7 @@ class GameManager:
         self.clock: pygame.time.Clock = pygame.time.Clock()
         self.fps: int = FPS
         self.input_handler: InputHandler = InputHandler()
+        self.sound_manager: SoundManager = SoundManager()
 
         self.state: GameState = GameState.TITLE_SCREEN
         self._menu_selection: int = 0  # 0 = 1 Player, 1 = 2 Players
@@ -133,6 +135,7 @@ class GameManager:
             effect_manager=self.effect_manager,
             add_score=self._add_score,
             power_up_manager=self.power_up_manager,
+            sound_manager=self.sound_manager,
         )
 
         # Player tank (spawn coords are in sub-tile units)
@@ -386,12 +389,14 @@ class GameManager:
             bullet = tank.shoot()
             if bullet is not None:
                 self.bullets.append(bullet)
+                self.sound_manager.play_shoot()
 
     def _set_game_state(self, state: GameState) -> None:
         """Set the game state. Intercepts GAME_OVER to play rising text animation."""
         if state == GameState.GAME_OVER:
             self.state = GameState.GAME_OVER_ANIMATION
             self._state_timer = 0.0
+            self.sound_manager.play_game_over()
             return
         self.state = state
 
