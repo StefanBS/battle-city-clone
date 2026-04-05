@@ -303,7 +303,7 @@ class GameManager:
             destructible_tiles=destructible_tiles,
             impassable_tiles=impassable_tiles,
             player_base=player_base,
-            power_up=self.power_up_manager.get_power_up(),
+            power_ups=self.power_up_manager.get_power_ups(),
         )
 
         events = self.collision_manager.get_collision_events()
@@ -456,9 +456,7 @@ class GameManager:
             GameState.STAGE_CURTAIN_CLOSE,
             GameState.STAGE_CURTAIN_OPEN,
         ):
-            self.renderer.render_curtain(
-                self._curtain_progress, self.current_stage
-            )
+            self.renderer.render_curtain(self._curtain_progress, self.current_stage)
             return
 
         game_over_rise_progress = None
@@ -475,7 +473,7 @@ class GameManager:
             self.effect_manager,
             self.state,
             self.score,
-            power_up=self.power_up_manager.get_power_up(),
+            power_ups=self.power_up_manager.get_power_ups(),
             game_over_rise_progress=game_over_rise_progress,
         )
 

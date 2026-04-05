@@ -30,9 +30,9 @@ class TestPowerUpEffectsIntegration:
             game.spawn_manager.enemy_tanks,
             power_up_type=power_up_type,
         )
-        assert game.power_up_manager.active_power_up is not None
+        assert len(game.power_up_manager.active_power_ups) == 1
         # Move player to power-up location to trigger collision
-        pu = game.power_up_manager.active_power_up
+        pu = game.power_up_manager.active_power_ups[0]
         game.player_tank.set_position(pu.x, pu.y)
         game.player_tank.rect.topleft = (round(pu.x), round(pu.y))
 

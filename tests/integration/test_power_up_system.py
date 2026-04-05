@@ -30,7 +30,7 @@ class TestPowerUpIntegration:
         game.power_up_manager.spawn_power_up(
             game.player_tank, game.spawn_manager.enemy_tanks
         )
-        assert game.power_up_manager.active_power_up is not None
+        assert len(game.power_up_manager.active_power_ups) == 1
 
     def test_power_up_timeout(self, game, carrier):
         """Power-up should disappear after timeout."""
@@ -40,18 +40,16 @@ class TestPowerUpIntegration:
             game.player_tank, game.spawn_manager.enemy_tanks
         )
         game.power_up_manager.update(POWERUP_TIMEOUT + 0.1)
-        assert game.power_up_manager.active_power_up is None
+        assert len(game.power_up_manager.active_power_ups) == 0
 
-    def test_only_one_power_up_at_a_time(self, game, carrier):
-        """Second spawn attempt should not create a second power-up."""
+    def test_multiple_power_ups_allowed(self, game, carrier):
+        """Multiple spawn calls should accumulate power-ups."""
         carrier.health = 0
         game.spawn_manager.remove_enemy(carrier)
         game.power_up_manager.spawn_power_up(
             game.player_tank, game.spawn_manager.enemy_tanks
         )
-        first_pu = game.power_up_manager.active_power_up
-
         game.power_up_manager.spawn_power_up(
             game.player_tank, game.spawn_manager.enemy_tanks
         )
-        assert game.power_up_manager.active_power_up is first_pu
+        assert len(game.power_up_manager.active_power_ups) == 2

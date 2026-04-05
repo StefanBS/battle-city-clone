@@ -1,5 +1,5 @@
 import pygame
-from typing import List, Optional, Tuple
+from typing import List, Optional, Sequence, Tuple
 from src.states.game_state import GameState
 from src.utils.constants import WHITE, YELLOW, BLACK, RED, GREEN, GRAY
 from src.utils.paths import resource_path
@@ -64,7 +64,7 @@ class Renderer:
         effect_manager,
         state: GameState,
         score: int = 0,
-        power_up: Optional[object] = None,
+        power_ups: Sequence = (),
         game_over_rise_progress: Optional[float] = None,
     ) -> None:
         """Render the complete game frame.
@@ -76,7 +76,7 @@ class Renderer:
             bullets: List of bullets.
             state: Current game state.
             score: Current player score.
-            power_up: Optional active power-up to draw.
+            power_ups: Active power-ups to draw.
         """
         # Fill logical surface with border color (gray)
         self.game_surface.fill(self.border_color)
@@ -94,8 +94,8 @@ class Renderer:
         for enemy in enemy_tanks:
             enemy.draw(self.map_surface)
 
-        # Draw power-up
-        if power_up:
+        # Draw power-ups
+        for power_up in power_ups:
             power_up.draw(self.map_surface)
 
         # Draw all bullets
@@ -143,9 +143,7 @@ class Renderer:
         self.game_surface.blit(lives_text, (10, 10))
 
         # Draw score
-        score_text = self.small_font.render(
-            f"Score: {score:>6}", True, WHITE
-        )
+        score_text = self.small_font.render(f"Score: {score:>6}", True, WHITE)
         score_rect = score_text.get_rect(topright=(self.logical_width - 10, 10))
         self.game_surface.blit(score_text, score_rect)
 
@@ -267,9 +265,7 @@ class Renderer:
         # Tank cursor next to selected option
         cursor_y = cy + menu_selection * 30
         cursor_text = self.small_font.render(">", True, WHITE)
-        cursor_rect = cursor_text.get_rect(
-            midright=(cx - 60, cursor_y)
-        )
+        cursor_rect = cursor_text.get_rect(midright=(cx - 60, cursor_y))
         self.game_surface.blit(cursor_text, cursor_rect)
 
         self._present_surface()
