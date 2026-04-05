@@ -446,9 +446,9 @@ class GameManager:
         """Fortify base walls with steel, restoring destroyed bricks first."""
         if not self._shovel_original_tiles:
             tiles = self.map.get_base_surrounding_tiles(include_empty=True)
-            # Restore destroyed tiles to BRICK permanently before fortifying
+            # Restore destroyed and damaged tiles to full BRICK before fortifying
             for tile in tiles:
-                if tile.type == TileType.EMPTY:
+                if tile.type == TileType.EMPTY or tile.brick_variant != "full":
                     self.map.set_tile_type(tile, TileType.BRICK)
                     tile.brick_variant = "full"
                     tile.rect = pygame.Rect(
