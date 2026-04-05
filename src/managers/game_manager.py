@@ -474,7 +474,8 @@ class GameManager:
         self.shovel_timer -= dt
         if self.shovel_timer <= 0:
             for tile, orig_type in self._shovel_original_tiles:
-                self.map.set_tile_type(tile, orig_type)
+                if tile.type != TileType.EMPTY:
+                    self.map.set_tile_type(tile, orig_type)
             self._shovel_original_tiles = []
             logger.info("Shovel expired: base walls reverted")
             return
@@ -487,8 +488,9 @@ class GameManager:
             if should_show_steel != self._shovel_flash_showing_steel:
                 self._shovel_flash_showing_steel = should_show_steel
                 for tile, orig_type in self._shovel_original_tiles:
-                    target = TileType.STEEL if should_show_steel else orig_type
-                    self.map.set_tile_type(tile, target)
+                    if tile.type != TileType.EMPTY:
+                        target = TileType.STEEL if should_show_steel else orig_type
+                        self.map.set_tile_type(tile, target)
 
     def _apply_star(self) -> None:
         """Apply star upgrade to the player tank."""
