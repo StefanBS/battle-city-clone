@@ -102,3 +102,23 @@ class TestTileDraw:
         assert tile.rect == pygame.Rect(
             3 * SUB_TILE_SIZE, 5 * SUB_TILE_SIZE, SUB_TILE_SIZE, SUB_TILE_SIZE
         )
+
+
+class TestTileCollisionProperties:
+    """Tests for Tile blocks_tanks and blocks_bullets attributes."""
+
+    def test_default_blocks_tanks_false(self):
+        tile = Tile(TileType.EMPTY, 0, 0)
+        assert tile.blocks_tanks is False
+
+    def test_default_blocks_bullets_false(self):
+        tile = Tile(TileType.EMPTY, 0, 0)
+        assert tile.blocks_bullets is False
+
+    def test_blocks_tanks_set_from_constructor(self):
+        tile = Tile(TileType.BRICK, 0, 0, blocks_tanks=True, blocks_bullets=True)
+        assert tile.blocks_tanks is True
+
+    def test_blocks_bullets_set_from_constructor(self):
+        tile = Tile(TileType.WATER, 0, 0, blocks_tanks=True, blocks_bullets=False)
+        assert tile.blocks_bullets is False

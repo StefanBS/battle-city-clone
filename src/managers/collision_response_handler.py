@@ -10,7 +10,7 @@ from src.core.power_up import PowerUp
 from src.core.tank import Tank
 from src.core.player_tank import PlayerTank
 from src.core.enemy_tank import EnemyTank
-from src.core.tile import Tile, TileType, IMPASSABLE_TILE_TYPES
+from src.core.tile import Tile, TileType
 from src.utils.constants import (
     EffectType,
     ENEMY_POINTS,
@@ -191,7 +191,7 @@ class CollisionResponseHandler:
     ) -> bool:
         if not bullet.active:
             return False
-        if tile.type not in (TileType.BRICK, TileType.STEEL, TileType.BASE):
+        if not tile.blocks_bullets:
             return False
 
         logger.debug(f"Bullet hit {tile.type.name} tile at ({tile.x}, {tile.y})")
@@ -295,7 +295,7 @@ class CollisionResponseHandler:
         tile: Tile,
         enemies_to_remove: List[EnemyTank],
     ) -> bool:
-        if tile.type in IMPASSABLE_TILE_TYPES:
+        if tile.blocks_tanks:
             tank.revert_move(tile.rect)
             tank.on_movement_blocked()
             return True

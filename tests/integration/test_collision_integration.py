@@ -32,9 +32,25 @@ def test_player_bullet_vs_tile(
     target_x_grid = 14
     target_y_grid = 20
 
+    # Collision properties per tile type (matching TSX definitions)
+    _TILE_COLLISION = {
+        TileType.BRICK: (True, True),
+        TileType.STEEL: (True, True),
+        TileType.WATER: (True, False),
+        TileType.BUSH: (False, False),
+    }
+
     # Manually place the specified tile type at the target location
     if 0 <= target_y_grid < game_map.height and 0 <= target_x_grid < game_map.width:
-        target_tile = Tile(tile_to_place, target_x_grid, target_y_grid, SUB_TILE_SIZE)
+        bt, bb = _TILE_COLLISION.get(tile_to_place, (False, False))
+        target_tile = Tile(
+            tile_to_place,
+            target_x_grid,
+            target_y_grid,
+            SUB_TILE_SIZE,
+            blocks_tanks=bt,
+            blocks_bullets=bb,
+        )
         game_map.place_tile(target_x_grid, target_y_grid, target_tile)
         logger.debug(
             f"Placed {tile_to_place.name} tile at ({target_x_grid}, {target_y_grid})"
@@ -102,8 +118,7 @@ def test_player_bullet_vs_tile(
     # For brick: verify it was damaged or destroyed
     if tile_to_place == TileType.BRICK:
         damaged = (
-            final_tile.type == TileType.EMPTY
-            or final_tile.brick_variant != "full"
+            final_tile.type == TileType.EMPTY or final_tile.brick_variant != "full"
         )
         assert damaged, "Brick should be damaged or destroyed after being hit."
 
@@ -393,10 +408,9 @@ def test_enemy_bullet_hits_player_tank(
             f"Game state: {game_manager.state.name}"
         )
         # If an interaction was processed, and player was vulnerable, bullet should be inactive.
-        if (
-            player_tank.lives < original_player_lives
-            or game_manager.state
-            in (GameState.GAME_OVER, GameState.GAME_OVER_ANIMATION)
+        if player_tank.lives < original_player_lives or game_manager.state in (
+            GameState.GAME_OVER,
+            GameState.GAME_OVER_ANIMATION,
         ):
             assert not enemy_bullet.active, (
                 "Enemy bullet should be inactive after damaging player or causing game over."
@@ -580,8 +594,8 @@ def test_player_tank_vs_enemy_tank_no_overlap(game_manager_fixture, mocker):
             player_bullets=[],
             enemy_tanks=[enemy_tank],
             enemy_bullets=[],
-            destructible_tiles=[],
-            impassable_tiles=[],
+            tank_blocking_tiles=[],
+            bullet_blocking_tiles=[],
             player_base=None,
         )
         events = game_manager.collision_manager.get_collision_events()

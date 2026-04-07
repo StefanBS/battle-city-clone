@@ -94,6 +94,73 @@ class TestMapLoading:
             assert game_map.get_tile_at(sx, sy).type == TileType.BASE_DESTROYED
 
 
+class TestTileCollisionFromTMX:
+    """Verify tiles loaded from TMX have correct collision properties."""
+
+    @pytest.fixture
+    def game_map(self, mock_texture_manager):
+        return Map(TEST_MAP_PATH, mock_texture_manager)
+
+    def test_steel_blocks_tanks(self, game_map):
+        tile = game_map.get_tile_at(0, 0)  # STEEL
+        assert tile.blocks_tanks is True
+
+    def test_steel_blocks_bullets(self, game_map):
+        tile = game_map.get_tile_at(0, 0)  # STEEL
+        assert tile.blocks_bullets is True
+
+    def test_water_blocks_tanks(self, game_map):
+        tile = game_map.get_tile_at(4, 4)  # WATER
+        assert tile.blocks_tanks is True
+
+    def test_water_does_not_block_bullets(self, game_map):
+        tile = game_map.get_tile_at(4, 4)  # WATER
+        assert tile.blocks_bullets is False
+
+    def test_empty_does_not_block(self, game_map):
+        tile = game_map.get_tile_at(4, 6)  # EMPTY
+        assert tile.blocks_tanks is False
+        assert tile.blocks_bullets is False
+
+    def test_base_blocks_both(self, game_map):
+        tile = game_map.get_tile_at(4, 8)  # BASE
+        assert tile.blocks_tanks is True
+        assert tile.blocks_bullets is True
+
+    def test_brick_blocks_both(self, game_map):
+        tile = game_map.get_tile_at(2, 2)  # BRICK
+        assert tile.blocks_tanks is True
+        assert tile.blocks_bullets is True
+
+
+class TestGetBlockingTiles:
+    """Tests for get_blocking_tiles and get_bullet_blocking_tiles."""
+
+    @pytest.fixture
+    def game_map(self, mock_texture_manager):
+        return Map(TEST_MAP_PATH, mock_texture_manager)
+
+    def test_get_blocking_tiles_returns_tank_blockers(self, game_map):
+        tiles = game_map.get_blocking_tiles()
+        assert len(tiles) > 0
+        for tile in tiles:
+            assert tile.blocks_tanks is True
+
+    def test_get_bullet_blocking_tiles_returns_bullet_blockers(self, game_map):
+        tiles = game_map.get_bullet_blocking_tiles()
+        assert len(tiles) > 0
+        for tile in tiles:
+            assert tile.blocks_bullets is True
+
+    def test_water_in_blocking_but_not_bullet_blocking(self, game_map):
+        blocking = game_map.get_blocking_tiles()
+        bullet_blocking = game_map.get_bullet_blocking_tiles()
+        water_tiles = [t for t in blocking if t.type == TileType.WATER]
+        assert len(water_tiles) > 0
+        for wt in water_tiles:
+            assert wt not in bullet_blocking
+
+
 class TestGetBaseSurroundingTiles:
     @pytest.fixture
     def game_map(self, mock_texture_manager):

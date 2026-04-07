@@ -22,12 +22,6 @@ class TileType(Enum):
     BASE_DESTROYED = auto()
 
 
-# Tile types that block tank movement
-IMPASSABLE_TILE_TYPES = frozenset(
-    {TileType.BRICK, TileType.STEEL, TileType.WATER, TileType.BASE}
-)
-
-
 class Tile:
     """Represents a single 8x8 tile in the game map, rendered at SUB_TILE_SIZE.
 
@@ -53,6 +47,8 @@ class Tile:
         size: int = SUB_TILE_SIZE,
         tmx_sprite: Optional[pygame.Surface] = None,
         brick_variant: str = "full",
+        blocks_tanks: bool = False,
+        blocks_bullets: bool = False,
     ) -> None:
         logger.trace(f"Creating Tile ({tile_type.name}) at grid ({x}, {y})")
         self.type = tile_type
@@ -60,6 +56,8 @@ class Tile:
         self.y = y
         self.size = size
         self.rect = pygame.Rect(x * size, y * size, size, size)
+        self.blocks_tanks = blocks_tanks
+        self.blocks_bullets = blocks_bullets
 
         # TMX sprite: the actual tile image from the map editor
         self.tmx_sprite: Optional[pygame.Surface] = tmx_sprite

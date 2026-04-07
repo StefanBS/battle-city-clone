@@ -25,6 +25,7 @@ def _complete_pending_spawns(game_manager, max_ticks=60):
                 still_pending.append(pending)
         sm._pending_spawns = still_pending
 
+
 # Tests related to enemy behavior: spawning, movement, shooting
 
 
@@ -413,7 +414,14 @@ def test_enemy_movement_blocked_by_tile(
                 ), (
                     f"Target location ({sx}, {sy}) for blocking tile is not EMPTY in default map."
                 )
-                tile = Tile(blocking_tile_type, sx, sy, SUB_TILE_SIZE)
+                tile = Tile(
+                    blocking_tile_type,
+                    sx,
+                    sy,
+                    SUB_TILE_SIZE,
+                    blocks_tanks=True,
+                    blocks_bullets=True,
+                )
                 game_map.place_tile(sx, sy, tile)
         logger.debug(
             f"Placed blocking {blocking_tile_type.name} 2x2 block at "

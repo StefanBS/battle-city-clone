@@ -3,11 +3,15 @@
  <image source="sprites.png" width="400" height="256"/>
  <tile id="238">
   <properties>
+   <property name="blocks_bullets" type="bool" value="true"/>
+   <property name="blocks_tanks" type="bool" value="true"/>
    <property name="tile_type" value="BASE"/>
   </properties>
  </tile>
  <tile id="239">
   <properties>
+   <property name="blocks_bullets" type="bool" value="true"/>
+   <property name="blocks_tanks" type="bool" value="true"/>
    <property name="tile_type" value="BASE"/>
   </properties>
  </tile>
@@ -23,11 +27,15 @@
  </tile>
  <tile id="288">
   <properties>
+   <property name="blocks_bullets" type="bool" value="true"/>
+   <property name="blocks_tanks" type="bool" value="true"/>
    <property name="tile_type" value="BASE"/>
   </properties>
  </tile>
  <tile id="289">
   <properties>
+   <property name="blocks_bullets" type="bool" value="true"/>
+   <property name="blocks_tanks" type="bool" value="true"/>
    <property name="tile_type" value="BASE"/>
   </properties>
  </tile>
@@ -43,36 +51,48 @@
  </tile>
  <tile id="432">
   <properties>
+   <property name="blocks_bullets" type="bool" value="true"/>
+   <property name="blocks_tanks" type="bool" value="true"/>
    <property name="brick_variant" value="full"/>
    <property name="tile_type" value="BRICK"/>
   </properties>
  </tile>
  <tile id="433">
   <properties>
+   <property name="blocks_bullets" type="bool" value="true"/>
+   <property name="blocks_tanks" type="bool" value="true"/>
    <property name="brick_variant" value="right"/>
    <property name="tile_type" value="BRICK"/>
   </properties>
  </tile>
  <tile id="434">
   <properties>
+   <property name="blocks_bullets" type="bool" value="true"/>
+   <property name="blocks_tanks" type="bool" value="true"/>
    <property name="brick_variant" value="bottom"/>
    <property name="tile_type" value="BRICK"/>
   </properties>
  </tile>
  <tile id="435">
   <properties>
+   <property name="blocks_bullets" type="bool" value="true"/>
+   <property name="blocks_tanks" type="bool" value="true"/>
    <property name="brick_variant" value="left"/>
    <property name="tile_type" value="BRICK"/>
   </properties>
  </tile>
  <tile id="436">
   <properties>
+   <property name="blocks_bullets" type="bool" value="true"/>
+   <property name="blocks_tanks" type="bool" value="true"/>
    <property name="brick_variant" value="top"/>
    <property name="tile_type" value="BRICK"/>
   </properties>
  </tile>
  <tile id="482">
   <properties>
+   <property name="blocks_bullets" type="bool" value="true"/>
+   <property name="blocks_tanks" type="bool" value="true"/>
    <property name="tile_type" value="STEEL"/>
   </properties>
  </tile>
@@ -88,18 +108,21 @@
  </tile>
  <tile id="532">
   <properties>
+   <property name="blocks_tanks" type="bool" value="true"/>
    <property name="tile_type" value="WATER"/>
    <property name="water_frame" value="1"/>
   </properties>
  </tile>
  <tile id="533">
   <properties>
+   <property name="blocks_tanks" type="bool" value="true"/>
    <property name="tile_type" value="WATER"/>
    <property name="water_frame" value="2"/>
   </properties>
  </tile>
  <tile id="534">
   <properties>
+   <property name="blocks_tanks" type="bool" value="true"/>
    <property name="tile_type" value="WATER"/>
    <property name="water_frame" value="3"/>
   </properties>

@@ -23,8 +23,8 @@ class CollisionManager:
         player_bullets: Sequence[Collidable],
         enemy_tanks: Sequence[Collidable],
         enemy_bullets: Sequence[Collidable],
-        destructible_tiles: Sequence[Collidable],
-        impassable_tiles: Sequence[Collidable],
+        tank_blocking_tiles: Sequence[Collidable],
+        bullet_blocking_tiles: Sequence[Collidable],
         player_base: Optional[Collidable],
         power_ups: Sequence[Collidable] = (),
     ) -> None:
@@ -36,8 +36,8 @@ class CollisionManager:
             player_bullets: A list/group of player bullet objects.
             enemy_tanks: A list/group of enemy tank objects.
             enemy_bullets: A list/group of enemy bullet objects.
-            destructible_tiles: A list/group of destructible tile objects.
-            impassable_tiles: A list/group of impassable tile objects.
+            tank_blocking_tiles: Tiles that block tank movement.
+            bullet_blocking_tiles: Tiles that block bullets.
             player_base: The player's base object, or None if not present.
             power_ups: Active power-up objects to check against the player.
         """
@@ -52,11 +52,9 @@ class CollisionManager:
 
         # Bullet collisions
         self._check_group_vs_group(player_bullets, enemy_tanks)
-        self._check_group_vs_group(player_bullets, destructible_tiles)
+        self._check_group_vs_group(player_bullets, bullet_blocking_tiles)
         self._check_bullet_vs_bullet(player_bullets, enemy_bullets)
-        self._check_group_vs_group(player_bullets, impassable_tiles)
-        self._check_group_vs_group(enemy_bullets, destructible_tiles)
-        self._check_group_vs_group(enemy_bullets, impassable_tiles)
+        self._check_group_vs_group(enemy_bullets, bullet_blocking_tiles)
 
         # Bullets vs single targets
         if player_base:
@@ -66,7 +64,7 @@ class CollisionManager:
             self._check_group_vs_single(enemy_bullets, player_tank)
 
         # Tank collisions
-        self._check_group_vs_group(all_tanks, impassable_tiles)
+        self._check_group_vs_group(all_tanks, tank_blocking_tiles)
         self._check_self_collisions(all_tanks)
 
         # Power-up collection
