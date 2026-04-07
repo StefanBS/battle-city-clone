@@ -55,9 +55,8 @@ class Map:
         self.width = tiled_map.width
         self.height = tiled_map.height
 
-        # Scan tileset for brick variant and water frame sprites
+        # Scan tileset for brick variant sprites
         self._brick_variant_sprites: dict[str, pygame.Surface] = {}
-        self._water_frame_sprites: dict[int, pygame.Surface] = {}
         self._tile_type_sprites: dict[TileType, pygame.Surface] = {}
         self._scan_tileset(tiled_map)
 
@@ -71,20 +70,17 @@ class Map:
                 tile_layer = layer
                 break
 
-        # Pre-build shared water animation frames list (all water tiles share it)
-        shared_water_frames: list = []
-        if self._water_frame_sprites:
-            frames = sorted(self._water_frame_sprites.keys())
-            shared_water_frames = [self._water_frame_sprites[f] for f in frames]
-
         if tile_layer is not None:
             scaled_cache: dict[int, pygame.Surface] = {}
+            # Cache for shared animation frame lists (keyed by source GID)
+            animation_cache: dict[int, list] = {}
             for x, y, gid in tile_layer.iter_data():
                 tile_type = TileType.EMPTY
                 brick_variant = "full"
                 tile_image = None
                 blocks_tanks = False
                 blocks_bullets = False
+                props = None
 
                 if gid:
                     props = tiled_map.get_tile_properties_by_gid(gid)
@@ -110,8 +106,25 @@ class Map:
                     blocks_bullets=blocks_bullets,
                 )
 
-                if tile_type == TileType.WATER and shared_water_frames:
-                    tile.animation_sprites = shared_water_frames
+                # Check for native animation frames from TSX
+                frames_data = props.get("frames") if props else None
+                if frames_data:
+                    if gid not in animation_cache:
+                        animation_frames = []
+                        for anim_frame in frames_data:
+                            raw_img = tiled_map.get_tile_image_by_gid(
+                                anim_frame.gid
+                            )
+                            if raw_img:
+                                scaled = pygame.transform.scale(
+                                    raw_img,
+                                    (self.tile_size, self.tile_size),
+                                )
+                                duration_s = anim_frame.duration / 1000.0
+                                animation_frames.append((scaled, duration_s))
+                        animation_cache[gid] = animation_frames
+                    if animation_cache[gid]:
+                        tile.set_animation_frames(animation_cache[gid])
 
                 self.tiles[y][x] = tile
 
@@ -125,7 +138,7 @@ class Map:
         self._load_spawn_points(tiled_map)
 
     def _scan_tileset(self, tiled_map: pytmx.TiledMap) -> None:
-        """Scan the tileset for brick variant and water frame sprites.
+        """Scan the tileset for brick variant sprites.
 
         Only iterates tiles that have custom properties defined,
         skipping the majority of tiles in large tilesets.
@@ -154,14 +167,6 @@ class Map:
             if tt == "BRICK":
                 key = props.get("brick_variant") or "full"
                 self._cache_sprite(self._brick_variant_sprites, key, tiled_map, gid)
-            elif tt == "WATER":
-                raw_frame = props.get("water_frame")
-                if raw_frame is not None:
-                    try:
-                        key = int(raw_frame)
-                    except (ValueError, TypeError):
-                        continue
-                    self._cache_sprite(self._water_frame_sprites, key, tiled_map, gid)
 
     def _cache_sprite(self, cache: dict, key, tiled_map, gid: int) -> None:
         """Store a scaled tile sprite in cache if not already present."""

@@ -161,6 +161,26 @@ class TestGetBlockingTiles:
             assert wt not in bullet_blocking
 
 
+class TestWaterAnimationFromTMX:
+    """Verify water tiles get animation frames from TSX native animation."""
+
+    @pytest.fixture
+    def game_map(self, mock_texture_manager):
+        return Map(TEST_MAP_PATH, mock_texture_manager)
+
+    def test_water_tile_is_animated(self, game_map):
+        tile = game_map.get_tile_at(4, 4)  # WATER
+        assert tile.is_animated is True
+
+    def test_water_has_three_animation_frames(self, game_map):
+        tile = game_map.get_tile_at(4, 4)  # WATER
+        assert len(tile.animation_sprites) == 3
+
+    def test_non_water_not_animated(self, game_map):
+        tile = game_map.get_tile_at(0, 0)  # STEEL
+        assert tile.is_animated is False
+
+
 class TestGetBaseSurroundingTiles:
     @pytest.fixture
     def game_map(self, mock_texture_manager):

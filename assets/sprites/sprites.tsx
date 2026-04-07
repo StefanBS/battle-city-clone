@@ -110,21 +110,23 @@
   <properties>
    <property name="blocks_tanks" type="bool" value="true"/>
    <property name="tile_type" value="WATER"/>
-   <property name="water_frame" value="1"/>
   </properties>
+  <animation>
+   <frame tileid="532" duration="500"/>
+   <frame tileid="533" duration="500"/>
+   <frame tileid="534" duration="500"/>
+  </animation>
  </tile>
  <tile id="533">
   <properties>
    <property name="blocks_tanks" type="bool" value="true"/>
    <property name="tile_type" value="WATER"/>
-   <property name="water_frame" value="2"/>
   </properties>
  </tile>
  <tile id="534">
   <properties>
    <property name="blocks_tanks" type="bool" value="true"/>
    <property name="tile_type" value="WATER"/>
-   <property name="water_frame" value="3"/>
   </properties>
  </tile>
 </tileset>
