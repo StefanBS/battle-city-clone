@@ -44,7 +44,7 @@ class TestSpawnManager:
             tile_size=TILE_SIZE,
             texture_manager=mock_texture_manager,
             spawn_points=self.SPAWN_POINTS,
-            stage=1,
+            enemy_composition={"basic": 18, "fast": 2, "power": 0, "armor": 0},
             spawn_interval=5.0,
             player_tank=mock_player_tank,
             game_map=mock_game_map,
@@ -197,15 +197,15 @@ class TestSpawnManager:
             spawn_manager.update(0.1, mock_player_tank, mock_game_map)
             mock_spawn.assert_not_called()
 
-    def test_spawn_queue_built_from_stage(
+    def test_spawn_queue_built_from_composition(
         self, mock_texture_manager, mock_player_tank, mock_game_map
     ):
-        """Test that spawn queue is built from stage data."""
+        """Test that spawn queue is built from enemy composition."""
         manager = SpawnManager(
             tile_size=TILE_SIZE,
             texture_manager=mock_texture_manager,
             spawn_points=self.SPAWN_POINTS,
-            stage=1,
+            enemy_composition={"basic": 18, "fast": 2, "power": 0, "armor": 0},
             spawn_interval=5.0,
             player_tank=mock_player_tank,
             game_map=mock_game_map,
@@ -219,12 +219,12 @@ class TestSpawnManager:
     def test_spawn_uses_queue_types(
         self, mock_texture_manager, mock_player_tank, mock_game_map
     ):
-        """Test that spawn queue contains multiple types for mixed stages."""
+        """Test that spawn queue contains multiple types for mixed compositions."""
         manager = SpawnManager(
             tile_size=TILE_SIZE,
             texture_manager=mock_texture_manager,
             spawn_points=self.SPAWN_POINTS,
-            stage=4,
+            enemy_composition={"basic": 2, "fast": 5, "power": 10, "armor": 3},
             spawn_interval=5.0,
             player_tank=mock_player_tank,
             game_map=mock_game_map,
@@ -242,7 +242,7 @@ class TestSpawnManager:
             tile_size=TILE_SIZE,
             texture_manager=mock_texture_manager,
             spawn_points=self.SPAWN_POINTS,
-            stage=1,
+            enemy_composition={"basic": 18, "fast": 2, "power": 0, "armor": 0},
             spawn_interval=5.0,
             player_tank=mock_player_tank,
             game_map=mock_game_map,
@@ -255,15 +255,15 @@ class TestSpawnManager:
             manager.spawn_enemy(mock_player_tank, mock_game_map)
         assert manager.total_enemy_spawns == 20
 
-    def test_stage_clamped_above_35(
+    def test_composition_with_all_basic(
         self, mock_texture_manager, mock_player_tank, mock_game_map
     ):
-        """Test that stages > 35 use stage 35 data."""
+        """Test that an all-basic composition produces 20 enemies."""
         manager = SpawnManager(
             tile_size=TILE_SIZE,
             texture_manager=mock_texture_manager,
             spawn_points=self.SPAWN_POINTS,
-            stage=99,
+            enemy_composition={"basic": 20, "fast": 0, "power": 0, "armor": 0},
             spawn_interval=5.0,
             player_tank=mock_player_tank,
             game_map=mock_game_map,
@@ -312,7 +312,7 @@ class TestSpawnAnimation:
             tile_size=TILE_SIZE,
             texture_manager=mock_texture_manager,
             spawn_points=self.SPAWN_POINTS,
-            stage=1,
+            enemy_composition={"basic": 18, "fast": 2, "power": 0, "armor": 0},
             spawn_interval=5.0,
             player_tank=mock_player_tank,
             game_map=mock_game_map,
@@ -420,7 +420,7 @@ class TestSpawnManagerCarrier:
             tile_size=TILE_SIZE,
             texture_manager=mock_texture_manager,
             spawn_points=self.SPAWN_POINTS,
-            stage=1,
+            enemy_composition={"basic": 18, "fast": 2, "power": 0, "armor": 0},
             spawn_interval=5.0,
             player_tank=mock_player_tank,
             game_map=mock_game_map,
@@ -465,7 +465,7 @@ class TestSpawnManagerCarrier:
             tile_size=TILE_SIZE,
             texture_manager=mock_texture_manager,
             spawn_points=self.SPAWN_POINTS,
-            stage=1,
+            enemy_composition={"basic": 18, "fast": 2, "power": 0, "armor": 0},
             spawn_interval=5.0,
             player_tank=mock_player_tank,
             game_map=mock_game_map,

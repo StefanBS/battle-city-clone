@@ -68,7 +68,9 @@ def test_enemy_spawning_rules(game_manager_fixture):
     game_manager.spawn_manager.enemy_tanks = []
     game_manager.spawn_manager.total_enemy_spawns = 0
     game_manager.spawn_manager._spawn_queue = (
-        game_manager.spawn_manager._build_spawn_queue(1)
+        game_manager.spawn_manager._build_spawn_queue(
+            game_manager.map.enemy_composition
+        )
     )
     game_manager.spawn_manager.max_enemy_spawns = len(
         game_manager.spawn_manager._spawn_queue

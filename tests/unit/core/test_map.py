@@ -181,6 +181,28 @@ class TestWaterAnimationFromTMX:
         assert tile.is_animated is False
 
 
+class TestEnemyCompositionFromTMX:
+    """Verify Map reads enemy composition from TMX properties."""
+
+    @pytest.fixture
+    def game_map(self, mock_texture_manager):
+        return Map("tests/assets/test_map.tmx", mock_texture_manager)
+
+    def test_enemy_composition_available(self, game_map):
+        assert hasattr(game_map, "enemy_composition")
+
+    def test_enemy_composition_values(self, game_map):
+        comp = game_map.enemy_composition
+        assert comp["basic"] == 18
+        assert comp["fast"] == 2
+        assert comp["power"] == 0
+        assert comp["armor"] == 0
+
+    def test_enemy_composition_sum(self, game_map):
+        comp = game_map.enemy_composition
+        assert sum(comp.values()) == 20
+
+
 class TestGetBaseSurroundingTiles:
     @pytest.fixture
     def game_map(self, mock_texture_manager):

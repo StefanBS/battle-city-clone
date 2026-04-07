@@ -137,6 +137,9 @@ class Map:
         # Read spawn points from object layer
         self._load_spawn_points(tiled_map)
 
+        # Read enemy composition from map-level properties
+        self.enemy_composition = self._read_enemy_composition(tiled_map)
+
     def _scan_tileset(self, tiled_map: pytmx.TiledMap) -> None:
         """Scan the tileset for brick variant sprites.
 
@@ -209,6 +212,21 @@ class Map:
             logger.warning(
                 "No 'player_spawn' object found, defaulting to bottom-center"
             )
+
+    def _read_enemy_composition(self, tiled_map: pytmx.TiledMap) -> dict[str, int]:
+        """Read enemy type counts from map-level custom properties."""
+        props = tiled_map.properties or {}
+        composition = {
+            "basic": int(props.get("enemy_basic", 0)),
+            "fast": int(props.get("enemy_fast", 0)),
+            "power": int(props.get("enemy_power", 0)),
+            "armor": int(props.get("enemy_armor", 0)),
+        }
+        total = sum(composition.values())
+        if total == 0:
+            logger.warning("No enemy composition in map properties, using defaults")
+            composition = {"basic": 20, "fast": 0, "power": 0, "armor": 0}
+        return composition
 
     def _build_derived_tile_lists(self) -> None:
         """Build the lists of animated and drawable (non-empty) tiles."""

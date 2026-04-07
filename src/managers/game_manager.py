@@ -175,7 +175,7 @@ class GameManager:
             tile_size=self.tile_size,
             texture_manager=self.texture_manager,
             spawn_points=self.map.spawn_points,
-            stage=self.current_stage,
+            enemy_composition=self.map.enemy_composition,
             spawn_interval=5.0,
             player_tank=self.player_tank,
             game_map=self.map,
