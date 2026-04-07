@@ -1,0 +1,34 @@
+{
+  "basic": {
+    "speed": 80,
+    "bullet_speed": 180,
+    "health": 1,
+    "shoot_interval": 2.0,
+    "direction_change_interval": 2.5,
+    "power_bullets": false
+  },
+  "fast": {
+    "speed": 120,
+    "bullet_speed": 180,
+    "health": 1,
+    "shoot_interval": 1.8,
+    "direction_change_interval": 1.5,
+    "power_bullets": false
+  },
+  "power": {
+    "speed": 92,
+    "bullet_speed": 360,
+    "health": 1,
+    "shoot_interval": 1.0,
+    "direction_change_interval": 2.0,
+    "power_bullets": false
+  },
+  "armor": {
+    "speed": 60,
+    "bullet_speed": 360,
+    "health": 4,
+    "shoot_interval": 1.5,
+    "direction_change_interval": 2.0,
+    "power_bullets": true
+  }
+}

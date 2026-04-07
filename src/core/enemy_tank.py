@@ -1,14 +1,12 @@
+import json
 import random
 from loguru import logger
 from .tank import Tank
-from typing import Dict, TypedDict
+from typing import TypedDict
 from src.utils.constants import (
     Direction,
     OwnerType,
     TankType,
-    TANK_SPEED,
-    BULLET_SPEED,
-    STAR_BULLET_SPEED_MULTIPLIER,
     CARRIER_BLINK_INTERVAL,
 )
 from src.managers.texture_manager import TextureManager
@@ -24,43 +22,29 @@ class TankPropertyDict(TypedDict):
     power_bullets: bool
 
 
+_ENEMY_CONFIG_PATH = "assets/config/enemy_types.json"
+_enemy_config: dict | None = None
+
+
+def _get_enemy_config() -> dict:
+    """Load and cache enemy type configuration from JSON."""
+    global _enemy_config
+    if _enemy_config is None:
+        from src.utils.paths import resource_path
+
+        with open(resource_path(_ENEMY_CONFIG_PATH)) as f:
+            _enemy_config = json.load(f)
+    return _enemy_config
+
+
+def _reset_enemy_config() -> None:
+    """Reset cached config (for testing)."""
+    global _enemy_config
+    _enemy_config = None
+
+
 class EnemyTank(Tank):
     """Enemy tank entity with basic AI and type variations."""
-
-    TANK_PROPERTIES: Dict[TankType, TankPropertyDict] = {
-        TankType.BASIC: {
-            "speed": TANK_SPEED,
-            "bullet_speed": BULLET_SPEED,
-            "health": 1,
-            "shoot_interval": 2.0,
-            "direction_change_interval": 2.5,
-            "power_bullets": False,
-        },
-        TankType.FAST: {
-            "speed": TANK_SPEED * 1.5,
-            "bullet_speed": BULLET_SPEED,
-            "health": 1,
-            "shoot_interval": 1.8,
-            "direction_change_interval": 1.5,
-            "power_bullets": False,
-        },
-        TankType.POWER: {
-            "speed": TANK_SPEED * 1.15,
-            "bullet_speed": BULLET_SPEED * STAR_BULLET_SPEED_MULTIPLIER,
-            "health": 1,
-            "shoot_interval": 1.0,
-            "direction_change_interval": 2.0,
-            "power_bullets": False,
-        },
-        TankType.ARMOR: {
-            "speed": TANK_SPEED * 0.75,
-            "bullet_speed": BULLET_SPEED * STAR_BULLET_SPEED_MULTIPLIER,
-            "health": 4,
-            "shoot_interval": 1.5,
-            "direction_change_interval": 2.0,
-            "power_bullets": True,
-        },
-    }
 
     def __init__(
         self,
@@ -86,7 +70,9 @@ class EnemyTank(Tank):
             map_width_px: Map width in pixels (for boundary clamping)
             map_height_px: Map height in pixels (for boundary clamping)
         """
-        props = self.TANK_PROPERTIES[tank_type]
+        config = _get_enemy_config()
+        type_key = tank_type.value if isinstance(tank_type, TankType) else tank_type
+        props = config[type_key]
 
         super().__init__(
             x,

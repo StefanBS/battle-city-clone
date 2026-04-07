@@ -3,41 +3,38 @@ from unittest.mock import patch
 from src.core.enemy_tank import EnemyTank
 from src.utils.constants import (
     TILE_SIZE,
-    TANK_SPEED,
-    BULLET_SPEED,
-    STAR_BULLET_SPEED_MULTIPLIER,
     FPS,
     TankType,
     Direction,
     CARRIER_BLINK_INTERVAL,
 )
 
-# Define expected properties based on EnemyTank.TANK_PROPERTIES for easier assertion
+# Define expected properties with resolved values matching enemy_types.json
 EXPECTED_PROPERTIES = {
     "basic": {
-        "speed": TANK_SPEED,
-        "bullet_speed": BULLET_SPEED,
+        "speed": 80,
+        "bullet_speed": 180,
         "health": 1,
         "shoot_interval": 2.0,
         "direction_change_interval": 2.5,
     },
     "fast": {
-        "speed": TANK_SPEED * 1.5,
-        "bullet_speed": BULLET_SPEED,
+        "speed": 120,
+        "bullet_speed": 180,
         "health": 1,
         "shoot_interval": 1.8,
         "direction_change_interval": 1.5,
     },
     "power": {
-        "speed": TANK_SPEED * 1.15,
-        "bullet_speed": BULLET_SPEED * STAR_BULLET_SPEED_MULTIPLIER,
+        "speed": 92,
+        "bullet_speed": 360,
         "health": 1,
         "shoot_interval": 1.0,
         "direction_change_interval": 2.0,
     },
     "armor": {
-        "speed": TANK_SPEED * 0.75,
-        "bullet_speed": BULLET_SPEED * STAR_BULLET_SPEED_MULTIPLIER,
+        "speed": 60,
+        "bullet_speed": 360,
         "health": 4,
         "shoot_interval": 1.5,
         "direction_change_interval": 2.0,
