@@ -1,3 +1,6 @@
+import json
+import os
+
 import pytest
 import pygame
 from unittest.mock import patch, MagicMock
@@ -51,6 +54,40 @@ class TestPlayerTierSprites:
     def test_tier_sprite_loaded(self, real_texture_manager, name):
         sprite = real_texture_manager.get_sprite(name)
         assert sprite is not None
+
+
+class TestSpriteConfigLoading:
+    """Test that TextureManager loads sprite coords from JSON config."""
+
+    def test_config_file_exists(self):
+        assert os.path.exists("assets/config/sprites.json")
+
+    def test_config_has_all_sprites(self):
+        with open("assets/config/sprites.json") as f:
+            config = json.load(f)
+        assert len(config["sprites"]) >= 70
+        assert "player_tank_up_1" in config["sprites"]
+        assert "enemy_tank_up_1" in config["sprites"]
+
+    def test_config_has_bullet_rects(self):
+        with open("assets/config/sprites.json") as f:
+            config = json.load(f)
+        assert len(config["bullets"]) == 4
+        assert "bullet_up" in config["bullets"]
+
+    def test_config_sprite_grid_format(self):
+        with open("assets/config/sprites.json") as f:
+            config = json.load(f)
+        for name, data in config["sprites"].items():
+            assert "grid" in data, f"Sprite '{name}' missing 'grid' key"
+            assert len(data["grid"]) == 2, f"Sprite '{name}' grid must have 2 values"
+
+    def test_config_bullet_rect_format(self):
+        with open("assets/config/sprites.json") as f:
+            config = json.load(f)
+        for name, data in config["bullets"].items():
+            assert "rect" in data, f"Bullet '{name}' missing 'rect' key"
+            assert len(data["rect"]) == 4, f"Bullet '{name}' rect must have 4 values"
 
 
 class TestTextureManagerErrors:

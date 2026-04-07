@@ -1,3 +1,5 @@
+import json
+
 import pygame
 from loguru import logger
 from src.utils.constants import (
@@ -12,13 +14,22 @@ from src.utils.constants import (
 class TextureManager:
     """Manages loading and accessing game textures."""
 
-    def __init__(self, texture_path: str):
+    def __init__(self, texture_path: str, sprite_config_path: str = None):
         """
         Initializes the TextureManager.
 
         Args:
             texture_path: Path to the main texture atlas file.
+            sprite_config_path: Path to the sprite config JSON file.
+                If None, uses the default path resolved via resource_path.
         """
+        if sprite_config_path is None:
+            from src.utils.paths import resource_path
+
+            sprite_config_path = resource_path("assets/config/sprites.json")
+        with open(sprite_config_path) as f:
+            self._config = json.load(f)
+
         try:
             self.texture_atlas: pygame.Surface = pygame.image.load(
                 texture_path
@@ -32,102 +43,6 @@ class TextureManager:
         self.sub_sprites: dict[str, pygame.Surface] = {}
         self._load_sprites()
 
-    # Tile/tank sprites: 2x2 source tiles (16x16 pixels in the atlas).
-    # Coordinates are grid positions in an 8x8-pixel grid.
-    _SPRITE_COORDS: dict[str, tuple[int, int]] = {
-        # Player tank
-        "player_tank_up_1": (0, 0),
-        "player_tank_up_2": (2, 0),
-        "player_tank_left_1": (4, 0),
-        "player_tank_left_2": (6, 0),
-        "player_tank_down_1": (8, 0),
-        "player_tank_down_2": (10, 0),
-        "player_tank_right_1": (12, 0),
-        "player_tank_right_2": (14, 0),
-        # Enemy tank
-        "enemy_tank_up_1": (16, 0),
-        "enemy_tank_up_2": (18, 0),
-        "enemy_tank_left_1": (20, 0),
-        "enemy_tank_left_2": (22, 0),
-        "enemy_tank_down_1": (24, 0),
-        "enemy_tank_down_2": (26, 0),
-        "enemy_tank_right_1": (28, 0),
-        "enemy_tank_right_2": (30, 0),
-        # Tiles
-        "brick": (32, 0),
-        "steel": (32, 2),
-        "bush": (34, 4),
-        "ice": (36, 4),
-        "base": (38, 4),
-        "base_destroyed": (40, 4),
-        "water_1": (32, 6),
-        "water_2": (34, 6),
-        # Explosions (3 frames: small burst, medium burst, large burst)
-        "explosion_1": (32, 16),
-        "explosion_2": (34, 16),
-        "explosion_3": (36, 16),
-        # Spawn animation (4 frames: expanding sparkle/diamond)
-        "spawn_1": (32, 12),
-        "spawn_2": (34, 12),
-        "spawn_3": (36, 12),
-        "spawn_4": (38, 12),
-        # Shield (invincibility overlay, 2 frames)
-        "shield_1": (32, 18),
-        "shield_2": (34, 18),
-        # Red enemy tank (carrier flash variant)
-        "enemy_tank_red_up_1": (16, 16),
-        "enemy_tank_red_up_2": (18, 16),
-        "enemy_tank_red_left_1": (20, 16),
-        "enemy_tank_red_left_2": (22, 16),
-        "enemy_tank_red_down_1": (24, 16),
-        "enemy_tank_red_down_2": (26, 16),
-        "enemy_tank_red_right_1": (28, 16),
-        "enemy_tank_red_right_2": (30, 16),
-        # Power-ups
-        "powerup_helmet": (32, 14),
-        "powerup_clock": (34, 14),
-        "powerup_shovel": (36, 14),
-        "powerup_star": (38, 14),
-        "powerup_bomb": (40, 14),
-        "powerup_extra_life": (42, 14),
-        "powerup_gun": (44, 14),
-        # Player tank tier sprites (star upgrades)
-        "player_tank_tier1_up_1": (0, 2),
-        "player_tank_tier1_up_2": (2, 2),
-        "player_tank_tier1_left_1": (4, 2),
-        "player_tank_tier1_left_2": (6, 2),
-        "player_tank_tier1_down_1": (8, 2),
-        "player_tank_tier1_down_2": (10, 2),
-        "player_tank_tier1_right_1": (12, 2),
-        "player_tank_tier1_right_2": (14, 2),
-        "player_tank_tier2_up_1": (0, 4),
-        "player_tank_tier2_up_2": (2, 4),
-        "player_tank_tier2_left_1": (4, 4),
-        "player_tank_tier2_left_2": (6, 4),
-        "player_tank_tier2_down_1": (8, 4),
-        "player_tank_tier2_down_2": (10, 4),
-        "player_tank_tier2_right_1": (12, 4),
-        "player_tank_tier2_right_2": (14, 4),
-        "player_tank_tier3_up_1": (0, 6),
-        "player_tank_tier3_up_2": (2, 6),
-        "player_tank_tier3_left_1": (4, 6),
-        "player_tank_tier3_left_2": (6, 6),
-        "player_tank_tier3_down_1": (8, 6),
-        "player_tank_tier3_down_2": (10, 6),
-        "player_tank_tier3_right_1": (12, 6),
-        "player_tank_tier3_right_2": (14, 6),
-    }
-
-    # Bullet sprites: pixel rects (x, y, w, h) in the atlas.
-    # Content sits at the bottom of each 8x8 cell, so we extract
-    # only the 4x4 region containing the actual bullet pixels.
-    _BULLET_RECTS: dict[str, tuple[int, int, int, int]] = {
-        "bullet_up": (323, 102, 3, 4),
-        "bullet_left": (330, 102, 4, 3),
-        "bullet_down": (339, 102, 3, 4),
-        "bullet_right": (346, 102, 4, 3),
-    }
-
     def _load_sprites(self):
         """Loads individual sprites from the texture atlas."""
         self._load_tile_sprites()
@@ -139,7 +54,8 @@ class TextureManager:
         Applies colorkey transparency for the near-black (0,0,1) atlas
         background so bullets render correctly over the game scene.
         """
-        for name, (px, py, pw, ph) in self._BULLET_RECTS.items():
+        for name, data in self._config["bullets"].items():
+            px, py, pw, ph = data["rect"]
             rect = pygame.Rect(px, py, pw, ph)
             try:
                 original = self.texture_atlas.subsurface(rect)
@@ -162,7 +78,8 @@ class TextureManager:
         """Loads 16x16 tile/tank sprites from the texture atlas."""
         sprite_size = SOURCE_TILE_SIZE * 2
 
-        for name, (gx, gy) in self._SPRITE_COORDS.items():
+        for name, data in self._config["sprites"].items():
+            gx, gy = data["grid"]
             rect = pygame.Rect(
                 gx * SOURCE_TILE_SIZE,
                 gy * SOURCE_TILE_SIZE,
