@@ -405,3 +405,91 @@ class TestJoystickButtons:
         """Other buttons do not trigger shoot."""
         handler.handle_event(joy_button_down_event(button=3))
         assert not handler.shoot_pressed
+
+
+class TestControllerDpad:
+    """Tests for SDL GameController D-pad (button-based) input."""
+
+    def test_dpad_up(self, handler, ctrl_button_down_event) -> None:
+        """Controller D-pad UP sets joy_directions UP."""
+        handler.handle_event(ctrl_button_down_event(pygame.CONTROLLER_BUTTON_DPAD_UP))
+        assert handler.joy_directions[Direction.UP]
+
+    def test_dpad_down(self, handler, ctrl_button_down_event) -> None:
+        """Controller D-pad DOWN sets joy_directions DOWN."""
+        handler.handle_event(ctrl_button_down_event(pygame.CONTROLLER_BUTTON_DPAD_DOWN))
+        assert handler.joy_directions[Direction.DOWN]
+
+    def test_dpad_left(self, handler, ctrl_button_down_event) -> None:
+        """Controller D-pad LEFT sets joy_directions LEFT."""
+        handler.handle_event(ctrl_button_down_event(pygame.CONTROLLER_BUTTON_DPAD_LEFT))
+        assert handler.joy_directions[Direction.LEFT]
+
+    def test_dpad_right(self, handler, ctrl_button_down_event) -> None:
+        """Controller D-pad RIGHT sets joy_directions RIGHT."""
+        handler.handle_event(
+            ctrl_button_down_event(pygame.CONTROLLER_BUTTON_DPAD_RIGHT)
+        )
+        assert handler.joy_directions[Direction.RIGHT]
+
+    def test_dpad_release(
+        self, handler, ctrl_button_down_event, ctrl_button_up_event
+    ) -> None:
+        """Releasing D-pad button clears the direction."""
+        handler.handle_event(ctrl_button_down_event(pygame.CONTROLLER_BUTTON_DPAD_UP))
+        assert handler.joy_directions[Direction.UP]
+        handler.handle_event(ctrl_button_up_event(pygame.CONTROLLER_BUTTON_DPAD_UP))
+        assert not handler.joy_directions[Direction.UP]
+
+    def test_dpad_replaces_previous(self, handler, ctrl_button_down_event) -> None:
+        """New D-pad direction replaces previous."""
+        handler.handle_event(ctrl_button_down_event(pygame.CONTROLLER_BUTTON_DPAD_UP))
+        handler.handle_event(
+            ctrl_button_down_event(pygame.CONTROLLER_BUTTON_DPAD_RIGHT)
+        )
+        assert handler.joy_directions[Direction.RIGHT]
+        assert not handler.joy_directions[Direction.UP]
+
+
+class TestControllerButtons:
+    """Tests for SDL GameController button input."""
+
+    def test_a_button_shoots(self, handler, ctrl_button_down_event) -> None:
+        """Controller A button triggers shoot."""
+        handler.handle_event(ctrl_button_down_event(pygame.CONTROLLER_BUTTON_A))
+        assert handler.shoot_pressed
+
+    def test_b_button_shoots(self, handler, ctrl_button_down_event) -> None:
+        """Controller B button triggers shoot."""
+        handler.handle_event(ctrl_button_down_event(pygame.CONTROLLER_BUTTON_B))
+        assert handler.shoot_pressed
+
+
+class TestControllerAxis:
+    """Tests for SDL GameController analog stick input."""
+
+    def test_left_stick_left(self, handler, ctrl_axis_event) -> None:
+        """Left stick pushed left sets LEFT direction."""
+        handler.handle_event(ctrl_axis_event(pygame.CONTROLLER_AXIS_LEFTX, -0.8))
+        assert handler.joy_directions[Direction.LEFT]
+
+    def test_left_stick_right(self, handler, ctrl_axis_event) -> None:
+        """Left stick pushed right sets RIGHT direction."""
+        handler.handle_event(ctrl_axis_event(pygame.CONTROLLER_AXIS_LEFTX, 0.8))
+        assert handler.joy_directions[Direction.RIGHT]
+
+    def test_left_stick_up(self, handler, ctrl_axis_event) -> None:
+        """Left stick pushed up sets UP direction."""
+        handler.handle_event(ctrl_axis_event(pygame.CONTROLLER_AXIS_LEFTY, -0.8))
+        assert handler.joy_directions[Direction.UP]
+
+    def test_left_stick_down(self, handler, ctrl_axis_event) -> None:
+        """Left stick pushed down sets DOWN direction."""
+        handler.handle_event(ctrl_axis_event(pygame.CONTROLLER_AXIS_LEFTY, 0.8))
+        assert handler.joy_directions[Direction.DOWN]
+
+    def test_left_stick_deadzone(self, handler, ctrl_axis_event) -> None:
+        """Axis within deadzone sets no direction."""
+        handler.handle_event(ctrl_axis_event(pygame.CONTROLLER_AXIS_LEFTX, 0.3))
+        assert not handler.joy_directions[Direction.RIGHT]
+        assert not handler.joy_directions[Direction.LEFT]

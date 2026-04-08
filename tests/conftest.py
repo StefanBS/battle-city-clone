@@ -109,3 +109,33 @@ def joy_device_removed_event():
         return pygame.event.Event(pygame.JOYDEVICEREMOVED, instance_id=instance_id)
 
     return _joy_device_removed_event
+
+
+@pytest.fixture
+def ctrl_button_down_event():
+    """Factory fixture to create CONTROLLERBUTTONDOWN events."""
+
+    def _ctrl_button_down_event(button: int) -> pygame.event.Event:
+        return pygame.event.Event(pygame.CONTROLLERBUTTONDOWN, button=button)
+
+    return _ctrl_button_down_event
+
+
+@pytest.fixture
+def ctrl_button_up_event():
+    """Factory fixture to create CONTROLLERBUTTONUP events."""
+
+    def _ctrl_button_up_event(button: int) -> pygame.event.Event:
+        return pygame.event.Event(pygame.CONTROLLERBUTTONUP, button=button)
+
+    return _ctrl_button_up_event
+
+
+@pytest.fixture
+def ctrl_axis_event():
+    """Factory fixture to create CONTROLLERAXISMOTION events."""
+
+    def _ctrl_axis_event(axis: int, value: float) -> pygame.event.Event:
+        return pygame.event.Event(pygame.CONTROLLERAXISMOTION, axis=axis, value=value)
+
+    return _ctrl_axis_event

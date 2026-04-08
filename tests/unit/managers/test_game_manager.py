@@ -40,6 +40,7 @@ class TestGameManager:
         pygame.init()
         manager = GameManager()
         manager._reset_game()
+        pygame.event.clear()  # Drain controller/joystick startup events
         yield manager
         pygame.quit()
 
@@ -48,6 +49,7 @@ class TestGameManager:
         """Create a GameManager at the title screen (no _reset_game)."""
         pygame.init()
         manager = GameManager()
+        pygame.event.clear()  # Drain controller/joystick startup events
         yield manager
         pygame.quit()
 
@@ -267,6 +269,58 @@ class TestGameManager:
             event = pygame.event.Event(pygame.JOYBUTTONDOWN, button=5, instance_id=0)
             assert game_manager._translate_joy_event(event) is None
 
+        # --- SDL GameController API tests ---
+
+        def test_translate_ctrl_dpad_up(self, game_manager):
+            """Controller D-pad UP translates to K_UP."""
+            event = pygame.event.Event(
+                pygame.CONTROLLERBUTTONDOWN,
+                button=pygame.CONTROLLER_BUTTON_DPAD_UP,
+            )
+            assert game_manager._translate_joy_event(event) == pygame.K_UP
+
+        def test_translate_ctrl_dpad_down(self, game_manager):
+            """Controller D-pad DOWN translates to K_DOWN."""
+            event = pygame.event.Event(
+                pygame.CONTROLLERBUTTONDOWN,
+                button=pygame.CONTROLLER_BUTTON_DPAD_DOWN,
+            )
+            assert game_manager._translate_joy_event(event) == pygame.K_DOWN
+
+        def test_translate_ctrl_a_confirm(self, game_manager):
+            """Controller A button translates to K_RETURN."""
+            event = pygame.event.Event(
+                pygame.CONTROLLERBUTTONDOWN,
+                button=pygame.CONTROLLER_BUTTON_A,
+            )
+            assert game_manager._translate_joy_event(event) == pygame.K_RETURN
+
+        def test_translate_ctrl_start(self, game_manager):
+            """Controller Start button translates to K_ESCAPE."""
+            event = pygame.event.Event(
+                pygame.CONTROLLERBUTTONDOWN,
+                button=pygame.CONTROLLER_BUTTON_START,
+            )
+            assert game_manager._translate_joy_event(event) == pygame.K_ESCAPE
+
+        def test_translate_ctrl_axis_up(self, game_manager):
+            """Controller left stick up translates to K_UP."""
+            event = pygame.event.Event(
+                pygame.CONTROLLERAXISMOTION,
+                axis=pygame.CONTROLLER_AXIS_LEFTY,
+                value=-0.8,
+            )
+            assert game_manager._translate_joy_event(event) == pygame.K_UP
+
+        def test_translate_ctrl_axis_deadzone(self, game_manager):
+            """Controller axis within deadzone returns None."""
+            event = pygame.event.Event(
+                pygame.CONTROLLERAXISMOTION,
+                axis=pygame.CONTROLLER_AXIS_LEFTX,
+                value=0.3,
+            )
+            assert game_manager._translate_joy_event(event) is None
+
 
 class TestGameManagerSoundWiring:
     @pytest.fixture
@@ -299,6 +353,7 @@ class TestGameManagerSoundWiring:
         pygame.init()
         manager = GameManager()
         manager._reset_game()
+        pygame.event.clear()  # Drain controller/joystick startup events
         yield manager
         pygame.quit()
 
@@ -307,6 +362,7 @@ class TestGameManagerSoundWiring:
         """Create a GameManager at the title screen (no _reset_game)."""
         pygame.init()
         manager = GameManager()
+        pygame.event.clear()  # Drain controller/joystick startup events
         yield manager
         pygame.quit()
 

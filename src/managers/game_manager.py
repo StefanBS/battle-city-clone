@@ -39,8 +39,10 @@ from src.managers.texture_manager import TextureManager
 from src.managers.input_handler import (
     InputHandler,
     AXIS_DEADZONE,
-    SHOOT_BUTTONS,
-    START_BUTTON,
+    JOY_SHOOT_BUTTONS,
+    JOY_START_BUTTON,
+    CTRL_SHOOT_BUTTONS,
+    CTRL_START_BUTTON,
 )
 from src.managers.spawn_manager import SpawnManager
 from src.managers.renderer import Renderer
@@ -265,6 +267,8 @@ class GameManager:
                 pygame.JOYHATMOTION,
                 pygame.JOYAXISMOTION,
                 pygame.JOYBUTTONDOWN,
+                pygame.CONTROLLERBUTTONDOWN,
+                pygame.CONTROLLERAXISMOTION,
             ):
                 translated_key = self._translate_joy_event(event)
                 if translated_key is not None:
@@ -286,17 +290,56 @@ class GameManager:
                         self.state = GameState.TITLE_SCREEN
                         self._title_selection = 0
 
-            # Pass events to input handler only if game is running
+            # Pass all events to input handler during gameplay.
+            # Hot-plug events are forwarded in any state so controllers
+            # can be connected/disconnected from menus.
             if self.state == GameState.RUNNING:
+                self.input_handler.handle_event(event)
+            elif event.type in (
+                pygame.JOYDEVICEADDED,
+                pygame.JOYDEVICEREMOVED,
+            ):
                 self.input_handler.handle_event(event)
 
     def _translate_joy_event(self, event: pygame.event.Event) -> Optional[int]:
-        """Translate a joystick event to an equivalent key constant for menu use.
+        """Translate a joystick/controller event to a key constant for menus.
+
+        Handles both SDL GameController events (recognized controllers)
+        and raw joystick events (unrecognized controllers).
 
         Returns:
             A pygame key constant, or None if the event has no menu mapping.
         """
-        if event.type == pygame.JOYHATMOTION:
+        # --- SDL GameController API ---
+        _CTRL_DPAD_TO_KEY = {
+            pygame.CONTROLLER_BUTTON_DPAD_UP: pygame.K_UP,
+            pygame.CONTROLLER_BUTTON_DPAD_DOWN: pygame.K_DOWN,
+            pygame.CONTROLLER_BUTTON_DPAD_LEFT: pygame.K_LEFT,
+            pygame.CONTROLLER_BUTTON_DPAD_RIGHT: pygame.K_RIGHT,
+        }
+        if event.type == pygame.CONTROLLERBUTTONDOWN:
+            if event.button in _CTRL_DPAD_TO_KEY:
+                return _CTRL_DPAD_TO_KEY[event.button]
+            elif event.button in CTRL_SHOOT_BUTTONS:
+                return pygame.K_RETURN
+            elif event.button == CTRL_START_BUTTON:
+                return pygame.K_ESCAPE
+            return None
+        elif event.type == pygame.CONTROLLERAXISMOTION:
+            if event.axis == pygame.CONTROLLER_AXIS_LEFTX:
+                if event.value < -AXIS_DEADZONE:
+                    return pygame.K_LEFT
+                elif event.value > AXIS_DEADZONE:
+                    return pygame.K_RIGHT
+            elif event.axis == pygame.CONTROLLER_AXIS_LEFTY:
+                if event.value < -AXIS_DEADZONE:
+                    return pygame.K_UP
+                elif event.value > AXIS_DEADZONE:
+                    return pygame.K_DOWN
+            return None
+
+        # --- Raw joystick API ---
+        elif event.type == pygame.JOYHATMOTION:
             hat_x, hat_y = event.value
             if hat_y > 0:
                 return pygame.K_UP
@@ -320,9 +363,9 @@ class GameManager:
                     return pygame.K_DOWN
             return None
         elif event.type == pygame.JOYBUTTONDOWN:
-            if event.button in SHOOT_BUTTONS:
+            if event.button in JOY_SHOOT_BUTTONS:
                 return pygame.K_RETURN
-            elif event.button == START_BUTTON:
+            elif event.button == JOY_START_BUTTON:
                 return pygame.K_ESCAPE
             return None
         return None

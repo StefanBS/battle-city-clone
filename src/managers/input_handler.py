@@ -4,12 +4,28 @@ from loguru import logger
 from src.utils.constants import Direction
 
 AXIS_DEADZONE: float = 0.5
-SHOOT_BUTTONS: tuple[int, ...] = (0, 1)  # A/Cross, B/Circle
-START_BUTTON: int = 7
+
+# Raw joystick API (fallback for controllers not in SDL's GameController DB)
+JOY_SHOOT_BUTTONS: tuple[int, ...] = (0, 1)
+JOY_START_BUTTON: int = 7
+
+# SDL GameController API (normalized IDs for recognized controllers like Xbox)
+# D-pad is reported as buttons, not hat, on recognized controllers.
+CTRL_DPAD_BUTTONS: dict[int, Direction] = {
+    pygame.CONTROLLER_BUTTON_DPAD_UP: Direction.UP,
+    pygame.CONTROLLER_BUTTON_DPAD_DOWN: Direction.DOWN,
+    pygame.CONTROLLER_BUTTON_DPAD_LEFT: Direction.LEFT,
+    pygame.CONTROLLER_BUTTON_DPAD_RIGHT: Direction.RIGHT,
+}
+CTRL_SHOOT_BUTTONS: tuple[int, ...] = (
+    pygame.CONTROLLER_BUTTON_A,
+    pygame.CONTROLLER_BUTTON_B,
+)
+CTRL_START_BUTTON: int = pygame.CONTROLLER_BUTTON_START
 
 
 class InputHandler:
-    """Handles keyboard input for the player tank."""
+    """Handles keyboard and controller input for the player tank."""
 
     def __init__(self, shoot_key: int = pygame.K_SPACE) -> None:
         """Initialize the input handler."""
@@ -27,7 +43,7 @@ class InputHandler:
         }
         self.shoot_key: int = shoot_key
         self.shoot_pressed: bool = False
-        # Joystick state (tracked separately from keyboard)
+        # Joystick/controller state (tracked separately from keyboard)
         self.joy_directions: Dict[Direction, bool] = {
             Direction.UP: False,
             Direction.DOWN: False,
@@ -39,14 +55,21 @@ class InputHandler:
 
     def _init_joystick(self) -> None:
         """Detect and initialize the first connected joystick."""
-        if pygame.joystick.get_count() > 0:
-            self.joystick = pygame.joystick.Joystick(0)
-            self.joystick.init()
-            logger.info(f"Joystick connected: {self.joystick.get_name()}")
+        try:
+            if pygame.joystick.get_count() > 0:
+                self.joystick = pygame.joystick.Joystick(0)
+                self.joystick.init()
+                logger.info(f"Joystick connected: {self.joystick.get_name()}")
+        except pygame.error:
+            logger.debug("Joystick subsystem not initialized, skipping.")
 
     def handle_event(self, event: pygame.event.Event) -> None:
         """
         Handle a pygame event to update input state.
+
+        Handles keyboard, raw joystick (JOY*), and SDL GameController
+        (CONTROLLER*) events. Recognized controllers (Xbox, PlayStation)
+        emit CONTROLLER* events; unrecognized ones emit JOY* events.
 
         Args:
             event: The pygame event to handle
@@ -65,6 +88,8 @@ class InputHandler:
                 if self.directions[direction]:
                     logger.trace(f"Key up: {direction}")
                     self.directions[direction] = False
+
+        # --- Hot-plug (shared by both APIs) ---
         elif event.type == pygame.JOYDEVICEADDED:
             if self.joystick is None:
                 self.joystick = pygame.joystick.Joystick(event.device_index)
@@ -79,12 +104,48 @@ class InputHandler:
                 self.joystick = None
                 for direction in self.joy_directions:
                     self.joy_directions[direction] = False
+
+        # --- SDL GameController API (recognized controllers) ---
+        elif event.type == pygame.CONTROLLERBUTTONDOWN:
+            if event.button in CTRL_DPAD_BUTTONS:
+                direction = CTRL_DPAD_BUTTONS[event.button]
+                # Reset all then set the pressed one
+                for d in self.joy_directions:
+                    self.joy_directions[d] = False
+                self.joy_directions[direction] = True
+            elif event.button in CTRL_SHOOT_BUTTONS:
+                self.shoot_pressed = True
+        elif event.type == pygame.CONTROLLERBUTTONUP:
+            if event.button in CTRL_DPAD_BUTTONS:
+                direction = CTRL_DPAD_BUTTONS[event.button]
+                self.joy_directions[direction] = False
+        elif event.type == pygame.CONTROLLERAXISMOTION:
+            if event.axis == pygame.CONTROLLER_AXIS_LEFTX:
+                if event.value < -AXIS_DEADZONE:
+                    self.joy_directions[Direction.LEFT] = True
+                    self.joy_directions[Direction.RIGHT] = False
+                elif event.value > AXIS_DEADZONE:
+                    self.joy_directions[Direction.RIGHT] = True
+                    self.joy_directions[Direction.LEFT] = False
+                else:
+                    self.joy_directions[Direction.LEFT] = False
+                    self.joy_directions[Direction.RIGHT] = False
+            elif event.axis == pygame.CONTROLLER_AXIS_LEFTY:
+                if event.value < -AXIS_DEADZONE:
+                    self.joy_directions[Direction.UP] = True
+                    self.joy_directions[Direction.DOWN] = False
+                elif event.value > AXIS_DEADZONE:
+                    self.joy_directions[Direction.DOWN] = True
+                    self.joy_directions[Direction.UP] = False
+                else:
+                    self.joy_directions[Direction.UP] = False
+                    self.joy_directions[Direction.DOWN] = False
+
+        # --- Raw joystick API (unrecognized controllers) ---
         elif event.type == pygame.JOYHATMOTION:
             hat_x, hat_y = event.value
-            # Reset all joystick directions first
             for direction in self.joy_directions:
                 self.joy_directions[direction] = False
-            # Vertical takes priority (NES behavior) for diagonals
             if hat_y > 0:
                 self.joy_directions[Direction.UP] = True
             elif hat_y < 0:
@@ -94,7 +155,7 @@ class InputHandler:
             elif hat_x < 0:
                 self.joy_directions[Direction.LEFT] = True
         elif event.type == pygame.JOYBUTTONDOWN:
-            if event.button in SHOOT_BUTTONS:
+            if event.button in JOY_SHOOT_BUTTONS:
                 self.shoot_pressed = True
         elif event.type == pygame.JOYAXISMOTION:
             if event.axis == 0:  # Horizontal
