@@ -247,3 +247,144 @@ class TestRenderCurtain:
         # font.render should be called at progress=1.0 but not at 0.0
         assert calls_at_closed > calls_at_open
         assert any("STAGE 3" in c for c in font_render_calls)
+
+
+class TestRenderPauseMenu:
+    """Tests for render_pause_menu."""
+
+    def test_overlay_surface_is_created_and_blitted(self, renderer):
+        """Pause menu creates a semi-transparent overlay and blits it."""
+        mock_overlay = MagicMock(spec=pygame.Surface)
+        with (
+            patch("pygame.Surface") as mock_surface_cls,
+            patch("pygame.transform.scale"),
+            patch("pygame.display.flip"),
+        ):
+            mock_surface_cls.return_value = mock_overlay
+            renderer.render_pause_menu(0)
+
+        # The overlay should be created with SRCALPHA and blitted
+        mock_surface_cls.assert_called_once_with(
+            (renderer.logical_width, renderer.logical_height), pygame.SRCALPHA
+        )
+        mock_overlay.fill.assert_called_once_with((0, 0, 0, 160))
+
+    def test_paused_title_is_rendered(self, renderer):
+        """Pause menu renders 'PAUSED' title."""
+        with (
+            patch("pygame.Surface"),
+            patch("pygame.transform.scale"),
+            patch("pygame.display.flip"),
+        ):
+            renderer.render_pause_menu(0)
+
+        render_calls = [call.args[0] for call in renderer.font.render.call_args_list]
+        assert "PAUSED" in render_calls
+
+    def test_four_menu_items_rendered(self, renderer):
+        """Pause menu renders RESUME, OPTIONS, TITLE SCREEN, QUIT."""
+        with (
+            patch("pygame.Surface"),
+            patch("pygame.transform.scale"),
+            patch("pygame.display.flip"),
+        ):
+            renderer.render_pause_menu(0)
+
+        render_calls = [
+            call.args[0] for call in renderer.small_font.render.call_args_list
+        ]
+        assert "RESUME" in render_calls
+        assert "OPTIONS" in render_calls
+        assert "TITLE SCREEN" in render_calls
+        assert "QUIT" in render_calls
+
+    def test_cursor_is_rendered(self, renderer):
+        """Pause menu renders '>' cursor."""
+        with (
+            patch("pygame.Surface"),
+            patch("pygame.transform.scale"),
+            patch("pygame.display.flip"),
+        ):
+            renderer.render_pause_menu(0)
+
+        render_calls = [
+            call.args[0] for call in renderer.small_font.render.call_args_list
+        ]
+        assert ">" in render_calls
+
+
+class TestRenderOptionsMenu:
+    """Tests for render_options_menu."""
+
+    def test_options_title_rendered(self, renderer):
+        """Options menu renders 'OPTIONS' title."""
+        with (
+            patch("pygame.transform.scale"),
+            patch("pygame.display.flip"),
+        ):
+            renderer.render_options_menu(0.8, 0)
+
+        render_calls = [call.args[0] for call in renderer.font.render.call_args_list]
+        assert "OPTIONS" in render_calls
+
+    def test_volume_bar_contains_volume_info(self, renderer):
+        """Options menu renders volume bar with percentage."""
+        with (
+            patch("pygame.transform.scale"),
+            patch("pygame.display.flip"),
+        ):
+            renderer.render_options_menu(0.8, 0)
+
+        render_calls = [
+            call.args[0] for call in renderer.small_font.render.call_args_list
+        ]
+        volume_calls = [c for c in render_calls if "VOLUME" in c]
+        assert len(volume_calls) == 1
+        assert "80%" in volume_calls[0]
+
+    def test_back_is_rendered(self, renderer):
+        """Options menu renders 'BACK' option."""
+        with (
+            patch("pygame.transform.scale"),
+            patch("pygame.display.flip"),
+        ):
+            renderer.render_options_menu(0.8, 0)
+
+        render_calls = [
+            call.args[0] for call in renderer.small_font.render.call_args_list
+        ]
+        assert "BACK" in render_calls
+
+    def test_cursor_rendered(self, renderer):
+        """Options menu renders '>' cursor."""
+        with (
+            patch("pygame.transform.scale"),
+            patch("pygame.display.flip"),
+        ):
+            renderer.render_options_menu(0.8, 0)
+
+        render_calls = [
+            call.args[0] for call in renderer.small_font.render.call_args_list
+        ]
+        assert ">" in render_calls
+
+
+class TestRenderTitleScreenUpdated:
+    """Tests for updated title screen with OPTIONS and QUIT."""
+
+    def test_five_menu_items_rendered(self, renderer):
+        """Title screen renders 1 PLAYER, 2 PLAYERS, OPTIONS, DEMO, QUIT."""
+        with (
+            patch("pygame.transform.scale"),
+            patch("pygame.display.flip"),
+        ):
+            renderer.render_title_screen(0)
+
+        render_calls = [
+            call.args[0] for call in renderer.small_font.render.call_args_list
+        ]
+        assert "1 PLAYER" in render_calls
+        assert "2 PLAYERS" in render_calls
+        assert "OPTIONS" in render_calls
+        assert "DEMO" in render_calls
+        assert "QUIT" in render_calls
