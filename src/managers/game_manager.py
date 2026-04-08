@@ -39,8 +39,12 @@ from src.managers.texture_manager import TextureManager
 from src.managers.input_handler import (
     InputHandler,
     AXIS_DEADZONE,
+    CTRL_DPAD_BUTTONS,
+    DIRECTION_TO_KEY,
     JOY_SHOOT_BUTTONS,
     JOY_START_BUTTON,
+    JOY_AXIS_X,
+    JOY_AXIS_Y,
     CTRL_SHOOT_BUTTONS,
     CTRL_START_BUTTON,
 )
@@ -50,14 +54,6 @@ from src.managers.power_up_manager import PowerUpManager
 from src.managers.sound_manager import SoundManager
 from src.managers.settings_manager import SettingsManager
 from src.utils.paths import resource_path
-
-# Mapping from controller D-pad buttons to key constants for menu reuse.
-_CTRL_DPAD_TO_KEY: dict[int, int] = {
-    pygame.CONTROLLER_BUTTON_DPAD_UP: pygame.K_UP,
-    pygame.CONTROLLER_BUTTON_DPAD_DOWN: pygame.K_DOWN,
-    pygame.CONTROLLER_BUTTON_DPAD_LEFT: pygame.K_LEFT,
-    pygame.CONTROLLER_BUTTON_DPAD_RIGHT: pygame.K_RIGHT,
-}
 
 
 class GameManager:
@@ -278,29 +274,29 @@ class GameManager:
                 pygame.CONTROLLERBUTTONDOWN,
                 pygame.CONTROLLERAXISMOTION,
             ):
-                translated_key = self._translate_joy_event(event)
-                if translated_key is not None:
-                    if translated_key == pygame.K_ESCAPE:
-                        self._handle_escape()
-                    elif self.state == GameState.TITLE_SCREEN:
-                        self._handle_title_input(translated_key)
-                    elif self.state == GameState.PAUSED:
-                        self._handle_pause_input(translated_key)
-                    elif self.state == GameState.OPTIONS_MENU:
-                        self._handle_options_input(translated_key)
-                    elif translated_key == pygame.K_RETURN and self.state in (
-                        GameState.GAME_OVER,
-                        GameState.GAME_COMPLETE,
-                    ):
-                        logger.info(
-                            "Controller button pressed, returning to title screen."
-                        )
-                        self.state = GameState.TITLE_SCREEN
-                        self._title_selection = 0
+                if self.state != GameState.RUNNING:
+                    translated_key = self._translate_joy_event(event)
+                    if translated_key is not None:
+                        if translated_key == pygame.K_ESCAPE:
+                            self._handle_escape()
+                        elif self.state == GameState.TITLE_SCREEN:
+                            self._handle_title_input(translated_key)
+                        elif self.state == GameState.PAUSED:
+                            self._handle_pause_input(translated_key)
+                        elif self.state == GameState.OPTIONS_MENU:
+                            self._handle_options_input(translated_key)
+                        elif translated_key == pygame.K_RETURN and self.state in (
+                            GameState.GAME_OVER,
+                            GameState.GAME_COMPLETE,
+                        ):
+                            logger.info(
+                                "Controller button pressed, returning to title screen."
+                            )
+                            self.state = GameState.TITLE_SCREEN
+                            self._title_selection = 0
 
-            # Pass all events to input handler during gameplay.
-            # Hot-plug events are forwarded in any state so controllers
-            # can be connected/disconnected from menus.
+            # Forward all events to InputHandler during gameplay.
+            # Hot-plug events are forwarded in any state.
             if self.state == GameState.RUNNING:
                 self.input_handler.handle_event(event)
             elif event.type in (
@@ -310,14 +306,12 @@ class GameManager:
                 self.input_handler.handle_event(event)
 
     @staticmethod
-    def _translate_axis_to_key(
-        value: float, negative_key: int, positive_key: int
-    ) -> Optional[int]:
+    def _axis_to_key(value: float, neg_key: int, pos_key: int) -> Optional[int]:
         """Translate an axis value to a key constant using deadzone."""
         if value < -AXIS_DEADZONE:
-            return negative_key
+            return neg_key
         elif value > AXIS_DEADZONE:
-            return positive_key
+            return pos_key
         return None
 
     def _translate_joy_event(self, event: pygame.event.Event) -> Optional[int]:
@@ -329,27 +323,25 @@ class GameManager:
         Returns:
             A pygame key constant, or None if the event has no menu mapping.
         """
-        # --- SDL GameController API ---
         if event.type == pygame.CONTROLLERBUTTONDOWN:
-            if event.button in _CTRL_DPAD_TO_KEY:
-                return _CTRL_DPAD_TO_KEY[event.button]
+            if event.button in CTRL_DPAD_BUTTONS:
+                return DIRECTION_TO_KEY[CTRL_DPAD_BUTTONS[event.button]]
             elif event.button in CTRL_SHOOT_BUTTONS:
                 return pygame.K_RETURN
             elif event.button == CTRL_START_BUTTON:
                 return pygame.K_ESCAPE
             return None
-        elif event.type == pygame.CONTROLLERAXISMOTION:
-            if event.axis == pygame.CONTROLLER_AXIS_LEFTX:
-                return self._translate_axis_to_key(
-                    event.value, pygame.K_LEFT, pygame.K_RIGHT
-                )
-            elif event.axis == pygame.CONTROLLER_AXIS_LEFTY:
-                return self._translate_axis_to_key(
-                    event.value, pygame.K_UP, pygame.K_DOWN
-                )
+
+        elif event.type in (
+            pygame.CONTROLLERAXISMOTION,
+            pygame.JOYAXISMOTION,
+        ):
+            if event.axis in (pygame.CONTROLLER_AXIS_LEFTX, JOY_AXIS_X):
+                return self._axis_to_key(event.value, pygame.K_LEFT, pygame.K_RIGHT)
+            elif event.axis in (pygame.CONTROLLER_AXIS_LEFTY, JOY_AXIS_Y):
+                return self._axis_to_key(event.value, pygame.K_UP, pygame.K_DOWN)
             return None
 
-        # --- Raw joystick API ---
         elif event.type == pygame.JOYHATMOTION:
             hat_x, hat_y = event.value
             if hat_y > 0:
@@ -361,22 +353,14 @@ class GameManager:
             elif hat_x > 0:
                 return pygame.K_RIGHT
             return None
-        elif event.type == pygame.JOYAXISMOTION:
-            if event.axis == 0:
-                return self._translate_axis_to_key(
-                    event.value, pygame.K_LEFT, pygame.K_RIGHT
-                )
-            elif event.axis == 1:
-                return self._translate_axis_to_key(
-                    event.value, pygame.K_UP, pygame.K_DOWN
-                )
-            return None
+
         elif event.type == pygame.JOYBUTTONDOWN:
             if event.button in JOY_SHOOT_BUTTONS:
                 return pygame.K_RETURN
             elif event.button == JOY_START_BUTTON:
                 return pygame.K_ESCAPE
             return None
+
         return None
 
     def _handle_escape(self) -> None:

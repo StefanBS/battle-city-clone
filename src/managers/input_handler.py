@@ -6,11 +6,12 @@ from src.utils.constants import Direction
 AXIS_DEADZONE: float = 0.5
 
 # Raw joystick API (fallback for controllers not in SDL's GameController DB)
+JOY_AXIS_X: int = 0
+JOY_AXIS_Y: int = 1
 JOY_SHOOT_BUTTONS: tuple[int, ...] = (0, 1)
 JOY_START_BUTTON: int = 7
 
 # SDL GameController API (normalized IDs for recognized controllers like Xbox)
-# D-pad is reported as buttons, not hat, on recognized controllers.
 CTRL_DPAD_BUTTONS: dict[int, Direction] = {
     pygame.CONTROLLER_BUTTON_DPAD_UP: Direction.UP,
     pygame.CONTROLLER_BUTTON_DPAD_DOWN: Direction.DOWN,
@@ -22,6 +23,14 @@ CTRL_SHOOT_BUTTONS: tuple[int, ...] = (
     pygame.CONTROLLER_BUTTON_B,
 )
 CTRL_START_BUTTON: int = pygame.CONTROLLER_BUTTON_START
+
+# Direction → pygame key constant (used by GameManager for menu translation)
+DIRECTION_TO_KEY: dict[Direction, int] = {
+    Direction.UP: pygame.K_UP,
+    Direction.DOWN: pygame.K_DOWN,
+    Direction.LEFT: pygame.K_LEFT,
+    Direction.RIGHT: pygame.K_RIGHT,
+}
 
 
 class InputHandler:
@@ -60,29 +69,19 @@ class InputHandler:
             self.joystick.init()
             logger.info(f"Joystick connected: {self.joystick.get_name()}")
 
-    def _handle_horizontal_axis(self, value: float) -> None:
-        """Update joy_directions for a horizontal axis value."""
+    def _handle_axis(
+        self, value: float, neg_dir: Direction, pos_dir: Direction
+    ) -> None:
+        """Update joy_directions for an axis value with deadzone."""
         if value < -AXIS_DEADZONE:
-            self.joy_directions[Direction.LEFT] = True
-            self.joy_directions[Direction.RIGHT] = False
+            self.joy_directions[neg_dir] = True
+            self.joy_directions[pos_dir] = False
         elif value > AXIS_DEADZONE:
-            self.joy_directions[Direction.RIGHT] = True
-            self.joy_directions[Direction.LEFT] = False
+            self.joy_directions[pos_dir] = True
+            self.joy_directions[neg_dir] = False
         else:
-            self.joy_directions[Direction.LEFT] = False
-            self.joy_directions[Direction.RIGHT] = False
-
-    def _handle_vertical_axis(self, value: float) -> None:
-        """Update joy_directions for a vertical axis value."""
-        if value < -AXIS_DEADZONE:
-            self.joy_directions[Direction.UP] = True
-            self.joy_directions[Direction.DOWN] = False
-        elif value > AXIS_DEADZONE:
-            self.joy_directions[Direction.DOWN] = True
-            self.joy_directions[Direction.UP] = False
-        else:
-            self.joy_directions[Direction.UP] = False
-            self.joy_directions[Direction.DOWN] = False
+            self.joy_directions[neg_dir] = False
+            self.joy_directions[pos_dir] = False
 
     def handle_event(self, event: pygame.event.Event) -> None:
         """
@@ -130,7 +129,6 @@ class InputHandler:
         elif event.type == pygame.CONTROLLERBUTTONDOWN:
             if event.button in CTRL_DPAD_BUTTONS:
                 direction = CTRL_DPAD_BUTTONS[event.button]
-                # Reset all then set the pressed one
                 for d in self.joy_directions:
                     self.joy_directions[d] = False
                 self.joy_directions[direction] = True
@@ -140,11 +138,13 @@ class InputHandler:
             if event.button in CTRL_DPAD_BUTTONS:
                 direction = CTRL_DPAD_BUTTONS[event.button]
                 self.joy_directions[direction] = False
-        elif event.type == pygame.CONTROLLERAXISMOTION:
-            if event.axis == pygame.CONTROLLER_AXIS_LEFTX:
-                self._handle_horizontal_axis(event.value)
-            elif event.axis == pygame.CONTROLLER_AXIS_LEFTY:
-                self._handle_vertical_axis(event.value)
+
+        # --- Axis motion (shared: CONTROLLER_AXIS_LEFTX == 0, LEFTY == 1) ---
+        elif event.type in (pygame.CONTROLLERAXISMOTION, pygame.JOYAXISMOTION):
+            if event.axis in (pygame.CONTROLLER_AXIS_LEFTX, JOY_AXIS_X):
+                self._handle_axis(event.value, Direction.LEFT, Direction.RIGHT)
+            elif event.axis in (pygame.CONTROLLER_AXIS_LEFTY, JOY_AXIS_Y):
+                self._handle_axis(event.value, Direction.UP, Direction.DOWN)
 
         # --- Raw joystick API (unrecognized controllers) ---
         elif event.type == pygame.JOYHATMOTION:
@@ -162,11 +162,6 @@ class InputHandler:
         elif event.type == pygame.JOYBUTTONDOWN:
             if event.button in JOY_SHOOT_BUTTONS:
                 self.shoot_pressed = True
-        elif event.type == pygame.JOYAXISMOTION:
-            if event.axis == 0:
-                self._handle_horizontal_axis(event.value)
-            elif event.axis == 1:
-                self._handle_vertical_axis(event.value)
 
     def get_movement_direction(self) -> Tuple[int, int]:
         """
