@@ -3,6 +3,8 @@ from typing import Tuple, Dict, Optional
 from loguru import logger
 from src.utils.constants import Direction
 
+AXIS_DEADZONE: float = 0.5
+
 
 class InputHandler:
     """Handles keyboard input for the player tank."""
@@ -89,6 +91,27 @@ class InputHandler:
                 self.joy_directions[Direction.RIGHT] = True
             elif hat_x < 0:
                 self.joy_directions[Direction.LEFT] = True
+        elif event.type == pygame.JOYAXISMOTION:
+            if event.axis == 0:  # Horizontal
+                if event.value < -AXIS_DEADZONE:
+                    self.joy_directions[Direction.LEFT] = True
+                    self.joy_directions[Direction.RIGHT] = False
+                elif event.value > AXIS_DEADZONE:
+                    self.joy_directions[Direction.RIGHT] = True
+                    self.joy_directions[Direction.LEFT] = False
+                else:
+                    self.joy_directions[Direction.LEFT] = False
+                    self.joy_directions[Direction.RIGHT] = False
+            elif event.axis == 1:  # Vertical
+                if event.value < -AXIS_DEADZONE:
+                    self.joy_directions[Direction.UP] = True
+                    self.joy_directions[Direction.DOWN] = False
+                elif event.value > AXIS_DEADZONE:
+                    self.joy_directions[Direction.DOWN] = True
+                    self.joy_directions[Direction.UP] = False
+                else:
+                    self.joy_directions[Direction.UP] = False
+                    self.joy_directions[Direction.DOWN] = False
 
     def get_movement_direction(self) -> Tuple[int, int]:
         """

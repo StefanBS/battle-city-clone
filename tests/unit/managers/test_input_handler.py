@@ -335,3 +335,45 @@ class TestJoystickHat:
         handler.handle_event(joy_hat_event((1, 0)))
         assert handler.joy_directions[Direction.RIGHT]
         assert not handler.joy_directions[Direction.UP]
+
+
+class TestJoystickAxis:
+    """Tests for analog stick (axis) input handling."""
+
+    def test_axis_left(self, handler, joy_axis_event) -> None:
+        """Left stick pushed left sets LEFT direction."""
+        handler.handle_event(joy_axis_event(axis=0, value=-0.8))
+        assert handler.joy_directions[Direction.LEFT]
+
+    def test_axis_right(self, handler, joy_axis_event) -> None:
+        """Left stick pushed right sets RIGHT direction."""
+        handler.handle_event(joy_axis_event(axis=0, value=0.8))
+        assert handler.joy_directions[Direction.RIGHT]
+
+    def test_axis_up(self, handler, joy_axis_event) -> None:
+        """Left stick pushed up sets UP direction."""
+        handler.handle_event(joy_axis_event(axis=1, value=-0.8))
+        assert handler.joy_directions[Direction.UP]
+
+    def test_axis_down(self, handler, joy_axis_event) -> None:
+        """Left stick pushed down sets DOWN direction."""
+        handler.handle_event(joy_axis_event(axis=1, value=0.8))
+        assert handler.joy_directions[Direction.DOWN]
+
+    def test_axis_deadzone_no_direction(self, handler, joy_axis_event) -> None:
+        """Axis value within deadzone does not set direction."""
+        handler.handle_event(joy_axis_event(axis=0, value=0.3))
+        assert not handler.joy_directions[Direction.RIGHT]
+        assert not handler.joy_directions[Direction.LEFT]
+
+    def test_axis_return_to_center_releases(self, handler, joy_axis_event) -> None:
+        """Axis returning within deadzone releases the direction."""
+        handler.handle_event(joy_axis_event(axis=0, value=-0.8))
+        assert handler.joy_directions[Direction.LEFT]
+        handler.handle_event(joy_axis_event(axis=0, value=0.1))
+        assert not handler.joy_directions[Direction.LEFT]
+
+    def test_axis_ignores_non_stick_axes(self, handler, joy_axis_event) -> None:
+        """Axes beyond 0 and 1 (triggers, right stick) are ignored."""
+        handler.handle_event(joy_axis_event(axis=2, value=1.0))
+        assert all(not v for v in handler.joy_directions.values())
