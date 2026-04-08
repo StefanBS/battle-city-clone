@@ -1,7 +1,7 @@
 import pygame
 from typing import List, Optional, Sequence, Tuple
 from src.states.game_state import GameState
-from src.utils.constants import WHITE, YELLOW, BLACK, RED, GREEN, GRAY
+from src.utils.constants import WHITE, BLACK, RED, GREEN, GRAY
 from src.utils.paths import resource_path
 
 
@@ -84,24 +84,21 @@ class Renderer:
         # Clear the map area with black background
         self.map_surface.fill(self.background_color)
 
-        # Draw the map onto the map surface
+        # Draw ground tiles (everything except bushes)
         game_map.draw(self.map_surface)
 
-        # Draw the player tank onto the map surface
+        # Draw game objects (tanks pass under bushes)
         player_tank.draw(self.map_surface)
-
-        # Draw enemy tanks onto the map surface
         for enemy in enemy_tanks:
             enemy.draw(self.map_surface)
-
-        # Draw power-ups
         for power_up in power_ups:
             power_up.draw(self.map_surface)
-
-        # Draw all bullets
         for bullet in bullets:
             if bullet.active:
                 bullet.draw(self.map_surface)
+
+        # Draw bush overlay on top of tanks/bullets
+        game_map.draw_overlay(self.map_surface)
 
         effect_manager.draw(self.map_surface)
 
@@ -137,28 +134,15 @@ class Renderer:
         """Draw the heads-up display.
 
         Args:
-            player_tank: The player's tank (used for lives and invincibility).
+            player_tank: The player's tank (used for lives).
             score: Current player score.
         """
-        # Draw lives in the top border area
         lives_text = self.small_font.render(f"Lives: {player_tank.lives}", True, WHITE)
         self.game_surface.blit(lives_text, (10, 10))
 
-        # Draw score
         score_text = self.small_font.render(f"Score: {score:>6}", True, WHITE)
         score_rect = score_text.get_rect(topright=(self.logical_width - 10, 10))
         self.game_surface.blit(score_text, score_rect)
-
-        # Draw invincibility timer if active
-        if player_tank.is_invincible:
-            remaining_time = max(
-                0,
-                player_tank.invincibility_duration - player_tank.invincibility_timer,
-            )
-            invincible_text = self.small_font.render(
-                f"Invincible: {remaining_time:.1f}s", True, YELLOW
-            )
-            self.game_surface.blit(invincible_text, (10, 30))
 
     def _draw_game_over_rising(self, progress: float) -> None:
         """Draw 'GAME OVER' text rising from bottom to center.
