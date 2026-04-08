@@ -1,5 +1,4 @@
 import json
-import pytest
 from src.managers.settings_manager import SettingsManager
 
 

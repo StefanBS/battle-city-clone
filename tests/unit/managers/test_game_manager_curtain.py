@@ -109,16 +109,16 @@ class TestCurtainTransitions:
         game.handle_events()
         assert game.state == GameState.VICTORY
 
-    def test_escape_works_during_curtain(self, game):
+    def test_escape_does_nothing_during_curtain(self, game):
         game.state = GameState.STAGE_CURTAIN_CLOSE
         event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_ESCAPE)
         pygame.event.post(event)
         game.handle_events()
-        assert game.state == GameState.EXIT
+        assert game.state == GameState.STAGE_CURTAIN_CLOSE
 
     def test_title_start_triggers_curtain(self, game):
         game.state = GameState.TITLE_SCREEN
-        game._menu_selection = 0
+        game._title_selection = 0
         event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RETURN)
         pygame.event.post(event)
         game.handle_events()
