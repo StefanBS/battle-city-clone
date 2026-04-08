@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="26" height="26" tilewidth="8" tileheight="8" infinite="0" nextlayerid="3" nextobjectid="8">
+ <properties>
+  <property name="enemy_basic" type="int" value="5"/>
+  <property name="enemy_fast" type="int" value="5"/>
+  <property name="enemy_power" type="int" value="5"/>
+  <property name="enemy_armor" type="int" value="5"/>
+ </properties>
  <tileset firstgid="1" source="../sprites/sprites.tsx"/>
  <layer id="1" name="Tile Layer 1" width="26" height="26">
   <data encoding="csv">

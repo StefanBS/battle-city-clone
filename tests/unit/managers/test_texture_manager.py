@@ -19,19 +19,27 @@ class TestPowerUpSprites:
         "powerup_extra_life",
     ]
 
+    ENEMY_TYPE_SPRITE_NAMES = [
+        f"enemy_{etype}_tank_{d}_{f}"
+        for etype in ["basic", "fast", "power", "armor"]
+        for d in ["up", "down", "left", "right"]
+        for f in [1, 2]
+    ]
+
     RED_TANK_SPRITE_NAMES = [
-        "enemy_tank_red_up_1",
-        "enemy_tank_red_up_2",
-        "enemy_tank_red_left_1",
-        "enemy_tank_red_left_2",
-        "enemy_tank_red_down_1",
-        "enemy_tank_red_down_2",
-        "enemy_tank_red_right_1",
-        "enemy_tank_red_right_2",
+        f"enemy_{etype}_tank_red_{d}_{f}"
+        for etype in ["basic", "fast", "power", "armor"]
+        for d in ["up", "down", "left", "right"]
+        for f in [1, 2]
     ]
 
     @pytest.mark.parametrize("name", POWERUP_SPRITE_NAMES)
     def test_powerup_sprite_loaded(self, real_texture_manager, name):
+        sprite = real_texture_manager.get_sprite(name)
+        assert sprite is not None
+
+    @pytest.mark.parametrize("name", ENEMY_TYPE_SPRITE_NAMES)
+    def test_enemy_type_sprite_loaded(self, real_texture_manager, name):
         sprite = real_texture_manager.get_sprite(name)
         assert sprite is not None
 
@@ -66,7 +74,7 @@ class TestSpriteConfigLoading:
             config = json.load(f)
         assert len(config["sprites"]) >= 62
         assert "player_tank_tier0_up_1" in config["sprites"]
-        assert "enemy_tank_up_1" in config["sprites"]
+        assert "enemy_basic_tank_up_1" in config["sprites"]
 
     def test_config_has_bullet_rects(self):
         with open("assets/config/sprites.json") as f:
