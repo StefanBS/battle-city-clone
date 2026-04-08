@@ -129,9 +129,8 @@ class GameManager:
             map_path = resource_path("assets/maps/level_01.tmx")
         self.map = Map(map_path, self.texture_manager)
 
-        # Compute map pixel dimensions (sub-tile grid * sub-tile size)
-        map_width_px = self.map.width * self.map.tile_size
-        map_height_px = self.map.height * self.map.tile_size
+        map_width_px = self.map.width_px
+        map_height_px = self.map.height_px
 
         # Effect manager
         self.effect_manager = EffectManager(self.texture_manager)
@@ -149,7 +148,6 @@ class GameManager:
             sound_manager=self.sound_manager,
         )
 
-        # Player tank (spawn coords are in sub-tile units)
         start_x = self.map.player_spawn[0] * self.map.tile_size
         start_y = self.map.player_spawn[1] * self.map.tile_size
         self.player_tank = PlayerTank(

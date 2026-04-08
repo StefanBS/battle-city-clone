@@ -250,6 +250,20 @@ class Map:
                 if tile.is_animated:
                     self._animated_tiles.append(tile)
 
+    @property
+    def width_px(self) -> int:
+        """Map width in pixels."""
+        return self.width * self.tile_size
+
+    @property
+    def height_px(self) -> int:
+        """Map height in pixels."""
+        return self.height * self.tile_size
+
+    def grid_to_pixels(self, grid_x: int, grid_y: int) -> Tuple[int, int]:
+        """Convert grid coordinates to pixel coordinates."""
+        return grid_x * self.tile_size, grid_y * self.tile_size
+
     def update(self, dt: float) -> None:
         """Update animated tiles only."""
         for tile in self._animated_tiles:

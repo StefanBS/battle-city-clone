@@ -140,7 +140,6 @@ class SpawnManager:
             logger.trace("Max enemy spawns reached, skipping spawn.")
             return False
 
-        # Get a random spawn point (spawn coords are in sub-tile units)
         spawn_grid_x, spawn_grid_y = random.choice(self.spawn_points)
         x: int = spawn_grid_x * SUB_TILE_SIZE
         y: int = spawn_grid_y * SUB_TILE_SIZE
