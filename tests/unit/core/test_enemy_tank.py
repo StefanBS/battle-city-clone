@@ -1,43 +1,40 @@
 import pytest
 from unittest.mock import patch
-from src.core.enemy_tank import EnemyTank
+from src.core.enemy_tank import EnemyTank, _get_enemy_config, _reset_enemy_config
 from src.utils.constants import (
     TILE_SIZE,
-    TANK_SPEED,
-    BULLET_SPEED,
-    STAR_BULLET_SPEED_MULTIPLIER,
     FPS,
     TankType,
     Direction,
     CARRIER_BLINK_INTERVAL,
 )
 
-# Define expected properties based on EnemyTank.TANK_PROPERTIES for easier assertion
+# Define expected properties with resolved values matching enemy_types.json
 EXPECTED_PROPERTIES = {
-    "basic": {
-        "speed": TANK_SPEED,
-        "bullet_speed": BULLET_SPEED,
+    TankType.BASIC: {
+        "speed": 80,
+        "bullet_speed": 180,
         "health": 1,
         "shoot_interval": 2.0,
         "direction_change_interval": 2.5,
     },
-    "fast": {
-        "speed": TANK_SPEED * 1.5,
-        "bullet_speed": BULLET_SPEED,
+    TankType.FAST: {
+        "speed": 120,
+        "bullet_speed": 180,
         "health": 1,
         "shoot_interval": 1.8,
         "direction_change_interval": 1.5,
     },
-    "power": {
-        "speed": TANK_SPEED * 1.15,
-        "bullet_speed": BULLET_SPEED * STAR_BULLET_SPEED_MULTIPLIER,
+    TankType.POWER: {
+        "speed": 92,
+        "bullet_speed": 360,
         "health": 1,
         "shoot_interval": 1.0,
         "direction_change_interval": 2.0,
     },
-    "armor": {
-        "speed": TANK_SPEED * 0.75,
-        "bullet_speed": BULLET_SPEED * STAR_BULLET_SPEED_MULTIPLIER,
+    TankType.ARMOR: {
+        "speed": 60,
+        "bullet_speed": 360,
         "health": 4,
         "shoot_interval": 1.5,
         "direction_change_interval": 2.0,
@@ -87,6 +84,25 @@ def test_enemy_tank_initialization_properties(
     assert tank.y == y
 
 
+class TestEnemyConfigLoading:
+    """Tests for enemy config JSON loading and caching."""
+
+    def test_config_loads_all_types(self):
+        config = _get_enemy_config()
+        assert "basic" in config
+        assert "fast" in config
+        assert "power" in config
+        assert "armor" in config
+
+    def test_reset_clears_cache(self):
+        _get_enemy_config()  # ensure loaded
+        _reset_enemy_config()
+        # After reset, next call reloads from file
+        config = _get_enemy_config()
+        assert config is not None
+        assert "basic" in config
+
+
 def test_enemy_tank_grid_alignment(mock_texture_manager):
     """Test that initial position is aligned to the grid."""
     tile_size = 32
@@ -102,7 +118,7 @@ def test_enemy_tank_grid_alignment(mock_texture_manager):
         initial_y,
         tile_size,
         mock_texture_manager,
-        tank_type="basic",
+        tank_type=TankType.BASIC,
         map_width_px=16 * TILE_SIZE,
         map_height_px=16 * TILE_SIZE,
     )
@@ -122,7 +138,7 @@ def test_on_movement_blocked(mock_random_choice, mock_texture_manager):
         0,
         TILE_SIZE,
         mock_texture_manager,
-        tank_type="basic",
+        tank_type=TankType.BASIC,
         map_width_px=16 * TILE_SIZE,
         map_height_px=16 * TILE_SIZE,
     )
@@ -147,7 +163,7 @@ def test_blocked_avoids_blocked_dirs(mock_random_choice, mock_texture_manager):
         0,
         TILE_SIZE,
         mock_texture_manager,
-        tank_type="basic",
+        tank_type=TankType.BASIC,
         map_width_px=16 * TILE_SIZE,
         map_height_px=16 * TILE_SIZE,
     )
@@ -173,7 +189,7 @@ def test_blocked_directions_persist_until_movement(
         0,
         TILE_SIZE,
         mock_texture_manager,
-        tank_type="basic",
+        tank_type=TankType.BASIC,
         map_width_px=16 * TILE_SIZE,
         map_height_px=16 * TILE_SIZE,
     )
@@ -201,7 +217,7 @@ def test_blocked_directions_cleared_on_successful_move(
         0,
         TILE_SIZE,
         mock_texture_manager,
-        tank_type="basic",
+        tank_type=TankType.BASIC,
         map_width_px=16 * TILE_SIZE,
         map_height_px=16 * TILE_SIZE,
     )
@@ -220,7 +236,7 @@ def test_consume_shoot_after_timer(mock_texture_manager):
         0,
         TILE_SIZE,
         mock_texture_manager,
-        tank_type="basic",
+        tank_type=TankType.BASIC,
         map_width_px=16 * TILE_SIZE,
         map_height_px=16 * TILE_SIZE,
     )
@@ -245,7 +261,7 @@ def test_update_moves_in_current_direction(
         0,
         TILE_SIZE,
         mock_texture_manager,
-        tank_type="basic",
+        tank_type=TankType.BASIC,
         map_width_px=16 * TILE_SIZE,
         map_height_px=16 * TILE_SIZE,
     )
@@ -345,7 +361,7 @@ class TestEnemyIceSlide:
     @pytest.fixture
     def enemy(self, mock_texture_manager):
         return EnemyTank(
-            128, 128, TILE_SIZE, mock_texture_manager, "basic",
+            128, 128, TILE_SIZE, mock_texture_manager, TankType.BASIC,
             map_width_px=16 * TILE_SIZE, map_height_px=16 * TILE_SIZE,
         )
 

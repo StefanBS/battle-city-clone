@@ -136,9 +136,6 @@ RED: Tuple[int, int, int] = (255, 0, 0)
 GREEN: Tuple[int, int, int] = (0, 255, 0)
 YELLOW: Tuple[int, int, int] = (255, 255, 0)
 
-# Tile settings
-TILE_ANIMATION_INTERVAL: float = 0.5  # Seconds between frames
-
 # Tank settings
 TANK_SPEED: float = 80  # pixels per second (was 12 px/step)
 TANK_WIDTH: int = TILE_SIZE

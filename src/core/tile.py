@@ -1,12 +1,9 @@
 from enum import Enum, auto
-from typing import List, Optional
+from typing import List, Optional, Tuple
 import pygame
 from loguru import logger
 from src.managers.texture_manager import TextureManager
-from src.utils.constants import (
-    SUB_TILE_SIZE,
-    TILE_ANIMATION_INTERVAL,
-)
+from src.utils.constants import SUB_TILE_SIZE
 
 
 class TileType(Enum):
@@ -22,28 +19,12 @@ class TileType(Enum):
     BASE_DESTROYED = auto()
 
 
-# Tile types that block tank movement
-IMPASSABLE_TILE_TYPES = frozenset(
-    {TileType.BRICK, TileType.STEEL, TileType.WATER, TileType.BASE}
-)
-
-
 class Tile:
     """Represents a single 8x8 tile in the game map, rendered at SUB_TILE_SIZE.
 
     Each tile has a type that determines its collision behavior and a
     TMX sprite that determines its visual appearance.
     """
-
-    # Fallback sprite names when no TMX sprite is available
-    SPRITE_NAME_MAP = {
-        TileType.BRICK: "brick",
-        TileType.STEEL: "steel",
-        TileType.BUSH: "bush",
-        TileType.ICE: "ice",
-        TileType.BASE: "base",
-        TileType.BASE_DESTROYED: "base_destroyed",
-    }
 
     def __init__(
         self,
@@ -53,6 +34,8 @@ class Tile:
         size: int = SUB_TILE_SIZE,
         tmx_sprite: Optional[pygame.Surface] = None,
         brick_variant: str = "full",
+        blocks_tanks: bool = False,
+        blocks_bullets: bool = False,
     ) -> None:
         logger.trace(f"Creating Tile ({tile_type.name}) at grid ({x}, {y})")
         self.type = tile_type
@@ -60,6 +43,8 @@ class Tile:
         self.y = y
         self.size = size
         self.rect = pygame.Rect(x * size, y * size, size, size)
+        self.blocks_tanks = blocks_tanks
+        self.blocks_bullets = blocks_bullets
 
         # TMX sprite: the actual tile image from the map editor
         self.tmx_sprite: Optional[pygame.Surface] = tmx_sprite
@@ -70,14 +55,23 @@ class Tile:
         # Animation attributes
         self.is_animated: bool = False
         self.animation_sprites: List[pygame.Surface] = []
-        self.animation_frames: List[str] = []  # fallback frame names
+        self._frame_durations: List[float] = []
         self.current_frame_index: int = 0
         self.animation_timer: float = 0.0
-        self.animation_interval: float = TILE_ANIMATION_INTERVAL
 
-        if self.type == TileType.WATER:
-            self.is_animated = True
-            self.animation_frames = ["water_1", "water_2"]
+    def set_animation_frames(
+        self, frames: List[Tuple[pygame.Surface, float]]
+    ) -> None:
+        """Set animation frames with per-frame durations.
+
+        Args:
+            frames: List of (surface, duration_seconds) tuples.
+        """
+        self.animation_sprites = [surface for surface, _ in frames]
+        self._frame_durations = [duration for _, duration in frames]
+        self.is_animated = True
+        self.current_frame_index = 0
+        self.animation_timer = 0.0
 
     def reset_rect(self) -> None:
         """Reset the collision rect to full tile size."""
@@ -89,13 +83,14 @@ class Tile:
         if not self.is_animated:
             return False
 
-        frame_count = len(self.animation_sprites) or len(self.animation_frames)
+        frame_count = len(self.animation_sprites)
         if frame_count == 0:
             return False
 
         self.animation_timer += dt
-        if self.animation_timer >= self.animation_interval:
-            self.animation_timer -= self.animation_interval
+        current_duration = self._frame_durations[self.current_frame_index]
+        if self.animation_timer >= current_duration:
+            self.animation_timer -= current_duration
             self.current_frame_index = (self.current_frame_index + 1) % frame_count
             return True
         return False
@@ -108,22 +103,11 @@ class Tile:
         # Draw position: always at grid origin (rect may be offset for half-bricks)
         draw_pos = (self.x * self.size, self.y * self.size)
 
-        # Fast path: non-animated tile with TMX sprite (most common)
-        if self.tmx_sprite is not None and not self.is_animated:
-            surface.blit(self.tmx_sprite, draw_pos)
-            return
-
-        # Animated tiles: use TMX animation sprites if available
+        # Animated tiles: use animation sprites
         if self.is_animated and self.animation_sprites:
             surface.blit(self.animation_sprites[self.current_frame_index], draw_pos)
             return
 
-        if self.is_animated and self.animation_frames:
-            sprite_name = self.animation_frames[self.current_frame_index]
-            surface.blit(texture_manager.get_sub_sprite(sprite_name), draw_pos)
-            return
-
-        # Fallback: use type-based sprite lookup
-        sprite_name = self.SPRITE_NAME_MAP.get(self.type)
-        if sprite_name:
-            surface.blit(texture_manager.get_sub_sprite(sprite_name), draw_pos)
+        # Non-animated tile with TMX sprite (most common)
+        if self.tmx_sprite is not None:
+            surface.blit(self.tmx_sprite, draw_pos)

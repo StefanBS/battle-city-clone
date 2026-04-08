@@ -18,7 +18,6 @@ from src.utils.constants import (
     TILE_SIZE,
     TankType,
 )
-from src.utils.level_data import STAGE_ENEMIES
 
 
 @dataclass
@@ -40,7 +39,7 @@ class SpawnManager:
         tile_size: int,
         texture_manager: TextureManager,
         spawn_points: List[Tuple[int, int]],
-        stage: int,
+        enemy_composition: dict[str, int],
         spawn_interval: float,
         player_tank: PlayerTank,
         game_map: Map,
@@ -54,7 +53,8 @@ class SpawnManager:
             tile_size: Size of each tile in pixels.
             texture_manager: TextureManager for loading enemy sprites.
             spawn_points: List of (grid_x, grid_y) spawn locations.
-            stage: Current stage number (1-35, clamped for higher values).
+            enemy_composition: Dict with keys "basic", "fast", "power", "armor"
+                mapping to enemy counts for this stage.
             spawn_interval: Seconds between spawn attempts.
             player_tank: The player tank (for collision checking on initial spawn).
             game_map: The game map (for collision checking on initial spawn).
@@ -65,7 +65,7 @@ class SpawnManager:
         self.tile_size = tile_size
         self.texture_manager = texture_manager
         self.spawn_points = spawn_points
-        self._spawn_queue: List[TankType] = self._build_spawn_queue(stage)
+        self._spawn_queue: List[TankType] = self._build_spawn_queue(enemy_composition)
         self.max_enemy_spawns: int = len(self._spawn_queue)
         self.spawn_interval = spawn_interval
         self.map_width_px = map_width_px
@@ -78,22 +78,23 @@ class SpawnManager:
         # Initial spawn
         self.spawn_enemy(player_tank, game_map)
 
-    def _build_spawn_queue(self, stage: int) -> List[TankType]:
-        """Build a shuffled list of enemy types for the given stage.
+    def _build_spawn_queue(
+        self, enemy_composition: dict[str, int]
+    ) -> List[TankType]:
+        """Build a shuffled list of enemy types from the composition dict.
 
         Args:
-            stage: Stage number (1-based). Clamped to valid range.
+            enemy_composition: Dict with keys "basic", "fast", "power", "armor"
+                mapping to enemy counts.
 
         Returns:
             Shuffled list of TankType enum members.
         """
-        index = min(stage - 1, len(STAGE_ENEMIES) - 1)
-        basic, fast, power, armor = STAGE_ENEMIES[index]
         queue: List[TankType] = (
-            [TankType.BASIC] * basic
-            + [TankType.FAST] * fast
-            + [TankType.POWER] * power
-            + [TankType.ARMOR] * armor
+            [TankType.BASIC] * enemy_composition["basic"]
+            + [TankType.FAST] * enemy_composition["fast"]
+            + [TankType.POWER] * enemy_composition["power"]
+            + [TankType.ARMOR] * enemy_composition["armor"]
         )
         random.shuffle(queue)
         return queue

@@ -8,6 +8,7 @@ from src.utils.constants import (
     FPS,
     TILE_SIZE,
     SUB_TILE_SIZE,
+    TankType,
 )
 from src.states.game_state import GameState
 from src.core.bullet import Bullet
@@ -232,7 +233,7 @@ def test_enemy_bullet_destroys_base_game_over(game_manager_fixture):
     logger.debug(f"Found base at ({base_x_grid}, {base_y_grid})")
 
     # --- Spawn Enemy Tank Above Base --- #
-    enemy_type = "basic"
+    enemy_type = TankType.BASIC
     enemy_x_grid = base_x_grid
     enemy_y_grid = (
         base_y_grid - 6

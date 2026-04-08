@@ -1,6 +1,6 @@
 import pytest
 from loguru import logger
-from src.utils.constants import Direction, FPS, TILE_SIZE, SUB_TILE_SIZE
+from src.utils.constants import Direction, FPS, TILE_SIZE, SUB_TILE_SIZE, TankType
 from src.states.game_state import GameState
 from src.core.tile import Tile, TileType
 from src.core.enemy_tank import EnemyTank
@@ -34,7 +34,15 @@ def test_player_bullet_vs_tile(
 
     # Manually place the specified tile type at the target location
     if 0 <= target_y_grid < game_map.height and 0 <= target_x_grid < game_map.width:
-        target_tile = Tile(tile_to_place, target_x_grid, target_y_grid, SUB_TILE_SIZE)
+        bt, bb = game_map._tile_collision_defaults.get(tile_to_place, (False, False))
+        target_tile = Tile(
+            tile_to_place,
+            target_x_grid,
+            target_y_grid,
+            SUB_TILE_SIZE,
+            blocks_tanks=bt,
+            blocks_bullets=bb,
+        )
         game_map.place_tile(target_x_grid, target_y_grid, target_tile)
         logger.debug(
             f"Placed {tile_to_place.name} tile at ({target_x_grid}, {target_y_grid})"
@@ -102,8 +110,7 @@ def test_player_bullet_vs_tile(
     # For brick: verify it was damaged or destroyed
     if tile_to_place == TileType.BRICK:
         damaged = (
-            final_tile.type == TileType.EMPTY
-            or final_tile.brick_variant != "full"
+            final_tile.type == TileType.EMPTY or final_tile.brick_variant != "full"
         )
         assert damaged, "Brick should be damaged or destroyed after being hit."
 
@@ -124,7 +131,7 @@ def test_player_bullet_destroys_enemy_tank(game_manager_fixture, mocker):
     player_tank = game_manager.player_tank
 
     # --- Spawn Enemy Tank --- #
-    enemy_type = "basic"
+    enemy_type = TankType.BASIC
     enemy_x_grid = 14  # sub-tile grid coords
     enemy_y_grid = 10
     enemy_start_x = enemy_x_grid * SUB_TILE_SIZE
@@ -266,7 +273,7 @@ def test_enemy_bullet_hits_player_tank(
     # --- End Player Config ---
 
     # --- Spawn Enemy Tank Above Player --- #
-    enemy_type = "basic"
+    enemy_type = TankType.BASIC
     player_x_grid = int(player_tank.x // SUB_TILE_SIZE)
     player_y_grid = int(player_tank.y // SUB_TILE_SIZE)
     enemy_x_grid = player_x_grid
@@ -393,10 +400,9 @@ def test_enemy_bullet_hits_player_tank(
             f"Game state: {game_manager.state.name}"
         )
         # If an interaction was processed, and player was vulnerable, bullet should be inactive.
-        if (
-            player_tank.lives < original_player_lives
-            or game_manager.state
-            in (GameState.GAME_OVER, GameState.GAME_OVER_ANIMATION)
+        if player_tank.lives < original_player_lives or game_manager.state in (
+            GameState.GAME_OVER,
+            GameState.GAME_OVER_ANIMATION,
         ):
             assert not enemy_bullet.active, (
                 "Enemy bullet should be inactive after damaging player or causing game over."
@@ -436,7 +442,7 @@ def test_enemy_bullet_hits_other_enemy(game_manager_fixture, mocker):
     game_manager = game_manager_fixture
 
     # --- Spawn Two Enemy Tanks --- #
-    enemy_type = "basic"
+    enemy_type = TankType.BASIC
     enemy1_x_grid, enemy1_y_grid = 16, 16  # Top enemy (shooter, sub-tile coords)
     enemy2_x_grid, enemy2_y_grid = 16, 20  # Bottom enemy (target, 4 sub-tiles apart)
 
@@ -529,7 +535,7 @@ def test_player_tank_vs_enemy_tank_no_overlap(game_manager_fixture, mocker):
     player_tank = game_manager.player_tank
 
     # --- Spawn an enemy tank directly above the player --- #
-    enemy_type = "basic"
+    enemy_type = TankType.BASIC
     player_x_grid = int(player_tank.x // SUB_TILE_SIZE)
     player_y_grid = int(player_tank.y // SUB_TILE_SIZE)
     # Place enemy 2 sub-tiles above (exactly adjacent)
@@ -580,8 +586,8 @@ def test_player_tank_vs_enemy_tank_no_overlap(game_manager_fixture, mocker):
             player_bullets=[],
             enemy_tanks=[enemy_tank],
             enemy_bullets=[],
-            destructible_tiles=[],
-            impassable_tiles=[],
+            tank_blocking_tiles=[],
+            bullet_blocking_tiles=[],
             player_base=None,
         )
         events = game_manager.collision_manager.get_collision_events()
@@ -604,7 +610,7 @@ def test_enemy_bullets_collide(game_manager_fixture, mocker):
     game_manager = game_manager_fixture
 
     # --- Spawn Two Enemy Tanks Facing Each Other --- #
-    enemy_type = "basic"
+    enemy_type = TankType.BASIC
     enemy1_x_grid, enemy1_y_grid = 2, 16  # Left enemy (sub-tile coords)
     enemy2_x_grid, enemy2_y_grid = 8, 16  # Right enemy (6 sub-tiles apart)
 

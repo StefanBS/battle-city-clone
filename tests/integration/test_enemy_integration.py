@@ -1,7 +1,7 @@
 import pytest
 from loguru import logger
 from unittest.mock import patch
-from src.utils.constants import Direction, FPS, TILE_SIZE, SUB_TILE_SIZE
+from src.utils.constants import Direction, FPS, TILE_SIZE, SUB_TILE_SIZE, TankType
 from src.core.tile import Tile, TileType
 from src.core.enemy_tank import EnemyTank
 import random
@@ -24,6 +24,7 @@ def _complete_pending_spawns(game_manager, max_ticks=60):
             else:
                 still_pending.append(pending)
         sm._pending_spawns = still_pending
+
 
 # Tests related to enemy behavior: spawning, movement, shooting
 
@@ -67,7 +68,9 @@ def test_enemy_spawning_rules(game_manager_fixture):
     game_manager.spawn_manager.enemy_tanks = []
     game_manager.spawn_manager.total_enemy_spawns = 0
     game_manager.spawn_manager._spawn_queue = (
-        game_manager.spawn_manager._build_spawn_queue(1)
+        game_manager.spawn_manager._build_spawn_queue(
+            game_manager.map.enemy_composition
+        )
     )
     game_manager.spawn_manager.max_enemy_spawns = len(
         game_manager.spawn_manager._spawn_queue
@@ -259,7 +262,7 @@ def test_enemy_movement_and_direction_change(
     # --- Clear existing and Spawn one enemy in open space --- #
     game_manager.spawn_manager.enemy_tanks = []
     game_manager.spawn_manager.total_enemy_spawns = 0
-    enemy_type = "basic"
+    enemy_type = TankType.BASIC
     start_x_grid, start_y_grid = 16, 16  # sub-tile grid coords
     start_x = start_x_grid * SUB_TILE_SIZE
     start_y = start_y_grid * SUB_TILE_SIZE
@@ -413,7 +416,14 @@ def test_enemy_movement_blocked_by_tile(
                 ), (
                     f"Target location ({sx}, {sy}) for blocking tile is not EMPTY in default map."
                 )
-                tile = Tile(blocking_tile_type, sx, sy, SUB_TILE_SIZE)
+                tile = Tile(
+                    blocking_tile_type,
+                    sx,
+                    sy,
+                    SUB_TILE_SIZE,
+                    blocks_tanks=True,
+                    blocks_bullets=True,
+                )
                 game_map.place_tile(sx, sy, tile)
         logger.debug(
             f"Placed blocking {blocking_tile_type.name} 2x2 block at "
@@ -465,7 +475,7 @@ def test_enemy_movement_blocked_by_tile(
         start_y,
         TILE_SIZE,
         game_manager.texture_manager,
-        tank_type="basic",
+        tank_type=TankType.BASIC,
         map_width_px=map_w_px,
         map_height_px=map_h_px,
     )
@@ -509,7 +519,7 @@ def test_enemy_shooting(game_manager_fixture):
     # --- Clear existing and Spawn one enemy in open space --- #
     game_manager.spawn_manager.enemy_tanks = []
     game_manager.spawn_manager.total_enemy_spawns = 0
-    enemy_type = "basic"  # Basic shoot_interval is 2.0s
+    enemy_type = TankType.BASIC  # Basic shoot_interval is 2.0s
     start_x_grid, start_y_grid = 16, 16  # sub-tile grid coords
     start_x = start_x_grid * SUB_TILE_SIZE
     start_y = start_y_grid * SUB_TILE_SIZE

@@ -70,8 +70,8 @@ class TestCollisionManager:
             player_bullets=[],
             enemy_tanks=[],
             enemy_bullets=[],
-            destructible_tiles=[],
-            impassable_tiles=[],
+            bullet_blocking_tiles=[],
+            tank_blocking_tiles=[],
             player_base=None,
         )
         defaults.update(check_kwargs)
@@ -86,13 +86,14 @@ class TestCollisionManager:
 
     def test_no_collisions(self, collision_manager, mock_objects):
         """Test check_collisions when no objects overlap."""
+        all_blocking = mock_objects["bricks"] + mock_objects["steel"]
         collision_manager.check_collisions(
             player_tank=mock_objects["player"],
             player_bullets=mock_objects["p_bullets"],
             enemy_tanks=mock_objects["enemies"],
             enemy_bullets=mock_objects["e_bullets"],
-            destructible_tiles=mock_objects["bricks"],
-            impassable_tiles=mock_objects["steel"] + [mock_objects["base"]],
+            bullet_blocking_tiles=all_blocking,
+            tank_blocking_tiles=all_blocking,
             player_base=mock_objects["base"],
         )
         assert collision_manager.get_collision_events() == []
@@ -115,7 +116,7 @@ class TestCollisionManager:
             mock_objects["p_bullets"][0],
             mock_objects["bricks"][0],
             player_bullets=[mock_objects["p_bullets"][0]],
-            destructible_tiles=[mock_objects["bricks"][0]],
+            bullet_blocking_tiles=[mock_objects["bricks"][0]],
         )
 
     def test_enemy_bullet_vs_player_tank(self, collision_manager, mock_objects):
@@ -145,7 +146,7 @@ class TestCollisionManager:
             mock_objects["e_bullets"][0],
             mock_objects["bricks"][0],
             enemy_bullets=[mock_objects["e_bullets"][0]],
-            destructible_tiles=[mock_objects["bricks"][0]],
+            bullet_blocking_tiles=[mock_objects["bricks"][0]],
         )
 
     def test_player_bullet_vs_enemy_bullet(self, collision_manager, mock_objects):
@@ -165,7 +166,7 @@ class TestCollisionManager:
             mock_objects["player"],
             mock_objects["steel"][0],
             player_tank=mock_objects["player"],
-            impassable_tiles=[mock_objects["steel"][0]],
+            tank_blocking_tiles=[mock_objects["steel"][0]],
         )
 
     def test_tank_vs_tank(self, collision_manager, mock_objects):
@@ -194,8 +195,8 @@ class TestCollisionManager:
             player_bullets=[p_bullet],
             enemy_tanks=[enemy],
             enemy_bullets=[e_bullet],
-            destructible_tiles=[brick],
-            impassable_tiles=[],
+            bullet_blocking_tiles=[brick],
+            tank_blocking_tiles=[],
             player_base=None,
         )
         events = collision_manager.get_collision_events()
@@ -215,8 +216,8 @@ class TestCollisionManager:
             player_bullets=[p_bullet],
             enemy_tanks=[enemy],
             enemy_bullets=[],
-            destructible_tiles=[],
-            impassable_tiles=[],
+            bullet_blocking_tiles=[],
+            tank_blocking_tiles=[],
             player_base=None,
         )
         assert len(collision_manager.get_collision_events()) == 1
@@ -228,48 +229,52 @@ class TestCollisionManager:
             player_bullets=[p_bullet],
             enemy_tanks=[enemy],
             enemy_bullets=[],
-            destructible_tiles=[],
-            impassable_tiles=[],
+            bullet_blocking_tiles=[],
+            tank_blocking_tiles=[],
             player_base=None,
         )
         assert len(collision_manager.get_collision_events()) == 0
 
-    def test_player_bullet_vs_impassable_tile(self, collision_manager, mock_objects):
+    def test_player_bullet_vs_bullet_blocking_tile(
+        self, collision_manager, mock_objects
+    ):
         """Test collision between player bullet and steel tile."""
         self._assert_single_collision(
             collision_manager,
             mock_objects["p_bullets"][0],
             mock_objects["steel"][0],
             player_bullets=[mock_objects["p_bullets"][0]],
-            impassable_tiles=[mock_objects["steel"][0]],
+            bullet_blocking_tiles=[mock_objects["steel"][0]],
         )
 
-    def test_enemy_bullet_vs_impassable_tile(self, collision_manager, mock_objects):
+    def test_enemy_bullet_vs_bullet_blocking_tile(
+        self, collision_manager, mock_objects
+    ):
         """Test collision between enemy bullet and steel tile."""
         self._assert_single_collision(
             collision_manager,
             mock_objects["e_bullets"][0],
             mock_objects["steel"][0],
             enemy_bullets=[mock_objects["e_bullets"][0]],
-            impassable_tiles=[mock_objects["steel"][0]],
+            bullet_blocking_tiles=[mock_objects["steel"][0]],
         )
 
     def test_duplicate_brick_collision_deduplicated(
         self, collision_manager, mock_objects
     ):
-        """Test BRICK in both tile lists produces one event."""
+        """Test BRICK in both blocking tile lists produces one event."""
         p_bullet = mock_objects["p_bullets"][0]
         brick = mock_objects["bricks"][0]
         p_bullet.rect = brick.rect.copy()  # Force collision
 
-        # Pass brick in BOTH destructible and impassable lists (as game_manager does)
+        # Pass brick in BOTH blocking tile lists (blocks tanks and bullets)
         collision_manager.check_collisions(
             player_tank=None,
             player_bullets=[p_bullet],
             enemy_tanks=[],
             enemy_bullets=[],
-            destructible_tiles=[brick],
-            impassable_tiles=[brick],
+            bullet_blocking_tiles=[brick],
+            tank_blocking_tiles=[brick],
             player_base=None,
         )
         events = collision_manager.get_collision_events()
@@ -297,8 +302,8 @@ class TestPowerUpCollision:
             player_bullets=[],
             enemy_tanks=[],
             enemy_bullets=[],
-            destructible_tiles=[],
-            impassable_tiles=[],
+            bullet_blocking_tiles=[],
+            tank_blocking_tiles=[],
             player_base=None,
             power_ups=power_ups,
         )

@@ -134,7 +134,14 @@ def test_player_movement_blocked_by_tile(
         for dy in range(2):
             for dx in range(2):
                 sx, sy = target_x_grid + dx, target_y_grid + dy
-                tile = Tile(blocking_tile_type, sx, sy, SUB_TILE_SIZE)
+                tile = Tile(
+                    blocking_tile_type,
+                    sx,
+                    sy,
+                    SUB_TILE_SIZE,
+                    blocks_tanks=True,
+                    blocks_bullets=True,
+                )
                 game_map.place_tile(sx, sy, tile)
         logger.debug(
             f"Placed {blocking_tile_type.name} 2x2 block at "

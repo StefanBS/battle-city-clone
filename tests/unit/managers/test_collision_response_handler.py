@@ -87,6 +87,8 @@ def mock_player():
 def mock_tile():
     t = MagicMock(spec=Tile)
     t.type = TileType.BRICK
+    t.blocks_tanks = True
+    t.blocks_bullets = True
     t.x = 0
     t.y = 0
     t.rect = pygame.Rect(0, 0, TILE_SIZE, TILE_SIZE)
@@ -199,7 +201,7 @@ class TestBulletVsTile:
         bullet.power_bullet = False
         bullet.rect = pygame.Rect(64, 64, 4, 4)
         bullet.direction = Direction.RIGHT
-        tile = Tile(TileType.BRICK, 4, 4)
+        tile = Tile(TileType.BRICK, 4, 4, blocks_tanks=True, blocks_bullets=True)
         handler.process_collisions([(bullet, tile)])
         assert not bullet.active
         mock_map.damage_brick.assert_called_once_with(tile, "right", bullet.rect)
@@ -214,6 +216,7 @@ class TestBulletVsTile:
         bullet.direction = Direction.DOWN
         tile = MagicMock(spec=Tile)
         tile.type = TileType.BASE
+        tile.blocks_bullets = True
         tile.x, tile.y = 0, 0
         handler.process_collisions([(bullet, tile)])
         assert not bullet.active
@@ -230,6 +233,7 @@ class TestBulletVsTile:
         bullet.rect = pygame.Rect(0, 0, 2, 2)
         tile = MagicMock(spec=Tile)
         tile.type = TileType.STEEL
+        tile.blocks_bullets = True
         tile.x, tile.y = 0, 0
         handler.process_collisions([(bullet, tile)])
         assert not bullet.active
@@ -275,7 +279,7 @@ class TestTankVsTank:
             y,
             TILE_SIZE,
             mock_texture_manager,
-            tank_type="basic",
+            tank_type=TankType.BASIC,
             map_width_px=self.MAP_PX,
             map_height_px=self.MAP_PX,
         )
@@ -388,16 +392,24 @@ class TestTankVsTank:
 
 
 class TestTankVsTile:
-    def test_player_reverted_on_impassable(self, handler, mock_player, mock_tile):
+    def test_player_reverted_on_blocking_tile(self, handler, mock_player, mock_tile):
         mock_tile.type = TileType.STEEL
+        mock_tile.blocks_tanks = True
         handler.process_collisions([(mock_player, mock_tile)])
         mock_player.revert_move.assert_called_once_with(mock_tile.rect)
 
     def test_enemy_reverted_and_wall_hit(self, handler, mock_enemy, mock_tile):
         mock_tile.type = TileType.STEEL
+        mock_tile.blocks_tanks = True
         handler.process_collisions([(mock_enemy, mock_tile)])
         mock_enemy.revert_move.assert_called_once_with(mock_tile.rect)
         mock_enemy.on_movement_blocked.assert_called_once()
+
+    def test_non_blocking_tile_does_not_revert(self, handler, mock_player, mock_tile):
+        mock_tile.type = TileType.BUSH
+        mock_tile.blocks_tanks = False
+        handler.process_collisions([(mock_player, mock_tile)])
+        mock_player.revert_move.assert_not_called()
 
 
 class TestTracking:
@@ -424,10 +436,12 @@ class TestTracking:
         """Tank hitting two tiles should only revert once."""
         tile1 = MagicMock(spec=Tile)
         tile1.type = TileType.STEEL
+        tile1.blocks_tanks = True
         tile1.x, tile1.y = 0, 0
         tile1.rect = pygame.Rect(0, 0, TILE_SIZE, TILE_SIZE)
         tile2 = MagicMock(spec=Tile)
         tile2.type = TileType.BRICK
+        tile2.blocks_tanks = True
         tile2.x, tile2.y = 32, 0
         tile2.rect = pygame.Rect(32, 0, TILE_SIZE, TILE_SIZE)
         handler.process_collisions(
@@ -443,7 +457,7 @@ class TestExplosionEffects:
     def test_bullet_vs_brick_spawns_small_explosion(
         self, handler, mock_map, mock_effect_manager
     ):
-        tile = Tile(TileType.BRICK, 4, 4)
+        tile = Tile(TileType.BRICK, 4, 4, blocks_tanks=True, blocks_bullets=True)
         mock_map.get_tile_at.return_value = Tile(TileType.EMPTY, 4, 5)
         bullet = MagicMock(spec=Bullet)
         bullet.active = True
@@ -463,6 +477,7 @@ class TestExplosionEffects:
         bullet.rect = pygame.Rect(50, 50, 2, 2)
         tile = MagicMock(spec=Tile)
         tile.type = TileType.STEEL
+        tile.blocks_bullets = True
         tile.x, tile.y = 0, 0
         handler.process_collisions([(bullet, tile)])
         mock_effect_manager.spawn.assert_called_once_with(
@@ -478,6 +493,7 @@ class TestExplosionEffects:
         bullet.rect = pygame.Rect(50, 50, 2, 2)
         tile = MagicMock(spec=Tile)
         tile.type = TileType.BASE
+        tile.blocks_bullets = True
         tile.x, tile.y = 0, 0
         handler.process_collisions([(bullet, tile)])
         mock_effect_manager.spawn.assert_called_once_with(
@@ -662,6 +678,7 @@ class TestPowerBulletVsSteel:
     def steel_tile(self):
         t = MagicMock(spec=Tile)
         t.type = TileType.STEEL
+        t.blocks_bullets = True
         t.x = 6
         t.y = 6
         t.rect = pygame.Rect(96, 96, 16, 16)
@@ -686,6 +703,7 @@ class TestPowerBulletVsSteel:
     ):
         base_tile = MagicMock(spec=Tile)
         base_tile.type = TileType.BASE
+        base_tile.blocks_bullets = True
         base_tile.x = 8
         base_tile.y = 14
         base_tile.rect = pygame.Rect(128, 224, 16, 16)

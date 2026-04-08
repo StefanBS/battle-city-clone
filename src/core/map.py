@@ -3,7 +3,7 @@ import pygame
 import pytmx
 from pytmx.util_pygame import load_pygame
 from loguru import logger
-from .tile import Tile, TileType, IMPASSABLE_TILE_TYPES
+from .tile import Tile, TileType
 from src.managers.texture_manager import TextureManager
 from src.utils.constants import SUB_TILE_SIZE
 
@@ -34,6 +34,8 @@ class Map:
         self._tile_cache_dirty: bool = True
         self._cached_tiles_by_type: dict = {}
         self._cached_collidable_rects: List[pygame.Rect] = []
+        self._cached_blocking_tiles: List[Tile] = []
+        self._cached_bullet_blocking_tiles: List[Tile] = []
         self._cached_base: Optional[Tile] = None
 
         self._load_from_tmx(map_file)
@@ -53,10 +55,10 @@ class Map:
         self.width = tiled_map.width
         self.height = tiled_map.height
 
-        # Scan tileset for brick variant and water frame sprites
+        # Scan tileset for brick variant sprites and collision defaults
         self._brick_variant_sprites: dict[str, pygame.Surface] = {}
-        self._water_frame_sprites: dict[int, pygame.Surface] = {}
         self._tile_type_sprites: dict[TileType, pygame.Surface] = {}
+        self._tile_collision_defaults: dict[TileType, tuple[bool, bool]] = {}
         self._scan_tileset(tiled_map)
 
         # Initialize grid
@@ -69,18 +71,17 @@ class Map:
                 tile_layer = layer
                 break
 
-        # Pre-build shared water animation frames list (all water tiles share it)
-        shared_water_frames: list = []
-        if self._water_frame_sprites:
-            frames = sorted(self._water_frame_sprites.keys())
-            shared_water_frames = [self._water_frame_sprites[f] for f in frames]
-
         if tile_layer is not None:
             scaled_cache: dict[int, pygame.Surface] = {}
+            # Cache for shared animation frame lists (keyed by source GID)
+            animation_cache: dict[int, list] = {}
             for x, y, gid in tile_layer.iter_data():
                 tile_type = TileType.EMPTY
                 brick_variant = "full"
                 tile_image = None
+                blocks_tanks = False
+                blocks_bullets = False
+                props = None
 
                 if gid:
                     props = tiled_map.get_tile_properties_by_gid(gid)
@@ -89,6 +90,8 @@ class Map:
                         if tile_type_str:
                             tile_type = TileType[tile_type_str]
                         brick_variant = props.get("brick_variant") or "full"
+                        blocks_tanks = bool(props.get("blocks_tanks", False))
+                        blocks_bullets = bool(props.get("blocks_bullets", False))
 
                     self._cache_sprite(scaled_cache, gid, tiled_map, gid)
                     tile_image = scaled_cache.get(gid)
@@ -100,10 +103,29 @@ class Map:
                     self.tile_size,
                     tmx_sprite=tile_image,
                     brick_variant=brick_variant,
+                    blocks_tanks=blocks_tanks,
+                    blocks_bullets=blocks_bullets,
                 )
 
-                if tile_type == TileType.WATER and shared_water_frames:
-                    tile.animation_sprites = shared_water_frames
+                # Check for native animation frames from TSX
+                frames_data = props.get("frames") if props else None
+                if frames_data:
+                    if gid not in animation_cache:
+                        animation_frames = []
+                        for anim_frame in frames_data:
+                            raw_img = tiled_map.get_tile_image_by_gid(
+                                anim_frame.gid
+                            )
+                            if raw_img:
+                                scaled = pygame.transform.scale(
+                                    raw_img,
+                                    (self.tile_size, self.tile_size),
+                                )
+                                duration_s = anim_frame.duration / 1000.0
+                                animation_frames.append((scaled, duration_s))
+                        animation_cache[gid] = animation_frames
+                    if animation_cache[gid]:
+                        tile.set_animation_frames(animation_cache[gid])
 
                 self.tiles[y][x] = tile
 
@@ -116,8 +138,11 @@ class Map:
         # Read spawn points from object layer
         self._load_spawn_points(tiled_map)
 
+        # Read enemy composition from map-level properties
+        self.enemy_composition = self._read_enemy_composition(tiled_map)
+
     def _scan_tileset(self, tiled_map: pytmx.TiledMap) -> None:
-        """Scan the tileset for brick variant and water frame sprites.
+        """Scan the tileset for brick variant sprites and collision defaults.
 
         Only iterates tiles that have custom properties defined,
         skipping the majority of tiles in large tilesets.
@@ -143,21 +168,14 @@ class Map:
                     self._cache_sprite(
                         self._tile_type_sprites, tile_type_enum, tiled_map, gid
                     )
+                # Build collision defaults from TSX (first occurrence wins)
+                if tile_type_enum not in self._tile_collision_defaults:
+                    bt = bool(props.get("blocks_tanks", False))
+                    bb = bool(props.get("blocks_bullets", False))
+                    self._tile_collision_defaults[tile_type_enum] = (bt, bb)
             if tt == "BRICK":
                 key = props.get("brick_variant") or "full"
-                self._cache_sprite(
-                    self._brick_variant_sprites, key, tiled_map, gid
-                )
-            elif tt == "WATER":
-                raw_frame = props.get("water_frame")
-                if raw_frame is not None:
-                    try:
-                        key = int(raw_frame)
-                    except (ValueError, TypeError):
-                        continue
-                    self._cache_sprite(
-                        self._water_frame_sprites, key, tiled_map, gid
-                    )
+                self._cache_sprite(self._brick_variant_sprites, key, tiled_map, gid)
 
     def _cache_sprite(self, cache: dict, key, tiled_map, gid: int) -> None:
         """Store a scaled tile sprite in cache if not already present."""
@@ -165,9 +183,7 @@ class Map:
             return
         raw_img = tiled_map.get_tile_image_by_gid(gid)
         if raw_img:
-            cache[key] = pygame.transform.scale(
-                raw_img, (SUB_TILE_SIZE, SUB_TILE_SIZE)
-            )
+            cache[key] = pygame.transform.scale(raw_img, (SUB_TILE_SIZE, SUB_TILE_SIZE))
 
     def _load_spawn_points(self, tiled_map: pytmx.TiledMap) -> None:
         """Read spawn points and player spawn from TMX object layers.
@@ -202,6 +218,21 @@ class Map:
             logger.warning(
                 "No 'player_spawn' object found, defaulting to bottom-center"
             )
+
+    def _read_enemy_composition(self, tiled_map: pytmx.TiledMap) -> dict[str, int]:
+        """Read enemy type counts from map-level custom properties."""
+        props = tiled_map.properties or {}
+        composition = {
+            "basic": int(props.get("enemy_basic", 0)),
+            "fast": int(props.get("enemy_fast", 0)),
+            "power": int(props.get("enemy_power", 0)),
+            "armor": int(props.get("enemy_armor", 0)),
+        }
+        total = sum(composition.values())
+        if total == 0:
+            logger.warning("No enemy composition in map properties, using defaults")
+            composition = {"basic": 20, "fast": 0, "power": 0, "armor": 0}
+        return composition
 
     def _build_derived_tile_lists(self) -> None:
         """Build the lists of animated and drawable (non-empty) tiles."""
@@ -257,11 +288,7 @@ class Map:
 
         for dx, dy in offsets:
             adj = self.get_tile_at(tile.x + dx, tile.y + dy)
-            if (
-                adj
-                and adj.type == TileType.BRICK
-                and bullet_rect.colliderect(adj.rect)
-            ):
+            if adj and adj.type == TileType.BRICK and bullet_rect.colliderect(adj.rect):
                 self._damage_single_brick(adj, bullet_direction)
 
     # Half-brick rect offsets: variant → (dx, dy, w, h) as fractions of tile size
@@ -309,10 +336,13 @@ class Map:
         self._tile_cache_dirty = True
 
     def set_tile_type(self, tile: Tile, new_type: TileType) -> None:
-        """Change a tile's type and invalidate caches."""
+        """Change a tile's type, update collision flags, and invalidate caches."""
         old_type = tile.type
         tile.type = new_type
         tile.tmx_sprite = self._tile_type_sprites.get(new_type)
+        bt, bb = self._tile_collision_defaults.get(new_type, (False, False))
+        tile.blocks_tanks = bt
+        tile.blocks_bullets = bb
         self._tile_cache_dirty = True
         if old_type == TileType.EMPTY and new_type != TileType.EMPTY:
             self._drawable_tiles.append(tile)
@@ -341,8 +371,9 @@ class Map:
     def _rebuild_tile_caches(self) -> None:
         """Rebuild all cached tile lists from the grid."""
         self._cached_tiles_by_type = {}
-        collidable_types = IMPASSABLE_TILE_TYPES
         collidable_rects = []
+        blocking_tiles: List[Tile] = []
+        bullet_blocking_tiles: List[Tile] = []
         base = None
 
         for row in self.tiles:
@@ -353,12 +384,17 @@ class Map:
                 if tt not in self._cached_tiles_by_type:
                     self._cached_tiles_by_type[tt] = []
                 self._cached_tiles_by_type[tt].append(tile)
-                if tt in collidable_types:
+                if tile.blocks_tanks:
                     collidable_rects.append(tile.rect)
+                    blocking_tiles.append(tile)
+                if tile.blocks_bullets:
+                    bullet_blocking_tiles.append(tile)
                 if tt == TileType.BASE and base is None:
                     base = tile
 
         self._cached_collidable_rects = collidable_rects
+        self._cached_blocking_tiles = blocking_tiles
+        self._cached_bullet_blocking_tiles = bullet_blocking_tiles
         self._cached_base = base
         self._tile_cache_dirty = False
 
@@ -385,9 +421,17 @@ class Map:
         self._ensure_cache()
         return self._cached_collidable_rects
 
-    def get_base_surrounding_tiles(
-        self, include_empty: bool = False
-    ) -> List[Tile]:
+    def get_blocking_tiles(self) -> List[Tile]:
+        """Get all tiles that block tank movement."""
+        self._ensure_cache()
+        return self._cached_blocking_tiles
+
+    def get_bullet_blocking_tiles(self) -> List[Tile]:
+        """Get all tiles that block bullets."""
+        self._ensure_cache()
+        return self._cached_bullet_blocking_tiles
+
+    def get_base_surrounding_tiles(self, include_empty: bool = False) -> List[Tile]:
         """Return tiles in the ring around the base.
 
         Finds all BASE tiles to determine the base bounds, then returns
