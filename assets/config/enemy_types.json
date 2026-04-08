@@ -5,7 +5,8 @@
     "health": 1,
     "shoot_interval": 2.0,
     "direction_change_interval": 2.5,
-    "power_bullets": false
+    "power_bullets": false,
+    "sprite_prefix": "enemy_basic_tank"
   },
   "fast": {
     "speed": 120,
@@ -13,7 +14,8 @@
     "health": 1,
     "shoot_interval": 1.8,
     "direction_change_interval": 1.5,
-    "power_bullets": false
+    "power_bullets": false,
+    "sprite_prefix": "enemy_fast_tank"
   },
   "power": {
     "speed": 92,
@@ -21,7 +23,8 @@
     "health": 1,
     "shoot_interval": 1.0,
     "direction_change_interval": 2.0,
-    "power_bullets": false
+    "power_bullets": false,
+    "sprite_prefix": "enemy_power_tank"
   },
   "armor": {
     "speed": 60,
@@ -29,6 +32,7 @@
     "health": 4,
     "shoot_interval": 1.5,
     "direction_change_interval": 2.0,
-    "power_bullets": true
+    "power_bullets": true,
+    "sprite_prefix": "enemy_armor_tank"
   }
 }

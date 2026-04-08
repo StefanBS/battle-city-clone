@@ -88,6 +88,7 @@ class EnemyTank(Tank):
             map_height_px=map_height_px,
         )
         self.tank_type = tank_type
+        self._sprite_prefix: str = props.get("sprite_prefix", "enemy_tank")
         self.power_bullets = props["power_bullets"]
         self.direction = random.choice(list(Direction))
         self.direction_timer: float = 0
@@ -109,21 +110,28 @@ class EnemyTank(Tank):
     _ALL_DIRECTIONS = list(Direction)
 
     def _update_sprite(self) -> None:
-        """Update sprite, using red variant when carrier is in blink phase."""
+        """Update sprite using type-specific prefix and carrier red variant."""
         if (
             self.is_carrier
             and self.carrier_blink_timer % (CARRIER_BLINK_INTERVAL * 2)
             >= CARRIER_BLINK_INTERVAL
         ):
             sprite_name = (
-                f"enemy_tank_red_{self.direction}_{self.animation_frame}"
+                f"{self._sprite_prefix}_red"
+                f"_{self.direction}_{self.animation_frame}"
             )
             try:
                 self.sprite = self.texture_manager.get_sprite(sprite_name)
+                return
             except KeyError:
-                super()._update_sprite()
-        else:
-            super()._update_sprite()
+                pass
+        sprite_name = (
+            f"{self._sprite_prefix}_{self.direction}_{self.animation_frame}"
+        )
+        try:
+            self.sprite = self.texture_manager.get_sprite(sprite_name)
+        except KeyError:
+            logger.error(f"Sprite '{sprite_name}' not found for enemy tank.")
 
     def _change_direction(self, allow_slide: bool = True) -> None:
         """Randomly change the tank's direction, avoiding blocked ones."""
