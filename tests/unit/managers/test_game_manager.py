@@ -454,6 +454,15 @@ class TestPauseAndOptionsStateMachine:
         game_manager.handle_events()
         assert game_manager.state == GameState.GAME_COMPLETE
 
+    def test_esc_during_victory_does_nothing(
+        self, game_manager, key_down_event
+    ):
+        """ESC during VICTORY does nothing."""
+        game_manager.state = GameState.VICTORY
+        pygame.event.post(key_down_event(pygame.K_ESCAPE))
+        game_manager.handle_events()
+        assert game_manager.state == GameState.VICTORY
+
     # --- Title screen options and quit ---
 
     def test_title_options_transitions_to_options_menu(

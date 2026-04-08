@@ -261,7 +261,11 @@ class GameManager:
                 self.input_handler.handle_event(event)
 
     def _handle_escape(self) -> None:
-        """Handle ESC key based on current state."""
+        """Handle ESC key based on current state.
+
+        Only acts during RUNNING, PAUSED, and OPTIONS_MENU.
+        Ignored during animations, game over, and title screen.
+        """
         if self.state == GameState.RUNNING:
             logger.info("Game paused.")
             self.sound_manager.stop_loops()

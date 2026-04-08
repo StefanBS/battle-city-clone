@@ -29,7 +29,7 @@ class SettingsManager:
 
     def save(self) -> None:
         """Save current settings to file."""
-        data = {"master_volume": self.master_volume}
+        data = {"master_volume": round(self.master_volume, 1)}
         with open(self._path, "w") as f:
             json.dump(data, f, indent=2)
         logger.debug(f"Settings saved to {self._path}")
