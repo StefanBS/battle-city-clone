@@ -213,16 +213,13 @@ def test_player_bullet_destroys_enemy_tank(game_manager_fixture, mocker):
 
     # --- Assertions after updates ---
     # 1. Bullet should be inactive if it hit the enemy.
-    # If the enemy was destroyed, the bullet might have passed through, so this check is conditional.
+    # If enemy was destroyed, bullet may have passed through.
     if enemy_destroyed_during_loop or (
         enemy_tank not in game_manager.spawn_manager.enemy_tanks
     ):
-        # If enemy is gone, bullet could be active or inactive.
-        # The critical part is enemy destruction.
         pass
-    else:  # Enemy not destroyed, so bullet must have become inactive (e.g. hit armor, or missed and hit wall)
-        # This test expects destruction, so if enemy is still there, it's a failure.
-        # We rely on the next assertion to catch this. For now, ensure bullet did *something*.
+    else:
+        # Enemy survived — bullet must have become inactive.
         assert bullet_became_inactive_during_loop, (
             "Bullet remained active but enemy was not destroyed."
         )
@@ -347,13 +344,15 @@ def test_enemy_bullet_hits_player_tank(
         if not player_is_invincible:
             if not enemy_bullet.active:
                 logger.debug(
-                    f"Enemy bullet became inactive after {i + 1} updates (hit detected)."
+                    f"Enemy bullet inactive after "
+                    f"{i + 1} updates (hit detected)."
                 )
                 interaction_processed = True
                 break
             if current_lives < original_player_lives:
                 logger.debug(
-                    f"Player lost a life (lives: {current_lives}) after {i + 1} updates."
+                    f"Player lost a life (lives: "
+                    f"{current_lives}) after {i + 1} updates."
                 )
                 interaction_processed = True
                 break
@@ -378,34 +377,38 @@ def test_enemy_bullet_hits_player_tank(
         # Early exit if game state changes definitively and unexpectedly
         if current_state != GameState.RUNNING and current_state != expected_game_state:
             logger.warning(
-                f"Game state changed to {current_state.name} unexpectedly after {i + 1} updates."
+                f"Game state changed to "
+                f"{current_state.name} unexpectedly "
+                f"after {i + 1} updates."
             )
-            interaction_processed = True  # Mark as processed to evaluate current state
+            interaction_processed = True
             break
-    else:  # Loop finished without break
+    else:
         logger.warning(
-            f"Max updates ({max_updates}) reached. Bullet active: {enemy_bullet.active}, "
-            f"GameState: {game_manager.state.name}, PlayerLives: {player_tank.lives}"
+            f"Max updates ({max_updates}) reached. "
+            f"Bullet active: {enemy_bullet.active}, "
+            f"GameState: {game_manager.state.name}, "
+            f"PlayerLives: {player_tank.lives}"
         )
-        # If loop finished, mark interaction_processed as true to allow assertions to run on final state
+        # Loop finished — run assertions on final state
         interaction_processed = True
 
     # --- Assertions after updates --- #
-    # If player was invincible, the bullet might or might not be active (e.g. hit a wall later)
-    # The key is that player state (lives, game state) should match expectations.
+    # If invincible, bullet may or may not be active.
     if not player_is_invincible:
         assert interaction_processed, (
             f"Enemy bullet interaction with vulnerable player not detected. "
             f"Bullet active: {enemy_bullet.active}, Player lives: {player_tank.lives}, "
             f"Game state: {game_manager.state.name}"
         )
-        # If an interaction was processed, and player was vulnerable, bullet should be inactive.
+        # Vulnerable player hit — bullet should be inactive.
         if player_tank.lives < original_player_lives or game_manager.state in (
             GameState.GAME_OVER,
             GameState.GAME_OVER_ANIMATION,
         ):
             assert not enemy_bullet.active, (
-                "Enemy bullet should be inactive after damaging player or causing game over."
+                "Enemy bullet should be inactive after "
+                "damaging player or causing game over."
             )
 
     # 1. Assert Game State

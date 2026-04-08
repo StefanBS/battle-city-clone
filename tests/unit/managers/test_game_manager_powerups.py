@@ -9,7 +9,6 @@ from src.utils.constants import (
     SHOVEL_DURATION,
     SHOVEL_WARNING_DURATION,
     SHOVEL_FLASH_INTERVAL,
-    ENEMY_POINTS,
     TankType,
     EffectType,
     TILE_SIZE,

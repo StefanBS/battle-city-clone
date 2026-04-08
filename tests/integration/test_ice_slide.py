@@ -4,10 +4,9 @@ Uses real objects (no mocks) with SDL_VIDEODRIVER=dummy for headless execution.
 """
 
 import pytest
-from src.core.tile import Tile, TileType
+from src.core.tile import TileType
 from src.utils.constants import (
     Direction,
-    FPS,
     ICE_SLIDE_DISTANCE,
     SUB_TILE_SIZE,
 )

@@ -44,8 +44,9 @@ def test_initial_game_state(game_manager_fixture):
     )
 
     # 4. Verify initial total spawn count
-    assert game_manager.spawn_manager.total_enemy_spawns == 1, (
-        f"Expected initial total_enemy_spawns 1, got {game_manager.spawn_manager.total_enemy_spawns}"
+    spawns = game_manager.spawn_manager.total_enemy_spawns
+    assert spawns == 1, (
+        f"Expected initial total_enemy_spawns 1, got {spawns}"
     )
 
     # 5. Verify map layout (basic check - e.g., base exists and corner tile)
