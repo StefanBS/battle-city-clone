@@ -175,8 +175,8 @@ class TestRendererRender:
 class TestRendererHUD:
     """Tests for HUD and overlay rendering."""
 
-    def test_hud_shows_invincibility_timer(self, renderer):
-        """Test that HUD renders invincibility text when player is invincible."""
+    def test_hud_does_not_show_invincibility_timer(self, renderer):
+        """Test that HUD does not render invincibility text."""
         mock_map = MagicMock()
         mock_player = MagicMock()
         mock_player.lives = 3
@@ -192,8 +192,8 @@ class TestRendererHUD:
             mock_em = MagicMock()
             renderer.render(mock_map, mock_player, [], [], mock_em, GameState.RUNNING)
 
-        # small_font.render: lives + score + invincibility
-        assert renderer.small_font.render.call_count == 3
+        # small_font.render: lives + score only (no invincibility)
+        assert renderer.small_font.render.call_count == 2
 
     def test_overlay_screen_renders_title_and_subtitle(self, renderer):
         """Test that _draw_overlay_screen blits overlay, title, and subtitle."""

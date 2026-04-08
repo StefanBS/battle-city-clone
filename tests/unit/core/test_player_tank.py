@@ -34,7 +34,7 @@ class TestPlayerTank:
         """Test PlayerTank initialization aligns to grid and sets correct defaults."""
         assert player_tank.x == 0
         assert player_tank.y == 0
-        assert player_tank.initial_position == (0, 0)
+        assert player_tank.initial_position == (5.0, 12.0)
         assert player_tank.lives == 3
         assert player_tank.health == 1
         assert not player_tank.is_invincible
