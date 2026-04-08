@@ -55,7 +55,9 @@ def key_up_event():
 def joy_hat_event():
     """Factory fixture to create JOYHATMOTION events."""
 
-    def _joy_hat_event(value: tuple, hat: int = 0, instance_id: int = 0) -> pygame.event.Event:
+    def _joy_hat_event(
+        value: tuple, hat: int = 0, instance_id: int = 0
+    ) -> pygame.event.Event:
         return pygame.event.Event(
             pygame.JOYHATMOTION, value=value, hat=hat, instance_id=instance_id
         )
@@ -67,7 +69,9 @@ def joy_hat_event():
 def joy_axis_event():
     """Factory fixture to create JOYAXISMOTION events."""
 
-    def _joy_axis_event(axis: int, value: float, instance_id: int = 0) -> pygame.event.Event:
+    def _joy_axis_event(
+        axis: int, value: float, instance_id: int = 0
+    ) -> pygame.event.Event:
         return pygame.event.Event(
             pygame.JOYAXISMOTION, axis=axis, value=value, instance_id=instance_id
         )
@@ -92,9 +96,7 @@ def joy_device_added_event():
     """Factory fixture to create JOYDEVICEADDED events."""
 
     def _joy_device_added_event(device_index: int = 0) -> pygame.event.Event:
-        return pygame.event.Event(
-            pygame.JOYDEVICEADDED, device_index=device_index
-        )
+        return pygame.event.Event(pygame.JOYDEVICEADDED, device_index=device_index)
 
     return _joy_device_added_event
 
@@ -104,8 +106,6 @@ def joy_device_removed_event():
     """Factory fixture to create JOYDEVICEREMOVED events."""
 
     def _joy_device_removed_event(instance_id: int = 0) -> pygame.event.Event:
-        return pygame.event.Event(
-            pygame.JOYDEVICEREMOVED, instance_id=instance_id
-        )
+        return pygame.event.Event(pygame.JOYDEVICEREMOVED, instance_id=instance_id)
 
     return _joy_device_removed_event

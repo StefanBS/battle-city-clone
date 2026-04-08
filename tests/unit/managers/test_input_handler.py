@@ -7,8 +7,13 @@ from src.utils.constants import Direction
 
 @pytest.fixture
 def handler() -> InputHandler:
-    """Fixture to provide an InputHandler instance for each test."""
-    return InputHandler()
+    """Fixture to provide an InputHandler instance for each test.
+
+    Patches pygame.joystick.get_count to return 0 so that _init_joystick()
+    does not pick up a physically connected controller during tests.
+    """
+    with patch("src.managers.input_handler.pygame.joystick.get_count", return_value=0):
+        return InputHandler()
 
 
 def test_initialization(handler: InputHandler) -> None:
@@ -226,7 +231,9 @@ class TestJoystickHotPlug:
     """Tests for joystick hot-plug support."""
 
     @patch("src.managers.input_handler.pygame.joystick")
-    def test_device_added(self, mock_joystick_module, handler, joy_device_added_event) -> None:
+    def test_device_added(
+        self, mock_joystick_module, handler, joy_device_added_event
+    ) -> None:
         """JOYDEVICEADDED initializes the new joystick."""
         mock_js = MagicMock()
         mock_js.get_name.return_value = "Test Controller"
@@ -255,7 +262,9 @@ class TestJoystickHotPlug:
         assert handler.joystick is None
         assert all(not v for v in handler.joy_directions.values())
 
-    def test_device_removed_wrong_instance(self, handler, joy_device_removed_event) -> None:
+    def test_device_removed_wrong_instance(
+        self, handler, joy_device_removed_event
+    ) -> None:
         """JOYDEVICEREMOVED with wrong instance_id is ignored."""
         mock_js = MagicMock()
         mock_js.get_instance_id.return_value = 0

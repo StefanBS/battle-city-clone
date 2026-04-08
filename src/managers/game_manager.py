@@ -36,7 +36,12 @@ from src.managers.collision_manager import CollisionManager
 from src.managers.collision_response_handler import CollisionResponseHandler
 from src.managers.effect_manager import EffectManager
 from src.managers.texture_manager import TextureManager
-from src.managers.input_handler import InputHandler, AXIS_DEADZONE, SHOOT_BUTTONS, START_BUTTON
+from src.managers.input_handler import (
+    InputHandler,
+    AXIS_DEADZONE,
+    SHOOT_BUTTONS,
+    START_BUTTON,
+)
 from src.managers.spawn_manager import SpawnManager
 from src.managers.renderer import Renderer
 from src.managers.power_up_manager import PowerUpManager
