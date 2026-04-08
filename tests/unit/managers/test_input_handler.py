@@ -1,5 +1,6 @@
 import pytest
 import pygame
+from unittest.mock import patch, MagicMock
 from src.managers.input_handler import InputHandler
 from src.utils.constants import Direction
 
@@ -198,3 +199,78 @@ def test_shoot_key_not_triggered_by_movement(
     """Test that movement keys don't trigger shoot."""
     handler.handle_event(key_down_event(pygame.K_UP))
     assert not handler.shoot_pressed
+
+
+class TestJoystickInit:
+    """Tests for joystick initialization."""
+
+    def test_init_no_joystick(self, handler: InputHandler) -> None:
+        """Handler initializes with no joystick when none connected."""
+        assert handler.joystick is None
+        assert all(not v for v in handler.joy_directions.values())
+
+    @patch("src.managers.input_handler.pygame.joystick")
+    def test_init_with_joystick(self, mock_joystick_module) -> None:
+        """Handler initializes the first joystick when available."""
+        mock_js = MagicMock()
+        mock_js.get_name.return_value = "Test Controller"
+        mock_joystick_module.get_count.return_value = 1
+        mock_joystick_module.Joystick.return_value = mock_js
+        handler = InputHandler()
+        mock_joystick_module.Joystick.assert_called_once_with(0)
+        mock_js.init.assert_called_once()
+        assert handler.joystick is mock_js
+
+
+class TestJoystickHotPlug:
+    """Tests for joystick hot-plug support."""
+
+    @patch("src.managers.input_handler.pygame.joystick")
+    def test_device_added(self, mock_joystick_module, handler, joy_device_added_event) -> None:
+        """JOYDEVICEADDED initializes the new joystick."""
+        mock_js = MagicMock()
+        mock_js.get_name.return_value = "Test Controller"
+        mock_joystick_module.Joystick.return_value = mock_js
+        handler.handle_event(joy_device_added_event(device_index=0))
+        mock_joystick_module.Joystick.assert_called_once_with(0)
+        mock_js.init.assert_called_once()
+        assert handler.joystick is mock_js
+
+    def test_device_added_ignored_when_already_connected(
+        self, handler, joy_device_added_event
+    ) -> None:
+        """JOYDEVICEADDED is ignored if a joystick is already tracked."""
+        mock_js = MagicMock()
+        handler.joystick = mock_js
+        handler.handle_event(joy_device_added_event(device_index=1))
+        assert handler.joystick is mock_js  # unchanged
+
+    def test_device_removed(self, handler, joy_device_removed_event) -> None:
+        """JOYDEVICEREMOVED clears joystick and joy_directions."""
+        mock_js = MagicMock()
+        mock_js.get_instance_id.return_value = 0
+        handler.joystick = mock_js
+        handler.joy_directions[Direction.UP] = True
+        handler.handle_event(joy_device_removed_event(instance_id=0))
+        assert handler.joystick is None
+        assert all(not v for v in handler.joy_directions.values())
+
+    def test_device_removed_wrong_instance(self, handler, joy_device_removed_event) -> None:
+        """JOYDEVICEREMOVED with wrong instance_id is ignored."""
+        mock_js = MagicMock()
+        mock_js.get_instance_id.return_value = 0
+        handler.joystick = mock_js
+        handler.handle_event(joy_device_removed_event(instance_id=99))
+        assert handler.joystick is mock_js  # unchanged
+
+
+class TestJoystickReset:
+    """Tests for reset clearing joystick state."""
+
+    def test_reset_clears_joy_directions(self, handler) -> None:
+        """reset() clears joy_directions alongside keyboard directions."""
+        handler.joy_directions[Direction.UP] = True
+        assert handler.joy_directions[Direction.UP]
+        handler.reset()
+        assert all(not v for v in handler.joy_directions.values())
+        assert not handler.shoot_pressed

@@ -1,5 +1,5 @@
 import pygame
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Optional
 from loguru import logger
 from src.utils.constants import Direction
 
@@ -23,6 +23,22 @@ class InputHandler:
         }
         self.shoot_key: int = shoot_key
         self.shoot_pressed: bool = False
+        # Joystick state (tracked separately from keyboard)
+        self.joy_directions: Dict[Direction, bool] = {
+            Direction.UP: False,
+            Direction.DOWN: False,
+            Direction.LEFT: False,
+            Direction.RIGHT: False,
+        }
+        self.joystick: Optional["pygame.joystick.JoystickType"] = None
+        self._init_joystick()
+
+    def _init_joystick(self) -> None:
+        """Detect and initialize the first connected joystick."""
+        if pygame.joystick.get_count() > 0:
+            self.joystick = pygame.joystick.Joystick(0)
+            self.joystick.init()
+            logger.info(f"Joystick connected: {self.joystick.get_name()}")
 
     def handle_event(self, event: pygame.event.Event) -> None:
         """
@@ -45,6 +61,20 @@ class InputHandler:
                 if self.directions[direction]:
                     logger.trace(f"Key up: {direction}")
                     self.directions[direction] = False
+        elif event.type == pygame.JOYDEVICEADDED:
+            if self.joystick is None:
+                self.joystick = pygame.joystick.Joystick(event.device_index)
+                self.joystick.init()
+                logger.info(f"Joystick connected: {self.joystick.get_name()}")
+        elif event.type == pygame.JOYDEVICEREMOVED:
+            if (
+                self.joystick is not None
+                and event.instance_id == self.joystick.get_instance_id()
+            ):
+                logger.info(f"Joystick disconnected: {self.joystick.get_name()}")
+                self.joystick = None
+                for direction in self.joy_directions:
+                    self.joy_directions[direction] = False
 
     def get_movement_direction(self) -> Tuple[int, int]:
         """
@@ -66,6 +96,8 @@ class InputHandler:
         """Reset all input state. Called between stages."""
         for direction in self.directions:
             self.directions[direction] = False
+        for direction in self.joy_directions:
+            self.joy_directions[direction] = False
         self.shoot_pressed = False
 
     def consume_shoot(self) -> bool:
