@@ -17,7 +17,6 @@ class TestPowerUpSprites:
         "powerup_star",
         "powerup_bomb",
         "powerup_extra_life",
-        "powerup_gun",
     ]
 
     RED_TANK_SPRITE_NAMES = [

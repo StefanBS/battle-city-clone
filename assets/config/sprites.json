@@ -62,8 +62,7 @@
     "powerup_shovel": { "grid": [36, 14] },
     "powerup_star": { "grid": [38, 14] },
     "powerup_bomb": { "grid": [40, 14] },
-    "powerup_extra_life": { "grid": [42, 14] },
-    "powerup_gun": { "grid": [44, 14] }
+    "powerup_extra_life": { "grid": [42, 14] }
   },
   "bullets": {
     "bullet_up": { "rect": [323, 102, 3, 4] },
