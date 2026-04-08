@@ -174,6 +174,151 @@ class TestGameManager:
         game_manager.spawn_manager.update.assert_not_called()
         game_manager.collision_response_handler.process_collisions.assert_not_called()
 
+    class TestControllerMenuInput:
+        """Tests for controller input in menus."""
+
+        def test_translate_hat_up(self, game_manager):
+            """Hat UP translates to K_UP."""
+            event = pygame.event.Event(
+                pygame.JOYHATMOTION, value=(0, 1), hat=0, instance_id=0
+            )
+            assert game_manager._translate_joy_event(event) == pygame.K_UP
+
+        def test_translate_hat_down(self, game_manager):
+            """Hat DOWN translates to K_DOWN."""
+            event = pygame.event.Event(
+                pygame.JOYHATMOTION, value=(0, -1), hat=0, instance_id=0
+            )
+            assert game_manager._translate_joy_event(event) == pygame.K_DOWN
+
+        def test_translate_hat_left(self, game_manager):
+            """Hat LEFT translates to K_LEFT."""
+            event = pygame.event.Event(
+                pygame.JOYHATMOTION, value=(-1, 0), hat=0, instance_id=0
+            )
+            assert game_manager._translate_joy_event(event) == pygame.K_LEFT
+
+        def test_translate_hat_right(self, game_manager):
+            """Hat RIGHT translates to K_RIGHT."""
+            event = pygame.event.Event(
+                pygame.JOYHATMOTION, value=(1, 0), hat=0, instance_id=0
+            )
+            assert game_manager._translate_joy_event(event) == pygame.K_RIGHT
+
+        def test_translate_hat_neutral_returns_none(self, game_manager):
+            """Hat (0,0) returns None."""
+            event = pygame.event.Event(
+                pygame.JOYHATMOTION, value=(0, 0), hat=0, instance_id=0
+            )
+            assert game_manager._translate_joy_event(event) is None
+
+        def test_translate_button_0_confirm(self, game_manager):
+            """Button 0 translates to K_RETURN."""
+            event = pygame.event.Event(pygame.JOYBUTTONDOWN, button=0, instance_id=0)
+            assert game_manager._translate_joy_event(event) == pygame.K_RETURN
+
+        def test_translate_button_1_confirm(self, game_manager):
+            """Button 1 translates to K_RETURN."""
+            event = pygame.event.Event(pygame.JOYBUTTONDOWN, button=1, instance_id=0)
+            assert game_manager._translate_joy_event(event) == pygame.K_RETURN
+
+        def test_translate_start_button(self, game_manager):
+            """Button 7 (Start) translates to K_ESCAPE."""
+            event = pygame.event.Event(pygame.JOYBUTTONDOWN, button=7, instance_id=0)
+            assert game_manager._translate_joy_event(event) == pygame.K_ESCAPE
+
+        def test_translate_axis_up(self, game_manager):
+            """Axis 1 negative (up) translates to K_UP."""
+            event = pygame.event.Event(
+                pygame.JOYAXISMOTION, axis=1, value=-0.8, instance_id=0
+            )
+            assert game_manager._translate_joy_event(event) == pygame.K_UP
+
+        def test_translate_axis_down(self, game_manager):
+            """Axis 1 positive (down) translates to K_DOWN."""
+            event = pygame.event.Event(
+                pygame.JOYAXISMOTION, axis=1, value=0.8, instance_id=0
+            )
+            assert game_manager._translate_joy_event(event) == pygame.K_DOWN
+
+        def test_translate_axis_left(self, game_manager):
+            """Axis 0 negative (left) translates to K_LEFT."""
+            event = pygame.event.Event(
+                pygame.JOYAXISMOTION, axis=0, value=-0.8, instance_id=0
+            )
+            assert game_manager._translate_joy_event(event) == pygame.K_LEFT
+
+        def test_translate_axis_right(self, game_manager):
+            """Axis 0 positive (right) translates to K_RIGHT."""
+            event = pygame.event.Event(
+                pygame.JOYAXISMOTION, axis=0, value=0.8, instance_id=0
+            )
+            assert game_manager._translate_joy_event(event) == pygame.K_RIGHT
+
+        def test_translate_axis_deadzone(self, game_manager):
+            """Axis within deadzone returns None."""
+            event = pygame.event.Event(
+                pygame.JOYAXISMOTION, axis=0, value=0.3, instance_id=0
+            )
+            assert game_manager._translate_joy_event(event) is None
+
+        def test_translate_unmapped_button(self, game_manager):
+            """Unmapped button returns None."""
+            event = pygame.event.Event(pygame.JOYBUTTONDOWN, button=5, instance_id=0)
+            assert game_manager._translate_joy_event(event) is None
+
+        # --- SDL GameController API tests ---
+
+        def test_translate_ctrl_dpad_up(self, game_manager):
+            """Controller D-pad UP translates to K_UP."""
+            event = pygame.event.Event(
+                pygame.CONTROLLERBUTTONDOWN,
+                button=pygame.CONTROLLER_BUTTON_DPAD_UP,
+            )
+            assert game_manager._translate_joy_event(event) == pygame.K_UP
+
+        def test_translate_ctrl_dpad_down(self, game_manager):
+            """Controller D-pad DOWN translates to K_DOWN."""
+            event = pygame.event.Event(
+                pygame.CONTROLLERBUTTONDOWN,
+                button=pygame.CONTROLLER_BUTTON_DPAD_DOWN,
+            )
+            assert game_manager._translate_joy_event(event) == pygame.K_DOWN
+
+        def test_translate_ctrl_a_confirm(self, game_manager):
+            """Controller A button translates to K_RETURN."""
+            event = pygame.event.Event(
+                pygame.CONTROLLERBUTTONDOWN,
+                button=pygame.CONTROLLER_BUTTON_A,
+            )
+            assert game_manager._translate_joy_event(event) == pygame.K_RETURN
+
+        def test_translate_ctrl_start(self, game_manager):
+            """Controller Start button translates to K_ESCAPE."""
+            event = pygame.event.Event(
+                pygame.CONTROLLERBUTTONDOWN,
+                button=pygame.CONTROLLER_BUTTON_START,
+            )
+            assert game_manager._translate_joy_event(event) == pygame.K_ESCAPE
+
+        def test_translate_ctrl_axis_up(self, game_manager):
+            """Controller left stick up translates to K_UP."""
+            event = pygame.event.Event(
+                pygame.CONTROLLERAXISMOTION,
+                axis=pygame.CONTROLLER_AXIS_LEFTY,
+                value=-0.8,
+            )
+            assert game_manager._translate_joy_event(event) == pygame.K_UP
+
+        def test_translate_ctrl_axis_deadzone(self, game_manager):
+            """Controller axis within deadzone returns None."""
+            event = pygame.event.Event(
+                pygame.CONTROLLERAXISMOTION,
+                axis=pygame.CONTROLLER_AXIS_LEFTX,
+                value=0.3,
+            )
+            assert game_manager._translate_joy_event(event) is None
+
 
 class TestGameManagerSoundWiring:
     @pytest.fixture
@@ -445,18 +590,14 @@ class TestPauseAndOptionsStateMachine:
         game_manager.handle_events()
         assert game_manager.state == GameState.GAME_OVER_ANIMATION
 
-    def test_esc_during_game_complete_does_nothing(
-        self, game_manager, key_down_event
-    ):
+    def test_esc_during_game_complete_does_nothing(self, game_manager, key_down_event):
         """ESC during GAME_COMPLETE does nothing."""
         game_manager.state = GameState.GAME_COMPLETE
         pygame.event.post(key_down_event(pygame.K_ESCAPE))
         game_manager.handle_events()
         assert game_manager.state == GameState.GAME_COMPLETE
 
-    def test_esc_during_victory_does_nothing(
-        self, game_manager, key_down_event
-    ):
+    def test_esc_during_victory_does_nothing(self, game_manager, key_down_event):
         """ESC during VICTORY does nothing."""
         game_manager.state = GameState.VICTORY
         pygame.event.post(key_down_event(pygame.K_ESCAPE))
@@ -567,9 +708,7 @@ class TestPauseAndOptionsStateMachine:
         gm.handle_events()
         assert gm._pause_selection == 3
 
-    def test_pause_plays_menu_select_on_navigation(
-        self, game_manager, key_down_event
-    ):
+    def test_pause_plays_menu_select_on_navigation(self, game_manager, key_down_event):
         """Navigating pause menu plays menu_select sound."""
         gm = game_manager
         gm.state = GameState.PAUSED

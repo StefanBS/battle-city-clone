@@ -1,5 +1,6 @@
 import pytest
 import pygame
+from unittest.mock import patch, MagicMock
 from src.managers.input_handler import InputHandler
 from src.utils.constants import Direction
 
@@ -198,3 +199,292 @@ def test_shoot_key_not_triggered_by_movement(
     """Test that movement keys don't trigger shoot."""
     handler.handle_event(key_down_event(pygame.K_UP))
     assert not handler.shoot_pressed
+
+
+class TestJoystickInit:
+    """Tests for joystick initialization."""
+
+    def test_init_no_joystick(self, handler: InputHandler) -> None:
+        """Handler initializes with no joystick when none connected."""
+        assert handler.joystick is None
+        assert all(not v for v in handler.joy_directions.values())
+
+    @patch("src.managers.input_handler.pygame.joystick")
+    def test_init_with_joystick(self, mock_joystick_module) -> None:
+        """Handler initializes the first joystick when available."""
+        mock_js = MagicMock()
+        mock_js.get_name.return_value = "Test Controller"
+        mock_joystick_module.get_count.return_value = 1
+        mock_joystick_module.Joystick.return_value = mock_js
+        handler = InputHandler()
+        mock_joystick_module.Joystick.assert_called_once_with(0)
+        mock_js.init.assert_called_once()
+        assert handler.joystick is mock_js
+
+
+class TestJoystickHotPlug:
+    """Tests for joystick hot-plug support."""
+
+    @patch("src.managers.input_handler.pygame.joystick")
+    def test_device_added(
+        self, mock_joystick_module, handler, joy_device_added_event
+    ) -> None:
+        """JOYDEVICEADDED initializes the new joystick."""
+        mock_js = MagicMock()
+        mock_js.get_name.return_value = "Test Controller"
+        mock_joystick_module.Joystick.return_value = mock_js
+        handler.handle_event(joy_device_added_event(device_index=0))
+        mock_joystick_module.Joystick.assert_called_once_with(0)
+        mock_js.init.assert_called_once()
+        assert handler.joystick is mock_js
+
+    def test_device_added_ignored_when_already_connected(
+        self, handler, joy_device_added_event
+    ) -> None:
+        """JOYDEVICEADDED is ignored if a joystick is already tracked."""
+        mock_js = MagicMock()
+        handler.joystick = mock_js
+        handler.handle_event(joy_device_added_event(device_index=1))
+        assert handler.joystick is mock_js  # unchanged
+
+    def test_device_removed(self, handler, joy_device_removed_event) -> None:
+        """JOYDEVICEREMOVED clears joystick and joy_directions."""
+        mock_js = MagicMock()
+        mock_js.get_instance_id.return_value = 0
+        handler.joystick = mock_js
+        handler.joy_directions[Direction.UP] = True
+        handler.handle_event(joy_device_removed_event(instance_id=0))
+        assert handler.joystick is None
+        assert all(not v for v in handler.joy_directions.values())
+
+    def test_device_removed_wrong_instance(
+        self, handler, joy_device_removed_event
+    ) -> None:
+        """JOYDEVICEREMOVED with wrong instance_id is ignored."""
+        mock_js = MagicMock()
+        mock_js.get_instance_id.return_value = 0
+        handler.joystick = mock_js
+        handler.handle_event(joy_device_removed_event(instance_id=99))
+        assert handler.joystick is mock_js  # unchanged
+
+
+class TestJoystickReset:
+    """Tests for reset clearing joystick state."""
+
+    def test_reset_clears_joy_directions(self, handler) -> None:
+        """reset() clears joy_directions alongside keyboard directions."""
+        handler.joy_directions[Direction.UP] = True
+        assert handler.joy_directions[Direction.UP]
+        handler.reset()
+        assert all(not v for v in handler.joy_directions.values())
+        assert not handler.shoot_pressed
+
+
+class TestJoystickHat:
+    """Tests for D-pad (hat) input handling."""
+
+    def test_hat_up(self, handler, joy_hat_event) -> None:
+        """Hat UP sets joy_directions UP."""
+        handler.handle_event(joy_hat_event((0, 1)))
+        assert handler.joy_directions[Direction.UP]
+        assert not handler.joy_directions[Direction.DOWN]
+
+    def test_hat_down(self, handler, joy_hat_event) -> None:
+        """Hat DOWN sets joy_directions DOWN."""
+        handler.handle_event(joy_hat_event((0, -1)))
+        assert handler.joy_directions[Direction.DOWN]
+
+    def test_hat_left(self, handler, joy_hat_event) -> None:
+        """Hat LEFT sets joy_directions LEFT."""
+        handler.handle_event(joy_hat_event((-1, 0)))
+        assert handler.joy_directions[Direction.LEFT]
+
+    def test_hat_right(self, handler, joy_hat_event) -> None:
+        """Hat RIGHT sets joy_directions RIGHT."""
+        handler.handle_event(joy_hat_event((1, 0)))
+        assert handler.joy_directions[Direction.RIGHT]
+
+    def test_hat_release(self, handler, joy_hat_event) -> None:
+        """Hat (0,0) clears all joy_directions."""
+        handler.handle_event(joy_hat_event((0, 1)))
+        assert handler.joy_directions[Direction.UP]
+        handler.handle_event(joy_hat_event((0, 0)))
+        assert all(not v for v in handler.joy_directions.values())
+
+    def test_hat_diagonal_prefers_vertical(self, handler, joy_hat_event) -> None:
+        """Diagonal hat values pick vertical axis (NES behavior)."""
+        handler.handle_event(joy_hat_event((1, 1)))
+        assert handler.joy_directions[Direction.UP]
+        assert not handler.joy_directions[Direction.RIGHT]
+
+        handler.handle_event(joy_hat_event((-1, -1)))
+        assert handler.joy_directions[Direction.DOWN]
+        assert not handler.joy_directions[Direction.LEFT]
+
+    def test_hat_merges_with_keyboard(
+        self, handler, key_down_event, joy_hat_event
+    ) -> None:
+        """get_movement_direction merges keyboard and joystick (OR logic)."""
+        handler.handle_event(key_down_event(pygame.K_UP))
+        handler.handle_event(joy_hat_event((1, 0)))
+        dx, dy = handler.get_movement_direction()
+        # keyboard UP (-1 dy) + joystick RIGHT (+1 dx)
+        assert dx == 1
+        assert dy == -1
+
+    def test_hat_direction_replaces_previous(self, handler, joy_hat_event) -> None:
+        """New hat direction replaces previous (only one joy direction active)."""
+        handler.handle_event(joy_hat_event((0, 1)))
+        assert handler.joy_directions[Direction.UP]
+        handler.handle_event(joy_hat_event((1, 0)))
+        assert handler.joy_directions[Direction.RIGHT]
+        assert not handler.joy_directions[Direction.UP]
+
+
+class TestJoystickAxis:
+    """Tests for analog stick (axis) input handling."""
+
+    def test_axis_left(self, handler, joy_axis_event) -> None:
+        """Left stick pushed left sets LEFT direction."""
+        handler.handle_event(joy_axis_event(axis=0, value=-0.8))
+        assert handler.joy_directions[Direction.LEFT]
+
+    def test_axis_right(self, handler, joy_axis_event) -> None:
+        """Left stick pushed right sets RIGHT direction."""
+        handler.handle_event(joy_axis_event(axis=0, value=0.8))
+        assert handler.joy_directions[Direction.RIGHT]
+
+    def test_axis_up(self, handler, joy_axis_event) -> None:
+        """Left stick pushed up sets UP direction."""
+        handler.handle_event(joy_axis_event(axis=1, value=-0.8))
+        assert handler.joy_directions[Direction.UP]
+
+    def test_axis_down(self, handler, joy_axis_event) -> None:
+        """Left stick pushed down sets DOWN direction."""
+        handler.handle_event(joy_axis_event(axis=1, value=0.8))
+        assert handler.joy_directions[Direction.DOWN]
+
+    def test_axis_deadzone_no_direction(self, handler, joy_axis_event) -> None:
+        """Axis value within deadzone does not set direction."""
+        handler.handle_event(joy_axis_event(axis=0, value=0.3))
+        assert not handler.joy_directions[Direction.RIGHT]
+        assert not handler.joy_directions[Direction.LEFT]
+
+    def test_axis_return_to_center_releases(self, handler, joy_axis_event) -> None:
+        """Axis returning within deadzone releases the direction."""
+        handler.handle_event(joy_axis_event(axis=0, value=-0.8))
+        assert handler.joy_directions[Direction.LEFT]
+        handler.handle_event(joy_axis_event(axis=0, value=0.1))
+        assert not handler.joy_directions[Direction.LEFT]
+
+    def test_axis_ignores_non_stick_axes(self, handler, joy_axis_event) -> None:
+        """Axes beyond 0 and 1 (triggers, right stick) are ignored."""
+        handler.handle_event(joy_axis_event(axis=2, value=1.0))
+        assert all(not v for v in handler.joy_directions.values())
+
+
+class TestJoystickButtons:
+    """Tests for joystick button input handling."""
+
+    def test_button_0_shoots(self, handler, joy_button_down_event) -> None:
+        """Button 0 (A/Cross) triggers shoot."""
+        handler.handle_event(joy_button_down_event(button=0))
+        assert handler.shoot_pressed
+
+    def test_button_1_shoots(self, handler, joy_button_down_event) -> None:
+        """Button 1 (B/Circle) triggers shoot."""
+        handler.handle_event(joy_button_down_event(button=1))
+        assert handler.shoot_pressed
+
+    def test_other_buttons_dont_shoot(self, handler, joy_button_down_event) -> None:
+        """Other buttons do not trigger shoot."""
+        handler.handle_event(joy_button_down_event(button=3))
+        assert not handler.shoot_pressed
+
+
+class TestControllerDpad:
+    """Tests for SDL GameController D-pad (button-based) input."""
+
+    def test_dpad_up(self, handler, ctrl_button_down_event) -> None:
+        """Controller D-pad UP sets joy_directions UP."""
+        handler.handle_event(ctrl_button_down_event(pygame.CONTROLLER_BUTTON_DPAD_UP))
+        assert handler.joy_directions[Direction.UP]
+
+    def test_dpad_down(self, handler, ctrl_button_down_event) -> None:
+        """Controller D-pad DOWN sets joy_directions DOWN."""
+        handler.handle_event(ctrl_button_down_event(pygame.CONTROLLER_BUTTON_DPAD_DOWN))
+        assert handler.joy_directions[Direction.DOWN]
+
+    def test_dpad_left(self, handler, ctrl_button_down_event) -> None:
+        """Controller D-pad LEFT sets joy_directions LEFT."""
+        handler.handle_event(ctrl_button_down_event(pygame.CONTROLLER_BUTTON_DPAD_LEFT))
+        assert handler.joy_directions[Direction.LEFT]
+
+    def test_dpad_right(self, handler, ctrl_button_down_event) -> None:
+        """Controller D-pad RIGHT sets joy_directions RIGHT."""
+        handler.handle_event(
+            ctrl_button_down_event(pygame.CONTROLLER_BUTTON_DPAD_RIGHT)
+        )
+        assert handler.joy_directions[Direction.RIGHT]
+
+    def test_dpad_release(
+        self, handler, ctrl_button_down_event, ctrl_button_up_event
+    ) -> None:
+        """Releasing D-pad button clears the direction."""
+        handler.handle_event(ctrl_button_down_event(pygame.CONTROLLER_BUTTON_DPAD_UP))
+        assert handler.joy_directions[Direction.UP]
+        handler.handle_event(ctrl_button_up_event(pygame.CONTROLLER_BUTTON_DPAD_UP))
+        assert not handler.joy_directions[Direction.UP]
+
+    def test_dpad_replaces_previous(self, handler, ctrl_button_down_event) -> None:
+        """New D-pad direction replaces previous."""
+        handler.handle_event(ctrl_button_down_event(pygame.CONTROLLER_BUTTON_DPAD_UP))
+        handler.handle_event(
+            ctrl_button_down_event(pygame.CONTROLLER_BUTTON_DPAD_RIGHT)
+        )
+        assert handler.joy_directions[Direction.RIGHT]
+        assert not handler.joy_directions[Direction.UP]
+
+
+class TestControllerButtons:
+    """Tests for SDL GameController button input."""
+
+    def test_a_button_shoots(self, handler, ctrl_button_down_event) -> None:
+        """Controller A button triggers shoot."""
+        handler.handle_event(ctrl_button_down_event(pygame.CONTROLLER_BUTTON_A))
+        assert handler.shoot_pressed
+
+    def test_b_button_shoots(self, handler, ctrl_button_down_event) -> None:
+        """Controller B button triggers shoot."""
+        handler.handle_event(ctrl_button_down_event(pygame.CONTROLLER_BUTTON_B))
+        assert handler.shoot_pressed
+
+
+class TestControllerAxis:
+    """Tests for SDL GameController analog stick input."""
+
+    def test_left_stick_left(self, handler, ctrl_axis_event) -> None:
+        """Left stick pushed left sets LEFT direction."""
+        handler.handle_event(ctrl_axis_event(pygame.CONTROLLER_AXIS_LEFTX, -0.8))
+        assert handler.joy_directions[Direction.LEFT]
+
+    def test_left_stick_right(self, handler, ctrl_axis_event) -> None:
+        """Left stick pushed right sets RIGHT direction."""
+        handler.handle_event(ctrl_axis_event(pygame.CONTROLLER_AXIS_LEFTX, 0.8))
+        assert handler.joy_directions[Direction.RIGHT]
+
+    def test_left_stick_up(self, handler, ctrl_axis_event) -> None:
+        """Left stick pushed up sets UP direction."""
+        handler.handle_event(ctrl_axis_event(pygame.CONTROLLER_AXIS_LEFTY, -0.8))
+        assert handler.joy_directions[Direction.UP]
+
+    def test_left_stick_down(self, handler, ctrl_axis_event) -> None:
+        """Left stick pushed down sets DOWN direction."""
+        handler.handle_event(ctrl_axis_event(pygame.CONTROLLER_AXIS_LEFTY, 0.8))
+        assert handler.joy_directions[Direction.DOWN]
+
+    def test_left_stick_deadzone(self, handler, ctrl_axis_event) -> None:
+        """Axis within deadzone sets no direction."""
+        handler.handle_event(ctrl_axis_event(pygame.CONTROLLER_AXIS_LEFTX, 0.3))
+        assert not handler.joy_directions[Direction.RIGHT]
+        assert not handler.joy_directions[Direction.LEFT]

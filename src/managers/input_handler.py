@@ -1,11 +1,40 @@
 import pygame
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Optional
 from loguru import logger
 from src.utils.constants import Direction
 
+AXIS_DEADZONE: float = 0.5
+
+# Raw joystick API (fallback for controllers not in SDL's GameController DB)
+JOY_AXIS_X: int = 0
+JOY_AXIS_Y: int = 1
+JOY_SHOOT_BUTTONS: tuple[int, ...] = (0, 1)
+JOY_START_BUTTON: int = 7
+
+# SDL GameController API (normalized IDs for recognized controllers like Xbox)
+CTRL_DPAD_BUTTONS: dict[int, Direction] = {
+    pygame.CONTROLLER_BUTTON_DPAD_UP: Direction.UP,
+    pygame.CONTROLLER_BUTTON_DPAD_DOWN: Direction.DOWN,
+    pygame.CONTROLLER_BUTTON_DPAD_LEFT: Direction.LEFT,
+    pygame.CONTROLLER_BUTTON_DPAD_RIGHT: Direction.RIGHT,
+}
+CTRL_SHOOT_BUTTONS: tuple[int, ...] = (
+    pygame.CONTROLLER_BUTTON_A,
+    pygame.CONTROLLER_BUTTON_B,
+)
+CTRL_START_BUTTON: int = pygame.CONTROLLER_BUTTON_START
+
+# Direction → pygame key constant (used by GameManager for menu translation)
+DIRECTION_TO_KEY: dict[Direction, int] = {
+    Direction.UP: pygame.K_UP,
+    Direction.DOWN: pygame.K_DOWN,
+    Direction.LEFT: pygame.K_LEFT,
+    Direction.RIGHT: pygame.K_RIGHT,
+}
+
 
 class InputHandler:
-    """Handles keyboard input for the player tank."""
+    """Handles keyboard and controller input for the player tank."""
 
     def __init__(self, shoot_key: int = pygame.K_SPACE) -> None:
         """Initialize the input handler."""
@@ -23,10 +52,44 @@ class InputHandler:
         }
         self.shoot_key: int = shoot_key
         self.shoot_pressed: bool = False
+        # Joystick/controller state (tracked separately from keyboard)
+        self.joy_directions: Dict[Direction, bool] = {
+            Direction.UP: False,
+            Direction.DOWN: False,
+            Direction.LEFT: False,
+            Direction.RIGHT: False,
+        }
+        self.joystick: Optional["pygame.joystick.JoystickType"] = None
+        self._init_joystick()
+
+    def _init_joystick(self) -> None:
+        """Detect and initialize the first connected joystick."""
+        if pygame.joystick.get_count() > 0:
+            self.joystick = pygame.joystick.Joystick(0)
+            self.joystick.init()
+            logger.info(f"Joystick connected: {self.joystick.get_name()}")
+
+    def _handle_axis(
+        self, value: float, neg_dir: Direction, pos_dir: Direction
+    ) -> None:
+        """Update joy_directions for an axis value with deadzone."""
+        if value < -AXIS_DEADZONE:
+            self.joy_directions[neg_dir] = True
+            self.joy_directions[pos_dir] = False
+        elif value > AXIS_DEADZONE:
+            self.joy_directions[pos_dir] = True
+            self.joy_directions[neg_dir] = False
+        else:
+            self.joy_directions[neg_dir] = False
+            self.joy_directions[pos_dir] = False
 
     def handle_event(self, event: pygame.event.Event) -> None:
         """
         Handle a pygame event to update input state.
+
+        Handles keyboard, raw joystick (JOY*), and SDL GameController
+        (CONTROLLER*) events. Recognized controllers (Xbox, PlayStation)
+        emit CONTROLLER* events; unrecognized ones emit JOY* events.
 
         Args:
             event: The pygame event to handle
@@ -46,9 +109,65 @@ class InputHandler:
                     logger.trace(f"Key up: {direction}")
                     self.directions[direction] = False
 
+        # --- Hot-plug (shared by both APIs) ---
+        elif event.type == pygame.JOYDEVICEADDED:
+            if self.joystick is None:
+                self.joystick = pygame.joystick.Joystick(event.device_index)
+                self.joystick.init()
+                logger.info(f"Joystick connected: {self.joystick.get_name()}")
+        elif event.type == pygame.JOYDEVICEREMOVED:
+            if (
+                self.joystick is not None
+                and event.instance_id == self.joystick.get_instance_id()
+            ):
+                logger.info(f"Joystick disconnected: {self.joystick.get_name()}")
+                self.joystick = None
+                for direction in self.joy_directions:
+                    self.joy_directions[direction] = False
+
+        # --- SDL GameController API (recognized controllers) ---
+        elif event.type == pygame.CONTROLLERBUTTONDOWN:
+            if event.button in CTRL_DPAD_BUTTONS:
+                direction = CTRL_DPAD_BUTTONS[event.button]
+                for d in self.joy_directions:
+                    self.joy_directions[d] = False
+                self.joy_directions[direction] = True
+            elif event.button in CTRL_SHOOT_BUTTONS:
+                self.shoot_pressed = True
+        elif event.type == pygame.CONTROLLERBUTTONUP:
+            if event.button in CTRL_DPAD_BUTTONS:
+                direction = CTRL_DPAD_BUTTONS[event.button]
+                self.joy_directions[direction] = False
+
+        # --- Axis motion (shared: CONTROLLER_AXIS_LEFTX == 0, LEFTY == 1) ---
+        elif event.type in (pygame.CONTROLLERAXISMOTION, pygame.JOYAXISMOTION):
+            if event.axis in (pygame.CONTROLLER_AXIS_LEFTX, JOY_AXIS_X):
+                self._handle_axis(event.value, Direction.LEFT, Direction.RIGHT)
+            elif event.axis in (pygame.CONTROLLER_AXIS_LEFTY, JOY_AXIS_Y):
+                self._handle_axis(event.value, Direction.UP, Direction.DOWN)
+
+        # --- Raw joystick API (unrecognized controllers) ---
+        elif event.type == pygame.JOYHATMOTION:
+            hat_x, hat_y = event.value
+            for direction in self.joy_directions:
+                self.joy_directions[direction] = False
+            if hat_y > 0:
+                self.joy_directions[Direction.UP] = True
+            elif hat_y < 0:
+                self.joy_directions[Direction.DOWN] = True
+            elif hat_x > 0:
+                self.joy_directions[Direction.RIGHT] = True
+            elif hat_x < 0:
+                self.joy_directions[Direction.LEFT] = True
+        elif event.type == pygame.JOYBUTTONDOWN:
+            if event.button in JOY_SHOOT_BUTTONS:
+                self.shoot_pressed = True
+
     def get_movement_direction(self) -> Tuple[int, int]:
         """
         Get the current movement direction as a vector.
+
+        Merges keyboard and joystick input (OR logic).
 
         Returns:
             A tuple (dx, dy) representing the movement direction
@@ -60,12 +179,19 @@ class InputHandler:
                 ddx, ddy = direction.delta
                 dx += ddx
                 dy += ddy
+        for direction, pressed in self.joy_directions.items():
+            if pressed:
+                ddx, ddy = direction.delta
+                dx += ddx
+                dy += ddy
         return (dx, dy)
 
     def reset(self) -> None:
         """Reset all input state. Called between stages."""
         for direction in self.directions:
             self.directions[direction] = False
+        for direction in self.joy_directions:
+            self.joy_directions[direction] = False
         self.shoot_pressed = False
 
     def consume_shoot(self) -> bool:
