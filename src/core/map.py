@@ -359,6 +359,20 @@ class Map:
             )
         self._tile_cache_dirty = True
 
+    def _remove_from_render_lists(self, tile: Tile) -> None:
+        """Remove a tile from drawable and overlay lists."""
+        if tile in self._drawable_tiles:
+            self._drawable_tiles.remove(tile)
+        if tile in self._overlay_tiles:
+            self._overlay_tiles.remove(tile)
+
+    def _add_to_render_list(self, tile: Tile) -> None:
+        """Add a tile to the appropriate render list based on its type."""
+        if tile.type == TileType.BUSH:
+            self._overlay_tiles.append(tile)
+        elif tile.type != TileType.EMPTY:
+            self._drawable_tiles.append(tile)
+
     def set_tile_type(self, tile: Tile, new_type: TileType) -> None:
         """Change a tile's type, update collision flags, and invalidate caches."""
         old_type = tile.type
@@ -368,11 +382,9 @@ class Map:
         tile.blocks_tanks = bt
         tile.blocks_bullets = bb
         self._tile_cache_dirty = True
-        if old_type == TileType.EMPTY and new_type != TileType.EMPTY:
-            self._drawable_tiles.append(tile)
-        elif old_type != TileType.EMPTY and new_type == TileType.EMPTY:
-            if tile in self._drawable_tiles:
-                self._drawable_tiles.remove(tile)
+        if old_type != new_type:
+            self._remove_from_render_lists(tile)
+            self._add_to_render_list(tile)
 
     def destroy_base(self) -> None:
         """Destroy all BASE tiles on the map."""
@@ -382,14 +394,10 @@ class Map:
     def place_tile(self, x: int, y: int, tile: Tile) -> None:
         """Place a tile at grid coordinates and invalidate caches."""
         old_tile = self.tiles[y][x]
-        if old_tile and old_tile.type != TileType.EMPTY:
-            try:
-                self._drawable_tiles.remove(old_tile)
-            except ValueError:
-                pass
+        if old_tile:
+            self._remove_from_render_lists(old_tile)
         self.tiles[y][x] = tile
-        if tile.type != TileType.EMPTY:
-            self._drawable_tiles.append(tile)
+        self._add_to_render_list(tile)
         self._tile_cache_dirty = True
 
     def _rebuild_tile_caches(self) -> None:
