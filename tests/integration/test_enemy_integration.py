@@ -77,10 +77,6 @@ def test_enemy_spawning_rules(game_manager_fixture):
     )
     logger.debug(f"Cleared initial enemy. Max spawns to test: {max_spawns}")
 
-    dt = 1.0 / FPS
-    update_duration_between_spawns = 0.2  # Simulate time for enemies to move
-    int(update_duration_between_spawns / dt)
-
     max_attempts = max_spawns * 3  # Allow retries for blocked spawns
     attempt = 0
     while game_manager.spawn_manager.total_enemy_spawns < max_spawns:
