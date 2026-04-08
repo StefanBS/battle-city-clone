@@ -228,7 +228,7 @@ class Renderer:
         """Render the title screen with menu options.
 
         Args:
-            menu_selection: Currently selected menu item (0, 1, or 2).
+            menu_selection: Currently selected menu item (0-4).
         """
         self.game_surface.fill(BLACK)
 
@@ -241,8 +241,8 @@ class Renderer:
         self.game_surface.blit(title, title_rect)
 
         # Menu options
-        options = ["1 PLAYER", "2 PLAYERS", "DEMO"]
-        colors = [WHITE, GRAY, WHITE]  # 2 Players is greyed out (disabled)
+        options = ["1 PLAYER", "2 PLAYERS", "OPTIONS", "DEMO", "QUIT"]
+        colors = [WHITE, GRAY, WHITE, WHITE, WHITE]
         for i, (label, color) in enumerate(zip(options, colors)):
             text = self.small_font.render(label, True, color)
             text_rect = text.get_rect(center=(cx, cy + i * 30))
@@ -252,6 +252,76 @@ class Renderer:
         cursor_y = cy + menu_selection * 30
         cursor_text = self.small_font.render(">", True, WHITE)
         cursor_rect = cursor_text.get_rect(midright=(cx - 60, cursor_y))
+        self.game_surface.blit(cursor_text, cursor_rect)
+
+        self._present_surface()
+
+    def render_pause_menu(self, menu_selection: int) -> None:
+        """Render pause menu overlay on top of frozen game frame.
+
+        Does NOT clear the game surface — draws on top of the
+        last rendered game frame to show the paused game behind.
+        """
+        overlay = pygame.Surface(
+            (self.logical_width, self.logical_height), pygame.SRCALPHA
+        )
+        overlay.fill((0, 0, 0, 160))
+        self.game_surface.blit(overlay, (0, 0))
+
+        cx = self.logical_width // 2
+        cy = self.logical_height // 2
+
+        title = self.font.render("PAUSED", True, WHITE)
+        title_rect = title.get_rect(center=(cx, cy - 60))
+        self.game_surface.blit(title, title_rect)
+
+        options = ["RESUME", "OPTIONS", "TITLE SCREEN", "QUIT"]
+        for i, label in enumerate(options):
+            text = self.small_font.render(label, True, WHITE)
+            text_rect = text.get_rect(center=(cx, cy + i * 30))
+            self.game_surface.blit(text, text_rect)
+
+        cursor_y = cy + menu_selection * 30
+        cursor_text = self.small_font.render(">", True, WHITE)
+        cursor_rect = cursor_text.get_rect(midright=(cx - 80, cursor_y))
+        self.game_surface.blit(cursor_text, cursor_rect)
+
+        self._present_surface()
+
+    def render_options_menu(self, master_volume: float, selection: int) -> None:
+        """Render options menu with volume slider."""
+        self.game_surface.fill(BLACK)
+
+        cx = self.logical_width // 2
+        cy = self.logical_height // 2
+
+        title = self.font.render("OPTIONS", True, WHITE)
+        title_rect = title.get_rect(center=(cx, cy - 60))
+        self.game_surface.blit(title, title_rect)
+
+        filled = round(master_volume * 10)
+        bar = "#" * filled + "-" * (10 - filled)
+        pct = f"{round(master_volume * 100)}%"
+        vol_label = f"VOLUME  [{bar}] {pct}"
+        vol_text = self.small_font.render(vol_label, True, WHITE)
+        vol_rect = vol_text.get_rect(center=(cx, cy))
+        self.game_surface.blit(vol_text, vol_rect)
+
+        # LEFT/RIGHT hints when volume is selected
+        if selection == 0:
+            left_hint = self.small_font.render("<", True, GRAY)
+            self.game_surface.blit(left_hint, (vol_rect.left - 20, cy - 6))
+            right_hint = self.small_font.render(">", True, GRAY)
+            self.game_surface.blit(right_hint, (vol_rect.right + 8, cy - 6))
+
+        back_text = self.small_font.render("BACK", True, WHITE)
+        back_rect = back_text.get_rect(center=(cx, cy + 40))
+        self.game_surface.blit(back_text, back_rect)
+
+        cursor_y = cy if selection == 0 else cy + 40
+        target_rect = vol_rect if selection == 0 else back_rect
+        cursor_text = self.small_font.render(">", True, WHITE)
+        cursor_rect = cursor_text.get_rect(midright=(target_rect.left - 10, cursor_y))
         self.game_surface.blit(cursor_text, cursor_rect)
 
         self._present_surface()

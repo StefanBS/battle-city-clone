@@ -21,9 +21,12 @@ class TestGameManager:
             patch("src.managers.game_manager.Renderer"),
             patch("src.managers.game_manager.SpawnManager"),
             patch("src.managers.game_manager.Map") as MockMap,
+            patch("src.managers.game_manager.SettingsManager") as MockSM,
         ):
             mock_tm_instance = MockTM.return_value
             mock_tm_instance.get_sprite.return_value = MagicMock(spec=pygame.Surface)
+            mock_sm_instance = MockSM.return_value
+            mock_sm_instance.master_volume = 1.0
             mock_map_instance = MockMap.return_value
             mock_map_instance.width = 16
             mock_map_instance.height = 16
@@ -51,25 +54,31 @@ class TestGameManager:
     def test_initialization_starts_at_title_screen(self, game_manager_at_title):
         """Test that GameManager starts at the title screen."""
         assert game_manager_at_title.state == GameState.TITLE_SCREEN
-        assert game_manager_at_title._menu_selection == 0
+        assert game_manager_at_title._title_selection == 0
 
     def test_title_screen_cursor_moves(self, game_manager_at_title, key_down_event):
-        """Test up/down keys cycle through selectable items (0 and 2, skipping 1)."""
+        """Test up/down keys cycle through selectable items (0, 2, 3, 4)."""
         gm = game_manager_at_title
-        assert gm._menu_selection == 0
+        assert gm._title_selection == 0
         pygame.event.post(key_down_event(pygame.K_DOWN))
         gm.handle_events()
-        assert gm._menu_selection == 2
+        assert gm._title_selection == 2
+        pygame.event.post(key_down_event(pygame.K_DOWN))
+        gm.handle_events()
+        assert gm._title_selection == 3
+        pygame.event.post(key_down_event(pygame.K_DOWN))
+        gm.handle_events()
+        assert gm._title_selection == 4
         pygame.event.post(key_down_event(pygame.K_UP))
         gm.handle_events()
-        assert gm._menu_selection == 0
+        assert gm._title_selection == 3
 
     def test_title_screen_enter_starts_game(
         self, game_manager_at_title, key_down_event
     ):
         """Test Enter on '1 PLAYER' begins the curtain-close transition."""
         gm = game_manager_at_title
-        gm._menu_selection = 0
+        gm._title_selection = 0
         pygame.event.post(key_down_event(pygame.K_RETURN))
         gm.handle_events()
         assert gm.state == GameState.STAGE_CURTAIN_CLOSE
@@ -79,7 +88,7 @@ class TestGameManager:
     ):
         """Test Enter on '2 PLAYERS' (disabled) does nothing."""
         gm = game_manager_at_title
-        gm._menu_selection = 1
+        gm._title_selection = 1
         pygame.event.post(key_down_event(pygame.K_RETURN))
         gm.handle_events()
         assert gm.state == GameState.TITLE_SCREEN
@@ -107,11 +116,16 @@ class TestGameManager:
         # Check if state is set to EXIT
         assert game_manager.state == GameState.EXIT
 
-    def test_handle_events_escape(self, game_manager, key_down_event):
-        """Test handling escape key event sets state to EXIT."""
+    def test_handle_events_escape_during_running_pauses(
+        self, game_manager, key_down_event
+    ):
+        """Test ESC during RUNNING pauses the game."""
+        game_manager.state = GameState.RUNNING
+        game_manager.sound_manager = MagicMock()
         pygame.event.post(key_down_event(pygame.K_ESCAPE))
         game_manager.handle_events()
-        assert game_manager.state == GameState.EXIT
+        assert game_manager.state == GameState.PAUSED
+        game_manager.sound_manager.stop_loops.assert_called_once()
 
     def test_handle_events_restart(self, game_manager, key_down_event):
         """Test pressing R on game over returns to title screen."""
@@ -173,9 +187,12 @@ class TestGameManagerSoundWiring:
             patch("src.managers.game_manager.Renderer"),
             patch("src.managers.game_manager.SpawnManager"),
             patch("src.managers.game_manager.Map") as MockMap,
+            patch("src.managers.game_manager.SettingsManager") as MockSM,
         ):
             mock_tm_instance = MockTM.return_value
             mock_tm_instance.get_sprite.return_value = MagicMock(spec=pygame.Surface)
+            mock_sm_instance = MockSM.return_value
+            mock_sm_instance.master_volume = 1.0
             mock_map_instance = MockMap.return_value
             mock_map_instance.width = 16
             mock_map_instance.height = 16
@@ -247,9 +264,12 @@ class TestStageProgression:
             patch("src.managers.game_manager.Renderer"),
             patch("src.managers.game_manager.SpawnManager"),
             patch("src.managers.game_manager.Map") as MockMap,
+            patch("src.managers.game_manager.SettingsManager") as MockSM,
         ):
             mock_tm_instance = MockTM.return_value
             mock_tm_instance.get_sprite.return_value = MagicMock(spec=pygame.Surface)
+            mock_sm_instance = MockSM.return_value
+            mock_sm_instance.master_volume = 1.0
             mock_map_instance = MockMap.return_value
             mock_map_instance.width = 16
             mock_map_instance.height = 16
@@ -313,3 +333,393 @@ class TestStageProgression:
         with patch("pygame.event.get", return_value=[event]):
             game_manager.handle_events()
         assert game_manager.state == GameState.TITLE_SCREEN
+        assert game_manager._title_selection == 0
+
+
+class TestPauseAndOptionsStateMachine:
+    """Tests for PAUSED and OPTIONS_MENU state transitions."""
+
+    @pytest.fixture
+    def _mock_game_deps(self):
+        with (
+            patch("pygame.display.set_mode"),
+            patch("pygame.font.SysFont"),
+            patch("src.managers.game_manager.TextureManager") as MockTM,
+            patch("src.managers.game_manager.EffectManager"),
+            patch("src.managers.game_manager.Renderer"),
+            patch("src.managers.game_manager.SpawnManager"),
+            patch("src.managers.game_manager.Map") as MockMap,
+            patch("src.managers.game_manager.SettingsManager") as MockSM,
+        ):
+            mock_tm_instance = MockTM.return_value
+            mock_tm_instance.get_sprite.return_value = MagicMock(spec=pygame.Surface)
+            mock_sm_instance = MockSM.return_value
+            mock_sm_instance.master_volume = 1.0
+            mock_map_instance = MockMap.return_value
+            mock_map_instance.width = 16
+            mock_map_instance.height = 16
+            mock_map_instance.player_spawn = (4, 12)
+            mock_map_instance.spawn_points = [(3, 1), (8, 1), (12, 1)]
+            yield
+
+    @pytest.fixture
+    def game_manager(self, _mock_game_deps):
+        pygame.init()
+        manager = GameManager()
+        manager._reset_game()
+        yield manager
+        pygame.quit()
+
+    @pytest.fixture
+    def game_manager_at_title(self, _mock_game_deps):
+        pygame.init()
+        manager = GameManager()
+        yield manager
+        pygame.quit()
+
+    # --- ESC state transitions ---
+
+    def test_esc_during_running_pauses(self, game_manager, key_down_event):
+        """ESC during RUNNING transitions to PAUSED."""
+        game_manager.state = GameState.RUNNING
+        game_manager.sound_manager = MagicMock()
+        pygame.event.post(key_down_event(pygame.K_ESCAPE))
+        game_manager.handle_events()
+        assert game_manager.state == GameState.PAUSED
+        assert game_manager._pause_selection == 0
+
+    def test_esc_during_paused_resumes(self, game_manager, key_down_event):
+        """ESC during PAUSED transitions back to RUNNING."""
+        game_manager.state = GameState.PAUSED
+        pygame.event.post(key_down_event(pygame.K_ESCAPE))
+        game_manager.handle_events()
+        assert game_manager.state == GameState.RUNNING
+
+    def test_esc_during_title_screen_does_nothing(
+        self, game_manager_at_title, key_down_event
+    ):
+        """ESC during TITLE_SCREEN does nothing."""
+        pygame.event.post(key_down_event(pygame.K_ESCAPE))
+        game_manager_at_title.handle_events()
+        assert game_manager_at_title.state == GameState.TITLE_SCREEN
+
+    def test_esc_during_options_from_title_returns_to_title(
+        self, game_manager_at_title, key_down_event
+    ):
+        """ESC during OPTIONS_MENU (from title) saves and returns to TITLE_SCREEN."""
+        gm = game_manager_at_title
+        gm.state = GameState.OPTIONS_MENU
+        gm._options_from_pause = False
+        gm.settings_manager = MagicMock()
+        pygame.event.post(key_down_event(pygame.K_ESCAPE))
+        gm.handle_events()
+        assert gm.state == GameState.TITLE_SCREEN
+        gm.settings_manager.save.assert_called_once()
+
+    def test_esc_during_options_from_pause_returns_to_paused(
+        self, game_manager, key_down_event
+    ):
+        """ESC during OPTIONS_MENU (from pause) saves and returns to PAUSED."""
+        gm = game_manager
+        gm.state = GameState.OPTIONS_MENU
+        gm._options_from_pause = True
+        gm.settings_manager = MagicMock()
+        pygame.event.post(key_down_event(pygame.K_ESCAPE))
+        gm.handle_events()
+        assert gm.state == GameState.PAUSED
+        gm.settings_manager.save.assert_called_once()
+
+    def test_esc_during_game_over_does_nothing(self, game_manager, key_down_event):
+        """ESC during GAME_OVER does nothing."""
+        game_manager.state = GameState.GAME_OVER
+        pygame.event.post(key_down_event(pygame.K_ESCAPE))
+        game_manager.handle_events()
+        assert game_manager.state == GameState.GAME_OVER
+
+    def test_esc_during_game_over_animation_does_nothing(
+        self, game_manager, key_down_event
+    ):
+        """ESC during GAME_OVER_ANIMATION does nothing."""
+        game_manager.state = GameState.GAME_OVER_ANIMATION
+        pygame.event.post(key_down_event(pygame.K_ESCAPE))
+        game_manager.handle_events()
+        assert game_manager.state == GameState.GAME_OVER_ANIMATION
+
+    def test_esc_during_game_complete_does_nothing(
+        self, game_manager, key_down_event
+    ):
+        """ESC during GAME_COMPLETE does nothing."""
+        game_manager.state = GameState.GAME_COMPLETE
+        pygame.event.post(key_down_event(pygame.K_ESCAPE))
+        game_manager.handle_events()
+        assert game_manager.state == GameState.GAME_COMPLETE
+
+    def test_esc_during_victory_does_nothing(
+        self, game_manager, key_down_event
+    ):
+        """ESC during VICTORY does nothing."""
+        game_manager.state = GameState.VICTORY
+        pygame.event.post(key_down_event(pygame.K_ESCAPE))
+        game_manager.handle_events()
+        assert game_manager.state == GameState.VICTORY
+
+    # --- Title screen options and quit ---
+
+    def test_title_options_transitions_to_options_menu(
+        self, game_manager_at_title, key_down_event
+    ):
+        """Enter on OPTIONS (index 2) on title screen goes to OPTIONS_MENU."""
+        gm = game_manager_at_title
+        gm._title_selection = 2
+        pygame.event.post(key_down_event(pygame.K_RETURN))
+        gm.handle_events()
+        assert gm.state == GameState.OPTIONS_MENU
+        assert gm._options_from_pause is False
+        assert gm._options_selection == 0
+
+    def test_title_demo_starts_game(self, game_manager_at_title, key_down_event):
+        """Enter on DEMO (index 3) on title screen starts demo mode."""
+        gm = game_manager_at_title
+        gm._title_selection = 3
+        pygame.event.post(key_down_event(pygame.K_RETURN))
+        gm.handle_events()
+        assert gm.state == GameState.STAGE_CURTAIN_CLOSE
+        assert gm._demo_mode is True
+
+    def test_title_quit_exits(self, game_manager_at_title, key_down_event):
+        """Enter on QUIT (index 4) on title screen exits the game."""
+        gm = game_manager_at_title
+        gm._title_selection = 4
+        gm.sound_manager = MagicMock()
+        pygame.event.post(key_down_event(pygame.K_RETURN))
+        gm.handle_events()
+        assert gm.state == GameState.EXIT
+
+    # --- Pause menu navigation ---
+
+    def test_pause_resume(self, game_manager, key_down_event):
+        """Enter on RESUME (0) in pause menu returns to RUNNING."""
+        gm = game_manager
+        gm.state = GameState.PAUSED
+        gm._pause_selection = 0
+        pygame.event.post(key_down_event(pygame.K_RETURN))
+        gm.handle_events()
+        assert gm.state == GameState.RUNNING
+
+    def test_pause_options(self, game_manager, key_down_event):
+        """Enter on OPTIONS (1) in pause menu goes to OPTIONS_MENU."""
+        gm = game_manager
+        gm.state = GameState.PAUSED
+        gm._pause_selection = 1
+        gm.sound_manager = MagicMock()
+        pygame.event.post(key_down_event(pygame.K_RETURN))
+        gm.handle_events()
+        assert gm.state == GameState.OPTIONS_MENU
+        assert gm._options_from_pause is True
+        assert gm._options_selection == 0
+
+    def test_pause_title_screen(self, game_manager, key_down_event):
+        """Enter on TITLE SCREEN (2) in pause menu returns to title."""
+        gm = game_manager
+        gm.state = GameState.PAUSED
+        gm._pause_selection = 2
+        gm.sound_manager = MagicMock()
+        pygame.event.post(key_down_event(pygame.K_RETURN))
+        gm.handle_events()
+        assert gm.state == GameState.TITLE_SCREEN
+        assert gm._title_selection == 0
+        gm.sound_manager.stop_loops.assert_called_once()
+
+    def test_pause_quit(self, game_manager, key_down_event):
+        """Enter on QUIT (3) in pause menu exits the game."""
+        gm = game_manager
+        gm.state = GameState.PAUSED
+        gm._pause_selection = 3
+        gm.sound_manager = MagicMock()
+        pygame.event.post(key_down_event(pygame.K_RETURN))
+        gm.handle_events()
+        assert gm.state == GameState.EXIT
+
+    def test_pause_navigation_up_down(self, game_manager, key_down_event):
+        """UP/DOWN navigation wraps through 4 pause items."""
+        gm = game_manager
+        gm.state = GameState.PAUSED
+        gm._pause_selection = 0
+        gm.sound_manager = MagicMock()
+        # Down from 0 -> 1
+        pygame.event.post(key_down_event(pygame.K_DOWN))
+        gm.handle_events()
+        assert gm._pause_selection == 1
+        # Down from 1 -> 2
+        pygame.event.post(key_down_event(pygame.K_DOWN))
+        gm.handle_events()
+        assert gm._pause_selection == 2
+        # Down from 2 -> 3
+        pygame.event.post(key_down_event(pygame.K_DOWN))
+        gm.handle_events()
+        assert gm._pause_selection == 3
+        # Down from 3 -> 0 (wrap)
+        pygame.event.post(key_down_event(pygame.K_DOWN))
+        gm.handle_events()
+        assert gm._pause_selection == 0
+        # Up from 0 -> 3 (wrap)
+        pygame.event.post(key_down_event(pygame.K_UP))
+        gm.handle_events()
+        assert gm._pause_selection == 3
+
+    def test_pause_plays_menu_select_on_navigation(
+        self, game_manager, key_down_event
+    ):
+        """Navigating pause menu plays menu_select sound."""
+        gm = game_manager
+        gm.state = GameState.PAUSED
+        gm._pause_selection = 0
+        gm.sound_manager = MagicMock()
+        pygame.event.post(key_down_event(pygame.K_DOWN))
+        gm.handle_events()
+        gm.sound_manager.play_menu_select.assert_called()
+
+    # --- Options menu ---
+
+    def test_options_volume_left_decreases(self, game_manager, key_down_event):
+        """LEFT on VOLUME (0) in options decreases master volume."""
+        gm = game_manager
+        gm.state = GameState.OPTIONS_MENU
+        gm._options_selection = 0
+        gm.settings_manager = MagicMock()
+        gm.settings_manager.master_volume = 0.5
+        gm.sound_manager = MagicMock()
+        pygame.event.post(key_down_event(pygame.K_LEFT))
+        gm.handle_events()
+        assert gm.settings_manager.master_volume == pytest.approx(0.4, abs=0.01)
+        gm.sound_manager.set_master_volume.assert_called_once_with(
+            pytest.approx(0.4, abs=0.01)
+        )
+
+    def test_options_volume_right_increases(self, game_manager, key_down_event):
+        """RIGHT on VOLUME (0) in options increases master volume."""
+        gm = game_manager
+        gm.state = GameState.OPTIONS_MENU
+        gm._options_selection = 0
+        gm.settings_manager = MagicMock()
+        gm.settings_manager.master_volume = 0.5
+        gm.sound_manager = MagicMock()
+        pygame.event.post(key_down_event(pygame.K_RIGHT))
+        gm.handle_events()
+        assert gm.settings_manager.master_volume == pytest.approx(0.6, abs=0.01)
+        gm.sound_manager.set_master_volume.assert_called_once_with(
+            pytest.approx(0.6, abs=0.01)
+        )
+
+    def test_options_volume_clamps_at_zero(self, game_manager, key_down_event):
+        """Volume does not go below 0.0."""
+        gm = game_manager
+        gm.state = GameState.OPTIONS_MENU
+        gm._options_selection = 0
+        gm.settings_manager = MagicMock()
+        gm.settings_manager.master_volume = 0.0
+        gm.sound_manager = MagicMock()
+        pygame.event.post(key_down_event(pygame.K_LEFT))
+        gm.handle_events()
+        assert gm.settings_manager.master_volume == 0.0
+
+    def test_options_volume_clamps_at_one(self, game_manager, key_down_event):
+        """Volume does not go above 1.0."""
+        gm = game_manager
+        gm.state = GameState.OPTIONS_MENU
+        gm._options_selection = 0
+        gm.settings_manager = MagicMock()
+        gm.settings_manager.master_volume = 1.0
+        gm.sound_manager = MagicMock()
+        pygame.event.post(key_down_event(pygame.K_RIGHT))
+        gm.handle_events()
+        assert gm.settings_manager.master_volume == 1.0
+
+    def test_options_back_saves_and_returns_to_title(
+        self, game_manager, key_down_event
+    ):
+        """Enter on BACK (1) in options saves and returns to origin."""
+        gm = game_manager
+        gm.state = GameState.OPTIONS_MENU
+        gm._options_selection = 1
+        gm._options_from_pause = False
+        gm.settings_manager = MagicMock()
+        pygame.event.post(key_down_event(pygame.K_RETURN))
+        gm.handle_events()
+        assert gm.state == GameState.TITLE_SCREEN
+        gm.settings_manager.save.assert_called_once()
+
+    def test_options_back_saves_and_returns_to_pause(
+        self, game_manager, key_down_event
+    ):
+        """Enter on BACK (1) in options from pause saves and returns to PAUSED."""
+        gm = game_manager
+        gm.state = GameState.OPTIONS_MENU
+        gm._options_selection = 1
+        gm._options_from_pause = True
+        gm.settings_manager = MagicMock()
+        pygame.event.post(key_down_event(pygame.K_RETURN))
+        gm.handle_events()
+        assert gm.state == GameState.PAUSED
+        gm.settings_manager.save.assert_called_once()
+
+    def test_options_navigation_up_down(self, game_manager, key_down_event):
+        """UP/DOWN navigation wraps between 2 options items."""
+        gm = game_manager
+        gm.state = GameState.OPTIONS_MENU
+        gm._options_selection = 0
+        gm.sound_manager = MagicMock()
+        pygame.event.post(key_down_event(pygame.K_DOWN))
+        gm.handle_events()
+        assert gm._options_selection == 1
+        pygame.event.post(key_down_event(pygame.K_DOWN))
+        gm.handle_events()
+        assert gm._options_selection == 0
+
+    # --- Update early return for PAUSED/OPTIONS_MENU ---
+
+    def test_update_does_nothing_when_paused(self, game_manager):
+        """Update does not process game logic when PAUSED."""
+        gm = game_manager
+        gm.state = GameState.PAUSED
+        gm.player_tank.update = MagicMock()
+        gm.update()
+        gm.player_tank.update.assert_not_called()
+
+    def test_update_does_nothing_when_in_options(self, game_manager):
+        """Update does not process game logic when in OPTIONS_MENU."""
+        gm = game_manager
+        gm.state = GameState.OPTIONS_MENU
+        gm.player_tank.update = MagicMock()
+        gm.update()
+        gm.player_tank.update.assert_not_called()
+
+    # --- Render routing ---
+
+    def test_render_paused_calls_render_pause_menu(self, game_manager):
+        """PAUSED state renders pause menu overlay."""
+        gm = game_manager
+        gm.state = GameState.PAUSED
+        gm.renderer = MagicMock()
+        gm.render()
+        gm.renderer.render_pause_menu.assert_called_once_with(gm._pause_selection)
+
+    def test_render_options_calls_render_options_menu(self, game_manager):
+        """OPTIONS_MENU state renders options menu."""
+        gm = game_manager
+        gm.state = GameState.OPTIONS_MENU
+        gm.renderer = MagicMock()
+        gm.settings_manager = MagicMock()
+        gm.settings_manager.master_volume = 0.7
+        gm.render()
+        gm.renderer.render_options_menu.assert_called_once_with(
+            0.7, gm._options_selection
+        )
+
+    def test_render_title_uses_title_selection(self, game_manager_at_title):
+        """TITLE_SCREEN renders with _title_selection."""
+        gm = game_manager_at_title
+        gm.renderer = MagicMock()
+        gm._title_selection = 2
+        gm.render()
+        gm.renderer.render_title_screen.assert_called_once_with(2)

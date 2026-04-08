@@ -24,10 +24,11 @@ class SoundManager:
         "powerup_spawn": "assets/sounds/powerup_spawn.wav",
     }
 
-    def __init__(self) -> None:
+    def __init__(self, master_volume: float = 1.0) -> None:
         self._enabled: bool = False
         self._sounds: dict[str, pygame.mixer.Sound] = {}
         self._looping_channels: dict[str, pygame.mixer.Channel] = {}
+        self._master_volume: float = 1.0
 
         try:
             pygame.mixer.init()
@@ -47,6 +48,16 @@ class SoundManager:
         n_loaded = len(self._sounds)
         n_total = len(self._SOUND_FILES)
         logger.info(f"SoundManager loaded {n_loaded}/{n_total} sounds.")
+
+        self.set_master_volume(master_volume)
+
+    def set_master_volume(self, volume: float) -> None:
+        """Set master volume for all sounds, clamped to 0.0-1.0."""
+        self._master_volume = max(0.0, min(1.0, volume))
+        for sound in self._sounds.values():
+            sound.set_volume(self._master_volume)
+        for channel in self._looping_channels.values():
+            channel.set_volume(self._master_volume)
 
     def _play(self, name: str) -> None:
         """Play a named sound if enabled and loaded."""
@@ -110,6 +121,7 @@ class SoundManager:
         channel = pygame.mixer.find_channel()
         if channel is not None:
             channel.play(sound, loops=-1)
+            channel.set_volume(self._master_volume)
             self._looping_channels[name] = channel
 
     def _stop_loop(self, name: str) -> None:

@@ -199,3 +199,63 @@ class TestUpdatePowerupBlink:
             sm.update_powerup_blink(True)
             sm.update_powerup_blink(False)
             assert "powerup_spawn" not in sm._looping_channels
+
+
+class TestMasterVolume:
+    def test_set_master_volume_stores_value(self):
+        with patch("src.managers.sound_manager.pygame") as mock_pg:
+            mock_pg.mixer.Sound.return_value = MagicMock()
+            sm = SoundManager()
+            sm.set_master_volume(0.5)
+            assert sm._master_volume == 0.5
+
+    def test_set_master_volume_applies_to_sounds(self):
+        with patch("src.managers.sound_manager.pygame") as mock_pg:
+            mock_sound = MagicMock()
+            mock_pg.mixer.Sound.return_value = mock_sound
+            sm = SoundManager()
+            sm.set_master_volume(0.3)
+            mock_sound.set_volume.assert_called_with(0.3)
+
+    def test_set_master_volume_applies_to_looping_channels(self):
+        with patch("src.managers.sound_manager.pygame") as mock_pg:
+            mock_sound = MagicMock()
+            mock_pg.mixer.Sound.return_value = mock_sound
+            mock_channel = MagicMock()
+            mock_pg.mixer.find_channel.return_value = mock_channel
+            sm = SoundManager()
+            sm._start_loop("engine")
+            sm.set_master_volume(0.4)
+            mock_channel.set_volume.assert_called_with(0.4)
+
+    def test_init_with_master_volume(self):
+        with patch("src.managers.sound_manager.pygame") as mock_pg:
+            mock_sound = MagicMock()
+            mock_pg.mixer.Sound.return_value = mock_sound
+            sm = SoundManager(master_volume=0.6)
+            assert sm._master_volume == 0.6
+            mock_sound.set_volume.assert_called_with(0.6)
+
+    def test_start_loop_applies_master_volume_to_channel(self):
+        with patch("src.managers.sound_manager.pygame") as mock_pg:
+            mock_sound = MagicMock()
+            mock_pg.mixer.Sound.return_value = mock_sound
+            mock_channel = MagicMock()
+            mock_pg.mixer.find_channel.return_value = mock_channel
+            sm = SoundManager(master_volume=0.7)
+            sm._start_loop("engine")
+            mock_channel.set_volume.assert_called_with(0.7)
+
+    def test_set_master_volume_clamps_high(self):
+        with patch("src.managers.sound_manager.pygame") as mock_pg:
+            mock_pg.mixer.Sound.return_value = MagicMock()
+            sm = SoundManager()
+            sm.set_master_volume(1.5)
+            assert sm._master_volume == 1.0
+
+    def test_set_master_volume_clamps_low(self):
+        with patch("src.managers.sound_manager.pygame") as mock_pg:
+            mock_pg.mixer.Sound.return_value = MagicMock()
+            sm = SoundManager()
+            sm.set_master_volume(-0.3)
+            assert sm._master_volume == 0.0

@@ -41,13 +41,14 @@ from src.managers.spawn_manager import SpawnManager
 from src.managers.renderer import Renderer
 from src.managers.power_up_manager import PowerUpManager
 from src.managers.sound_manager import SoundManager
+from src.managers.settings_manager import SettingsManager
 from src.utils.paths import resource_path
 
 
 class GameManager:
     """Manages the core game loop and window."""
 
-    _SELECTABLE_MENU_INDICES = (0, 2)  # Skip disabled "2 PLAYERS" at index 1
+    _SELECTABLE_MENU_INDICES = (0, 2, 3, 4)  # Skip disabled "2 PLAYERS" at index 1
 
     def __init__(self) -> None:
         """Initialize the game window and persistent resources."""
@@ -66,10 +67,16 @@ class GameManager:
         self.clock: pygame.time.Clock = pygame.time.Clock()
         self.fps: int = FPS
         self.input_handler: InputHandler = InputHandler()
-        self.sound_manager: SoundManager = SoundManager()
+        self.settings_manager: SettingsManager = SettingsManager()
+        self.sound_manager: SoundManager = SoundManager(
+            master_volume=self.settings_manager.master_volume
+        )
 
         self.state: GameState = GameState.TITLE_SCREEN
-        self._menu_selection: int = 0  # 0 = 1 Player, 1 = 2 Players
+        self._title_selection: int = 0
+        self._pause_selection: int = 0
+        self._options_selection: int = 0
+        self._options_from_pause: bool = False
         self._state_timer: float = 0.0
         self._demo_mode: bool = False
 
@@ -234,49 +241,136 @@ class GameManager:
                 self._quit_game()
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    logger.info("Escape key pressed, quitting game.")
-                    self._quit_game()
+                    self._handle_escape()
                 elif self.state == GameState.TITLE_SCREEN:
                     self._handle_title_input(event.key)
+                elif self.state == GameState.PAUSED:
+                    self._handle_pause_input(event.key)
+                elif self.state == GameState.OPTIONS_MENU:
+                    self._handle_options_input(event.key)
                 elif event.key == pygame.K_r and self.state in (
                     GameState.GAME_OVER,
                     GameState.GAME_COMPLETE,
                 ):
                     logger.info("R key pressed, returning to title screen.")
                     self.state = GameState.TITLE_SCREEN
-                    self._menu_selection = 0
+                    self._title_selection = 0
 
             # Pass events to input handler only if game is running
             if self.state == GameState.RUNNING:
                 self.input_handler.handle_event(event)
 
+    def _handle_escape(self) -> None:
+        """Handle ESC key based on current state.
+
+        Only acts during RUNNING, PAUSED, and OPTIONS_MENU.
+        Ignored during animations, game over, and title screen.
+        """
+        if self.state == GameState.RUNNING:
+            logger.info("Game paused.")
+            self.sound_manager.stop_loops()
+            self._pause_selection = 0
+            self.state = GameState.PAUSED
+        elif self.state == GameState.PAUSED:
+            logger.info("Game resumed.")
+            self.state = GameState.RUNNING
+        elif self.state == GameState.OPTIONS_MENU:
+            self.settings_manager.save()
+            if self._options_from_pause:
+                self.state = GameState.PAUSED
+            else:
+                self.state = GameState.TITLE_SCREEN
+
     def _handle_title_input(self, key: int) -> None:
         """Handle keyboard input on the title screen."""
         if key in (pygame.K_UP, pygame.K_DOWN):
             indices = self._SELECTABLE_MENU_INDICES
-            if self._menu_selection in indices:
-                pos = indices.index(self._menu_selection)
+            if self._title_selection in indices:
+                pos = indices.index(self._title_selection)
             else:
                 pos = 0
             if key == pygame.K_UP:
                 pos = (pos - 1) % len(indices)
             else:
                 pos = (pos + 1) % len(indices)
-            self._menu_selection = indices[pos]
+            self._title_selection = indices[pos]
             self.sound_manager.play_menu_select()
         elif key == pygame.K_RETURN:
-            if self._menu_selection in (0, 2):
-                self._demo_mode = self._menu_selection == 2
+            if self._title_selection in (0, 3):
+                self._demo_mode = self._title_selection == 3
                 label = "Demo" if self._demo_mode else "1 Player"
                 logger.info(f"{label} selected, starting game.")
                 self._new_game()
                 self.state = GameState.STAGE_CURTAIN_CLOSE
                 self._state_timer = 0.0
                 self.sound_manager.play_stage_start()
+            elif self._title_selection == 2:
+                self._options_from_pause = False
+                self._options_selection = 0
+                self.state = GameState.OPTIONS_MENU
+            elif self._title_selection == 4:
+                self._quit_game()
+
+    def _handle_pause_input(self, key: int) -> None:
+        """Handle keyboard input on the pause menu."""
+        if key in (pygame.K_UP, pygame.K_DOWN):
+            if key == pygame.K_UP:
+                self._pause_selection = (self._pause_selection - 1) % 4
+            else:
+                self._pause_selection = (self._pause_selection + 1) % 4
+            self.sound_manager.play_menu_select()
+        elif key == pygame.K_RETURN:
+            if self._pause_selection == 0:
+                # RESUME
+                self.state = GameState.RUNNING
+            elif self._pause_selection == 1:
+                # OPTIONS
+                self._options_from_pause = True
+                self._options_selection = 0
+                self.state = GameState.OPTIONS_MENU
+            elif self._pause_selection == 2:
+                # TITLE SCREEN
+                self.sound_manager.stop_loops()
+                self._title_selection = 0
+                self.state = GameState.TITLE_SCREEN
+            elif self._pause_selection == 3:
+                # QUIT
+                self._quit_game()
+
+    def _handle_options_input(self, key: int) -> None:
+        """Handle keyboard input on the options menu."""
+        if key in (pygame.K_UP, pygame.K_DOWN):
+            if key == pygame.K_UP:
+                self._options_selection = (self._options_selection - 1) % 2
+            else:
+                self._options_selection = (self._options_selection + 1) % 2
+            self.sound_manager.play_menu_select()
+        elif key == pygame.K_LEFT and self._options_selection == 0:
+            self.settings_manager.master_volume = max(
+                0.0, self.settings_manager.master_volume - 0.1
+            )
+            self.sound_manager.set_master_volume(self.settings_manager.master_volume)
+            self.sound_manager.play_menu_select()
+        elif key == pygame.K_RIGHT and self._options_selection == 0:
+            self.settings_manager.master_volume = min(
+                1.0, self.settings_manager.master_volume + 0.1
+            )
+            self.sound_manager.set_master_volume(self.settings_manager.master_volume)
+            self.sound_manager.play_menu_select()
+        elif key == pygame.K_RETURN:
+            if self._options_selection == 1:
+                self.settings_manager.save()
+                if self._options_from_pause:
+                    self.state = GameState.PAUSED
+                else:
+                    self.state = GameState.TITLE_SCREEN
 
     def update(self) -> None:
         """Update game state."""
         dt: float = 1.0 / self.fps
+
+        if self.state in (GameState.PAUSED, GameState.OPTIONS_MENU):
+            return
 
         if self.state == GameState.VICTORY:
             self._state_timer += dt
@@ -567,7 +661,7 @@ class GameManager:
     def render(self) -> None:
         """Render the game state."""
         if self.state == GameState.TITLE_SCREEN:
-            self.renderer.render_title_screen(self._menu_selection)
+            self.renderer.render_title_screen(self._title_selection)
             return
 
         if self.state in (
@@ -575,6 +669,16 @@ class GameManager:
             GameState.STAGE_CURTAIN_OPEN,
         ):
             self.renderer.render_curtain(self._curtain_progress, self.current_stage)
+            return
+
+        if self.state == GameState.OPTIONS_MENU:
+            self.renderer.render_options_menu(
+                self.settings_manager.master_volume, self._options_selection
+            )
+            return
+
+        if self.state == GameState.PAUSED:
+            self.renderer.render_pause_menu(self._pause_selection)
             return
 
         game_over_rise_progress = None
