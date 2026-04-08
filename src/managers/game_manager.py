@@ -4,7 +4,7 @@ from typing import List, Optional
 from loguru import logger
 from src.core.map import Map
 from src.core.player_tank import PlayerTank
-from src.core.tile import Tile, TileType
+from src.core.tile import BrickVariant, Tile, TileType
 from src.core.bullet import Bullet
 from src.states.game_state import GameState
 from src.utils.constants import (
@@ -129,9 +129,8 @@ class GameManager:
             map_path = resource_path("assets/maps/level_01.tmx")
         self.map = Map(map_path, self.texture_manager)
 
-        # Compute map pixel dimensions (sub-tile grid * sub-tile size)
-        map_width_px = self.map.width * self.map.tile_size
-        map_height_px = self.map.height * self.map.tile_size
+        map_width_px = self.map.width_px
+        map_height_px = self.map.height_px
 
         # Effect manager
         self.effect_manager = EffectManager(self.texture_manager)
@@ -149,7 +148,6 @@ class GameManager:
             sound_manager=self.sound_manager,
         )
 
-        # Player tank (spawn coords are in sub-tile units)
         start_x = self.map.player_spawn[0] * self.map.tile_size
         start_y = self.map.player_spawn[1] * self.map.tile_size
         self.player_tank = PlayerTank(
@@ -172,15 +170,11 @@ class GameManager:
 
         # SpawnManager
         self.spawn_manager = SpawnManager(
-            tile_size=self.tile_size,
             texture_manager=self.texture_manager,
-            spawn_points=self.map.spawn_points,
+            game_map=self.map,
             enemy_composition=self.map.enemy_composition,
             spawn_interval=5.0,
             player_tank=self.player_tank,
-            game_map=self.map,
-            map_width_px=map_width_px,
-            map_height_px=map_height_px,
             effect_manager=self.effect_manager,
         )
 
@@ -518,9 +512,13 @@ class GameManager:
             tiles = self.map.get_base_surrounding_tiles(include_empty=True)
             # Restore destroyed and damaged tiles to full BRICK before fortifying
             for tile in tiles:
-                if tile.type == TileType.EMPTY or tile.brick_variant != "full":
+                damaged = (
+                    tile.type == TileType.EMPTY
+                    or tile.brick_variant != BrickVariant.FULL
+                )
+                if damaged:
                     self.map.set_tile_type(tile, TileType.BRICK)
-                    tile.brick_variant = "full"
+                    tile.brick_variant = BrickVariant.FULL
                     tile.reset_rect()
             # Save original types AFTER restoration (so BRICK, not EMPTY)
             self._shovel_original_tiles = [(t, t.type) for t in tiles]

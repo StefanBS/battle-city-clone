@@ -3,9 +3,9 @@ import pygame
 import pytmx
 from pytmx.util_pygame import load_pygame
 from loguru import logger
-from .tile import Tile, TileType
+from .tile import BrickVariant, Tile, TileType
 from src.managers.texture_manager import TextureManager
-from src.utils.constants import SUB_TILE_SIZE
+from src.utils.constants import Direction, SUB_TILE_SIZE
 
 
 class Map:
@@ -17,10 +17,10 @@ class Map:
 
     # Bullet direction → surviving brick half variant
     _DIRECTION_TO_VARIANT = {
-        "right": "right",
-        "left": "left",
-        "down": "bottom",
-        "up": "top",
+        Direction.RIGHT: BrickVariant.RIGHT,
+        Direction.LEFT: BrickVariant.LEFT,
+        Direction.DOWN: BrickVariant.BOTTOM,
+        Direction.UP: BrickVariant.TOP,
     }
 
     def __init__(self, map_file: str, texture_manager: TextureManager) -> None:
@@ -56,7 +56,7 @@ class Map:
         self.height = tiled_map.height
 
         # Scan tileset for brick variant sprites and collision defaults
-        self._brick_variant_sprites: dict[str, pygame.Surface] = {}
+        self._brick_variant_sprites: dict[BrickVariant, pygame.Surface] = {}
         self._tile_type_sprites: dict[TileType, pygame.Surface] = {}
         self._tile_collision_defaults: dict[TileType, tuple[bool, bool]] = {}
         self._scan_tileset(tiled_map)
@@ -77,7 +77,7 @@ class Map:
             animation_cache: dict[int, list] = {}
             for x, y, gid in tile_layer.iter_data():
                 tile_type = TileType.EMPTY
-                brick_variant = "full"
+                brick_variant = BrickVariant.FULL
                 tile_image = None
                 blocks_tanks = False
                 blocks_bullets = False
@@ -89,7 +89,9 @@ class Map:
                         tile_type_str = (props.get("tile_type") or "").strip()
                         if tile_type_str:
                             tile_type = TileType[tile_type_str]
-                        brick_variant = props.get("brick_variant") or "full"
+                        bv_str = props.get("brick_variant")
+                        if bv_str:
+                            brick_variant = BrickVariant(bv_str)
                         blocks_tanks = bool(props.get("blocks_tanks", False))
                         blocks_bullets = bool(props.get("blocks_bullets", False))
 
@@ -174,7 +176,8 @@ class Map:
                     bb = bool(props.get("blocks_bullets", False))
                     self._tile_collision_defaults[tile_type_enum] = (bt, bb)
             if tt == "BRICK":
-                key = props.get("brick_variant") or "full"
+                bv_str = props.get("brick_variant") or "full"
+                key = BrickVariant(bv_str)
                 self._cache_sprite(self._brick_variant_sprites, key, tiled_map, gid)
 
     def _cache_sprite(self, cache: dict, key, tiled_map, gid: int) -> None:
@@ -247,6 +250,20 @@ class Map:
                 if tile.is_animated:
                     self._animated_tiles.append(tile)
 
+    @property
+    def width_px(self) -> int:
+        """Map width in pixels."""
+        return self.width * self.tile_size
+
+    @property
+    def height_px(self) -> int:
+        """Map height in pixels."""
+        return self.height * self.tile_size
+
+    def grid_to_pixels(self, grid_x: int, grid_y: int) -> Tuple[int, int]:
+        """Convert grid coordinates to pixel coordinates."""
+        return grid_x * self.tile_size, grid_y * self.tile_size
+
     def update(self, dt: float) -> None:
         """Update animated tiles only."""
         for tile in self._animated_tiles:
@@ -293,10 +310,10 @@ class Map:
 
     # Half-brick rect offsets: variant → (dx, dy, w, h) as fractions of tile size
     _VARIANT_RECT = {
-        "left": (0, 0, 0.5, 1),
-        "right": (0.5, 0, 0.5, 1),
-        "top": (0, 0, 1, 0.5),
-        "bottom": (0, 0.5, 1, 0.5),
+        BrickVariant.LEFT: (0, 0, 0.5, 1),
+        BrickVariant.RIGHT: (0.5, 0, 0.5, 1),
+        BrickVariant.TOP: (0, 0, 1, 0.5),
+        BrickVariant.BOTTOM: (0, 0.5, 1, 0.5),
     }
 
     def _damage_single_brick(self, tile: Tile, bullet_direction: str) -> None:
@@ -304,8 +321,7 @@ class Map:
         if tile.type != TileType.BRICK:
             return
 
-        # Non-full bricks are destroyed entirely
-        if tile.brick_variant != "full":
+        if tile.brick_variant != BrickVariant.FULL:
             self.set_tile_type(tile, TileType.EMPTY)
             return
 

@@ -77,10 +77,6 @@ def test_enemy_spawning_rules(game_manager_fixture):
     )
     logger.debug(f"Cleared initial enemy. Max spawns to test: {max_spawns}")
 
-    dt = 1.0 / FPS
-    update_duration_between_spawns = 0.2  # Simulate time for enemies to move
-    num_updates_between_spawns = int(update_duration_between_spawns / dt)
-
     max_attempts = max_spawns * 3  # Allow retries for blocked spawns
     attempt = 0
     while game_manager.spawn_manager.total_enemy_spawns < max_spawns:
@@ -236,13 +232,15 @@ def test_enemy_spawn_blocked(game_manager_fixture):
         )
 
     # Because one point is blocked, we might not reach max_spawns
-    assert len(game_manager.spawn_manager.enemy_tanks) <= max_spawns, (
-        f"Enemy count ({len(game_manager.spawn_manager.enemy_tanks)}) exceeded max spawns "
-        f"({max_spawns})."
+    enemy_count = len(game_manager.spawn_manager.enemy_tanks)
+    assert enemy_count <= max_spawns, (
+        f"Enemy count ({enemy_count}) exceeded "
+        f"max spawns ({max_spawns})."
     )
-    assert game_manager.spawn_manager.total_enemy_spawns <= max_spawns, (
-        f"Total enemy spawns ({game_manager.spawn_manager.total_enemy_spawns}) exceeded max "
-        f"spawns ({max_spawns})."
+    total_spawns = game_manager.spawn_manager.total_enemy_spawns
+    assert total_spawns <= max_spawns, (
+        f"Total enemy spawns ({total_spawns}) exceeded "
+        f"max spawns ({max_spawns})."
     )
     logger.info("Blocked spawn point test completed.")
 
@@ -414,7 +412,7 @@ def test_enemy_movement_blocked_by_tile(
                 assert (
                     original_tile is not None and original_tile.type == TileType.EMPTY
                 ), (
-                    f"Target location ({sx}, {sy}) for blocking tile is not EMPTY in default map."
+                    f"Target ({sx}, {sy}) is not EMPTY."
                 )
                 tile = Tile(
                     blocking_tile_type,

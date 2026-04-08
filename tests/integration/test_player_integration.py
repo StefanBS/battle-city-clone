@@ -5,7 +5,6 @@ from src.managers.game_manager import GameManager
 from src.utils.constants import (
     Direction,
     FPS,
-    TILE_SIZE,
     SUB_TILE_SIZE,
     BULLET_WIDTH,
     BULLET_HEIGHT,
@@ -187,7 +186,6 @@ def test_player_movement_blocked_by_tile(
         round(start_x), round(start_y), player_tank.width, player_tank.height
     )
 
-    initial_pos = player_tank.get_position()
     dt = 1.0 / FPS
     update_duration = 0.2  # Simulate for a short duration
     num_updates = int(update_duration / dt)
