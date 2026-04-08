@@ -62,6 +62,12 @@ class InputHandler:
                 dy += ddy
         return (dx, dy)
 
+    def reset(self) -> None:
+        """Reset all input state. Called between stages."""
+        for direction in self.directions:
+            self.directions[direction] = False
+        self.shoot_pressed = False
+
     def consume_shoot(self) -> bool:
         """
         Check if shoot was pressed and reset the flag.

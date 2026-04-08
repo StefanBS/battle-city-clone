@@ -108,6 +108,8 @@ class GameManager:
         """Load/reload a stage. Preserves score, current_stage, and player progress."""
         logger.info(f"Loading stage {self.current_stage}...")
 
+        self.input_handler.reset()
+
         # Preserve player progress across stages
         player_lives = self.player_tank.lives if self.player_tank is not None else 3
         player_star_level = (
