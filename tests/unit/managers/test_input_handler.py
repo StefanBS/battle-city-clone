@@ -274,3 +274,64 @@ class TestJoystickReset:
         handler.reset()
         assert all(not v for v in handler.joy_directions.values())
         assert not handler.shoot_pressed
+
+
+class TestJoystickHat:
+    """Tests for D-pad (hat) input handling."""
+
+    def test_hat_up(self, handler, joy_hat_event) -> None:
+        """Hat UP sets joy_directions UP."""
+        handler.handle_event(joy_hat_event((0, 1)))
+        assert handler.joy_directions[Direction.UP]
+        assert not handler.joy_directions[Direction.DOWN]
+
+    def test_hat_down(self, handler, joy_hat_event) -> None:
+        """Hat DOWN sets joy_directions DOWN."""
+        handler.handle_event(joy_hat_event((0, -1)))
+        assert handler.joy_directions[Direction.DOWN]
+
+    def test_hat_left(self, handler, joy_hat_event) -> None:
+        """Hat LEFT sets joy_directions LEFT."""
+        handler.handle_event(joy_hat_event((-1, 0)))
+        assert handler.joy_directions[Direction.LEFT]
+
+    def test_hat_right(self, handler, joy_hat_event) -> None:
+        """Hat RIGHT sets joy_directions RIGHT."""
+        handler.handle_event(joy_hat_event((1, 0)))
+        assert handler.joy_directions[Direction.RIGHT]
+
+    def test_hat_release(self, handler, joy_hat_event) -> None:
+        """Hat (0,0) clears all joy_directions."""
+        handler.handle_event(joy_hat_event((0, 1)))
+        assert handler.joy_directions[Direction.UP]
+        handler.handle_event(joy_hat_event((0, 0)))
+        assert all(not v for v in handler.joy_directions.values())
+
+    def test_hat_diagonal_prefers_vertical(self, handler, joy_hat_event) -> None:
+        """Diagonal hat values pick vertical axis (NES behavior)."""
+        handler.handle_event(joy_hat_event((1, 1)))
+        assert handler.joy_directions[Direction.UP]
+        assert not handler.joy_directions[Direction.RIGHT]
+
+        handler.handle_event(joy_hat_event((-1, -1)))
+        assert handler.joy_directions[Direction.DOWN]
+        assert not handler.joy_directions[Direction.LEFT]
+
+    def test_hat_merges_with_keyboard(
+        self, handler, key_down_event, joy_hat_event
+    ) -> None:
+        """get_movement_direction merges keyboard and joystick (OR logic)."""
+        handler.handle_event(key_down_event(pygame.K_UP))
+        handler.handle_event(joy_hat_event((1, 0)))
+        dx, dy = handler.get_movement_direction()
+        # keyboard UP (-1 dy) + joystick RIGHT (+1 dx)
+        assert dx == 1
+        assert dy == -1
+
+    def test_hat_direction_replaces_previous(self, handler, joy_hat_event) -> None:
+        """New hat direction replaces previous (only one joy direction active)."""
+        handler.handle_event(joy_hat_event((0, 1)))
+        assert handler.joy_directions[Direction.UP]
+        handler.handle_event(joy_hat_event((1, 0)))
+        assert handler.joy_directions[Direction.RIGHT]
+        assert not handler.joy_directions[Direction.UP]

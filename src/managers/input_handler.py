@@ -75,10 +75,26 @@ class InputHandler:
                 self.joystick = None
                 for direction in self.joy_directions:
                     self.joy_directions[direction] = False
+        elif event.type == pygame.JOYHATMOTION:
+            hat_x, hat_y = event.value
+            # Reset all joystick directions first
+            for direction in self.joy_directions:
+                self.joy_directions[direction] = False
+            # Vertical takes priority (NES behavior) for diagonals
+            if hat_y > 0:
+                self.joy_directions[Direction.UP] = True
+            elif hat_y < 0:
+                self.joy_directions[Direction.DOWN] = True
+            elif hat_x > 0:
+                self.joy_directions[Direction.RIGHT] = True
+            elif hat_x < 0:
+                self.joy_directions[Direction.LEFT] = True
 
     def get_movement_direction(self) -> Tuple[int, int]:
         """
         Get the current movement direction as a vector.
+
+        Merges keyboard and joystick input (OR logic).
 
         Returns:
             A tuple (dx, dy) representing the movement direction
@@ -86,6 +102,11 @@ class InputHandler:
         dx = 0
         dy = 0
         for direction, pressed in self.directions.items():
+            if pressed:
+                ddx, ddy = direction.delta
+                dx += ddx
+                dy += ddy
+        for direction, pressed in self.joy_directions.items():
             if pressed:
                 ddx, ddy = direction.delta
                 dx += ddx
