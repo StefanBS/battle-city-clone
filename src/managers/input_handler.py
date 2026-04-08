@@ -4,6 +4,8 @@ from loguru import logger
 from src.utils.constants import Direction
 
 AXIS_DEADZONE: float = 0.5
+SHOOT_BUTTONS: tuple[int, ...] = (0, 1)  # A/Cross, B/Circle
+START_BUTTON: int = 7
 
 
 class InputHandler:
@@ -91,6 +93,9 @@ class InputHandler:
                 self.joy_directions[Direction.RIGHT] = True
             elif hat_x < 0:
                 self.joy_directions[Direction.LEFT] = True
+        elif event.type == pygame.JOYBUTTONDOWN:
+            if event.button in SHOOT_BUTTONS:
+                self.shoot_pressed = True
         elif event.type == pygame.JOYAXISMOTION:
             if event.axis == 0:  # Horizontal
                 if event.value < -AXIS_DEADZONE:

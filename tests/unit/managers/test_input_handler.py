@@ -377,3 +377,22 @@ class TestJoystickAxis:
         """Axes beyond 0 and 1 (triggers, right stick) are ignored."""
         handler.handle_event(joy_axis_event(axis=2, value=1.0))
         assert all(not v for v in handler.joy_directions.values())
+
+
+class TestJoystickButtons:
+    """Tests for joystick button input handling."""
+
+    def test_button_0_shoots(self, handler, joy_button_down_event) -> None:
+        """Button 0 (A/Cross) triggers shoot."""
+        handler.handle_event(joy_button_down_event(button=0))
+        assert handler.shoot_pressed
+
+    def test_button_1_shoots(self, handler, joy_button_down_event) -> None:
+        """Button 1 (B/Circle) triggers shoot."""
+        handler.handle_event(joy_button_down_event(button=1))
+        assert handler.shoot_pressed
+
+    def test_other_buttons_dont_shoot(self, handler, joy_button_down_event) -> None:
+        """Other buttons do not trigger shoot."""
+        handler.handle_event(joy_button_down_event(button=3))
+        assert not handler.shoot_pressed
