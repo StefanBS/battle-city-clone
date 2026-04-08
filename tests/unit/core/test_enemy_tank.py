@@ -11,28 +11,28 @@ from src.utils.constants import (
 
 # Define expected properties with resolved values matching enemy_types.json
 EXPECTED_PROPERTIES = {
-    "basic": {
+    TankType.BASIC: {
         "speed": 80,
         "bullet_speed": 180,
         "health": 1,
         "shoot_interval": 2.0,
         "direction_change_interval": 2.5,
     },
-    "fast": {
+    TankType.FAST: {
         "speed": 120,
         "bullet_speed": 180,
         "health": 1,
         "shoot_interval": 1.8,
         "direction_change_interval": 1.5,
     },
-    "power": {
+    TankType.POWER: {
         "speed": 92,
         "bullet_speed": 360,
         "health": 1,
         "shoot_interval": 1.0,
         "direction_change_interval": 2.0,
     },
-    "armor": {
+    TankType.ARMOR: {
         "speed": 60,
         "bullet_speed": 360,
         "health": 4,
@@ -118,7 +118,7 @@ def test_enemy_tank_grid_alignment(mock_texture_manager):
         initial_y,
         tile_size,
         mock_texture_manager,
-        tank_type="basic",
+        tank_type=TankType.BASIC,
         map_width_px=16 * TILE_SIZE,
         map_height_px=16 * TILE_SIZE,
     )
@@ -138,7 +138,7 @@ def test_on_movement_blocked(mock_random_choice, mock_texture_manager):
         0,
         TILE_SIZE,
         mock_texture_manager,
-        tank_type="basic",
+        tank_type=TankType.BASIC,
         map_width_px=16 * TILE_SIZE,
         map_height_px=16 * TILE_SIZE,
     )
@@ -163,7 +163,7 @@ def test_blocked_avoids_blocked_dirs(mock_random_choice, mock_texture_manager):
         0,
         TILE_SIZE,
         mock_texture_manager,
-        tank_type="basic",
+        tank_type=TankType.BASIC,
         map_width_px=16 * TILE_SIZE,
         map_height_px=16 * TILE_SIZE,
     )
@@ -189,7 +189,7 @@ def test_blocked_directions_persist_until_movement(
         0,
         TILE_SIZE,
         mock_texture_manager,
-        tank_type="basic",
+        tank_type=TankType.BASIC,
         map_width_px=16 * TILE_SIZE,
         map_height_px=16 * TILE_SIZE,
     )
@@ -217,7 +217,7 @@ def test_blocked_directions_cleared_on_successful_move(
         0,
         TILE_SIZE,
         mock_texture_manager,
-        tank_type="basic",
+        tank_type=TankType.BASIC,
         map_width_px=16 * TILE_SIZE,
         map_height_px=16 * TILE_SIZE,
     )
@@ -236,7 +236,7 @@ def test_consume_shoot_after_timer(mock_texture_manager):
         0,
         TILE_SIZE,
         mock_texture_manager,
-        tank_type="basic",
+        tank_type=TankType.BASIC,
         map_width_px=16 * TILE_SIZE,
         map_height_px=16 * TILE_SIZE,
     )
@@ -261,7 +261,7 @@ def test_update_moves_in_current_direction(
         0,
         TILE_SIZE,
         mock_texture_manager,
-        tank_type="basic",
+        tank_type=TankType.BASIC,
         map_width_px=16 * TILE_SIZE,
         map_height_px=16 * TILE_SIZE,
     )
@@ -361,7 +361,7 @@ class TestEnemyIceSlide:
     @pytest.fixture
     def enemy(self, mock_texture_manager):
         return EnemyTank(
-            128, 128, TILE_SIZE, mock_texture_manager, "basic",
+            128, 128, TILE_SIZE, mock_texture_manager, TankType.BASIC,
             map_width_px=16 * TILE_SIZE, map_height_px=16 * TILE_SIZE,
         )
 

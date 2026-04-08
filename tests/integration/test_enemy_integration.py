@@ -1,7 +1,7 @@
 import pytest
 from loguru import logger
 from unittest.mock import patch
-from src.utils.constants import Direction, FPS, TILE_SIZE, SUB_TILE_SIZE
+from src.utils.constants import Direction, FPS, TILE_SIZE, SUB_TILE_SIZE, TankType
 from src.core.tile import Tile, TileType
 from src.core.enemy_tank import EnemyTank
 import random
@@ -262,7 +262,7 @@ def test_enemy_movement_and_direction_change(
     # --- Clear existing and Spawn one enemy in open space --- #
     game_manager.spawn_manager.enemy_tanks = []
     game_manager.spawn_manager.total_enemy_spawns = 0
-    enemy_type = "basic"
+    enemy_type = TankType.BASIC
     start_x_grid, start_y_grid = 16, 16  # sub-tile grid coords
     start_x = start_x_grid * SUB_TILE_SIZE
     start_y = start_y_grid * SUB_TILE_SIZE
@@ -475,7 +475,7 @@ def test_enemy_movement_blocked_by_tile(
         start_y,
         TILE_SIZE,
         game_manager.texture_manager,
-        tank_type="basic",
+        tank_type=TankType.BASIC,
         map_width_px=map_w_px,
         map_height_px=map_h_px,
     )
@@ -519,7 +519,7 @@ def test_enemy_shooting(game_manager_fixture):
     # --- Clear existing and Spawn one enemy in open space --- #
     game_manager.spawn_manager.enemy_tanks = []
     game_manager.spawn_manager.total_enemy_spawns = 0
-    enemy_type = "basic"  # Basic shoot_interval is 2.0s
+    enemy_type = TankType.BASIC  # Basic shoot_interval is 2.0s
     start_x_grid, start_y_grid = 16, 16  # sub-tile grid coords
     start_x = start_x_grid * SUB_TILE_SIZE
     start_y = start_y_grid * SUB_TILE_SIZE

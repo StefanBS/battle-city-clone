@@ -1,6 +1,6 @@
 import pytest
 from loguru import logger
-from src.utils.constants import Direction, FPS, TILE_SIZE, SUB_TILE_SIZE
+from src.utils.constants import Direction, FPS, TILE_SIZE, SUB_TILE_SIZE, TankType
 from src.states.game_state import GameState
 from src.core.tile import Tile, TileType
 from src.core.enemy_tank import EnemyTank
@@ -131,7 +131,7 @@ def test_player_bullet_destroys_enemy_tank(game_manager_fixture, mocker):
     player_tank = game_manager.player_tank
 
     # --- Spawn Enemy Tank --- #
-    enemy_type = "basic"
+    enemy_type = TankType.BASIC
     enemy_x_grid = 14  # sub-tile grid coords
     enemy_y_grid = 10
     enemy_start_x = enemy_x_grid * SUB_TILE_SIZE
@@ -273,7 +273,7 @@ def test_enemy_bullet_hits_player_tank(
     # --- End Player Config ---
 
     # --- Spawn Enemy Tank Above Player --- #
-    enemy_type = "basic"
+    enemy_type = TankType.BASIC
     player_x_grid = int(player_tank.x // SUB_TILE_SIZE)
     player_y_grid = int(player_tank.y // SUB_TILE_SIZE)
     enemy_x_grid = player_x_grid
@@ -442,7 +442,7 @@ def test_enemy_bullet_hits_other_enemy(game_manager_fixture, mocker):
     game_manager = game_manager_fixture
 
     # --- Spawn Two Enemy Tanks --- #
-    enemy_type = "basic"
+    enemy_type = TankType.BASIC
     enemy1_x_grid, enemy1_y_grid = 16, 16  # Top enemy (shooter, sub-tile coords)
     enemy2_x_grid, enemy2_y_grid = 16, 20  # Bottom enemy (target, 4 sub-tiles apart)
 
@@ -535,7 +535,7 @@ def test_player_tank_vs_enemy_tank_no_overlap(game_manager_fixture, mocker):
     player_tank = game_manager.player_tank
 
     # --- Spawn an enemy tank directly above the player --- #
-    enemy_type = "basic"
+    enemy_type = TankType.BASIC
     player_x_grid = int(player_tank.x // SUB_TILE_SIZE)
     player_y_grid = int(player_tank.y // SUB_TILE_SIZE)
     # Place enemy 2 sub-tiles above (exactly adjacent)
@@ -610,7 +610,7 @@ def test_enemy_bullets_collide(game_manager_fixture, mocker):
     game_manager = game_manager_fixture
 
     # --- Spawn Two Enemy Tanks Facing Each Other --- #
-    enemy_type = "basic"
+    enemy_type = TankType.BASIC
     enemy1_x_grid, enemy1_y_grid = 2, 16  # Left enemy (sub-tile coords)
     enemy2_x_grid, enemy2_y_grid = 8, 16  # Right enemy (6 sub-tiles apart)
 

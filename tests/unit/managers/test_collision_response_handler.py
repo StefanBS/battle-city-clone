@@ -279,7 +279,7 @@ class TestTankVsTank:
             y,
             TILE_SIZE,
             mock_texture_manager,
-            tank_type="basic",
+            tank_type=TankType.BASIC,
             map_width_px=self.MAP_PX,
             map_height_px=self.MAP_PX,
         )

@@ -71,8 +71,7 @@ class EnemyTank(Tank):
             map_height_px: Map height in pixels (for boundary clamping)
         """
         config = _get_enemy_config()
-        type_key = tank_type.value if isinstance(tank_type, TankType) else tank_type
-        props = config[type_key]
+        props = config[tank_type.value]
 
         super().__init__(
             x,
