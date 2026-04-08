@@ -51,6 +51,14 @@ from src.managers.sound_manager import SoundManager
 from src.managers.settings_manager import SettingsManager
 from src.utils.paths import resource_path
 
+# Mapping from controller D-pad buttons to key constants for menu reuse.
+_CTRL_DPAD_TO_KEY: dict[int, int] = {
+    pygame.CONTROLLER_BUTTON_DPAD_UP: pygame.K_UP,
+    pygame.CONTROLLER_BUTTON_DPAD_DOWN: pygame.K_DOWN,
+    pygame.CONTROLLER_BUTTON_DPAD_LEFT: pygame.K_LEFT,
+    pygame.CONTROLLER_BUTTON_DPAD_RIGHT: pygame.K_RIGHT,
+}
+
 
 class GameManager:
     """Manages the core game loop and window."""
@@ -301,6 +309,17 @@ class GameManager:
             ):
                 self.input_handler.handle_event(event)
 
+    @staticmethod
+    def _translate_axis_to_key(
+        value: float, negative_key: int, positive_key: int
+    ) -> Optional[int]:
+        """Translate an axis value to a key constant using deadzone."""
+        if value < -AXIS_DEADZONE:
+            return negative_key
+        elif value > AXIS_DEADZONE:
+            return positive_key
+        return None
+
     def _translate_joy_event(self, event: pygame.event.Event) -> Optional[int]:
         """Translate a joystick/controller event to a key constant for menus.
 
@@ -311,12 +330,6 @@ class GameManager:
             A pygame key constant, or None if the event has no menu mapping.
         """
         # --- SDL GameController API ---
-        _CTRL_DPAD_TO_KEY = {
-            pygame.CONTROLLER_BUTTON_DPAD_UP: pygame.K_UP,
-            pygame.CONTROLLER_BUTTON_DPAD_DOWN: pygame.K_DOWN,
-            pygame.CONTROLLER_BUTTON_DPAD_LEFT: pygame.K_LEFT,
-            pygame.CONTROLLER_BUTTON_DPAD_RIGHT: pygame.K_RIGHT,
-        }
         if event.type == pygame.CONTROLLERBUTTONDOWN:
             if event.button in _CTRL_DPAD_TO_KEY:
                 return _CTRL_DPAD_TO_KEY[event.button]
@@ -327,15 +340,13 @@ class GameManager:
             return None
         elif event.type == pygame.CONTROLLERAXISMOTION:
             if event.axis == pygame.CONTROLLER_AXIS_LEFTX:
-                if event.value < -AXIS_DEADZONE:
-                    return pygame.K_LEFT
-                elif event.value > AXIS_DEADZONE:
-                    return pygame.K_RIGHT
+                return self._translate_axis_to_key(
+                    event.value, pygame.K_LEFT, pygame.K_RIGHT
+                )
             elif event.axis == pygame.CONTROLLER_AXIS_LEFTY:
-                if event.value < -AXIS_DEADZONE:
-                    return pygame.K_UP
-                elif event.value > AXIS_DEADZONE:
-                    return pygame.K_DOWN
+                return self._translate_axis_to_key(
+                    event.value, pygame.K_UP, pygame.K_DOWN
+                )
             return None
 
         # --- Raw joystick API ---
@@ -352,15 +363,13 @@ class GameManager:
             return None
         elif event.type == pygame.JOYAXISMOTION:
             if event.axis == 0:
-                if event.value < -AXIS_DEADZONE:
-                    return pygame.K_LEFT
-                elif event.value > AXIS_DEADZONE:
-                    return pygame.K_RIGHT
+                return self._translate_axis_to_key(
+                    event.value, pygame.K_LEFT, pygame.K_RIGHT
+                )
             elif event.axis == 1:
-                if event.value < -AXIS_DEADZONE:
-                    return pygame.K_UP
-                elif event.value > AXIS_DEADZONE:
-                    return pygame.K_DOWN
+                return self._translate_axis_to_key(
+                    event.value, pygame.K_UP, pygame.K_DOWN
+                )
             return None
         elif event.type == pygame.JOYBUTTONDOWN:
             if event.button in JOY_SHOOT_BUTTONS:

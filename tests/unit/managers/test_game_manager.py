@@ -40,7 +40,6 @@ class TestGameManager:
         pygame.init()
         manager = GameManager()
         manager._reset_game()
-        pygame.event.clear()  # Drain controller/joystick startup events
         yield manager
         pygame.quit()
 
@@ -49,7 +48,6 @@ class TestGameManager:
         """Create a GameManager at the title screen (no _reset_game)."""
         pygame.init()
         manager = GameManager()
-        pygame.event.clear()  # Drain controller/joystick startup events
         yield manager
         pygame.quit()
 
@@ -353,7 +351,6 @@ class TestGameManagerSoundWiring:
         pygame.init()
         manager = GameManager()
         manager._reset_game()
-        pygame.event.clear()  # Drain controller/joystick startup events
         yield manager
         pygame.quit()
 
@@ -362,7 +359,6 @@ class TestGameManagerSoundWiring:
         """Create a GameManager at the title screen (no _reset_game)."""
         pygame.init()
         manager = GameManager()
-        pygame.event.clear()  # Drain controller/joystick startup events
         yield manager
         pygame.quit()
 

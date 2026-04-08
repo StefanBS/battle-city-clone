@@ -7,13 +7,8 @@ from src.utils.constants import Direction
 
 @pytest.fixture
 def handler() -> InputHandler:
-    """Fixture to provide an InputHandler instance for each test.
-
-    Patches pygame.joystick.get_count to return 0 so that _init_joystick()
-    does not pick up a physically connected controller during tests.
-    """
-    with patch("src.managers.input_handler.pygame.joystick.get_count", return_value=0):
-        return InputHandler()
+    """Fixture to provide an InputHandler instance for each test."""
+    return InputHandler()
 
 
 def test_initialization(handler: InputHandler) -> None:

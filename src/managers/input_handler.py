@@ -55,13 +55,34 @@ class InputHandler:
 
     def _init_joystick(self) -> None:
         """Detect and initialize the first connected joystick."""
-        try:
-            if pygame.joystick.get_count() > 0:
-                self.joystick = pygame.joystick.Joystick(0)
-                self.joystick.init()
-                logger.info(f"Joystick connected: {self.joystick.get_name()}")
-        except pygame.error:
-            logger.debug("Joystick subsystem not initialized, skipping.")
+        if pygame.joystick.get_count() > 0:
+            self.joystick = pygame.joystick.Joystick(0)
+            self.joystick.init()
+            logger.info(f"Joystick connected: {self.joystick.get_name()}")
+
+    def _handle_horizontal_axis(self, value: float) -> None:
+        """Update joy_directions for a horizontal axis value."""
+        if value < -AXIS_DEADZONE:
+            self.joy_directions[Direction.LEFT] = True
+            self.joy_directions[Direction.RIGHT] = False
+        elif value > AXIS_DEADZONE:
+            self.joy_directions[Direction.RIGHT] = True
+            self.joy_directions[Direction.LEFT] = False
+        else:
+            self.joy_directions[Direction.LEFT] = False
+            self.joy_directions[Direction.RIGHT] = False
+
+    def _handle_vertical_axis(self, value: float) -> None:
+        """Update joy_directions for a vertical axis value."""
+        if value < -AXIS_DEADZONE:
+            self.joy_directions[Direction.UP] = True
+            self.joy_directions[Direction.DOWN] = False
+        elif value > AXIS_DEADZONE:
+            self.joy_directions[Direction.DOWN] = True
+            self.joy_directions[Direction.UP] = False
+        else:
+            self.joy_directions[Direction.UP] = False
+            self.joy_directions[Direction.DOWN] = False
 
     def handle_event(self, event: pygame.event.Event) -> None:
         """
@@ -121,25 +142,9 @@ class InputHandler:
                 self.joy_directions[direction] = False
         elif event.type == pygame.CONTROLLERAXISMOTION:
             if event.axis == pygame.CONTROLLER_AXIS_LEFTX:
-                if event.value < -AXIS_DEADZONE:
-                    self.joy_directions[Direction.LEFT] = True
-                    self.joy_directions[Direction.RIGHT] = False
-                elif event.value > AXIS_DEADZONE:
-                    self.joy_directions[Direction.RIGHT] = True
-                    self.joy_directions[Direction.LEFT] = False
-                else:
-                    self.joy_directions[Direction.LEFT] = False
-                    self.joy_directions[Direction.RIGHT] = False
+                self._handle_horizontal_axis(event.value)
             elif event.axis == pygame.CONTROLLER_AXIS_LEFTY:
-                if event.value < -AXIS_DEADZONE:
-                    self.joy_directions[Direction.UP] = True
-                    self.joy_directions[Direction.DOWN] = False
-                elif event.value > AXIS_DEADZONE:
-                    self.joy_directions[Direction.DOWN] = True
-                    self.joy_directions[Direction.UP] = False
-                else:
-                    self.joy_directions[Direction.UP] = False
-                    self.joy_directions[Direction.DOWN] = False
+                self._handle_vertical_axis(event.value)
 
         # --- Raw joystick API (unrecognized controllers) ---
         elif event.type == pygame.JOYHATMOTION:
@@ -158,26 +163,10 @@ class InputHandler:
             if event.button in JOY_SHOOT_BUTTONS:
                 self.shoot_pressed = True
         elif event.type == pygame.JOYAXISMOTION:
-            if event.axis == 0:  # Horizontal
-                if event.value < -AXIS_DEADZONE:
-                    self.joy_directions[Direction.LEFT] = True
-                    self.joy_directions[Direction.RIGHT] = False
-                elif event.value > AXIS_DEADZONE:
-                    self.joy_directions[Direction.RIGHT] = True
-                    self.joy_directions[Direction.LEFT] = False
-                else:
-                    self.joy_directions[Direction.LEFT] = False
-                    self.joy_directions[Direction.RIGHT] = False
-            elif event.axis == 1:  # Vertical
-                if event.value < -AXIS_DEADZONE:
-                    self.joy_directions[Direction.UP] = True
-                    self.joy_directions[Direction.DOWN] = False
-                elif event.value > AXIS_DEADZONE:
-                    self.joy_directions[Direction.DOWN] = True
-                    self.joy_directions[Direction.UP] = False
-                else:
-                    self.joy_directions[Direction.UP] = False
-                    self.joy_directions[Direction.DOWN] = False
+            if event.axis == 0:
+                self._handle_horizontal_axis(event.value)
+            elif event.axis == 1:
+                self._handle_vertical_axis(event.value)
 
     def get_movement_direction(self) -> Tuple[int, int]:
         """
