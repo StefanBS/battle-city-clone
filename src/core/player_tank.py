@@ -39,6 +39,8 @@ class PlayerTank(Tank):
             map_width_px: Map width in pixels (for boundary clamping)
             map_height_px: Map height in pixels (for boundary clamping)
         """
+        # Store spawn position before Tank.__init__ snaps to grid
+        self.initial_position = (float(x), float(y))
         super().__init__(
             x,
             y,
@@ -51,7 +53,6 @@ class PlayerTank(Tank):
             map_width_px=map_width_px,
             map_height_px=map_height_px,
         )
-        self.initial_position = (self.x, self.y)
         self.star_level: int = 0
         self._update_sprite()
         self._shield_frames: list[pygame.Surface] = [
