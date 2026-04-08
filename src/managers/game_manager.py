@@ -460,18 +460,17 @@ class GameManager:
         """Dispatch power-up effect by type."""
         if self.state != GameState.RUNNING:
             return
-        if power_up_type == PowerUpType.HELMET:
-            self._apply_helmet()
-        elif power_up_type == PowerUpType.EXTRA_LIFE:
-            self._apply_extra_life()
-        elif power_up_type == PowerUpType.BOMB:
-            self._apply_bomb()
-        elif power_up_type == PowerUpType.CLOCK:
-            self._apply_clock()
-        elif power_up_type == PowerUpType.SHOVEL:
-            self._apply_shovel()
-        elif power_up_type == PowerUpType.STAR:
-            self._apply_star()
+        handlers = {
+            PowerUpType.HELMET: self._apply_helmet,
+            PowerUpType.EXTRA_LIFE: self._apply_extra_life,
+            PowerUpType.BOMB: self._apply_bomb,
+            PowerUpType.CLOCK: self._apply_clock,
+            PowerUpType.SHOVEL: self._apply_shovel,
+            PowerUpType.STAR: self._apply_star,
+        }
+        handler = handlers.get(power_up_type)
+        if handler:
+            handler()
         else:
             logger.warning(f"Unhandled power-up type: {power_up_type}")
 
