@@ -65,8 +65,8 @@ class TestSpriteConfigLoading:
     def test_config_has_all_sprites(self):
         with open("assets/config/sprites.json") as f:
             config = json.load(f)
-        assert len(config["sprites"]) >= 70
-        assert "player_tank_up_1" in config["sprites"]
+        assert len(config["sprites"]) >= 62
+        assert "player_tank_tier0_up_1" in config["sprites"]
         assert "enemy_tank_up_1" in config["sprites"]
 
     def test_config_has_bullet_rects(self):

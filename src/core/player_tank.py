@@ -88,19 +88,12 @@ class PlayerTank(Tank):
         return SHIELD_FLICKER_INTERVAL
 
     def _update_sprite(self) -> None:
-        """Update sprite using tier-specific sprites when upgraded."""
-        if self.star_level > 0:
-            sprite_name = (
-                f"player_tank_tier{self.star_level}"
-                f"_{self.direction}_{self.animation_frame}"
-            )
-            try:
-                self.sprite = self.texture_manager.get_sprite(sprite_name)
-            except KeyError:
-                logger.warning(f"Tier sprite '{sprite_name}' not found, using base")
-                super()._update_sprite()
-        else:
-            super()._update_sprite()
+        """Update sprite using tier-specific sprites."""
+        sprite_name = (
+            f"player_tank_tier{self.star_level}"
+            f"_{self.direction}_{self.animation_frame}"
+        )
+        self.sprite = self.texture_manager.get_sprite(sprite_name)
 
     def activate_invincibility(self, duration: float) -> None:
         """Activate invincibility for the given duration."""
