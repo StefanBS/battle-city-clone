@@ -5,7 +5,7 @@ from pytmx.util_pygame import load_pygame
 from loguru import logger
 from .tile import BrickVariant, Tile, TileType
 from src.managers.texture_manager import TextureManager
-from src.utils.constants import SUB_TILE_SIZE
+from src.utils.constants import Direction, SUB_TILE_SIZE
 
 
 class Map:
@@ -17,10 +17,10 @@ class Map:
 
     # Bullet direction → surviving brick half variant
     _DIRECTION_TO_VARIANT = {
-        "right": BrickVariant.RIGHT,
-        "left": BrickVariant.LEFT,
-        "down": BrickVariant.BOTTOM,
-        "up": BrickVariant.TOP,
+        Direction.RIGHT: BrickVariant.RIGHT,
+        Direction.LEFT: BrickVariant.LEFT,
+        Direction.DOWN: BrickVariant.BOTTOM,
+        Direction.UP: BrickVariant.TOP,
     }
 
     def __init__(self, map_file: str, texture_manager: TextureManager) -> None:

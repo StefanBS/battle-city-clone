@@ -38,6 +38,10 @@ class TestSpawnManager:
         game_map.spawn_points = self.SPAWN_POINTS
         game_map.width_px = 16 * TILE_SIZE
         game_map.height_px = 16 * TILE_SIZE
+        game_map.tile_size = SUB_TILE_SIZE
+        game_map.grid_to_pixels.side_effect = (
+            lambda gx, gy: (gx * SUB_TILE_SIZE, gy * SUB_TILE_SIZE)
+        )
         return game_map
 
     @pytest.fixture
@@ -276,6 +280,10 @@ class TestSpawnAnimation:
         game_map.spawn_points = self.SPAWN_POINTS
         game_map.width_px = 16 * TILE_SIZE
         game_map.height_px = 16 * TILE_SIZE
+        game_map.tile_size = SUB_TILE_SIZE
+        game_map.grid_to_pixels.side_effect = (
+            lambda gx, gy: (gx * SUB_TILE_SIZE, gy * SUB_TILE_SIZE)
+        )
         return game_map
 
     @pytest.fixture
@@ -397,6 +405,10 @@ class TestSpawnManagerCarrier:
         game_map.spawn_points = self.SPAWN_POINTS
         game_map.width_px = 16 * TILE_SIZE
         game_map.height_px = 16 * TILE_SIZE
+        game_map.tile_size = SUB_TILE_SIZE
+        game_map.grid_to_pixels.side_effect = (
+            lambda gx, gy: (gx * SUB_TILE_SIZE, gy * SUB_TILE_SIZE)
+        )
         return game_map
 
     @pytest.fixture

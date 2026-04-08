@@ -14,7 +14,6 @@ from src.managers.texture_manager import TextureManager
 from src.utils.constants import (
     EffectType,
     POWERUP_CARRIER_INDICES,
-    SUB_TILE_SIZE,
     TILE_SIZE,
     TankType,
 )
@@ -133,8 +132,7 @@ class SpawnManager:
             return False
 
         spawn_grid_x, spawn_grid_y = random.choice(self.spawn_points)
-        x: int = spawn_grid_x * SUB_TILE_SIZE
-        y: int = spawn_grid_y * SUB_TILE_SIZE
+        x, y = game_map.grid_to_pixels(spawn_grid_x, spawn_grid_y)
 
         temp_rect = pygame.Rect(x, y, self.tile_size, self.tile_size)
         if self._is_spawn_blocked(temp_rect, player_tank, game_map):
