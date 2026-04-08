@@ -1,6 +1,6 @@
 import random
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 import pygame
 from loguru import logger
@@ -36,40 +36,32 @@ class SpawnManager:
 
     def __init__(
         self,
-        tile_size: int,
         texture_manager: TextureManager,
-        spawn_points: List[Tuple[int, int]],
+        game_map: Map,
         enemy_composition: dict[str, int],
         spawn_interval: float,
         player_tank: PlayerTank,
-        game_map: Map,
-        map_width_px: int,
-        map_height_px: int,
         effect_manager: Optional[EffectManager] = None,
     ) -> None:
         """Initialize the SpawnManager.
 
         Args:
-            tile_size: Size of each tile in pixels.
             texture_manager: TextureManager for loading enemy sprites.
-            spawn_points: List of (grid_x, grid_y) spawn locations.
+            game_map: The game map (spawn points, dimensions, collision).
             enemy_composition: Dict with keys "basic", "fast", "power", "armor"
                 mapping to enemy counts for this stage.
             spawn_interval: Seconds between spawn attempts.
             player_tank: The player tank (for collision checking on initial spawn).
-            game_map: The game map (for collision checking on initial spawn).
-            map_width_px: Map width in pixels (passed to spawned enemies).
-            map_height_px: Map height in pixels (passed to spawned enemies).
             effect_manager: EffectManager for spawn animations (optional).
         """
-        self.tile_size = tile_size
+        self.tile_size = TILE_SIZE
         self.texture_manager = texture_manager
-        self.spawn_points = spawn_points
+        self.spawn_points = game_map.spawn_points
         self._spawn_queue: List[TankType] = self._build_spawn_queue(enemy_composition)
         self.max_enemy_spawns: int = len(self._spawn_queue)
         self.spawn_interval = spawn_interval
-        self.map_width_px = map_width_px
-        self.map_height_px = map_height_px
+        self.map_width_px = game_map.width_px
+        self.map_height_px = game_map.height_px
         self.enemy_tanks: List[EnemyTank] = []
         self.total_enemy_spawns: int = 0
         self.spawn_timer: float = 0.0

@@ -170,15 +170,11 @@ class GameManager:
 
         # SpawnManager
         self.spawn_manager = SpawnManager(
-            tile_size=self.tile_size,
             texture_manager=self.texture_manager,
-            spawn_points=self.map.spawn_points,
+            game_map=self.map,
             enemy_composition=self.map.enemy_composition,
             spawn_interval=5.0,
             player_tank=self.player_tank,
-            game_map=self.map,
-            map_width_px=map_width_px,
-            map_height_px=map_height_px,
             effect_manager=self.effect_manager,
         )
 
