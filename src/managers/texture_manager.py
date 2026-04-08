@@ -14,7 +14,7 @@ from src.utils.constants import (
 class TextureManager:
     """Manages loading and accessing game textures."""
 
-    def __init__(self, texture_path: str, sprite_config_path: str = None):
+    def __init__(self, texture_path: str, *, sprite_config_path: str = None):
         """
         Initializes the TextureManager.
 

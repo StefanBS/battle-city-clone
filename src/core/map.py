@@ -55,9 +55,10 @@ class Map:
         self.width = tiled_map.width
         self.height = tiled_map.height
 
-        # Scan tileset for brick variant sprites
+        # Scan tileset for brick variant sprites and collision defaults
         self._brick_variant_sprites: dict[str, pygame.Surface] = {}
         self._tile_type_sprites: dict[TileType, pygame.Surface] = {}
+        self._tile_collision_defaults: dict[TileType, tuple[bool, bool]] = {}
         self._scan_tileset(tiled_map)
 
         # Initialize grid
@@ -141,7 +142,7 @@ class Map:
         self.enemy_composition = self._read_enemy_composition(tiled_map)
 
     def _scan_tileset(self, tiled_map: pytmx.TiledMap) -> None:
-        """Scan the tileset for brick variant sprites.
+        """Scan the tileset for brick variant sprites and collision defaults.
 
         Only iterates tiles that have custom properties defined,
         skipping the majority of tiles in large tilesets.
@@ -167,6 +168,11 @@ class Map:
                     self._cache_sprite(
                         self._tile_type_sprites, tile_type_enum, tiled_map, gid
                     )
+                # Build collision defaults from TSX (first occurrence wins)
+                if tile_type_enum not in self._tile_collision_defaults:
+                    bt = bool(props.get("blocks_tanks", False))
+                    bb = bool(props.get("blocks_bullets", False))
+                    self._tile_collision_defaults[tile_type_enum] = (bt, bb)
             if tt == "BRICK":
                 key = props.get("brick_variant") or "full"
                 self._cache_sprite(self._brick_variant_sprites, key, tiled_map, gid)
@@ -329,24 +335,12 @@ class Map:
             )
         self._tile_cache_dirty = True
 
-    # Default collision flags for tile types set at runtime via set_tile_type.
-    _TILE_COLLISION_DEFAULTS: dict[TileType, tuple[bool, bool]] = {
-        TileType.BRICK: (True, True),
-        TileType.STEEL: (True, True),
-        TileType.WATER: (True, False),
-        TileType.BASE: (True, True),
-        TileType.BASE_DESTROYED: (False, False),
-        TileType.BUSH: (False, False),
-        TileType.ICE: (False, False),
-        TileType.EMPTY: (False, False),
-    }
-
     def set_tile_type(self, tile: Tile, new_type: TileType) -> None:
         """Change a tile's type, update collision flags, and invalidate caches."""
         old_type = tile.type
         tile.type = new_type
         tile.tmx_sprite = self._tile_type_sprites.get(new_type)
-        bt, bb = self._TILE_COLLISION_DEFAULTS.get(new_type, (False, False))
+        bt, bb = self._tile_collision_defaults.get(new_type, (False, False))
         tile.blocks_tanks = bt
         tile.blocks_bullets = bb
         self._tile_cache_dirty = True

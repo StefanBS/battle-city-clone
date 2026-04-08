@@ -203,6 +203,76 @@ class TestEnemyCompositionFromTMX:
         assert sum(comp.values()) == 20
 
 
+class TestCollisionDefaultsFromTSX:
+    """Verify collision defaults are read from TSX, not hardcoded."""
+
+    @pytest.fixture
+    def game_map(self, mock_texture_manager):
+        return Map(TEST_MAP_PATH, mock_texture_manager)
+
+    def test_set_tile_type_updates_collision_flags(self, game_map):
+        """Changing tile type via set_tile_type updates collision flags."""
+        tile = game_map.get_tile_at(2, 2)  # BRICK
+        assert tile.blocks_tanks is True
+        game_map.set_tile_type(tile, TileType.EMPTY)
+        assert tile.blocks_tanks is False
+        assert tile.blocks_bullets is False
+
+    def test_set_tile_type_to_steel(self, game_map):
+        tile = game_map.get_tile_at(4, 6)  # EMPTY
+        game_map.set_tile_type(tile, TileType.STEEL)
+        assert tile.blocks_tanks is True
+        assert tile.blocks_bullets is True
+
+    def test_set_tile_type_to_water(self, game_map):
+        tile = game_map.get_tile_at(4, 6)  # EMPTY
+        game_map.set_tile_type(tile, TileType.WATER)
+        assert tile.blocks_tanks is True
+        assert tile.blocks_bullets is False
+
+    def test_defaults_populated_from_tsx(self, game_map):
+        """Collision defaults dict is populated by _scan_tileset."""
+        defaults = game_map._tile_collision_defaults
+        assert TileType.STEEL in defaults
+        assert TileType.WATER in defaults
+        assert defaults[TileType.STEEL] == (True, True)
+        assert defaults[TileType.WATER] == (True, False)
+
+
+class TestEnemyCompositionFallback:
+    """Verify fallback when map has no enemy composition properties."""
+
+    def test_missing_properties_defaults_to_20_basic(self, mock_texture_manager):
+        """Map without enemy properties falls back to 20 basic enemies."""
+        import os
+
+        # Create a minimal TMX next to the test map so TSX path resolves
+        tmx_content = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" \
+renderorder="right-down" width="2" height="2" tilewidth="8" tileheight="8" \
+infinite="0" nextlayerid="2" nextobjectid="1">
+ <tileset firstgid="1" source="../../assets/sprites/sprites.tsx"/>
+ <layer id="1" name="Tile Layer 1" width="2" height="2">
+  <data encoding="csv">
+0,0,
+0,0
+</data>
+ </layer>
+</map>
+"""
+        tmx_path = "tests/assets/no_enemies.tmx"
+        with open(tmx_path, "w") as f:
+            f.write(tmx_content)
+        try:
+            game_map = Map(tmx_path, mock_texture_manager)
+            assert game_map.enemy_composition == {
+                "basic": 20, "fast": 0, "power": 0, "armor": 0
+            }
+        finally:
+            os.remove(tmx_path)
+
+
 class TestGetBaseSurroundingTiles:
     @pytest.fixture
     def game_map(self, mock_texture_manager):

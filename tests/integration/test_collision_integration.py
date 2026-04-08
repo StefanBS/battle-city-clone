@@ -32,17 +32,9 @@ def test_player_bullet_vs_tile(
     target_x_grid = 14
     target_y_grid = 20
 
-    # Collision properties per tile type (matching TSX definitions)
-    _TILE_COLLISION = {
-        TileType.BRICK: (True, True),
-        TileType.STEEL: (True, True),
-        TileType.WATER: (True, False),
-        TileType.BUSH: (False, False),
-    }
-
     # Manually place the specified tile type at the target location
     if 0 <= target_y_grid < game_map.height and 0 <= target_x_grid < game_map.width:
-        bt, bb = _TILE_COLLISION.get(tile_to_place, (False, False))
+        bt, bb = game_map._tile_collision_defaults.get(tile_to_place, (False, False))
         target_tile = Tile(
             tile_to_place,
             target_x_grid,

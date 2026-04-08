@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch
-from src.core.enemy_tank import EnemyTank
+from src.core.enemy_tank import EnemyTank, _get_enemy_config, _reset_enemy_config
 from src.utils.constants import (
     TILE_SIZE,
     FPS,
@@ -82,6 +82,25 @@ def test_enemy_tank_initialization_properties(
         tank.x == x
     )  # Check grid alignment effect is handled if needed (0 should be fine)
     assert tank.y == y
+
+
+class TestEnemyConfigLoading:
+    """Tests for enemy config JSON loading and caching."""
+
+    def test_config_loads_all_types(self):
+        config = _get_enemy_config()
+        assert "basic" in config
+        assert "fast" in config
+        assert "power" in config
+        assert "armor" in config
+
+    def test_reset_clears_cache(self):
+        _get_enemy_config()  # ensure loaded
+        _reset_enemy_config()
+        # After reset, next call reloads from file
+        config = _get_enemy_config()
+        assert config is not None
+        assert "basic" in config
 
 
 def test_enemy_tank_grid_alignment(mock_texture_manager):
