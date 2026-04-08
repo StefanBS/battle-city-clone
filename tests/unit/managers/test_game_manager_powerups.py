@@ -1,6 +1,7 @@
 import pytest
 import pygame
 from unittest.mock import MagicMock
+from src.core.tile import BrickVariant
 from src.managers.game_manager import GameManager
 from src.utils.constants import (
     PowerUpType,
@@ -141,7 +142,7 @@ class TestShovelEffect:
         for _ in range(4):
             t = MagicMock()
             t.type = TileType.BRICK
-            t.brick_variant = "full"
+            t.brick_variant = BrickVariant.FULL
             mock_tiles.append(t)
         gm.map = MagicMock()
         gm.map.get_base_surrounding_tiles.return_value = mock_tiles

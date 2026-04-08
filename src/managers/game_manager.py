@@ -4,7 +4,7 @@ from typing import List, Optional
 from loguru import logger
 from src.core.map import Map
 from src.core.player_tank import PlayerTank
-from src.core.tile import Tile, TileType
+from src.core.tile import BrickVariant, Tile, TileType
 from src.core.bullet import Bullet
 from src.states.game_state import GameState
 from src.utils.constants import (
@@ -518,9 +518,13 @@ class GameManager:
             tiles = self.map.get_base_surrounding_tiles(include_empty=True)
             # Restore destroyed and damaged tiles to full BRICK before fortifying
             for tile in tiles:
-                if tile.type == TileType.EMPTY or tile.brick_variant != "full":
+                damaged = (
+                    tile.type == TileType.EMPTY
+                    or tile.brick_variant != BrickVariant.FULL
+                )
+                if damaged:
                     self.map.set_tile_type(tile, TileType.BRICK)
-                    tile.brick_variant = "full"
+                    tile.brick_variant = BrickVariant.FULL
                     tile.reset_rect()
             # Save original types AFTER restoration (so BRICK, not EMPTY)
             self._shovel_original_tiles = [(t, t.type) for t in tiles]

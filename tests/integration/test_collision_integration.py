@@ -2,7 +2,7 @@ import pytest
 from loguru import logger
 from src.utils.constants import Direction, FPS, TILE_SIZE, SUB_TILE_SIZE, TankType
 from src.states.game_state import GameState
-from src.core.tile import Tile, TileType
+from src.core.tile import BrickVariant, Tile, TileType
 from src.core.enemy_tank import EnemyTank
 
 # Tests related to collision interactions between different game objects
@@ -110,7 +110,8 @@ def test_player_bullet_vs_tile(
     # For brick: verify it was damaged or destroyed
     if tile_to_place == TileType.BRICK:
         damaged = (
-            final_tile.type == TileType.EMPTY or final_tile.brick_variant != "full"
+            final_tile.type == TileType.EMPTY
+            or final_tile.brick_variant != BrickVariant.FULL
         )
         assert damaged, "Brick should be damaged or destroyed after being hit."
 

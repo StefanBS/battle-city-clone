@@ -19,6 +19,19 @@ class TileType(Enum):
     BASE_DESTROYED = auto()
 
 
+class BrickVariant(str, Enum):
+    """Brick tile variants matching Tiled BrickVariant property type."""
+
+    FULL = "full"
+    RIGHT = "right"
+    BOTTOM = "bottom"
+    LEFT = "left"
+    TOP = "top"
+
+    def __str__(self) -> str:
+        return self.value
+
+
 class Tile:
     """Represents a single 8x8 tile in the game map, rendered at SUB_TILE_SIZE.
 
@@ -33,7 +46,7 @@ class Tile:
         y: int,
         size: int = SUB_TILE_SIZE,
         tmx_sprite: Optional[pygame.Surface] = None,
-        brick_variant: str = "full",
+        brick_variant: "BrickVariant" = BrickVariant.FULL,
         blocks_tanks: bool = False,
         blocks_bullets: bool = False,
     ) -> None:
@@ -49,8 +62,7 @@ class Tile:
         # TMX sprite: the actual tile image from the map editor
         self.tmx_sprite: Optional[pygame.Surface] = tmx_sprite
 
-        # Brick variant: "full", "left", "right", "top", "bottom"
-        self.brick_variant: str = brick_variant
+        self.brick_variant: BrickVariant = brick_variant
 
         # Animation attributes
         self.is_animated: bool = False
