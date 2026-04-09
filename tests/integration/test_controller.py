@@ -135,3 +135,15 @@ class TestControllerMenuNavigation:
             gm._handle_title_input(action)
 
         assert gm.state != GameState.TITLE_SCREEN
+
+    def test_keyboard_r_returns_from_game_over(self) -> None:
+        """Keyboard R produces MenuAction.CONFIRM in Game Over."""
+        gm = GameManager()
+        gm._reset_game()
+        gm.state = GameState.GAME_OVER
+
+        event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_r)
+        gm.input_handler.handle_event(event)
+        gm._process_menu_actions()
+
+        assert gm.state == GameState.TITLE_SCREEN
