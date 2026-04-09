@@ -69,6 +69,14 @@ ENEMY_POINTS: dict[TankType, int] = {
 }
 
 
+class MenuAction(Enum):
+    UP = auto()
+    DOWN = auto()
+    LEFT = auto()
+    RIGHT = auto()
+    CONFIRM = auto()
+
+
 class EffectType(Enum):
     SMALL_EXPLOSION = auto()
     LARGE_EXPLOSION = auto()
