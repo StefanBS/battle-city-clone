@@ -251,10 +251,7 @@ class GameManager:
                 pygame.CONTROLLERBUTTONDOWN,
                 pygame.JOYBUTTONDOWN,
             ):
-                if getattr(event, "button", None) in (
-                    CTRL_START_BUTTON,
-                    JOY_START_BUTTON,
-                ):
+                if event.button in (CTRL_START_BUTTON, JOY_START_BUTTON):
                     self._handle_escape()
 
             self.input_handler.handle_event(event)
