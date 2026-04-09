@@ -31,6 +31,7 @@ from src.utils.constants import (
     GAME_OVER_RISE_DURATION,
     GAME_OVER_HOLD_DURATION,
     MAX_STAGE,
+    MenuAction,
 )
 from src.managers.collision_manager import CollisionManager
 from src.managers.collision_response_handler import CollisionResponseHandler
@@ -38,14 +39,7 @@ from src.managers.effect_manager import EffectManager
 from src.managers.texture_manager import TextureManager
 from src.managers.input_handler import (
     InputHandler,
-    AXIS_DEADZONE,
-    CTRL_DPAD_BUTTONS,
-    DIRECTION_TO_KEY,
-    JOY_SHOOT_BUTTONS,
     JOY_START_BUTTON,
-    JOY_AXIS_X,
-    JOY_AXIS_Y,
-    CTRL_SHOOT_BUTTONS,
     CTRL_START_BUTTON,
 )
 from src.managers.spawn_manager import SpawnManager
@@ -253,115 +247,36 @@ class GameManager:
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     self._handle_escape()
-                elif self.state == GameState.TITLE_SCREEN:
-                    self._handle_title_input(event.key)
-                elif self.state == GameState.PAUSED:
-                    self._handle_pause_input(event.key)
-                elif self.state == GameState.OPTIONS_MENU:
-                    self._handle_options_input(event.key)
-                elif event.key == pygame.K_r and self.state in (
-                    GameState.GAME_OVER,
-                    GameState.GAME_COMPLETE,
-                ):
-                    logger.info("R key pressed, returning to title screen.")
-                    self.state = GameState.TITLE_SCREEN
-                    self._title_selection = 0
-
             elif event.type in (
-                pygame.JOYHATMOTION,
-                pygame.JOYAXISMOTION,
-                pygame.JOYBUTTONDOWN,
                 pygame.CONTROLLERBUTTONDOWN,
-                pygame.CONTROLLERAXISMOTION,
+                pygame.JOYBUTTONDOWN,
             ):
-                if self.state != GameState.RUNNING:
-                    translated_key = self._translate_joy_event(event)
-                    if translated_key is not None:
-                        if translated_key == pygame.K_ESCAPE:
-                            self._handle_escape()
-                        elif self.state == GameState.TITLE_SCREEN:
-                            self._handle_title_input(translated_key)
-                        elif self.state == GameState.PAUSED:
-                            self._handle_pause_input(translated_key)
-                        elif self.state == GameState.OPTIONS_MENU:
-                            self._handle_options_input(translated_key)
-                        elif translated_key == pygame.K_RETURN and self.state in (
-                            GameState.GAME_OVER,
-                            GameState.GAME_COMPLETE,
-                        ):
-                            logger.info(
-                                "Controller button pressed, returning to title screen."
-                            )
-                            self.state = GameState.TITLE_SCREEN
-                            self._title_selection = 0
+                if getattr(event, "button", None) in (
+                    CTRL_START_BUTTON,
+                    JOY_START_BUTTON,
+                ):
+                    self._handle_escape()
 
-            # Forward all events to InputHandler during gameplay.
-            # Hot-plug events are forwarded in any state.
-            if self.state == GameState.RUNNING:
-                self.input_handler.handle_event(event)
-            elif event.type in (
-                pygame.JOYDEVICEADDED,
-                pygame.JOYDEVICEREMOVED,
+            self.input_handler.handle_event(event)
+
+        self._process_menu_actions()
+
+    def _process_menu_actions(self) -> None:
+        """Poll and route menu actions from InputHandler."""
+        for action in self.input_handler.consume_menu_actions():
+            if self.state == GameState.TITLE_SCREEN:
+                self._handle_title_input(action)
+            elif self.state == GameState.PAUSED:
+                self._handle_pause_input(action)
+            elif self.state == GameState.OPTIONS_MENU:
+                self._handle_options_input(action)
+            elif action == MenuAction.CONFIRM and self.state in (
+                GameState.GAME_OVER,
+                GameState.GAME_COMPLETE,
             ):
-                self.input_handler.handle_event(event)
-
-    @staticmethod
-    def _axis_to_key(value: float, neg_key: int, pos_key: int) -> Optional[int]:
-        """Translate an axis value to a key constant using deadzone."""
-        if value < -AXIS_DEADZONE:
-            return neg_key
-        elif value > AXIS_DEADZONE:
-            return pos_key
-        return None
-
-    def _translate_joy_event(self, event: pygame.event.Event) -> Optional[int]:
-        """Translate a joystick/controller event to a key constant for menus.
-
-        Handles both SDL GameController events (recognized controllers)
-        and raw joystick events (unrecognized controllers).
-
-        Returns:
-            A pygame key constant, or None if the event has no menu mapping.
-        """
-        if event.type == pygame.CONTROLLERBUTTONDOWN:
-            if event.button in CTRL_DPAD_BUTTONS:
-                return DIRECTION_TO_KEY[CTRL_DPAD_BUTTONS[event.button]]
-            elif event.button in CTRL_SHOOT_BUTTONS:
-                return pygame.K_RETURN
-            elif event.button == CTRL_START_BUTTON:
-                return pygame.K_ESCAPE
-            return None
-
-        elif event.type in (
-            pygame.CONTROLLERAXISMOTION,
-            pygame.JOYAXISMOTION,
-        ):
-            if event.axis in (pygame.CONTROLLER_AXIS_LEFTX, JOY_AXIS_X):
-                return self._axis_to_key(event.value, pygame.K_LEFT, pygame.K_RIGHT)
-            elif event.axis in (pygame.CONTROLLER_AXIS_LEFTY, JOY_AXIS_Y):
-                return self._axis_to_key(event.value, pygame.K_UP, pygame.K_DOWN)
-            return None
-
-        elif event.type == pygame.JOYHATMOTION:
-            hat_x, hat_y = event.value
-            if hat_y > 0:
-                return pygame.K_UP
-            elif hat_y < 0:
-                return pygame.K_DOWN
-            elif hat_x < 0:
-                return pygame.K_LEFT
-            elif hat_x > 0:
-                return pygame.K_RIGHT
-            return None
-
-        elif event.type == pygame.JOYBUTTONDOWN:
-            if event.button in JOY_SHOOT_BUTTONS:
-                return pygame.K_RETURN
-            elif event.button == JOY_START_BUTTON:
-                return pygame.K_ESCAPE
-            return None
-
-        return None
+                logger.info("Returning to title screen.")
+                self.state = GameState.TITLE_SCREEN
+                self._title_selection = 0
 
     def _handle_escape(self) -> None:
         """Handle ESC key based on current state.
@@ -384,21 +299,21 @@ class GameManager:
             else:
                 self.state = GameState.TITLE_SCREEN
 
-    def _handle_title_input(self, key: int) -> None:
-        """Handle keyboard input on the title screen."""
-        if key in (pygame.K_UP, pygame.K_DOWN):
+    def _handle_title_input(self, action: MenuAction) -> None:
+        """Handle menu action on the title screen."""
+        if action in (MenuAction.UP, MenuAction.DOWN):
             indices = self._SELECTABLE_MENU_INDICES
             if self._title_selection in indices:
                 pos = indices.index(self._title_selection)
             else:
                 pos = 0
-            if key == pygame.K_UP:
+            if action == MenuAction.UP:
                 pos = (pos - 1) % len(indices)
             else:
                 pos = (pos + 1) % len(indices)
             self._title_selection = indices[pos]
             self.sound_manager.play_menu_select()
-        elif key == pygame.K_RETURN:
+        elif action == MenuAction.CONFIRM:
             if self._title_selection in (0, 3):
                 self._demo_mode = self._title_selection == 3
                 label = "Demo" if self._demo_mode else "1 Player"
@@ -414,15 +329,15 @@ class GameManager:
             elif self._title_selection == 4:
                 self._quit_game()
 
-    def _handle_pause_input(self, key: int) -> None:
-        """Handle keyboard input on the pause menu."""
-        if key in (pygame.K_UP, pygame.K_DOWN):
-            if key == pygame.K_UP:
+    def _handle_pause_input(self, action: MenuAction) -> None:
+        """Handle menu action on the pause menu."""
+        if action in (MenuAction.UP, MenuAction.DOWN):
+            if action == MenuAction.UP:
                 self._pause_selection = (self._pause_selection - 1) % 4
             else:
                 self._pause_selection = (self._pause_selection + 1) % 4
             self.sound_manager.play_menu_select()
-        elif key == pygame.K_RETURN:
+        elif action == MenuAction.CONFIRM:
             if self._pause_selection == 0:
                 # RESUME
                 self.state = GameState.RUNNING
@@ -440,27 +355,27 @@ class GameManager:
                 # QUIT
                 self._quit_game()
 
-    def _handle_options_input(self, key: int) -> None:
-        """Handle keyboard input on the options menu."""
-        if key in (pygame.K_UP, pygame.K_DOWN):
-            if key == pygame.K_UP:
+    def _handle_options_input(self, action: MenuAction) -> None:
+        """Handle menu action on the options menu."""
+        if action in (MenuAction.UP, MenuAction.DOWN):
+            if action == MenuAction.UP:
                 self._options_selection = (self._options_selection - 1) % 2
             else:
                 self._options_selection = (self._options_selection + 1) % 2
             self.sound_manager.play_menu_select()
-        elif key == pygame.K_LEFT and self._options_selection == 0:
+        elif action == MenuAction.LEFT and self._options_selection == 0:
             self.settings_manager.master_volume = max(
                 0.0, self.settings_manager.master_volume - 0.1
             )
             self.sound_manager.set_master_volume(self.settings_manager.master_volume)
             self.sound_manager.play_menu_select()
-        elif key == pygame.K_RIGHT and self._options_selection == 0:
+        elif action == MenuAction.RIGHT and self._options_selection == 0:
             self.settings_manager.master_volume = min(
                 1.0, self.settings_manager.master_volume + 0.1
             )
             self.sound_manager.set_master_volume(self.settings_manager.master_volume)
             self.sound_manager.play_menu_select()
-        elif key == pygame.K_RETURN:
+        elif action == MenuAction.CONFIRM:
             if self._options_selection == 1:
                 self.settings_manager.save()
                 if self._options_from_pause:

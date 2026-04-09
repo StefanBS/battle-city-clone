@@ -113,8 +113,10 @@ class TestControllerMenuNavigation:
             pygame.CONTROLLERBUTTONDOWN,
             button=pygame.CONTROLLER_BUTTON_DPAD_DOWN,
         )
-        translated = gm._translate_joy_event(event)
-        gm._handle_title_input(translated)
+        gm.input_handler.handle_event(event)
+        actions = gm.input_handler.consume_menu_actions()
+        for action in actions:
+            gm._handle_title_input(action)
 
         assert gm._title_selection != initial_selection
 
@@ -127,7 +129,9 @@ class TestControllerMenuNavigation:
             pygame.CONTROLLERBUTTONDOWN,
             button=pygame.CONTROLLER_BUTTON_A,
         )
-        translated = gm._translate_joy_event(event)
-        gm._handle_title_input(translated)
+        gm.input_handler.handle_event(event)
+        actions = gm.input_handler.consume_menu_actions()
+        for action in actions:
+            gm._handle_title_input(action)
 
         assert gm.state != GameState.TITLE_SCREEN

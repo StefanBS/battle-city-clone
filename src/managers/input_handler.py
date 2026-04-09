@@ -33,14 +33,6 @@ _DIRECTION_TO_MENU_ACTION: dict[Direction, MenuAction] = {
 
 _CONFIRM_KEYS: tuple[int, ...] = (pygame.K_RETURN, pygame.K_r)
 
-# Direction → pygame key constant (kept for GameManager backward compatibility)
-DIRECTION_TO_KEY: dict[Direction, int] = {
-    Direction.UP: pygame.K_UP,
-    Direction.DOWN: pygame.K_DOWN,
-    Direction.LEFT: pygame.K_LEFT,
-    Direction.RIGHT: pygame.K_RIGHT,
-}
-
 
 class InputHandler:
     """Handles keyboard and controller input for the player tank."""
