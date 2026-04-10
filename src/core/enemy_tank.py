@@ -218,6 +218,20 @@ class EnemyTank(Tank):
                 f"EnemyTank ({self.tank_type}) direction remained {old_direction}."
             )
 
+    def _is_aligned_with(self, target: tuple[float, float]) -> bool:
+        """Check if the tank is facing toward and aligned with a target position."""
+        tx, ty = target
+        dx, dy = self.direction.delta
+        tile = self.tile_size
+        if dx != 0:  # facing LEFT or RIGHT
+            if abs(self.y - ty) > tile:
+                return False
+            return (dx > 0 and tx > self.x) or (dx < 0 and tx < self.x)
+        else:  # facing UP or DOWN
+            if abs(self.x - tx) > tile:
+                return False
+            return (dy > 0 and ty > self.y) or (dy < 0 and ty < self.y)
+
     def consume_shoot(self) -> bool:
         """Check if the tank wants to shoot and clear the flag."""
         if self._wants_to_shoot:
@@ -270,8 +284,18 @@ class EnemyTank(Tank):
             self._change_direction(player_position=player_position)
             self.direction_timer = random.uniform(0, 0.5)  # Add small random offset
 
-        # Shoot periodically
-        if self.shoot_timer >= self.shoot_interval:
+        # Shoot periodically (reduced interval when aligned with a target)
+        effective_shoot_interval = self.shoot_interval
+        if self.aligned_shoot_multiplier < 1.0:
+            aligned = False
+            if EnemyTank.base_position is not None:
+                aligned = self._is_aligned_with(EnemyTank.base_position)
+            if not aligned and player_position is not None:
+                aligned = self._is_aligned_with(player_position)
+            if aligned:
+                effective_shoot_interval *= self.aligned_shoot_multiplier
+
+        if self.shoot_timer >= effective_shoot_interval:
             logger.trace(f"EnemyTank ({self.tank_type}) shoot timer triggered.")
             self._wants_to_shoot = True
             self.shoot_timer = random.uniform(0, 0.3)  # Add small random offset

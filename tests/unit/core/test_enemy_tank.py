@@ -558,3 +558,64 @@ class TestEnemyAIBiases:
             # No player bias added, only base bias
             down_idx = candidates.index(Direction.DOWN)
             assert weights[down_idx] == pytest.approx(1.0 + 0.45)  # base only
+
+    def test_aligned_shooting_reduces_interval(self, mock_texture_manager):
+        """When facing the player and aligned, shoot interval is reduced."""
+        with patch("src.core.enemy_tank.random.choice", return_value=Direction.DOWN):
+            with patch("src.core.enemy_tank.DIFFICULTY", Difficulty.NORMAL):
+                tank = EnemyTank(
+                    100, 0, TILE_SIZE, mock_texture_manager, TankType.BASIC,
+                    map_width_px=512, map_height_px=512,
+                )
+        tank.direction = Direction.DOWN
+        # Player is below and at similar X (within TILE_SIZE)
+        player_pos = (100.0, 300.0)
+        # Set shoot_timer just above half the interval (reduced threshold)
+        tank.shoot_timer = tank.shoot_interval * 0.5 + 0.01
+        tank.direction_timer = 0  # don't trigger direction change
+
+        tank.update(0.01, player_position=player_pos)
+
+        assert tank.consume_shoot() is True
+
+    def test_not_aligned_uses_normal_interval(self, mock_texture_manager):
+        """When not aligned, normal shoot interval applies."""
+        with patch("src.core.enemy_tank.random.choice", return_value=Direction.DOWN):
+            with patch("src.core.enemy_tank.DIFFICULTY", Difficulty.NORMAL):
+                tank = EnemyTank(
+                    100, 0, TILE_SIZE, mock_texture_manager, TankType.BASIC,
+                    map_width_px=512, map_height_px=512,
+                )
+        tank.direction = Direction.LEFT  # facing left, player is below
+        player_pos = (100.0, 300.0)
+        tank.shoot_timer = tank.shoot_interval * 0.5 + 0.01
+        tank.direction_timer = 0
+
+        tank.update(0.01, player_position=player_pos)
+
+        assert tank.consume_shoot() is False
+
+    @pytest.mark.parametrize(
+        "direction, tank_pos, target_pos, expected_aligned",
+        [
+            (Direction.DOWN, (100, 0), (100, 300), True),
+            (Direction.UP, (100, 300), (100, 0), True),
+            (Direction.RIGHT, (0, 100), (300, 100), True),
+            (Direction.LEFT, (300, 100), (0, 100), True),
+            (Direction.UP, (100, 0), (100, 300), False),  # target behind
+            (Direction.DOWN, (100, 300), (100, 0), False),  # target behind
+            (Direction.DOWN, (100, 0), (300, 300), False),  # different X
+        ],
+    )
+    def test_alignment_detection(
+        self, direction, tank_pos, target_pos, expected_aligned, mock_texture_manager
+    ):
+        """Test _is_aligned_with for various positions and directions."""
+        with patch("src.core.enemy_tank.random.choice", return_value=Direction.DOWN):
+            with patch("src.core.enemy_tank.DIFFICULTY", Difficulty.NORMAL):
+                tank = EnemyTank(
+                    tank_pos[0], tank_pos[1], TILE_SIZE, mock_texture_manager,
+                    TankType.BASIC, map_width_px=512, map_height_px=512,
+                )
+        tank.direction = direction
+        assert tank._is_aligned_with(target_pos) == expected_aligned
