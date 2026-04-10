@@ -66,6 +66,15 @@ class SpawnManager:
         self.spawn_timer: float = 0.0
         self._effect_manager = effect_manager
         self._pending_spawns: List[_PendingSpawn] = []
+
+        # Set class-level base position for AI targeting
+        base_tile = game_map.get_base()
+        if base_tile is not None:
+            EnemyTank.base_position = (
+                float(base_tile.rect.centerx),
+                float(base_tile.rect.centery),
+            )
+
         # Initial spawn
         self.spawn_enemy(player_tank, game_map)
 

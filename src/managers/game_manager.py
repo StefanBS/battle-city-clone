@@ -448,11 +448,17 @@ class GameManager:
         if self.input_handler.consume_shoot():
             self._try_shoot(self.player_tank)
 
+        player_pos = (
+            (self.player_tank.x, self.player_tank.y)
+            if self.player_tank and self.player_tank.health > 0
+            else None
+        )
+
         if self.freeze_timer > 0:
             self.freeze_timer -= dt
         else:
             for enemy in self.spawn_manager.enemy_tanks:
-                enemy.update(dt)
+                enemy.update(dt, player_position=player_pos)
                 enemy.on_ice = self._is_on_ice(enemy)
                 if enemy.consume_shoot():
                     self._try_shoot(enemy)

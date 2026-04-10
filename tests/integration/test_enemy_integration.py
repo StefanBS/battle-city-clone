@@ -1,7 +1,14 @@
 import pytest
 from loguru import logger
 from unittest.mock import patch
-from src.utils.constants import Direction, FPS, TILE_SIZE, SUB_TILE_SIZE, TankType
+from src.utils.constants import (
+    Direction,
+    Difficulty,
+    FPS,
+    TILE_SIZE,
+    SUB_TILE_SIZE,
+    TankType,
+)
 from src.core.tile import Tile, TileType
 from src.core.enemy_tank import EnemyTank
 import random
@@ -249,6 +256,7 @@ def test_enemy_spawn_blocked(game_manager_fixture):
 original_random_choice = random.choice
 
 
+@patch("src.core.enemy_tank.DIFFICULTY", Difficulty.EASY)
 @patch("src.core.enemy_tank.random.choice")
 @patch("src.core.enemy_tank.random.uniform", return_value=0.0)
 def test_enemy_movement_and_direction_change(

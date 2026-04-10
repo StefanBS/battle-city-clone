@@ -381,6 +381,7 @@ class TestEnemyTankCarrier:
             mock_texture_manager.get_sprite.side_effect = original_side_effect
 
 
+@patch("src.core.enemy_tank.DIFFICULTY", Difficulty.EASY)
 class TestEnemyIceSlide:
     """Tests for enemy tank sliding on ice."""
 
