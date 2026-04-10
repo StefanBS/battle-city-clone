@@ -2,7 +2,7 @@
 ; Requires Inno Setup 6+
 
 #define MyAppName "Battle City"
-#define MyAppVersion "0.9.0"
+#define MyAppVersion "0.10.0"
 #define MyAppPublisher "Battle City Clone"
 #define MyAppExeName "BattleCity.exe"
 
