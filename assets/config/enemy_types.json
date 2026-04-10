@@ -1,4 +1,16 @@
 {
+  "difficulty": {
+    "easy": {
+      "base_bias": 0.0,
+      "player_bias": 0.0,
+      "aligned_shoot_multiplier": 1.0
+    },
+    "normal": {
+      "base_bias": 0.3,
+      "player_bias": 0.2,
+      "aligned_shoot_multiplier": 0.5
+    }
+  },
   "basic": {
     "speed": 80,
     "bullet_speed": 180,
@@ -6,7 +18,9 @@
     "shoot_interval": 2.0,
     "direction_change_interval": 2.5,
     "power_bullets": false,
-    "sprite_prefix": "enemy_basic_tank"
+    "sprite_prefix": "enemy_basic_tank",
+    "base_bias_multiplier": 0.5,
+    "player_bias_multiplier": 0.5
   },
   "fast": {
     "speed": 120,
@@ -15,7 +29,9 @@
     "shoot_interval": 1.8,
     "direction_change_interval": 1.5,
     "power_bullets": false,
-    "sprite_prefix": "enemy_fast_tank"
+    "sprite_prefix": "enemy_fast_tank",
+    "base_bias_multiplier": 0.5,
+    "player_bias_multiplier": 1.5
   },
   "power": {
     "speed": 92,
@@ -24,7 +40,9 @@
     "shoot_interval": 1.0,
     "direction_change_interval": 2.0,
     "power_bullets": false,
-    "sprite_prefix": "enemy_power_tank"
+    "sprite_prefix": "enemy_power_tank",
+    "base_bias_multiplier": 1.0,
+    "player_bias_multiplier": 1.5
   },
   "armor": {
     "speed": 60,
@@ -33,6 +51,8 @@
     "shoot_interval": 1.5,
     "direction_change_interval": 2.0,
     "power_bullets": true,
-    "sprite_prefix": "enemy_armor_tank"
+    "sprite_prefix": "enemy_armor_tank",
+    "base_bias_multiplier": 1.5,
+    "player_bias_multiplier": 0.5
   }
 }

@@ -102,6 +102,26 @@ class TestEnemyConfigLoading:
         assert config is not None
         assert "basic" in config
 
+    def test_config_contains_difficulty_section(self):
+        config = _get_enemy_config()
+        assert "difficulty" in config
+        assert "easy" in config["difficulty"]
+        assert "normal" in config["difficulty"]
+
+    def test_difficulty_config_has_required_keys(self):
+        config = _get_enemy_config()
+        for level in ("easy", "normal"):
+            diff = config["difficulty"][level]
+            assert "base_bias" in diff
+            assert "player_bias" in diff
+            assert "aligned_shoot_multiplier" in diff
+
+    def test_type_configs_have_bias_multipliers(self):
+        config = _get_enemy_config()
+        for tank_type in ("basic", "fast", "power", "armor"):
+            assert "base_bias_multiplier" in config[tank_type]
+            assert "player_bias_multiplier" in config[tank_type]
+
 
 def test_enemy_tank_grid_alignment(mock_texture_manager):
     """Test that initial position is aligned to the grid."""

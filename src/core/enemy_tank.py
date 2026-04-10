@@ -20,6 +20,9 @@ class TankPropertyDict(TypedDict):
     shoot_interval: float
     direction_change_interval: float
     power_bullets: bool
+    sprite_prefix: str
+    base_bias_multiplier: float
+    player_bias_multiplier: float
 
 
 _ENEMY_CONFIG_PATH = "assets/config/enemy_types.json"
