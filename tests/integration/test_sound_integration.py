@@ -71,9 +71,7 @@ class TestPowerupBlinkWiring:
         """Verify update() doesn't error when powerups are active."""
         gm = game_manager_fixture
         # Spawn a powerup directly
-        gm.power_up_manager.spawn_power_up(
-            gm.player_tank, gm.spawn_manager.enemy_tanks
-        )
+        gm.power_up_manager.spawn_power_up(gm.player_tank, gm.spawn_manager.enemy_tanks)
         assert len(gm.power_up_manager.get_power_ups()) > 0
         # Run a frame — should not raise
         gm.update()

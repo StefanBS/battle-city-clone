@@ -26,9 +26,7 @@ class EffectManager:
             texture_manager: TextureManager for loading sprites.
         """
         self.effects: List[Effect] = []
-        self._effect_data: Dict[
-            EffectType, Tuple[List[pygame.Surface], float]
-        ] = {}
+        self._effect_data: Dict[EffectType, Tuple[List[pygame.Surface], float]] = {}
         self._build_frame_cache(texture_manager)
 
     @staticmethod

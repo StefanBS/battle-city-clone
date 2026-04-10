@@ -71,9 +71,7 @@ class Tile:
         self.current_frame_index: int = 0
         self.animation_timer: float = 0.0
 
-    def set_animation_frames(
-        self, frames: List[Tuple[pygame.Surface, float]]
-    ) -> None:
+    def set_animation_frames(self, frames: List[Tuple[pygame.Surface, float]]) -> None:
         """Set animation frames with per-frame durations.
 
         Args:

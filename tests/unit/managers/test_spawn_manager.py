@@ -39,8 +39,9 @@ class TestSpawnManager:
         game_map.width_px = 16 * TILE_SIZE
         game_map.height_px = 16 * TILE_SIZE
         game_map.tile_size = SUB_TILE_SIZE
-        game_map.grid_to_pixels.side_effect = (
-            lambda gx, gy: (gx * SUB_TILE_SIZE, gy * SUB_TILE_SIZE)
+        game_map.grid_to_pixels.side_effect = lambda gx, gy: (
+            gx * SUB_TILE_SIZE,
+            gy * SUB_TILE_SIZE,
         )
         return game_map
 
@@ -268,9 +269,7 @@ class TestSpawnAnimation:
     @pytest.fixture
     def mock_player_tank(self):
         player = MagicMock()
-        player.rect = pygame.Rect(
-            7 * TILE_SIZE, 14 * TILE_SIZE, TILE_SIZE, TILE_SIZE
-        )
+        player.rect = pygame.Rect(7 * TILE_SIZE, 14 * TILE_SIZE, TILE_SIZE, TILE_SIZE)
         return player
 
     @pytest.fixture
@@ -281,8 +280,9 @@ class TestSpawnAnimation:
         game_map.width_px = 16 * TILE_SIZE
         game_map.height_px = 16 * TILE_SIZE
         game_map.tile_size = SUB_TILE_SIZE
-        game_map.grid_to_pixels.side_effect = (
-            lambda gx, gy: (gx * SUB_TILE_SIZE, gy * SUB_TILE_SIZE)
+        game_map.grid_to_pixels.side_effect = lambda gx, gy: (
+            gx * SUB_TILE_SIZE,
+            gy * SUB_TILE_SIZE,
         )
         return game_map
 
@@ -319,9 +319,7 @@ class TestSpawnAnimation:
         assert len(sm.enemy_tanks) == 0
         assert len(sm._pending_spawns) == 1
         assert sm.total_enemy_spawns == 1
-        mock_effect_manager.spawn.assert_called_once_with(
-            EffectType.SPAWN, ANY, ANY
-        )
+        mock_effect_manager.spawn.assert_called_once_with(EffectType.SPAWN, ANY, ANY)
 
     def test_update_materializes_when_effect_done(
         self, spawn_manager_with_effects, mock_player_tank, mock_game_map
@@ -347,18 +345,14 @@ class TestSpawnAnimation:
         assert len(sm._pending_spawns) == 1
         assert len(sm.enemy_tanks) == 0
 
-    def test_all_enemies_defeated_false_with_pending(
-        self, spawn_manager_with_effects
-    ):
+    def test_all_enemies_defeated_false_with_pending(self, spawn_manager_with_effects):
         """all_enemies_defeated() returns False while spawns are pending."""
         sm = spawn_manager_with_effects
         sm.total_enemy_spawns = sm.max_enemy_spawns
         sm.enemy_tanks = []
         assert not sm.all_enemies_defeated()
 
-    def test_all_enemies_defeated_true_when_clear(
-        self, spawn_manager_with_effects
-    ):
+    def test_all_enemies_defeated_true_when_clear(self, spawn_manager_with_effects):
         """all_enemies_defeated() returns True when no tanks or pending."""
         sm = spawn_manager_with_effects
         sm.total_enemy_spawns = sm.max_enemy_spawns
@@ -406,8 +400,9 @@ class TestSpawnManagerCarrier:
         game_map.width_px = 16 * TILE_SIZE
         game_map.height_px = 16 * TILE_SIZE
         game_map.tile_size = SUB_TILE_SIZE
-        game_map.grid_to_pixels.side_effect = (
-            lambda gx, gy: (gx * SUB_TILE_SIZE, gy * SUB_TILE_SIZE)
+        game_map.grid_to_pixels.side_effect = lambda gx, gy: (
+            gx * SUB_TILE_SIZE,
+            gy * SUB_TILE_SIZE,
         )
         return game_map
 
