@@ -185,3 +185,8 @@ docs/superpowers/
 
 # Game settings (user-specific)
 settings.json
+
+# Editor and tool configs
+.claude/
+.superpowers/
+.vscode/
