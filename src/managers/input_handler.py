@@ -1,7 +1,7 @@
 import pygame
 from typing import Tuple, Dict, Optional
 from loguru import logger
-from src.utils.constants import Direction
+from src.utils.constants import Direction, MenuAction
 
 AXIS_DEADZONE: float = 0.5
 
@@ -24,13 +24,14 @@ CTRL_SHOOT_BUTTONS: tuple[int, ...] = (
 )
 CTRL_START_BUTTON: int = pygame.CONTROLLER_BUTTON_START
 
-# Direction → pygame key constant (used by GameManager for menu translation)
-DIRECTION_TO_KEY: dict[Direction, int] = {
-    Direction.UP: pygame.K_UP,
-    Direction.DOWN: pygame.K_DOWN,
-    Direction.LEFT: pygame.K_LEFT,
-    Direction.RIGHT: pygame.K_RIGHT,
+_DIRECTION_TO_MENU_ACTION: dict[Direction, MenuAction] = {
+    Direction.UP: MenuAction.UP,
+    Direction.DOWN: MenuAction.DOWN,
+    Direction.LEFT: MenuAction.LEFT,
+    Direction.RIGHT: MenuAction.RIGHT,
 }
+
+_CONFIRM_KEYS: tuple[int, ...] = (pygame.K_RETURN, pygame.K_r)
 
 
 class InputHandler:
@@ -61,6 +62,9 @@ class InputHandler:
         }
         self.joystick: Optional["pygame.joystick.JoystickType"] = None
         self._init_joystick()
+        self._menu_actions: list[MenuAction] = []
+        self._axis_menu_h: Optional[MenuAction] = None
+        self._axis_menu_v: Optional[MenuAction] = None
 
     def _init_joystick(self) -> None:
         """Detect and initialize the first connected joystick."""
@@ -68,6 +72,29 @@ class InputHandler:
             self.joystick = pygame.joystick.Joystick(0)
             self.joystick.init()
             logger.info(f"Joystick connected: {self.joystick.get_name()}")
+
+    def _emit_axis_menu_action(
+        self,
+        horizontal: bool,
+        value: float,
+        neg_action: MenuAction,
+        pos_action: MenuAction,
+    ) -> None:
+        """Emit a menu action when an axis crosses the deadzone threshold."""
+        if value < -AXIS_DEADZONE:
+            new_state = neg_action
+        elif value > AXIS_DEADZONE:
+            new_state = pos_action
+        else:
+            new_state = None
+        prev_state = self._axis_menu_h if horizontal else self._axis_menu_v
+        if new_state != prev_state:
+            if horizontal:
+                self._axis_menu_h = new_state
+            else:
+                self._axis_menu_v = new_state
+            if new_state is not None:
+                self._menu_actions.append(new_state)
 
     def _handle_axis(
         self, value: float, neg_dir: Direction, pos_dir: Direction
@@ -100,8 +127,11 @@ class InputHandler:
                 if not self.directions[direction]:
                     logger.trace(f"Key down: {direction}")
                     self.directions[direction] = True
+                self._menu_actions.append(_DIRECTION_TO_MENU_ACTION[direction])
             if event.key == self.shoot_key:
                 self.shoot_pressed = True
+            if event.key in _CONFIRM_KEYS:
+                self._menu_actions.append(MenuAction.CONFIRM)
         elif event.type == pygame.KEYUP:
             if event.key in self.key_mappings:
                 direction = self.key_mappings[event.key]
@@ -132,8 +162,10 @@ class InputHandler:
                 for d in self.joy_directions:
                     self.joy_directions[d] = False
                 self.joy_directions[direction] = True
+                self._menu_actions.append(_DIRECTION_TO_MENU_ACTION[direction])
             elif event.button in CTRL_SHOOT_BUTTONS:
                 self.shoot_pressed = True
+                self._menu_actions.append(MenuAction.CONFIRM)
         elif event.type == pygame.CONTROLLERBUTTONUP:
             if event.button in CTRL_DPAD_BUTTONS:
                 direction = CTRL_DPAD_BUTTONS[event.button]
@@ -143,25 +175,36 @@ class InputHandler:
         elif event.type in (pygame.CONTROLLERAXISMOTION, pygame.JOYAXISMOTION):
             if event.axis in (pygame.CONTROLLER_AXIS_LEFTX, JOY_AXIS_X):
                 self._handle_axis(event.value, Direction.LEFT, Direction.RIGHT)
+                self._emit_axis_menu_action(
+                    True, event.value, MenuAction.LEFT, MenuAction.RIGHT
+                )
             elif event.axis in (pygame.CONTROLLER_AXIS_LEFTY, JOY_AXIS_Y):
                 self._handle_axis(event.value, Direction.UP, Direction.DOWN)
+                self._emit_axis_menu_action(
+                    False, event.value, MenuAction.UP, MenuAction.DOWN
+                )
 
         # --- Raw joystick API (unrecognized controllers) ---
         elif event.type == pygame.JOYHATMOTION:
             hat_x, hat_y = event.value
-            for direction in self.joy_directions:
-                self.joy_directions[direction] = False
+            for d in self.joy_directions:
+                self.joy_directions[d] = False
+            hat_dir: Optional[Direction] = None
             if hat_y > 0:
-                self.joy_directions[Direction.UP] = True
+                hat_dir = Direction.UP
             elif hat_y < 0:
-                self.joy_directions[Direction.DOWN] = True
+                hat_dir = Direction.DOWN
             elif hat_x > 0:
-                self.joy_directions[Direction.RIGHT] = True
+                hat_dir = Direction.RIGHT
             elif hat_x < 0:
-                self.joy_directions[Direction.LEFT] = True
+                hat_dir = Direction.LEFT
+            if hat_dir is not None:
+                self.joy_directions[hat_dir] = True
+                self._menu_actions.append(_DIRECTION_TO_MENU_ACTION[hat_dir])
         elif event.type == pygame.JOYBUTTONDOWN:
             if event.button in JOY_SHOOT_BUTTONS:
                 self.shoot_pressed = True
+                self._menu_actions.append(MenuAction.CONFIRM)
 
     def get_movement_direction(self) -> Tuple[int, int]:
         """
@@ -193,6 +236,17 @@ class InputHandler:
         for direction in self.joy_directions:
             self.joy_directions[direction] = False
         self.shoot_pressed = False
+        self._menu_actions.clear()
+        self._axis_menu_h = None
+        self._axis_menu_v = None
+
+    def consume_menu_actions(self) -> list[MenuAction]:
+        """Return pending menu actions and clear the list."""
+        if not self._menu_actions:
+            return []
+        actions = self._menu_actions
+        self._menu_actions = []
+        return actions
 
     def consume_shoot(self) -> bool:
         """
