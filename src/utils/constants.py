@@ -68,9 +68,6 @@ class Difficulty(str, Enum):
         return self.value
 
 
-DIFFICULTY: Difficulty = Difficulty.NORMAL
-
-
 # Points awarded per enemy tank type
 ENEMY_POINTS: dict[TankType, int] = {
     TankType.BASIC: 100,

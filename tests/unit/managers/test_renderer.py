@@ -322,7 +322,7 @@ class TestRenderOptionsMenu:
             patch("pygame.transform.scale"),
             patch("pygame.display.flip"),
         ):
-            renderer.render_options_menu(0.8, 0)
+            renderer.render_options_menu(0.8, "normal", 0)
 
         render_calls = [call.args[0] for call in renderer.font.render.call_args_list]
         assert "OPTIONS" in render_calls
@@ -333,7 +333,7 @@ class TestRenderOptionsMenu:
             patch("pygame.transform.scale"),
             patch("pygame.display.flip"),
         ):
-            renderer.render_options_menu(0.8, 0)
+            renderer.render_options_menu(0.8, "normal", 0)
 
         render_calls = [
             call.args[0] for call in renderer.small_font.render.call_args_list
@@ -348,7 +348,7 @@ class TestRenderOptionsMenu:
             patch("pygame.transform.scale"),
             patch("pygame.display.flip"),
         ):
-            renderer.render_options_menu(0.8, 0)
+            renderer.render_options_menu(0.8, "normal", 0)
 
         render_calls = [
             call.args[0] for call in renderer.small_font.render.call_args_list
@@ -361,7 +361,7 @@ class TestRenderOptionsMenu:
             patch("pygame.transform.scale"),
             patch("pygame.display.flip"),
         ):
-            renderer.render_options_menu(0.8, 0)
+            renderer.render_options_menu(0.8, "normal", 0)
 
         render_calls = [
             call.args[0] for call in renderer.small_font.render.call_args_list

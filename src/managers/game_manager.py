@@ -8,6 +8,7 @@ from src.core.tile import BrickVariant, Tile, TileType
 from src.core.bullet import Bullet
 from src.states.game_state import GameState
 from src.utils.constants import (
+    Difficulty,
     OwnerType,
     WINDOW_TITLE,
     FPS,
@@ -84,6 +85,7 @@ class GameManager:
         self._options_from_pause: bool = False
         self._state_timer: float = 0.0
         self._demo_mode: bool = False
+        self.difficulty: Difficulty = self.settings_manager.difficulty
 
         # Renderer for title screen (recreated with map dims in _load_stage)
         self.renderer: Renderer = Renderer(
@@ -190,6 +192,7 @@ class GameManager:
             spawn_interval=5.0,
             player_tank=self.player_tank,
             effect_manager=self.effect_manager,
+            difficulty=self.difficulty,
         )
 
         self.bullets: List[Bullet] = []
@@ -357,24 +360,31 @@ class GameManager:
         """Handle menu action on the options menu."""
         if action in (MenuAction.UP, MenuAction.DOWN):
             if action == MenuAction.UP:
-                self._options_selection = (self._options_selection - 1) % 2
+                self._options_selection = (self._options_selection - 1) % 3
             else:
-                self._options_selection = (self._options_selection + 1) % 2
+                self._options_selection = (self._options_selection + 1) % 3
             self.sound_manager.play_menu_select()
-        elif action == MenuAction.LEFT and self._options_selection == 0:
-            self.settings_manager.master_volume = max(
-                0.0, self.settings_manager.master_volume - 0.1
-            )
-            self.sound_manager.set_master_volume(self.settings_manager.master_volume)
-            self.sound_manager.play_menu_select()
-        elif action == MenuAction.RIGHT and self._options_selection == 0:
-            self.settings_manager.master_volume = min(
-                1.0, self.settings_manager.master_volume + 0.1
-            )
-            self.sound_manager.set_master_volume(self.settings_manager.master_volume)
-            self.sound_manager.play_menu_select()
+        elif action in (MenuAction.LEFT, MenuAction.RIGHT):
+            if self._options_selection == 0:
+                # Toggle difficulty
+                if self.difficulty == Difficulty.EASY:
+                    self.difficulty = Difficulty.NORMAL
+                else:
+                    self.difficulty = Difficulty.EASY
+                self.settings_manager.difficulty = self.difficulty
+                self.sound_manager.play_menu_select()
+            elif self._options_selection == 1:
+                # Adjust volume
+                delta = -0.1 if action == MenuAction.LEFT else 0.1
+                self.settings_manager.master_volume = max(
+                    0.0, min(1.0, self.settings_manager.master_volume + delta)
+                )
+                self.sound_manager.set_master_volume(
+                    self.settings_manager.master_volume
+                )
+                self.sound_manager.play_menu_select()
         elif action == MenuAction.CONFIRM:
-            if self._options_selection == 1:
+            if self._options_selection == 2:
                 self.settings_manager.save()
                 if self._options_from_pause:
                     self.state = GameState.PAUSED
@@ -695,7 +705,9 @@ class GameManager:
 
         if self.state == GameState.OPTIONS_MENU:
             self.renderer.render_options_menu(
-                self.settings_manager.master_volume, self._options_selection
+                self.settings_manager.master_volume,
+                self.difficulty.value,
+                self._options_selection,
             )
             return
 

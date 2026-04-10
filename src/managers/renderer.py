@@ -288,38 +288,60 @@ class Renderer:
 
         self._present_surface()
 
-    def render_options_menu(self, master_volume: float, selection: int) -> None:
-        """Render options menu with volume slider."""
+    def render_options_menu(
+        self, master_volume: float, difficulty: str, selection: int
+    ) -> None:
+        """Render options menu with difficulty toggle and volume slider."""
         self.game_surface.fill(BLACK)
 
         cx = self.logical_width // 2
         cy = self.logical_height // 2
+        row_spacing = 40
 
         title = self.font.render("OPTIONS", True, WHITE)
-        title_rect = title.get_rect(center=(cx, cy - 60))
+        title_rect = title.get_rect(center=(cx, cy - 80))
         self.game_surface.blit(title, title_rect)
 
+        # Row 0: Difficulty
+        diff_y = cy - row_spacing
+        diff_label = f"DIFFICULTY  {difficulty.upper()}"
+        diff_text = self.small_font.render(diff_label, True, WHITE)
+        diff_rect = diff_text.get_rect(center=(cx, diff_y))
+        self.game_surface.blit(diff_text, diff_rect)
+
+        if selection == 0:
+            left_hint = self.small_font.render("<", True, GRAY)
+            self.game_surface.blit(left_hint, (diff_rect.left - 20, diff_y - 6))
+            right_hint = self.small_font.render(">", True, GRAY)
+            self.game_surface.blit(right_hint, (diff_rect.right + 8, diff_y - 6))
+
+        # Row 1: Volume
+        vol_y = cy
         filled = round(master_volume * 10)
         bar = "#" * filled + "-" * (10 - filled)
         pct = f"{round(master_volume * 100)}%"
         vol_label = f"VOLUME  [{bar}] {pct}"
         vol_text = self.small_font.render(vol_label, True, WHITE)
-        vol_rect = vol_text.get_rect(center=(cx, cy))
+        vol_rect = vol_text.get_rect(center=(cx, vol_y))
         self.game_surface.blit(vol_text, vol_rect)
 
-        # LEFT/RIGHT hints when volume is selected
-        if selection == 0:
+        if selection == 1:
             left_hint = self.small_font.render("<", True, GRAY)
-            self.game_surface.blit(left_hint, (vol_rect.left - 20, cy - 6))
+            self.game_surface.blit(left_hint, (vol_rect.left - 20, vol_y - 6))
             right_hint = self.small_font.render(">", True, GRAY)
-            self.game_surface.blit(right_hint, (vol_rect.right + 8, cy - 6))
+            self.game_surface.blit(right_hint, (vol_rect.right + 8, vol_y - 6))
 
+        # Row 2: Back
+        back_y = cy + row_spacing
         back_text = self.small_font.render("BACK", True, WHITE)
-        back_rect = back_text.get_rect(center=(cx, cy + 40))
+        back_rect = back_text.get_rect(center=(cx, back_y))
         self.game_surface.blit(back_text, back_rect)
 
-        cursor_y = cy if selection == 0 else cy + 40
-        target_rect = vol_rect if selection == 0 else back_rect
+        # Cursor
+        rects = [diff_rect, vol_rect, back_rect]
+        ys = [diff_y, vol_y, back_y]
+        target_rect = rects[selection]
+        cursor_y = ys[selection]
         cursor_text = self.small_font.render(">", True, WHITE)
         cursor_rect = cursor_text.get_rect(midright=(target_rect.left - 10, cursor_y))
         self.game_surface.blit(cursor_text, cursor_rect)

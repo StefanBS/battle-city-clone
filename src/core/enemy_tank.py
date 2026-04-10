@@ -4,11 +4,11 @@ from loguru import logger
 from .tank import Tank
 from typing import TypedDict
 from src.utils.constants import (
+    Difficulty,
     Direction,
     OwnerType,
     TankType,
     CARRIER_BLINK_INTERVAL,
-    DIFFICULTY,
 )
 from src.managers.texture_manager import TextureManager
 
@@ -62,6 +62,7 @@ class EnemyTank(Tank):
         *,
         map_width_px: int,
         map_height_px: int,
+        difficulty: Difficulty = Difficulty.NORMAL,
         is_carrier: bool = False,
     ) -> None:
         """
@@ -109,7 +110,7 @@ class EnemyTank(Tank):
 
         # Compute effective AI biases from difficulty config + type multipliers
         difficulty_config = config.get("difficulty", {}).get(
-            DIFFICULTY.value,
+            difficulty.value,
             {"base_bias": 0.0, "player_bias": 0.0, "aligned_shoot_multiplier": 1.0},
         )
         self.effective_base_bias: float = difficulty_config["base_bias"] * props.get(

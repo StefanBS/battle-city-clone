@@ -254,7 +254,6 @@ def test_enemy_spawn_blocked(game_manager_fixture):
 original_random_choice = random.choice
 
 
-@patch("src.core.enemy_tank.DIFFICULTY", Difficulty.EASY)
 @patch("src.core.enemy_tank.random.choice")
 @patch("src.core.enemy_tank.random.uniform", return_value=0.0)
 def test_enemy_movement_and_direction_change(
@@ -295,6 +294,7 @@ def test_enemy_movement_and_direction_change(
         enemy_type,
         map_width_px=map_w_px,
         map_height_px=map_h_px,
+        difficulty=Difficulty.EASY,
     )
     initial_direction = enemy_tank.direction  # Capture initial direction
 
