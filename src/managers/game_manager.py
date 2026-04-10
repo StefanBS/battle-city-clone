@@ -256,7 +256,8 @@ class GameManager:
 
             self.input_handler.handle_event(event)
 
-        self._process_menu_actions()
+        if self.state != GameState.RUNNING:
+            self._process_menu_actions()
 
     def _process_menu_actions(self) -> None:
         """Poll and route menu actions from InputHandler."""

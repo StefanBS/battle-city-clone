@@ -109,14 +109,13 @@ class TestControllerMenuNavigation:
         gm = GameManager()
         initial_selection = gm._title_selection
 
-        event = pygame.event.Event(
-            pygame.CONTROLLERBUTTONDOWN,
-            button=pygame.CONTROLLER_BUTTON_DPAD_DOWN,
+        pygame.event.post(
+            pygame.event.Event(
+                pygame.CONTROLLERBUTTONDOWN,
+                button=pygame.CONTROLLER_BUTTON_DPAD_DOWN,
+            )
         )
-        gm.input_handler.handle_event(event)
-        actions = gm.input_handler.consume_menu_actions()
-        for action in actions:
-            gm._handle_title_input(action)
+        gm.handle_events()
 
         assert gm._title_selection != initial_selection
 
@@ -125,25 +124,23 @@ class TestControllerMenuNavigation:
         gm = GameManager()
         gm._title_selection = 0  # 1 Player
 
-        event = pygame.event.Event(
-            pygame.CONTROLLERBUTTONDOWN,
-            button=pygame.CONTROLLER_BUTTON_A,
+        pygame.event.post(
+            pygame.event.Event(
+                pygame.CONTROLLERBUTTONDOWN,
+                button=pygame.CONTROLLER_BUTTON_A,
+            )
         )
-        gm.input_handler.handle_event(event)
-        actions = gm.input_handler.consume_menu_actions()
-        for action in actions:
-            gm._handle_title_input(action)
+        gm.handle_events()
 
         assert gm.state != GameState.TITLE_SCREEN
 
     def test_keyboard_r_returns_from_game_over(self) -> None:
-        """Keyboard R produces MenuAction.CONFIRM in Game Over."""
+        """Keyboard R returns to title from Game Over."""
         gm = GameManager()
         gm._reset_game()
         gm.state = GameState.GAME_OVER
 
-        event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_r)
-        gm.input_handler.handle_event(event)
-        gm._process_menu_actions()
+        pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_r))
+        gm.handle_events()
 
         assert gm.state == GameState.TITLE_SCREEN
