@@ -59,15 +59,11 @@ class TextureManager:
             rect = pygame.Rect(px, py, pw, ph)
             try:
                 original = self.texture_atlas.subsurface(rect)
-                scaled = pygame.transform.scale(
-                    original, (BULLET_SIZE, BULLET_SIZE)
-                )
+                scaled = pygame.transform.scale(original, (BULLET_SIZE, BULLET_SIZE))
                 # Apply colorkey for near-black atlas background
                 copy = scaled.convert()
                 copy.set_colorkey(ATLAS_BG_COLOR)
-                result = pygame.Surface(
-                    (BULLET_SIZE, BULLET_SIZE), pygame.SRCALPHA
-                )
+                result = pygame.Surface((BULLET_SIZE, BULLET_SIZE), pygame.SRCALPHA)
                 result.blit(copy, (0, 0))
                 self.sprites[name] = result
             except (ValueError, TypeError) as e:

@@ -1,7 +1,14 @@
 import pytest
 from loguru import logger
 from unittest.mock import patch
-from src.utils.constants import Direction, FPS, TILE_SIZE, SUB_TILE_SIZE, TankType
+from src.utils.constants import (
+    Direction,
+    Difficulty,
+    FPS,
+    TILE_SIZE,
+    SUB_TILE_SIZE,
+    TankType,
+)
 from src.core.tile import Tile, TileType
 from src.core.enemy_tank import EnemyTank
 import random
@@ -234,13 +241,11 @@ def test_enemy_spawn_blocked(game_manager_fixture):
     # Because one point is blocked, we might not reach max_spawns
     enemy_count = len(game_manager.spawn_manager.enemy_tanks)
     assert enemy_count <= max_spawns, (
-        f"Enemy count ({enemy_count}) exceeded "
-        f"max spawns ({max_spawns})."
+        f"Enemy count ({enemy_count}) exceeded max spawns ({max_spawns})."
     )
     total_spawns = game_manager.spawn_manager.total_enemy_spawns
     assert total_spawns <= max_spawns, (
-        f"Total enemy spawns ({total_spawns}) exceeded "
-        f"max spawns ({max_spawns})."
+        f"Total enemy spawns ({total_spawns}) exceeded max spawns ({max_spawns})."
     )
     logger.info("Blocked spawn point test completed.")
 
@@ -289,6 +294,7 @@ def test_enemy_movement_and_direction_change(
         enemy_type,
         map_width_px=map_w_px,
         map_height_px=map_h_px,
+        difficulty=Difficulty.EASY,
     )
     initial_direction = enemy_tank.direction  # Capture initial direction
 
@@ -411,9 +417,7 @@ def test_enemy_movement_blocked_by_tile(
                 original_tile = game_map.get_tile_at(sx, sy)
                 assert (
                     original_tile is not None and original_tile.type == TileType.EMPTY
-                ), (
-                    f"Target ({sx}, {sy}) is not EMPTY."
-                )
+                ), f"Target ({sx}, {sy}) is not EMPTY."
                 tile = Tile(
                     blocking_tile_type,
                     sx,

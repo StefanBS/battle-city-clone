@@ -17,9 +17,7 @@ class TestStageTransition:
         # Force victory
         game.spawn_manager.enemy_tanks = []
         game.spawn_manager._pending_spawns = []
-        game.spawn_manager.total_enemy_spawns = (
-            game.spawn_manager.max_enemy_spawns
-        )
+        game.spawn_manager.total_enemy_spawns = game.spawn_manager.max_enemy_spawns
         game.update()
         assert game.state == GameState.VICTORY
 

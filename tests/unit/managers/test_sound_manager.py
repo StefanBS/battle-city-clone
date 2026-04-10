@@ -117,13 +117,16 @@ class TestLoopManagement:
 
 
 class TestNewPlayMethods:
-    @pytest.mark.parametrize("method", [
-        "play_bullet_hit_bullet",
-        "play_stage_start",
-        "play_victory",
-        "play_menu_select",
-        "play_ice_slide",
-    ])
+    @pytest.mark.parametrize(
+        "method",
+        [
+            "play_bullet_hit_bullet",
+            "play_stage_start",
+            "play_victory",
+            "play_menu_select",
+            "play_ice_slide",
+        ],
+    )
     def test_oneshot_methods_call_sound_play(self, method):
         with patch("src.managers.sound_manager.pygame") as mock_pg:
             mock_sound = MagicMock()
@@ -132,13 +135,16 @@ class TestNewPlayMethods:
             getattr(sm, method)()
             mock_sound.play.assert_called()
 
-    @pytest.mark.parametrize("method", [
-        "play_bullet_hit_bullet",
-        "play_stage_start",
-        "play_victory",
-        "play_menu_select",
-        "play_ice_slide",
-    ])
+    @pytest.mark.parametrize(
+        "method",
+        [
+            "play_bullet_hit_bullet",
+            "play_stage_start",
+            "play_victory",
+            "play_menu_select",
+            "play_ice_slide",
+        ],
+    )
     def test_oneshot_methods_noop_when_disabled(self, method):
         with patch("src.managers.sound_manager.pygame") as mock_pg:
             mock_pg.error = type("error", (Exception,), {})

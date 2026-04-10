@@ -4,6 +4,7 @@ from loguru import logger
 from .tank import Tank
 from typing import TypedDict
 from src.utils.constants import (
+    Difficulty,
     Direction,
     OwnerType,
     TankType,
@@ -20,6 +21,9 @@ class TankPropertyDict(TypedDict):
     shoot_interval: float
     direction_change_interval: float
     power_bullets: bool
+    sprite_prefix: str
+    base_bias_multiplier: float
+    player_bias_multiplier: float
 
 
 _ENEMY_CONFIG_PATH = "assets/config/enemy_types.json"
@@ -44,7 +48,9 @@ def _reset_enemy_config() -> None:
 
 
 class EnemyTank(Tank):
-    """Enemy tank entity with basic AI and type variations."""
+    """Enemy tank entity with difficulty-aware AI and type variations."""
+
+    base_position: tuple[float, float] | None = None
 
     def __init__(
         self,
@@ -56,6 +62,7 @@ class EnemyTank(Tank):
         *,
         map_width_px: int,
         map_height_px: int,
+        difficulty: Difficulty = Difficulty.NORMAL,
         is_carrier: bool = False,
     ) -> None:
         """
@@ -99,6 +106,23 @@ class EnemyTank(Tank):
         self._blocked_directions: set[Direction] = set()
         self.is_carrier: bool = is_carrier
         self.carrier_blink_timer: float = 0.0
+        self._current_player_position: tuple[float, float] | None = None
+
+        # Compute effective AI biases from difficulty config + type multipliers
+        difficulty_config = config.get("difficulty", {}).get(
+            difficulty.value,
+            {"base_bias": 0.0, "player_bias": 0.0, "aligned_shoot_multiplier": 1.0},
+        )
+        self.effective_base_bias: float = difficulty_config["base_bias"] * props.get(
+            "base_bias_multiplier", 1.0
+        )
+        self.effective_player_bias: float = difficulty_config[
+            "player_bias"
+        ] * props.get("player_bias_multiplier", 1.0)
+        self.aligned_shoot_multiplier: float = difficulty_config[
+            "aligned_shoot_multiplier"
+        ]
+
         self._update_sprite()
         logger.debug(
             f"EnemyTank ({tank_type}) properties: speed={self.speed:.2f}, "
@@ -117,24 +141,35 @@ class EnemyTank(Tank):
             >= CARRIER_BLINK_INTERVAL
         ):
             sprite_name = (
-                f"{self._sprite_prefix}_red"
-                f"_{self.direction}_{self.animation_frame}"
+                f"{self._sprite_prefix}_red_{self.direction}_{self.animation_frame}"
             )
             try:
                 self.sprite = self.texture_manager.get_sprite(sprite_name)
                 return
             except KeyError:
                 pass
-        sprite_name = (
-            f"{self._sprite_prefix}_{self.direction}_{self.animation_frame}"
-        )
+        sprite_name = f"{self._sprite_prefix}_{self.direction}_{self.animation_frame}"
         try:
             self.sprite = self.texture_manager.get_sprite(sprite_name)
         except KeyError:
             logger.error(f"Sprite '{sprite_name}' not found for enemy tank.")
 
-    def _change_direction(self, allow_slide: bool = True) -> None:
-        """Randomly change the tank's direction, avoiding blocked ones."""
+    def _direction_moves_toward(
+        self, direction: Direction, target: tuple[float, float]
+    ) -> bool:
+        """Check if moving in direction reduces distance to target."""
+        dx, dy = direction.delta
+        tx, ty = target
+        if dx != 0:
+            return (dx > 0 and tx > self.x) or (dx < 0 and tx < self.x)
+        return (dy > 0 and ty > self.y) or (dy < 0 and ty < self.y)
+
+    def _change_direction(
+        self,
+        player_position: tuple[float, float] | None = None,
+        allow_slide: bool = True,
+    ) -> None:
+        """Change the tank's direction, weighted by AI biases when applicable."""
         old_direction = self.direction
 
         # Prefer unblocked directions, excluding opposite to avoid reversing
@@ -153,7 +188,18 @@ class EnemyTank(Tank):
         if not candidates:
             return
 
-        new_direction = random.choice(candidates)
+        if self.effective_base_bias > 0 or self.effective_player_bias > 0:
+            weights = [1.0] * len(candidates)
+            for i, d in enumerate(candidates):
+                if EnemyTank.base_position is not None:
+                    if self._direction_moves_toward(d, EnemyTank.base_position):
+                        weights[i] += self.effective_base_bias
+                if player_position is not None:
+                    if self._direction_moves_toward(d, player_position):
+                        weights[i] += self.effective_player_bias
+            new_direction = random.choices(candidates, weights)[0]
+        else:
+            new_direction = random.choice(candidates)
 
         # Trigger ice slide in old direction before changing
         if allow_slide and new_direction != old_direction and self._on_ice:
@@ -171,6 +217,19 @@ class EnemyTank(Tank):
                 f"EnemyTank ({self.tank_type}) direction remained {old_direction}."
             )
 
+    def _is_aligned_with(self, target: tuple[float, float]) -> bool:
+        """Check if the tank is facing toward and aligned with a target position."""
+        tx, ty = target
+        dx, dy = self.direction.delta
+        tile = self.tile_size
+        if dx != 0:
+            if abs(self.y - ty) > tile:
+                return False
+        else:
+            if abs(self.x - tx) > tile:
+                return False
+        return self._direction_moves_toward(self.direction, target)
+
     def consume_shoot(self) -> bool:
         """Check if the tank wants to shoot and clear the flag."""
         if self._wants_to_shoot:
@@ -182,16 +241,24 @@ class EnemyTank(Tank):
         """Handle collision with a wall by changing direction."""
         super().on_movement_blocked()
         self._blocked_directions.add(self.direction)
-        self._change_direction(allow_slide=False)
+        self._change_direction(
+            player_position=self._current_player_position, allow_slide=False
+        )
         self.direction_timer = 0
 
-    def update(self, dt: float) -> None:
+    def update(
+        self,
+        dt: float,
+        player_position: tuple[float, float] | None = None,
+    ) -> None:
         """
         Update the tank's position and behavior.
 
         Args:
             dt: Time elapsed since last update in seconds
+            player_position: Current player position for AI targeting, or None
         """
+        self._current_player_position = player_position
         # Clear blocked directions once the tank successfully moved,
         # meaning the path is no longer obstructed. Check before
         # super().update() overwrites prev_x/prev_y.
@@ -212,14 +279,29 @@ class EnemyTank(Tank):
         # Change direction periodically
         if self.direction_timer >= self.direction_change_interval:
             logger.trace(f"EnemyTank ({self.tank_type}) direction timer triggered.")
-            self._change_direction()
+            self._change_direction(player_position=player_position)
             self.direction_timer = random.uniform(0, 0.5)  # Add small random offset
 
-        # Shoot periodically
+        # Shoot periodically (reduced interval when aligned with a target)
+        reduced_threshold = self.shoot_interval * self.aligned_shoot_multiplier
         if self.shoot_timer >= self.shoot_interval:
             logger.trace(f"EnemyTank ({self.tank_type}) shoot timer triggered.")
             self._wants_to_shoot = True
             self.shoot_timer = random.uniform(0, 0.3)  # Add small random offset
+        elif (
+            self.aligned_shoot_multiplier < 1.0
+            and self.shoot_timer >= reduced_threshold
+        ):
+            # Only check alignment when timer is between reduced and full thresholds
+            aligned = False
+            if EnemyTank.base_position is not None:
+                aligned = self._is_aligned_with(EnemyTank.base_position)
+            if not aligned and player_position is not None:
+                aligned = self._is_aligned_with(player_position)
+            if aligned:
+                logger.trace(f"EnemyTank ({self.tank_type}) aligned shoot triggered.")
+                self._wants_to_shoot = True
+                self.shoot_timer = random.uniform(0, 0.3)
 
         if not self._sliding:
             dx, dy = self.direction.delta

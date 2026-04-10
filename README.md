@@ -9,7 +9,8 @@ A Python and Pygame implementation of the classic NES game Battle City, featurin
 - **6 power-ups** — helmet, star, bomb, clock, shovel, extra life
 - **Gamepad/controller support** — D-pad, analog sticks, hot-plug detection (SDL GameController API)
 - **Sound effects** — shooting, explosions, power-ups, engine sounds, and more
-- **Options menu** — master volume control with persistent settings
+- **Difficulty levels** — Easy (random AI) and Normal (directional bias, aligned shooting, type-specific tactics)
+- **Options menu** — difficulty selection and master volume with persistent settings
 - **Stage transitions** — curtain animations between stages
 - **Explosion animations** — small and large explosions, spawn effects
 - **Shield animation** — flicker effect on spawn invincibility
@@ -47,7 +48,7 @@ battle-city-clone/
 │   │   ├── game_object.py                 # Base class (position, rect, draw, update)
 │   │   ├── tank.py                        # Tank base (movement, shooting, health)
 │   │   ├── player_tank.py                 # Player tank (input, respawn, lives, shield)
-│   │   ├── enemy_tank.py                  # AI tank (4 types: basic/fast/power/armor)
+│   │   ├── enemy_tank.py                  # AI tank (4 types, difficulty-aware behavior)
 │   │   ├── bullet.py                      # Bullet (directional movement, bounds checking)
 │   │   ├── tile.py                        # Tile types, collision properties, variants
 │   │   ├── map.py                         # TMX map loading, tile grid, spawn points
@@ -65,7 +66,7 @@ battle-city-clone/
 │   │   ├── effect_manager.py              # Effect lifecycle management
 │   │   ├── power_up_manager.py            # Power-up spawning, collection, effects
 │   │   ├── sound_manager.py               # Sound effect loading and playback
-│   │   └── settings_manager.py            # Persistent game settings (volume)
+│   │   └── settings_manager.py            # Persistent game settings (volume, difficulty)
 │   │
 │   ├── states/
 │   │   └── game_state.py                  # GameState enum (RUNNING, PAUSED, GAME_OVER, ...)

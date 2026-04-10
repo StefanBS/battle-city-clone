@@ -12,6 +12,7 @@ from src.core.player_tank import PlayerTank
 from src.managers.effect_manager import EffectManager
 from src.managers.texture_manager import TextureManager
 from src.utils.constants import (
+    Difficulty,
     EffectType,
     POWERUP_CARRIER_INDICES,
     TILE_SIZE,
@@ -41,6 +42,7 @@ class SpawnManager:
         spawn_interval: float,
         player_tank: PlayerTank,
         effect_manager: Optional[EffectManager] = None,
+        difficulty: Difficulty = Difficulty.NORMAL,
     ) -> None:
         """Initialize the SpawnManager.
 
@@ -52,8 +54,10 @@ class SpawnManager:
             spawn_interval: Seconds between spawn attempts.
             player_tank: The player tank (for collision checking on initial spawn).
             effect_manager: EffectManager for spawn animations (optional).
+            difficulty: AI difficulty level for spawned enemies.
         """
         self.tile_size = TILE_SIZE
+        self._difficulty = difficulty
         self.texture_manager = texture_manager
         self.spawn_points = game_map.spawn_points
         self._spawn_queue: List[TankType] = self._build_spawn_queue(enemy_composition)
@@ -66,12 +70,19 @@ class SpawnManager:
         self.spawn_timer: float = 0.0
         self._effect_manager = effect_manager
         self._pending_spawns: List[_PendingSpawn] = []
+
+        # Set class-level base position for AI targeting
+        base_tile = game_map.get_base()
+        if base_tile is not None:
+            EnemyTank.base_position = (
+                float(base_tile.rect.centerx),
+                float(base_tile.rect.centery),
+            )
+
         # Initial spawn
         self.spawn_enemy(player_tank, game_map)
 
-    def _build_spawn_queue(
-        self, enemy_composition: dict[str, int]
-    ) -> List[TankType]:
+    def _build_spawn_queue(self, enemy_composition: dict[str, int]) -> List[TankType]:
         """Build a shuffled list of enemy types from the composition dict.
 
         Args:
@@ -147,9 +158,7 @@ class SpawnManager:
             # Play spawn animation, materialize tank when it finishes
             center_x = float(x + TILE_SIZE // 2)
             center_y = float(y + TILE_SIZE // 2)
-            effect = self._effect_manager.spawn(
-                EffectType.SPAWN, center_x, center_y
-            )
+            effect = self._effect_manager.spawn(EffectType.SPAWN, center_x, center_y)
             self._pending_spawns.append(
                 _PendingSpawn(
                     x=x, y=y, tank_type=tank_type, effect=effect, is_carrier=is_carrier
@@ -177,6 +186,7 @@ class SpawnManager:
             tank_type=tank_type,
             map_width_px=self.map_width_px,
             map_height_px=self.map_height_px,
+            difficulty=self._difficulty,
             is_carrier=is_carrier,
         )
         self.enemy_tanks.append(enemy)

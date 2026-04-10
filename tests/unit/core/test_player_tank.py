@@ -183,8 +183,12 @@ class TestActivateInvincibility:
     @pytest.fixture
     def player(self, mock_texture_manager):
         return PlayerTank(
-            96, 96, TILE_SIZE, mock_texture_manager,
-            map_width_px=512, map_height_px=512,
+            96,
+            96,
+            TILE_SIZE,
+            mock_texture_manager,
+            map_width_px=512,
+            map_height_px=512,
         )
 
     def test_sets_invincible(self, player):
@@ -222,8 +226,12 @@ class TestStarUpgrade:
     @pytest.fixture
     def player(self, mock_texture_manager):
         return PlayerTank(
-            96, 96, TILE_SIZE, mock_texture_manager,
-            map_width_px=512, map_height_px=512,
+            96,
+            96,
+            TILE_SIZE,
+            mock_texture_manager,
+            map_width_px=512,
+            map_height_px=512,
         )
 
     def test_initial_star_level(self, player):
@@ -290,8 +298,12 @@ class TestShieldAnimation:
     @pytest.fixture
     def player_tank(self, mock_texture_manager):
         return PlayerTank(
-            5, 12, TILE_SIZE, mock_texture_manager,
-            map_width_px=16 * TILE_SIZE, map_height_px=16 * TILE_SIZE,
+            5,
+            12,
+            TILE_SIZE,
+            mock_texture_manager,
+            map_width_px=16 * TILE_SIZE,
+            map_height_px=16 * TILE_SIZE,
         )
 
     def test_is_invincible_false_when_not_invincible(self, player_tank):

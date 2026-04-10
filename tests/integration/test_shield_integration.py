@@ -19,9 +19,7 @@ class TestShieldIntegration:
         # 3s duration, at 1.5s elapsed → 1.5s remaining (in warning phase)
         gm.player_tank.invincibility_timer = 1.5
         assert gm.player_tank.is_invincible is True
-        assert (
-            gm.player_tank.shield_flicker_interval == SHIELD_FAST_FLICKER_INTERVAL
-        )
+        assert gm.player_tank.shield_flicker_interval == SHIELD_FAST_FLICKER_INTERVAL
 
     def test_draw_with_shield_does_not_raise(self, game_manager_fixture):
         """Verify draw() works during shield phase."""
@@ -30,9 +28,7 @@ class TestShieldIntegration:
         for _ in range(5):
             gm.update()
 
-    def test_shield_deactivates_when_invincibility_expires(
-        self, game_manager_fixture
-    ):
+    def test_shield_deactivates_when_invincibility_expires(self, game_manager_fixture):
         """Shield gone after invincibility expires."""
         gm = game_manager_fixture
         gm.player_tank.invincibility_timer = 4.0  # past 3s duration

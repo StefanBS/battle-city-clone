@@ -4,7 +4,12 @@ from unittest.mock import patch, MagicMock
 from src.managers.game_manager import GameManager
 from src.states.game_state import GameState
 from src.core.enemy_tank import EnemyTank
-from src.utils.constants import MAX_STAGE, MenuAction, VICTORY_PAUSE_DURATION
+from src.utils.constants import (
+    Difficulty,
+    MAX_STAGE,
+    MenuAction,
+    VICTORY_PAUSE_DURATION,
+)
 
 
 class TestGameManager:
@@ -208,19 +213,35 @@ class TestGameManager:
             game_manager._handle_pause_input(MenuAction.CONFIRM)
             assert game_manager.state == GameState.RUNNING
 
-        def test_options_input_right(self, game_manager):
-            """MenuAction.RIGHT increases volume."""
+        def test_options_input_right_volume(self, game_manager):
+            """MenuAction.RIGHT on volume row increases volume."""
             game_manager.state = GameState.OPTIONS_MENU
-            game_manager._options_selection = 0
+            game_manager._options_selection = 1  # volume is now index 1
             game_manager.settings_manager.master_volume = 0.5
             initial_vol = game_manager.settings_manager.master_volume
             game_manager._handle_options_input(MenuAction.RIGHT)
             assert game_manager.settings_manager.master_volume > initial_vol
 
+        def test_options_input_right_difficulty_sets_normal(self, game_manager):
+            """MenuAction.RIGHT on difficulty row sets NORMAL."""
+            game_manager.state = GameState.OPTIONS_MENU
+            game_manager._options_selection = 0
+            game_manager.difficulty = Difficulty.EASY
+            game_manager._handle_options_input(MenuAction.RIGHT)
+            assert game_manager.difficulty == Difficulty.NORMAL
+
+        def test_options_input_left_difficulty_sets_easy(self, game_manager):
+            """MenuAction.LEFT on difficulty row sets EASY."""
+            game_manager.state = GameState.OPTIONS_MENU
+            game_manager._options_selection = 0
+            game_manager.difficulty = Difficulty.NORMAL
+            game_manager._handle_options_input(MenuAction.LEFT)
+            assert game_manager.difficulty == Difficulty.EASY
+
         def test_options_input_confirm_back(self, game_manager):
             """MenuAction.CONFIRM on Back returns to previous screen."""
             game_manager.state = GameState.OPTIONS_MENU
-            game_manager._options_selection = 1
+            game_manager._options_selection = 2  # back is now index 2
             game_manager._options_from_pause = False
             game_manager._handle_options_input(MenuAction.CONFIRM)
             assert game_manager.state == GameState.TITLE_SCREEN
@@ -653,10 +674,10 @@ class TestPauseAndOptionsStateMachine:
     # --- Options menu ---
 
     def test_options_volume_left_decreases(self, game_manager, key_down_event):
-        """LEFT on VOLUME (0) in options decreases master volume."""
+        """LEFT on VOLUME (1) in options decreases master volume."""
         gm = game_manager
         gm.state = GameState.OPTIONS_MENU
-        gm._options_selection = 0
+        gm._options_selection = 1
         gm.settings_manager = MagicMock()
         gm.settings_manager.master_volume = 0.5
         gm.sound_manager = MagicMock()
@@ -668,10 +689,10 @@ class TestPauseAndOptionsStateMachine:
         )
 
     def test_options_volume_right_increases(self, game_manager, key_down_event):
-        """RIGHT on VOLUME (0) in options increases master volume."""
+        """RIGHT on VOLUME (1) in options increases master volume."""
         gm = game_manager
         gm.state = GameState.OPTIONS_MENU
-        gm._options_selection = 0
+        gm._options_selection = 1
         gm.settings_manager = MagicMock()
         gm.settings_manager.master_volume = 0.5
         gm.sound_manager = MagicMock()
@@ -686,7 +707,7 @@ class TestPauseAndOptionsStateMachine:
         """Volume does not go below 0.0."""
         gm = game_manager
         gm.state = GameState.OPTIONS_MENU
-        gm._options_selection = 0
+        gm._options_selection = 1
         gm.settings_manager = MagicMock()
         gm.settings_manager.master_volume = 0.0
         gm.sound_manager = MagicMock()
@@ -698,7 +719,7 @@ class TestPauseAndOptionsStateMachine:
         """Volume does not go above 1.0."""
         gm = game_manager
         gm.state = GameState.OPTIONS_MENU
-        gm._options_selection = 0
+        gm._options_selection = 1
         gm.settings_manager = MagicMock()
         gm.settings_manager.master_volume = 1.0
         gm.sound_manager = MagicMock()
@@ -709,10 +730,10 @@ class TestPauseAndOptionsStateMachine:
     def test_options_back_saves_and_returns_to_title(
         self, game_manager, key_down_event
     ):
-        """Enter on BACK (1) in options saves and returns to origin."""
+        """Enter on BACK (2) in options saves and returns to origin."""
         gm = game_manager
         gm.state = GameState.OPTIONS_MENU
-        gm._options_selection = 1
+        gm._options_selection = 2
         gm._options_from_pause = False
         gm.settings_manager = MagicMock()
         pygame.event.post(key_down_event(pygame.K_RETURN))
@@ -723,10 +744,10 @@ class TestPauseAndOptionsStateMachine:
     def test_options_back_saves_and_returns_to_pause(
         self, game_manager, key_down_event
     ):
-        """Enter on BACK (1) in options from pause saves and returns to PAUSED."""
+        """Enter on BACK (2) in options from pause saves and returns to PAUSED."""
         gm = game_manager
         gm.state = GameState.OPTIONS_MENU
-        gm._options_selection = 1
+        gm._options_selection = 2
         gm._options_from_pause = True
         gm.settings_manager = MagicMock()
         pygame.event.post(key_down_event(pygame.K_RETURN))
@@ -735,7 +756,7 @@ class TestPauseAndOptionsStateMachine:
         gm.settings_manager.save.assert_called_once()
 
     def test_options_navigation_up_down(self, game_manager, key_down_event):
-        """UP/DOWN navigation wraps between 2 options items."""
+        """UP/DOWN navigation wraps between 3 options items."""
         gm = game_manager
         gm.state = GameState.OPTIONS_MENU
         gm._options_selection = 0
@@ -743,6 +764,9 @@ class TestPauseAndOptionsStateMachine:
         pygame.event.post(key_down_event(pygame.K_DOWN))
         gm.handle_events()
         assert gm._options_selection == 1
+        pygame.event.post(key_down_event(pygame.K_DOWN))
+        gm.handle_events()
+        assert gm._options_selection == 2
         pygame.event.post(key_down_event(pygame.K_DOWN))
         gm.handle_events()
         assert gm._options_selection == 0
@@ -784,7 +808,7 @@ class TestPauseAndOptionsStateMachine:
         gm.settings_manager.master_volume = 0.7
         gm.render()
         gm.renderer.render_options_menu.assert_called_once_with(
-            0.7, gm._options_selection
+            0.7, gm.difficulty.value, gm._options_selection
         )
 
     def test_render_title_uses_title_selection(self, game_manager_at_title):

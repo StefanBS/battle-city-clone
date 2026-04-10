@@ -194,6 +194,4 @@ class TestPlayerIceSlide:
 
         pos_before = game.player_tank.y
         _tick(game, 1)  # first frame of slide movement
-        assert game.player_tank.y < pos_before, (
-            "Tank should continue sliding UP"
-        )
+        assert game.player_tank.y < pos_before, "Tank should continue sliding UP"

@@ -35,9 +35,8 @@ def test_initial_game_state(game_manager_fixture):
     )
 
     # 3. Verify initial number of enemies (may be pending spawn animation)
-    total_enemies = (
-        len(game_manager.spawn_manager.enemy_tanks)
-        + len(game_manager.spawn_manager._pending_spawns)
+    total_enemies = len(game_manager.spawn_manager.enemy_tanks) + len(
+        game_manager.spawn_manager._pending_spawns
     )
     assert total_enemies == 1, (
         f"Expected 1 initial enemy (active or pending), got {total_enemies}"
@@ -45,9 +44,7 @@ def test_initial_game_state(game_manager_fixture):
 
     # 4. Verify initial total spawn count
     spawns = game_manager.spawn_manager.total_enemy_spawns
-    assert spawns == 1, (
-        f"Expected initial total_enemy_spawns 1, got {spawns}"
-    )
+    assert spawns == 1, f"Expected initial total_enemy_spawns 1, got {spawns}"
 
     # 5. Verify map layout (basic check - e.g., base exists and corner tile)
     game_map = game_manager.map
@@ -236,9 +233,7 @@ def test_enemy_bullet_destroys_base_game_over(game_manager_fixture):
     # --- Spawn Enemy Tank Above Base --- #
     enemy_type = TankType.BASIC
     enemy_x_grid = base_x_grid
-    enemy_y_grid = (
-        base_y_grid - 6
-    )  # Place enemy well above base perimeter bricks
+    enemy_y_grid = base_y_grid - 6  # Place enemy well above base perimeter bricks
 
     enemy_start_x = enemy_x_grid * SUB_TILE_SIZE
     enemy_start_y = enemy_y_grid * SUB_TILE_SIZE

@@ -267,7 +267,10 @@ infinite="0" nextlayerid="2" nextobjectid="1">
         try:
             game_map = Map(tmx_path, mock_texture_manager)
             assert game_map.enemy_composition == {
-                "basic": 20, "fast": 0, "power": 0, "armor": 0
+                "basic": 20,
+                "fast": 0,
+                "power": 0,
+                "armor": 0,
             }
         finally:
             os.remove(tmx_path)

@@ -345,8 +345,7 @@ def test_enemy_bullet_hits_player_tank(
         if not player_is_invincible:
             if not enemy_bullet.active:
                 logger.debug(
-                    f"Enemy bullet inactive after "
-                    f"{i + 1} updates (hit detected)."
+                    f"Enemy bullet inactive after {i + 1} updates (hit detected)."
                 )
                 interaction_processed = True
                 break

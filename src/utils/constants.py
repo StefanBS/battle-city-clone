@@ -60,6 +60,14 @@ class TankType(str, Enum):
         return self.value
 
 
+class Difficulty(str, Enum):
+    EASY = "easy"
+    NORMAL = "normal"
+
+    def __str__(self) -> str:
+        return self.value
+
+
 # Points awarded per enemy tank type
 ENEMY_POINTS: dict[TankType, int] = {
     TankType.BASIC: 100,

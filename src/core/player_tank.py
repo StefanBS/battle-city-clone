@@ -91,8 +91,7 @@ class PlayerTank(Tank):
     def _update_sprite(self) -> None:
         """Update sprite using tier-specific sprites."""
         sprite_name = (
-            f"player_tank_tier{self.star_level}"
-            f"_{self.direction}_{self.animation_frame}"
+            f"player_tank_tier{self.star_level}_{self.direction}_{self.animation_frame}"
         )
         self.sprite = self.texture_manager.get_sprite(sprite_name)
 
@@ -155,9 +154,7 @@ class PlayerTank(Tank):
             if self.sprite:
                 surface.blit(self.sprite, self.rect)
             interval = self.shield_flicker_interval
-            frame_idx = int(
-                self.invincibility_timer % (interval * 2) >= interval
-            )
+            frame_idx = int(self.invincibility_timer % (interval * 2) >= interval)
             surface.blit(self._shield_frames[frame_idx], self.rect)
         else:
             super().draw(surface)

@@ -115,9 +115,7 @@ class Map:
                     if gid not in animation_cache:
                         animation_frames = []
                         for anim_frame in frames_data:
-                            raw_img = tiled_map.get_tile_image_by_gid(
-                                anim_frame.gid
-                            )
+                            raw_img = tiled_map.get_tile_image_by_gid(anim_frame.gid)
                             if raw_img:
                                 scaled = pygame.transform.scale(
                                     raw_img,
