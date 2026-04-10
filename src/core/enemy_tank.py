@@ -153,6 +153,16 @@ class EnemyTank(Tank):
         except KeyError:
             logger.error(f"Sprite '{sprite_name}' not found for enemy tank.")
 
+    def _direction_moves_toward(
+        self, direction: Direction, target: tuple[float, float]
+    ) -> bool:
+        """Check if moving in direction reduces distance to target."""
+        dx, dy = direction.delta
+        tx, ty = target
+        if dx != 0:
+            return (dx > 0 and tx > self.x) or (dx < 0 and tx < self.x)
+        return (dy > 0 and ty > self.y) or (dy < 0 and ty < self.y)
+
     def _change_direction(
         self,
         player_position: tuple[float, float] | None = None,
@@ -180,20 +190,11 @@ class EnemyTank(Tank):
         if self.effective_base_bias > 0 or self.effective_player_bias > 0:
             weights = [1.0] * len(candidates)
             for i, d in enumerate(candidates):
-                dx, dy = d.delta
-                # Base bias
                 if EnemyTank.base_position is not None:
-                    bx, by = EnemyTank.base_position
-                    if (dx > 0 and bx > self.x) or (dx < 0 and bx < self.x):
+                    if self._direction_moves_toward(d, EnemyTank.base_position):
                         weights[i] += self.effective_base_bias
-                    if (dy > 0 and by > self.y) or (dy < 0 and by < self.y):
-                        weights[i] += self.effective_base_bias
-                # Player bias
                 if player_position is not None:
-                    px, py = player_position
-                    if (dx > 0 and px > self.x) or (dx < 0 and px < self.x):
-                        weights[i] += self.effective_player_bias
-                    if (dy > 0 and py > self.y) or (dy < 0 and py < self.y):
+                    if self._direction_moves_toward(d, player_position):
                         weights[i] += self.effective_player_bias
             new_direction = random.choices(candidates, weights)[0]
         else:
@@ -220,14 +221,13 @@ class EnemyTank(Tank):
         tx, ty = target
         dx, dy = self.direction.delta
         tile = self.tile_size
-        if dx != 0:  # facing LEFT or RIGHT
+        if dx != 0:
             if abs(self.y - ty) > tile:
                 return False
-            return (dx > 0 and tx > self.x) or (dx < 0 and tx < self.x)
-        else:  # facing UP or DOWN
+        else:
             if abs(self.x - tx) > tile:
                 return False
-            return (dy > 0 and ty > self.y) or (dy < 0 and ty < self.y)
+        return self._direction_moves_toward(self.direction, target)
 
     def consume_shoot(self) -> bool:
         """Check if the tank wants to shoot and clear the flag."""
@@ -282,20 +282,25 @@ class EnemyTank(Tank):
             self.direction_timer = random.uniform(0, 0.5)  # Add small random offset
 
         # Shoot periodically (reduced interval when aligned with a target)
-        effective_shoot_interval = self.shoot_interval
-        if self.aligned_shoot_multiplier < 1.0:
+        reduced_threshold = self.shoot_interval * self.aligned_shoot_multiplier
+        if self.shoot_timer >= self.shoot_interval:
+            logger.trace(f"EnemyTank ({self.tank_type}) shoot timer triggered.")
+            self._wants_to_shoot = True
+            self.shoot_timer = random.uniform(0, 0.3)  # Add small random offset
+        elif (
+            self.aligned_shoot_multiplier < 1.0
+            and self.shoot_timer >= reduced_threshold
+        ):
+            # Only check alignment when timer is between reduced and full thresholds
             aligned = False
             if EnemyTank.base_position is not None:
                 aligned = self._is_aligned_with(EnemyTank.base_position)
             if not aligned and player_position is not None:
                 aligned = self._is_aligned_with(player_position)
             if aligned:
-                effective_shoot_interval *= self.aligned_shoot_multiplier
-
-        if self.shoot_timer >= effective_shoot_interval:
-            logger.trace(f"EnemyTank ({self.tank_type}) shoot timer triggered.")
-            self._wants_to_shoot = True
-            self.shoot_timer = random.uniform(0, 0.3)  # Add small random offset
+                logger.trace(f"EnemyTank ({self.tank_type}) aligned shoot triggered.")
+                self._wants_to_shoot = True
+                self.shoot_timer = random.uniform(0, 0.3)
 
         if not self._sliding:
             dx, dy = self.direction.delta
