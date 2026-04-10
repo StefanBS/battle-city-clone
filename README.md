@@ -1,61 +1,99 @@
 # Battle City Clone
 
-A Python and Pygame implementation of the classic NES game Battle City.
+A Python and Pygame implementation of the classic NES game Battle City, featuring all 35 stages, four enemy tank types, power-ups, sound effects, gamepad support, and more.
+
+## Features
+
+- **35 stages** authored in [Tiled](https://www.mapeditor.org/) with varied enemy compositions
+- **4 enemy tank types** — basic, fast, power, and armor — each with unique sprites and stats
+- **6 power-ups** — helmet, star, bomb, clock, shovel, extra life
+- **Gamepad/controller support** — D-pad, analog sticks, hot-plug detection (SDL GameController API)
+- **Sound effects** — shooting, explosions, power-ups, engine sounds, and more
+- **Options menu** — master volume control with persistent settings
+- **Stage transitions** — curtain animations between stages
+- **Explosion animations** — small and large explosions, spawn effects
+- **Shield animation** — flicker effect on spawn invincibility
+- **Tile types** — brick (destructible, with variants), steel, water, bush (overlay), ice (sliding physics), base
+
+## Controls
+
+### Keyboard
+
+| Action        | Key              |
+|---------------|------------------|
+| Move          | Arrow keys       |
+| Shoot         | Space            |
+| Pause         | Enter            |
+| Menu navigate | Arrow keys       |
+| Menu confirm  | Space / Enter    |
+| Restart       | R (on game over) |
+
+### Gamepad
+
+| Action        | Button                          |
+|---------------|---------------------------------|
+| Move          | D-pad / Left analog stick       |
+| Shoot         | A / B                           |
+| Pause         | Start                           |
+| Menu navigate | D-pad / Left analog stick       |
+| Menu confirm  | A / Start                       |
 
 ## Project Structure
 
 ```
 battle-city-clone/
 ├── src/
-│   ├── core/                       # Game entities
-│   │   ├── game_object.py          # Base class (position, rect, draw, update)
-│   │   ├── tank.py                 # Tank base (movement, shooting, health)
-│   │   ├── player_tank.py          # Player-controlled tank (input, respawn, lives)
-│   │   ├── enemy_tank.py           # AI-controlled tank (4 types: basic/fast/power/armor)
-│   │   ├── bullet.py               # Bullet (directional movement, bounds checking)
-│   │   ├── tile.py                 # Tile types and behavior
-│   │   └── map.py                  # Map loading and tile grid management
+│   ├── core/                              # Game entities
+│   │   ├── game_object.py                 # Base class (position, rect, draw, update)
+│   │   ├── tank.py                        # Tank base (movement, shooting, health)
+│   │   ├── player_tank.py                 # Player tank (input, respawn, lives, shield)
+│   │   ├── enemy_tank.py                  # AI tank (4 types: basic/fast/power/armor)
+│   │   ├── bullet.py                      # Bullet (directional movement, bounds checking)
+│   │   ├── tile.py                        # Tile types, collision properties, variants
+│   │   ├── map.py                         # TMX map loading, tile grid, spawn points
+│   │   ├── effect.py                      # Visual effects (explosions, spawn)
+│   │   └── power_up.py                    # Power-up entity (blink, timeout, collection)
 │   │
-│   ├── managers/                   # Game systems
-│   │   ├── game_manager.py         # Main loop, orchestration, collision dispatch
-│   │   ├── collision_manager.py    # Collision detection and event queuing
+│   ├── managers/                          # Game systems
+│   │   ├── game_manager.py                # Main loop, orchestration, state machine
+│   │   ├── collision_manager.py           # Collision detection and event queuing
 │   │   ├── collision_response_handler.py  # Collision outcome processing
-│   │   ├── spawn_manager.py        # Enemy wave spawning logic
-│   │   ├── renderer.py             # Rendering pipeline (logical → display surface)
-│   │   ├── texture_manager.py      # Sprite atlas slicing and caching
-│   │   └── input_handler.py        # Keyboard input mapping
+│   │   ├── spawn_manager.py               # Enemy wave spawning logic
+│   │   ├── renderer.py                    # Rendering pipeline (logical -> display surface)
+│   │   ├── texture_manager.py             # Sprite atlas slicing and caching
+│   │   ├── input_handler.py               # Keyboard and gamepad input mapping
+│   │   ├── effect_manager.py              # Effect lifecycle management
+│   │   ├── power_up_manager.py            # Power-up spawning, collection, effects
+│   │   ├── sound_manager.py               # Sound effect loading and playback
+│   │   └── settings_manager.py            # Persistent game settings (volume)
 │   │
 │   ├── states/
-│   │   └── game_state.py           # GameState enum (RUNNING, GAME_OVER, VICTORY, EXIT)
+│   │   └── game_state.py                  # GameState enum (RUNNING, PAUSED, GAME_OVER, ...)
 │   │
 │   └── utils/
-│       ├── constants.py            # Sizes, speeds, grid dimensions, colors
-│       └── level_data.py           # Level definitions
+│       ├── constants.py                   # Sizes, speeds, grid dimensions, enums, colors
+│       └── paths.py                       # Resource path resolution (dev and packaged)
 │
 ├── assets/
-│   ├── battle-city.tiled-project   # Tiled project (custom types and enums)
-│   ├── sprites/                    # Sprite sheet (sprites.png) and tileset (sprites.tsx)
-│   ├── sounds/                     # Sound effects and music (placeholder)
-│   └── maps/                       # TMX level map files
+│   ├── battle-city.tiled-project          # Tiled project (custom types and enums)
+│   ├── sprites/                           # Sprite sheet (sprites.png) and tileset (sprites.tsx)
+│   ├── sounds/                            # Sound effects (.wav)
+│   └── maps/                              # 35 TMX level maps
 │
 ├── tests/
-│   ├── conftest.py                 # Shared fixtures
-│   ├── unit/
-│   │   ├── conftest.py             # pygame_init (session-scoped, SDL dummy driver)
-│   │   ├── core/                   # Entity unit tests
-│   │   └── managers/               # Manager unit tests
-│   └── integration/                # End-to-end tests with real objects
+│   ├── conftest.py                        # Shared fixtures
+│   ├── unit/                              # Entity and manager unit tests
+│   └── integration/                       # End-to-end tests with real objects
 │
-├── main.py                         # Entry point
-├── pyproject.toml                  # Project configuration and dependencies
+├── scripts/
+│   ├── generate_icons.py                  # App icon generation
+│   └── generate_sounds.py                 # Sound effect generation
+│
+├── installer/                             # Platform-specific packaging
+├── main.py                                # Entry point
+├── pyproject.toml                         # Project configuration and dependencies
 └── README.md
 ```
-
-## Controls
-
-- Arrow keys to move
-- Space to shoot
-- Defend your base from enemy tanks
 
 ## Setup
 
@@ -103,4 +141,13 @@ pytest tests/unit/core/test_tank.py::TestTank::test_shoot
 ```bash
 ruff check src/ tests/
 ruff format src/ tests/
+```
+
+## Building
+
+To build a standalone executable:
+
+```bash
+uv pip install -e ".[build]"
+pyinstaller battle-city.spec
 ```
