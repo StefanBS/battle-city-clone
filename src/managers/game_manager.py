@@ -366,15 +366,13 @@ class GameManager:
             self.sound_manager.play_menu_select()
         elif action in (MenuAction.LEFT, MenuAction.RIGHT):
             if self._options_selection == 0:
-                # Toggle difficulty
-                if self.difficulty == Difficulty.EASY:
-                    self.difficulty = Difficulty.NORMAL
-                else:
+                if action == MenuAction.LEFT:
                     self.difficulty = Difficulty.EASY
+                else:
+                    self.difficulty = Difficulty.NORMAL
                 self.settings_manager.difficulty = self.difficulty
                 self.sound_manager.play_menu_select()
             elif self._options_selection == 1:
-                # Adjust volume
                 delta = -0.1 if action == MenuAction.LEFT else 0.1
                 self.settings_manager.master_volume = max(
                     0.0, min(1.0, self.settings_manager.master_volume + delta)

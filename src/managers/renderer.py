@@ -288,6 +288,13 @@ class Renderer:
 
         self._present_surface()
 
+    def _draw_lr_hints(self, rect: "pygame.Rect", y: int) -> None:
+        """Draw < > arrow hints around a menu item."""
+        left_hint = self.small_font.render("<", True, GRAY)
+        self.game_surface.blit(left_hint, (rect.left - 20, y - 6))
+        right_hint = self.small_font.render(">", True, GRAY)
+        self.game_surface.blit(right_hint, (rect.right + 8, y - 6))
+
     def render_options_menu(
         self, master_volume: float, difficulty: str, selection: int
     ) -> None:
@@ -310,10 +317,7 @@ class Renderer:
         self.game_surface.blit(diff_text, diff_rect)
 
         if selection == 0:
-            left_hint = self.small_font.render("<", True, GRAY)
-            self.game_surface.blit(left_hint, (diff_rect.left - 20, diff_y - 6))
-            right_hint = self.small_font.render(">", True, GRAY)
-            self.game_surface.blit(right_hint, (diff_rect.right + 8, diff_y - 6))
+            self._draw_lr_hints(diff_rect, diff_y)
 
         # Row 1: Volume
         vol_y = cy
@@ -326,10 +330,7 @@ class Renderer:
         self.game_surface.blit(vol_text, vol_rect)
 
         if selection == 1:
-            left_hint = self.small_font.render("<", True, GRAY)
-            self.game_surface.blit(left_hint, (vol_rect.left - 20, vol_y - 6))
-            right_hint = self.small_font.render(">", True, GRAY)
-            self.game_surface.blit(right_hint, (vol_rect.right + 8, vol_y - 6))
+            self._draw_lr_hints(vol_rect, vol_y)
 
         # Row 2: Back
         back_y = cy + row_spacing
