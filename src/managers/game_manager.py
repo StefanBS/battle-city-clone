@@ -713,6 +713,9 @@ class GameManager:
             self.renderer.render_pause_menu(self._pause_selection)
             return
 
+        if self.state == GameState.EXIT:
+            return
+
         game_over_rise_progress = None
         if self.state == GameState.GAME_OVER_ANIMATION:
             game_over_rise_progress = min(
