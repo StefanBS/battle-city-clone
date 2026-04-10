@@ -6,6 +6,7 @@ from src.utils.constants import (
     FPS,
     TankType,
     Direction,
+    Difficulty,
     CARRIER_BLINK_INTERVAL,
 )
 
@@ -409,3 +410,57 @@ class TestEnemyIceSlide:
         enemy.start_slide()
         enemy.on_movement_blocked()
         assert enemy._sliding is False
+
+
+class TestEnemyAIBiases:
+    """Tests for difficulty-based AI bias computation."""
+
+    @pytest.fixture(autouse=True)
+    def set_base_position(self):
+        """Ensure base_position class attribute exists for AI tests."""
+        EnemyTank.base_position = (256.0, 480.0)
+        yield
+        EnemyTank.base_position = None
+
+    def test_normal_difficulty_basic_tank_biases(self, mock_texture_manager):
+        """Basic tank on Normal: 0.3*0.5=0.15 base, 0.2*0.5=0.1 player."""
+        with patch("src.core.enemy_tank.random.choice", return_value=Direction.DOWN):
+            with patch("src.core.enemy_tank.DIFFICULTY", Difficulty.NORMAL):
+                tank = EnemyTank(
+                    0, 0, TILE_SIZE, mock_texture_manager, TankType.BASIC,
+                    map_width_px=512, map_height_px=512,
+                )
+        assert tank.effective_base_bias == pytest.approx(0.15)
+        assert tank.effective_player_bias == pytest.approx(0.1)
+
+    def test_normal_difficulty_armor_tank_biases(self, mock_texture_manager):
+        """Armor tank on Normal: 0.3*1.5=0.45 base, 0.2*0.5=0.1 player."""
+        with patch("src.core.enemy_tank.random.choice", return_value=Direction.DOWN):
+            with patch("src.core.enemy_tank.DIFFICULTY", Difficulty.NORMAL):
+                tank = EnemyTank(
+                    0, 0, TILE_SIZE, mock_texture_manager, TankType.ARMOR,
+                    map_width_px=512, map_height_px=512,
+                )
+        assert tank.effective_base_bias == pytest.approx(0.45)
+        assert tank.effective_player_bias == pytest.approx(0.1)
+
+    def test_easy_difficulty_all_biases_zero(self, mock_texture_manager):
+        """On Easy, all biases should be zero regardless of type."""
+        with patch("src.core.enemy_tank.random.choice", return_value=Direction.DOWN):
+            with patch("src.core.enemy_tank.DIFFICULTY", Difficulty.EASY):
+                tank = EnemyTank(
+                    0, 0, TILE_SIZE, mock_texture_manager, TankType.POWER,
+                    map_width_px=512, map_height_px=512,
+                )
+        assert tank.effective_base_bias == pytest.approx(0.0)
+        assert tank.effective_player_bias == pytest.approx(0.0)
+
+    def test_aligned_shoot_multiplier_stored(self, mock_texture_manager):
+        """Aligned shoot multiplier should be stored from difficulty config."""
+        with patch("src.core.enemy_tank.random.choice", return_value=Direction.DOWN):
+            with patch("src.core.enemy_tank.DIFFICULTY", Difficulty.NORMAL):
+                tank = EnemyTank(
+                    0, 0, TILE_SIZE, mock_texture_manager, TankType.BASIC,
+                    map_width_px=512, map_height_px=512,
+                )
+        assert tank.aligned_shoot_multiplier == pytest.approx(0.5)

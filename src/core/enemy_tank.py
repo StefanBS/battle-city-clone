@@ -8,6 +8,7 @@ from src.utils.constants import (
     OwnerType,
     TankType,
     CARRIER_BLINK_INTERVAL,
+    DIFFICULTY,
 )
 from src.managers.texture_manager import TextureManager
 
@@ -47,7 +48,9 @@ def _reset_enemy_config() -> None:
 
 
 class EnemyTank(Tank):
-    """Enemy tank entity with basic AI and type variations."""
+    """Enemy tank entity with difficulty-aware AI and type variations."""
+
+    base_position: tuple[float, float] | None = None
 
     def __init__(
         self,
@@ -102,6 +105,23 @@ class EnemyTank(Tank):
         self._blocked_directions: set[Direction] = set()
         self.is_carrier: bool = is_carrier
         self.carrier_blink_timer: float = 0.0
+        self._current_player_position: tuple[float, float] | None = None
+
+        # Compute effective AI biases from difficulty config + type multipliers
+        difficulty_config = config.get("difficulty", {}).get(
+            DIFFICULTY.value,
+            {"base_bias": 0.0, "player_bias": 0.0, "aligned_shoot_multiplier": 1.0},
+        )
+        self.effective_base_bias: float = difficulty_config["base_bias"] * props.get(
+            "base_bias_multiplier", 1.0
+        )
+        self.effective_player_bias: float = difficulty_config[
+            "player_bias"
+        ] * props.get("player_bias_multiplier", 1.0)
+        self.aligned_shoot_multiplier: float = difficulty_config[
+            "aligned_shoot_multiplier"
+        ]
+
         self._update_sprite()
         logger.debug(
             f"EnemyTank ({tank_type}) properties: speed={self.speed:.2f}, "
