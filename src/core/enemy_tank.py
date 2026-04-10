@@ -140,17 +140,14 @@ class EnemyTank(Tank):
             >= CARRIER_BLINK_INTERVAL
         ):
             sprite_name = (
-                f"{self._sprite_prefix}_red"
-                f"_{self.direction}_{self.animation_frame}"
+                f"{self._sprite_prefix}_red_{self.direction}_{self.animation_frame}"
             )
             try:
                 self.sprite = self.texture_manager.get_sprite(sprite_name)
                 return
             except KeyError:
                 pass
-        sprite_name = (
-            f"{self._sprite_prefix}_{self.direction}_{self.animation_frame}"
-        )
+        sprite_name = f"{self._sprite_prefix}_{self.direction}_{self.animation_frame}"
         try:
             self.sprite = self.texture_manager.get_sprite(sprite_name)
         except KeyError:

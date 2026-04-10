@@ -78,9 +78,7 @@ class SpawnManager:
         # Initial spawn
         self.spawn_enemy(player_tank, game_map)
 
-    def _build_spawn_queue(
-        self, enemy_composition: dict[str, int]
-    ) -> List[TankType]:
+    def _build_spawn_queue(self, enemy_composition: dict[str, int]) -> List[TankType]:
         """Build a shuffled list of enemy types from the composition dict.
 
         Args:
@@ -156,9 +154,7 @@ class SpawnManager:
             # Play spawn animation, materialize tank when it finishes
             center_x = float(x + TILE_SIZE // 2)
             center_y = float(y + TILE_SIZE // 2)
-            effect = self._effect_manager.spawn(
-                EffectType.SPAWN, center_x, center_y
-            )
+            effect = self._effect_manager.spawn(EffectType.SPAWN, center_x, center_y)
             self._pending_spawns.append(
                 _PendingSpawn(
                     x=x, y=y, tank_type=tank_type, effect=effect, is_carrier=is_carrier
