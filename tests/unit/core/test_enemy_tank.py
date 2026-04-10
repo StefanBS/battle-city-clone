@@ -150,6 +150,7 @@ def test_enemy_tank_grid_alignment(mock_texture_manager):
     assert tank.rect.y == expected_y
 
 
+@patch("src.core.enemy_tank.DIFFICULTY", Difficulty.EASY)
 @patch("src.core.enemy_tank.random.choice")
 def test_on_movement_blocked(mock_random_choice, mock_texture_manager):
     """Test that on_movement_blocked changes direction and resets direction_timer."""
@@ -175,6 +176,7 @@ def test_on_movement_blocked(mock_random_choice, mock_texture_manager):
     assert Direction.UP in tank._blocked_directions
 
 
+@patch("src.core.enemy_tank.DIFFICULTY", Difficulty.EASY)
 @patch("src.core.enemy_tank.random.choice")
 def test_blocked_avoids_blocked_dirs(mock_random_choice, mock_texture_manager):
     """Test that consecutive wall hits accumulate blocked directions."""
@@ -199,6 +201,7 @@ def test_blocked_avoids_blocked_dirs(mock_random_choice, mock_texture_manager):
     assert tank.direction == Direction.DOWN
 
 
+@patch("src.core.enemy_tank.DIFFICULTY", Difficulty.EASY)
 @patch("src.core.enemy_tank.random.choice")
 def test_blocked_directions_persist_until_movement(
     mock_random_choice, mock_texture_manager
@@ -227,6 +230,7 @@ def test_blocked_directions_persist_until_movement(
     assert Direction.LEFT in tank._blocked_directions
 
 
+@patch("src.core.enemy_tank.DIFFICULTY", Difficulty.EASY)
 @patch("src.core.enemy_tank.random.choice")
 def test_blocked_directions_cleared_on_successful_move(
     mock_random_choice, mock_texture_manager
@@ -270,6 +274,7 @@ def test_consume_shoot_after_timer(mock_texture_manager):
     assert tank.consume_shoot() is False
 
 
+@patch("src.core.enemy_tank.DIFFICULTY", Difficulty.EASY)
 @patch("src.core.enemy_tank.random.choice")
 @patch("src.core.enemy_tank.random.uniform", return_value=0.0)
 def test_update_moves_in_current_direction(
@@ -464,3 +469,92 @@ class TestEnemyAIBiases:
                     map_width_px=512, map_height_px=512,
                 )
         assert tank.aligned_shoot_multiplier == pytest.approx(0.5)
+
+    @patch("src.core.enemy_tank.random.choices")
+    def test_change_direction_weights_toward_base(
+        self, mock_choices, mock_texture_manager
+    ):
+        """When base is below, DOWN should get extra base_bias weight."""
+        mock_choices.return_value = [Direction.DOWN]
+        with patch("src.core.enemy_tank.random.choice", return_value=Direction.DOWN):
+            with patch("src.core.enemy_tank.DIFFICULTY", Difficulty.NORMAL):
+                tank = EnemyTank(
+                    0, 0, TILE_SIZE, mock_texture_manager, TankType.ARMOR,
+                    map_width_px=512, map_height_px=512,
+                )
+        tank.direction = Direction.LEFT
+        tank.direction_timer = tank.direction_change_interval + 1
+        tank._blocked_directions.clear()
+
+        tank.update(0.01, player_position=None)
+
+        mock_choices.assert_called()
+        candidates, weights = mock_choices.call_args[0]
+        # DOWN should have highest weight (base bias for armor = 0.45)
+        down_idx = candidates.index(Direction.DOWN)
+        assert weights[down_idx] == pytest.approx(1.0 + 0.45)
+
+    @patch("src.core.enemy_tank.random.choices")
+    def test_change_direction_weights_toward_player(
+        self, mock_choices, mock_texture_manager
+    ):
+        """When player is to the right, RIGHT should get extra player_bias weight."""
+        mock_choices.return_value = [Direction.RIGHT]
+        with patch("src.core.enemy_tank.random.choice", return_value=Direction.DOWN):
+            with patch("src.core.enemy_tank.DIFFICULTY", Difficulty.NORMAL):
+                tank = EnemyTank(
+                    0, 0, TILE_SIZE, mock_texture_manager, TankType.FAST,
+                    map_width_px=512, map_height_px=512,
+                )
+        tank.direction = Direction.UP
+        tank.direction_timer = tank.direction_change_interval + 1
+        tank._blocked_directions.clear()
+
+        tank.update(0.01, player_position=(400.0, 0.0))
+
+        mock_choices.assert_called()
+        candidates, weights = mock_choices.call_args[0]
+        right_idx = candidates.index(Direction.RIGHT)
+        # fast: player_bias = 0.2 * 1.5 = 0.3
+        assert weights[right_idx] >= 1.0 + 0.3
+
+    @patch("src.core.enemy_tank.random.choices")
+    def test_easy_difficulty_equal_weights(
+        self, mock_choices, mock_texture_manager
+    ):
+        """On Easy, all candidate directions should have equal weight 1.0."""
+        mock_choices.return_value = [Direction.DOWN]
+        with patch("src.core.enemy_tank.random.choice", return_value=Direction.DOWN):
+            with patch("src.core.enemy_tank.DIFFICULTY", Difficulty.EASY):
+                tank = EnemyTank(
+                    0, 0, TILE_SIZE, mock_texture_manager, TankType.BASIC,
+                    map_width_px=512, map_height_px=512,
+                )
+        tank.direction = Direction.LEFT
+        tank.direction_timer = tank.direction_change_interval + 1
+        tank._blocked_directions.clear()
+
+        tank.update(0.01, player_position=(400.0, 400.0))
+
+        # On Easy, biases are zero so random.choice is used, not random.choices
+        mock_choices.assert_not_called()
+
+    def test_none_player_position_uses_base_only(self, mock_texture_manager):
+        """When player_position is None, only base bias applies."""
+        with patch("src.core.enemy_tank.random.choice", return_value=Direction.DOWN):
+            with patch("src.core.enemy_tank.DIFFICULTY", Difficulty.NORMAL):
+                tank = EnemyTank(
+                    0, 0, TILE_SIZE, mock_texture_manager, TankType.ARMOR,
+                    map_width_px=512, map_height_px=512,
+                )
+        tank.direction = Direction.LEFT
+        tank.direction_timer = tank.direction_change_interval + 1
+
+        with patch(
+            "src.core.enemy_tank.random.choices", return_value=[Direction.DOWN]
+        ) as mock_choices:
+            tank.update(0.01, player_position=None)
+            candidates, weights = mock_choices.call_args[0]
+            # No player bias added, only base bias
+            down_idx = candidates.index(Direction.DOWN)
+            assert weights[down_idx] == pytest.approx(1.0 + 0.45)  # base only

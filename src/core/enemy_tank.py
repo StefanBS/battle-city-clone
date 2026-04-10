@@ -156,8 +156,12 @@ class EnemyTank(Tank):
         except KeyError:
             logger.error(f"Sprite '{sprite_name}' not found for enemy tank.")
 
-    def _change_direction(self, allow_slide: bool = True) -> None:
-        """Randomly change the tank's direction, avoiding blocked ones."""
+    def _change_direction(
+        self,
+        player_position: tuple[float, float] | None = None,
+        allow_slide: bool = True,
+    ) -> None:
+        """Change the tank's direction, weighted by AI biases when applicable."""
         old_direction = self.direction
 
         # Prefer unblocked directions, excluding opposite to avoid reversing
@@ -176,7 +180,27 @@ class EnemyTank(Tank):
         if not candidates:
             return
 
-        new_direction = random.choice(candidates)
+        if self.effective_base_bias > 0 or self.effective_player_bias > 0:
+            weights = [1.0] * len(candidates)
+            for i, d in enumerate(candidates):
+                dx, dy = d.delta
+                # Base bias
+                if EnemyTank.base_position is not None:
+                    bx, by = EnemyTank.base_position
+                    if (dx > 0 and bx > self.x) or (dx < 0 and bx < self.x):
+                        weights[i] += self.effective_base_bias
+                    if (dy > 0 and by > self.y) or (dy < 0 and by < self.y):
+                        weights[i] += self.effective_base_bias
+                # Player bias
+                if player_position is not None:
+                    px, py = player_position
+                    if (dx > 0 and px > self.x) or (dx < 0 and px < self.x):
+                        weights[i] += self.effective_player_bias
+                    if (dy > 0 and py > self.y) or (dy < 0 and py < self.y):
+                        weights[i] += self.effective_player_bias
+            new_direction = random.choices(candidates, weights)[0]
+        else:
+            new_direction = random.choice(candidates)
 
         # Trigger ice slide in old direction before changing
         if allow_slide and new_direction != old_direction and self._on_ice:
@@ -205,16 +229,24 @@ class EnemyTank(Tank):
         """Handle collision with a wall by changing direction."""
         super().on_movement_blocked()
         self._blocked_directions.add(self.direction)
-        self._change_direction(allow_slide=False)
+        self._change_direction(
+            player_position=self._current_player_position, allow_slide=False
+        )
         self.direction_timer = 0
 
-    def update(self, dt: float) -> None:
+    def update(
+        self,
+        dt: float,
+        player_position: tuple[float, float] | None = None,
+    ) -> None:
         """
         Update the tank's position and behavior.
 
         Args:
             dt: Time elapsed since last update in seconds
+            player_position: Current player position for AI targeting, or None
         """
+        self._current_player_position = player_position
         # Clear blocked directions once the tank successfully moved,
         # meaning the path is no longer obstructed. Check before
         # super().update() overwrites prev_x/prev_y.
@@ -235,7 +267,7 @@ class EnemyTank(Tank):
         # Change direction periodically
         if self.direction_timer >= self.direction_change_interval:
             logger.trace(f"EnemyTank ({self.tank_type}) direction timer triggered.")
-            self._change_direction()
+            self._change_direction(player_position=player_position)
             self.direction_timer = random.uniform(0, 0.5)  # Add small random offset
 
         # Shoot periodically
