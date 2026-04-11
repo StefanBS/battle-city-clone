@@ -49,6 +49,17 @@
                 "enemy_spawn"
             ],
             "valuesAsFlags": false
+        },
+        {
+            "id": 4,
+            "name": "Difficulty",
+            "storageType": "string",
+            "type": "enum",
+            "values": [
+                "easy",
+                "normal"
+            ],
+            "valuesAsFlags": false
         }
     ]
 }
