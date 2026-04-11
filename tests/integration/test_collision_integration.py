@@ -77,12 +77,12 @@ def test_player_bullet_vs_tile(
     player_tank.set_position(player_start_x, player_start_y)
     player_tank.prev_x, player_tank.prev_y = player_start_x, player_start_y
 
-    # Aim up and shoot
+    # Aim up and shoot via PlayerManager
     player_tank.direction = Direction.UP
-    game_manager._try_shoot(player_tank)
-
-    assert len(game_manager.bullets) == 1, "Bullet failed to spawn."
-    bullet = next(b for b in game_manager.bullets if b.owner is player_tank)
+    bullet_obj = player_tank.shoot()
+    assert bullet_obj is not None, "Bullet failed to spawn."
+    game_manager.player_manager.add_bullet(bullet_obj)
+    bullet = bullet_obj
 
     # Simulate game time until bullet should have hit (or passed)
     dt = 1.0 / FPS
@@ -178,12 +178,12 @@ def test_player_bullet_destroys_enemy_tank(game_manager_fixture, mocker):
     player_tank.set_position(player_start_x, player_start_y)
     player_tank.prev_x, player_tank.prev_y = player_start_x, player_start_y
 
-    # Aim up and shoot
+    # Aim up and shoot via PlayerManager
     player_tank.direction = Direction.UP
-    game_manager._try_shoot(player_tank)
-
-    assert len(game_manager.bullets) == 1, "Bullet failed to spawn."
-    bullet = next(b for b in game_manager.bullets if b.owner is player_tank)
+    bullet_obj = player_tank.shoot()
+    assert bullet_obj is not None, "Bullet failed to spawn."
+    game_manager.player_manager.add_bullet(bullet_obj)
+    bullet = bullet_obj
 
     # Simulate game time until bullet should have hit
     dt = 1.0 / FPS
@@ -588,7 +588,7 @@ def test_player_tank_vs_enemy_tank_no_overlap(game_manager_fixture, mocker):
 
         # Run collision detection and response
         game_manager.collision_manager.check_collisions(
-            player_tank=player_tank,
+            player_tanks=[player_tank],
             player_bullets=[],
             enemy_tanks=[enemy_tank],
             enemy_bullets=[],

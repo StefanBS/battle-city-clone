@@ -654,20 +654,26 @@ class TestPlayerVsPowerUp:
     ):
         handler, score_tracker, pu_manager = handler_with_powerup
         handler.process_collisions([(mock_player, mock_power_up)])
-        assert handler.consume_collected_power_up() == PowerUpType.HELMET
+        power_up_type, collecting_player = handler.consume_collected_power_up()
+        assert power_up_type == PowerUpType.HELMET
+        assert collecting_player is mock_player
 
     def test_consume_clears_stored_type(
         self, handler_with_powerup, mock_player, mock_power_up
     ):
         handler, score_tracker, pu_manager = handler_with_powerup
         handler.process_collisions([(mock_player, mock_power_up)])
-        result = handler.consume_collected_power_up()
-        assert result == PowerUpType.HELMET
-        assert handler.consume_collected_power_up() is None
+        power_up_type, collecting_player = handler.consume_collected_power_up()
+        assert power_up_type == PowerUpType.HELMET
+        result_type, result_player = handler.consume_collected_power_up()
+        assert result_type is None
+        assert result_player is None
 
     def test_consume_returns_none_when_empty(self, handler_with_powerup):
         handler, score_tracker, pu_manager = handler_with_powerup
-        assert handler.consume_collected_power_up() is None
+        result_type, result_player = handler.consume_collected_power_up()
+        assert result_type is None
+        assert result_player is None
 
 
 class TestPowerBulletVsSteel:

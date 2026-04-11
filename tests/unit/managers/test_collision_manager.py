@@ -66,7 +66,7 @@ class TestCollisionManager:
         """Force overlap between two objects and assert exactly one collision event."""
         obj_a.rect = obj_b.rect.copy()
         defaults = dict(
-            player_tank=None,
+            player_tanks=[],
             player_bullets=[],
             enemy_tanks=[],
             enemy_bullets=[],
@@ -88,7 +88,7 @@ class TestCollisionManager:
         """Test check_collisions when no objects overlap."""
         all_blocking = mock_objects["bricks"] + mock_objects["steel"]
         collision_manager.check_collisions(
-            player_tank=mock_objects["player"],
+            player_tanks=[mock_objects["player"]],
             player_bullets=mock_objects["p_bullets"],
             enemy_tanks=mock_objects["enemies"],
             enemy_bullets=mock_objects["e_bullets"],
@@ -104,7 +104,7 @@ class TestCollisionManager:
             collision_manager,
             mock_objects["p_bullets"][0],
             mock_objects["enemies"][0],
-            player_tank=mock_objects["player"],
+            player_tanks=[mock_objects["player"]],
             player_bullets=[mock_objects["p_bullets"][0]],
             enemy_tanks=[mock_objects["enemies"][0]],
         )
@@ -125,7 +125,7 @@ class TestCollisionManager:
             collision_manager,
             mock_objects["e_bullets"][0],
             mock_objects["player"],
-            player_tank=mock_objects["player"],
+            player_tanks=[mock_objects["player"]],
             enemy_bullets=[mock_objects["e_bullets"][0]],
         )
 
@@ -165,7 +165,7 @@ class TestCollisionManager:
             collision_manager,
             mock_objects["player"],
             mock_objects["steel"][0],
-            player_tank=mock_objects["player"],
+            player_tanks=[mock_objects["player"]],
             tank_blocking_tiles=[mock_objects["steel"][0]],
         )
 
@@ -175,7 +175,7 @@ class TestCollisionManager:
             collision_manager,
             mock_objects["player"],
             mock_objects["enemies"][0],
-            player_tank=mock_objects["player"],
+            player_tanks=[mock_objects["player"]],
             enemy_tanks=[mock_objects["enemies"][0]],
         )
 
@@ -191,7 +191,7 @@ class TestCollisionManager:
         e_bullet.rect = brick.rect.copy()
 
         collision_manager.check_collisions(
-            player_tank=None,
+            player_tanks=[],
             player_bullets=[p_bullet],
             enemy_tanks=[enemy],
             enemy_bullets=[e_bullet],
@@ -212,7 +212,7 @@ class TestCollisionManager:
 
         # First call with collision
         collision_manager.check_collisions(
-            player_tank=None,
+            player_tanks=[],
             player_bullets=[p_bullet],
             enemy_tanks=[enemy],
             enemy_bullets=[],
@@ -225,7 +225,7 @@ class TestCollisionManager:
         # Second call with no collision
         p_bullet.rect.move_ip(1000, 1000)  # Move bullet away
         collision_manager.check_collisions(
-            player_tank=None,
+            player_tanks=[],
             player_bullets=[p_bullet],
             enemy_tanks=[enemy],
             enemy_bullets=[],
@@ -269,7 +269,7 @@ class TestCollisionManager:
 
         # Pass brick in BOTH blocking tile lists (blocks tanks and bullets)
         collision_manager.check_collisions(
-            player_tank=None,
+            player_tanks=[],
             player_bullets=[p_bullet],
             enemy_tanks=[],
             enemy_bullets=[],
@@ -298,7 +298,7 @@ class TestPowerUpCollision:
 
     def _check(self, cm, player, power_ups):
         cm.check_collisions(
-            player_tank=player,
+            player_tanks=[player],
             player_bullets=[],
             enemy_tanks=[],
             enemy_bullets=[],

@@ -80,7 +80,7 @@ class Renderer:
     def render(
         self,
         game_map,
-        player_tank,
+        player_tanks: List,
         enemy_tanks: List,
         bullets: List,
         effect_manager,
@@ -93,7 +93,7 @@ class Renderer:
 
         Args:
             game_map: The game map to draw.
-            player_tank: The player's tank.
+            player_tanks: List of player tanks.
             enemy_tanks: List of enemy tanks.
             bullets: List of bullets.
             state: Current game state.
@@ -105,7 +105,8 @@ class Renderer:
 
         game_map.draw(self.map_surface)
 
-        player_tank.draw(self.map_surface)
+        for player_tank in player_tanks:
+            player_tank.draw(self.map_surface)
         for enemy in enemy_tanks:
             enemy.draw(self.map_surface)
         for power_up in power_ups:
@@ -119,7 +120,7 @@ class Renderer:
 
         self.game_surface.blit(self.map_surface, (self.map_offset_x, self.map_offset_y))
 
-        self._draw_hud(player_tank, score)
+        self._draw_hud(player_tanks, score)
 
         if state == GameState.GAME_OVER:
             self._draw_game_over()
@@ -153,17 +154,18 @@ class Renderer:
         rect = surface.get_rect(center=(self._center_x, y))
         self.game_surface.blit(surface, rect)
 
-    def _draw_hud(self, player_tank, score: int = 0) -> None:
+    def _draw_hud(self, player_tanks: List, score: int = 0) -> None:
         """Draw the heads-up display.
 
         Args:
-            player_tank: The player's tank (used for lives).
+            player_tanks: List of player tanks (uses first player for lives).
             score: Current player score.
         """
-        if self._cached_lives != player_tank.lives:
-            self._cached_lives = player_tank.lives
+        lives = player_tanks[0].lives if player_tanks else 0
+        if self._cached_lives != lives:
+            self._cached_lives = lives
             self._cached_lives_text = self.small_font.render(
-                f"Lives: {player_tank.lives}", True, WHITE
+                f"Lives: {lives}", True, WHITE
             )
         self.game_surface.blit(self._cached_lives_text, (10, 10))
 

@@ -80,8 +80,9 @@ def test_player_game_over_on_zero_lives():
     # Ensure the player starts with at least 1 life for the test
     assert player_tank.lives >= 1
 
-    # Set lives to 1 to guarantee game over on next death
-    player_tank.lives = 1
+    # Set lives to 0 to guarantee game over on next death
+    # (handle_player_death checks lives > 0 to decide respawn vs game over)
+    player_tank.lives = 0
 
     # Disable spawn invincibility so damage can land
     player_tank.is_invincible = False
@@ -98,7 +99,12 @@ def test_player_game_over_on_zero_lives():
     mock_enemy_bullet.active = True  # Needs to be active to be processed
 
     # 2. Mock the player tank's take_damage to return True (fatal hit)
-    player_tank.take_damage = MagicMock(return_value=True)
+    #    Also set health to 0 since handle_player_death checks it for game over.
+    def _mock_take_damage(amount=1):
+        player_tank.health = 0
+        return True
+
+    player_tank.take_damage = MagicMock(side_effect=_mock_take_damage)
 
     # 3. Mock CollisionManager to report a collision between the mock bullet and player
     # Need to mock the instance within game_manager
@@ -164,12 +170,11 @@ def test_player_bullet_hits_base(game_manager_fixture):
     player_tank.set_position(player_start_x, player_start_y)
     player_tank.prev_x, player_tank.prev_y = player_start_x, player_start_y
 
-    # Aim DOWN and shoot
+    # Aim DOWN and shoot via PlayerManager
     player_tank.direction = Direction.DOWN  # Aim down towards base
-    game_manager._try_shoot(player_tank)
-
-    assert len(game_manager.bullets) == 1, "Player bullet failed to spawn."
-    bullet = next(b for b in game_manager.bullets if b.owner is player_tank)
+    bullet = player_tank.shoot()
+    assert bullet is not None, "Player bullet failed to spawn."
+    game_manager.player_manager.add_bullet(bullet)
     assert bullet.active, "Player bullet spawned inactive."
 
     # Assert initial game state is RUNNING
@@ -393,10 +398,10 @@ def test_score_accumulates_on_enemy_kill(game_manager_fixture):
     player.rect.topleft = (round(player.x), round(player.y))
     player.direction = Direction.UP
 
-    # Fire a bullet
+    # Fire a bullet via PlayerManager
     bullet = player.shoot()
     assert bullet is not None
-    gm.bullets.append(bullet)
+    gm.player_manager.add_bullet(bullet)
 
     # Clear other enemies to avoid interference
     gm.spawn_manager.enemy_tanks = [enemy]

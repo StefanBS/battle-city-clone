@@ -40,14 +40,12 @@ from src.managers.collision_manager import CollisionManager
 from src.managers.collision_response_handler import CollisionResponseHandler
 from src.managers.effect_manager import EffectManager
 from src.managers.texture_manager import TextureManager
-from src.managers.input_handler import (
-    InputHandler,
-    JOY_START_BUTTON,
-    CTRL_START_BUTTON,
-)
+from src.managers.input_handler import InputHandler
+from src.managers.player_input import CTRL_START_BUTTON, JOY_START_BUTTON
 from src.managers.spawn_manager import SpawnManager
 from src.managers.renderer import Renderer
 from src.managers.power_up_manager import PowerUpManager
+from src.managers.player_manager import PlayerManager
 from src.managers.sound_manager import SoundManager
 from src.managers.settings_manager import SettingsManager
 from src.utils.paths import resource_path
@@ -79,6 +77,9 @@ class GameManager:
         self.sound_manager: SoundManager = SoundManager(
             master_volume=self.settings_manager.master_volume
         )
+        self.player_manager: PlayerManager = PlayerManager(
+            self.texture_manager, self.sound_manager
+        )
 
         self.state: GameState = GameState.TITLE_SCREEN
         self._title_selection: int = 0
@@ -97,6 +98,21 @@ class GameManager:
             LOGICAL_HEIGHT,
         )
 
+    @property
+    def player_tank(self) -> Optional[PlayerTank]:
+        """Convenience property returning the first active player tank.
+
+        Used by integration tests that need a single player reference.
+        Returns None if no active players exist.
+        """
+        active = self.player_manager.get_active_players()
+        return active[0] if active else None
+
+    @property
+    def score(self) -> int:
+        """Convenience property delegating to player_manager.score."""
+        return self.player_manager.score
+
     def _reset_game(self) -> None:
         """Start a new game and immediately enter RUNNING state (used by tests)."""
         self._new_game()
@@ -105,9 +121,8 @@ class GameManager:
     def _new_game(self) -> None:
         """Full reset for starting a new game. Does not set state."""
         self.current_stage = 1
-        self.score = 0
         self._state_timer = 0.0
-        self.player_tank = None
+        self.player_manager.reset()
         self._load_stage()
 
     @property
@@ -126,10 +141,7 @@ class GameManager:
         self.input_handler.reset()
 
         # Preserve player progress across stages
-        player_lives = self.player_tank.lives if self.player_tank is not None else 3
-        player_star_level = (
-            self.player_tank.star_level if self.player_tank is not None else 0
-        )
+        self.player_manager.preserve_state()
 
         self.collision_manager = CollisionManager()
 
@@ -160,21 +172,13 @@ class GameManager:
             game_map=self.map,
             set_game_state=self._set_game_state,
             effect_manager=self.effect_manager,
-            add_score=self._add_score,
+            add_score=self.player_manager.add_score,
             power_up_manager=self.power_up_manager,
             sound_manager=self.sound_manager,
+            on_player_death=self.player_manager.handle_player_death,
         )
 
-        start_x = self.map.player_spawn[0] * self.map.tile_size
-        start_y = self.map.player_spawn[1] * self.map.tile_size
-        self.player_tank = PlayerTank(
-            start_x,
-            start_y,
-            self.tile_size,
-            self.texture_manager,
-            map_width_px=map_width_px,
-            map_height_px=map_height_px,
-        )
+        self.player_manager.create_players(self.map)
 
         # Renderer (fixed logical surface with map centered inside)
         self.renderer = Renderer(
@@ -196,7 +200,7 @@ class GameManager:
             game_map=self.map,
             enemy_composition=self.map.enemy_composition,
             spawn_interval=self.map.spawn_interval,
-            player_tank=self.player_tank,
+            player_tanks=self.player_manager.get_active_players(),
             effect_manager=self.effect_manager,
             difficulty=effective_difficulty,
             powerup_carrier_indices=self.map.powerup_carrier_indices,
@@ -210,12 +214,11 @@ class GameManager:
         self._shovel_flash_showing_steel: bool = True
 
         # Restore player progress
-        self.player_tank.lives = player_lives
-        if player_star_level > 0:
-            self.player_tank.restore_star_level(player_star_level)
+        self.player_manager.restore_state()
 
         # Grant spawn invincibility (after progress restoration)
-        self.player_tank.activate_invincibility(SPAWN_INVINCIBILITY_DURATION)
+        for player in self.player_manager.get_active_players():
+            player.activate_invincibility(SPAWN_INVINCIBILITY_DURATION)
 
         if self._demo_mode:
             self._spawn_demo_power_ups()
@@ -263,6 +266,7 @@ class GameManager:
                     self._handle_escape()
 
             self.input_handler.handle_event(event)
+            self.player_manager.handle_event(event)
 
         if self.state != GameState.RUNNING:
             self._process_menu_actions()
@@ -441,29 +445,13 @@ class GameManager:
             return
 
         self.map.update(dt)
-        # Update player tank (stores prev position) BEFORE movement
-        self.player_tank.update(dt)
+        # Update player tanks via PlayerManager
+        self.player_manager.update(dt, self.map)
+        self.player_manager.try_shoot()
 
-        # Drive player tank from input
-        dx, dy = self.input_handler.get_movement_direction()
-        has_valid_input = (dx != 0 or dy != 0) and not (dx != 0 and dy != 0)
-
-        # Ice slide: trigger BEFORE move() so start_slide() captures the old direction
-        self.player_tank.on_ice = self._is_on_ice(self.player_tank)
-        if self.player_tank.on_ice and not self.player_tank.is_sliding:
-            if not has_valid_input or (dx, dy) != self.player_tank.direction.delta:
-                if self.player_tank.start_slide():
-                    self.sound_manager.play_ice_slide()
-
-        if has_valid_input and not self.player_tank.is_sliding:
-            self.player_tank.move(dx, dy, dt)
-        if self.input_handler.consume_shoot():
-            self._try_shoot(self.player_tank)
-
+        active_players = self.player_manager.get_active_players()
         player_pos = (
-            (self.player_tank.x, self.player_tank.y)
-            if self.player_tank and self.player_tank.health > 0
-            else None
+            (active_players[0].x, active_players[0].y) if active_players else None
         )
 
         if self.freeze_timer > 0:
@@ -476,18 +464,18 @@ class GameManager:
                     self._try_shoot(enemy)
 
         # Engine sound: plays when any tank is moving
-        any_moving = self.player_tank.is_moving or any(
+        any_moving = any(p.is_moving for p in active_players) or any(
             e.is_moving for e in self.spawn_manager.enemy_tanks
         )
         self.sound_manager.update_engine(any_moving)
 
-        # Update all bullets
+        # Update enemy bullets (player bullets managed by PlayerManager)
         for bullet in self.bullets:
             bullet.update(dt)
         # Remove inactive bullets
         self.bullets = [b for b in self.bullets if b.active]
 
-        self.spawn_manager.update(dt, self.player_tank, self.map)
+        self.spawn_manager.update(dt, active_players, self.map)
         self.power_up_manager.update(dt)
         self._tick_shovel(dt)
 
@@ -497,13 +485,13 @@ class GameManager:
         bullet_blocking_tiles: List[Tile] = self.map.get_bullet_blocking_tiles()
         player_base: Optional[Tile] = self.map.get_base()
 
-        player_bullets = [b for b in self.bullets if b.owner_type == OwnerType.PLAYER]
+        player_bullets = self.player_manager.get_all_bullets()
         enemy_bullets = [b for b in self.bullets if b.owner_type == OwnerType.ENEMY]
 
         active_power_ups = self.power_up_manager.get_power_ups()
 
         self.collision_manager.check_collisions(
-            player_tank=self.player_tank,
+            player_tanks=active_players,
             player_bullets=player_bullets,
             enemy_tanks=self.spawn_manager.enemy_tanks,
             enemy_bullets=enemy_bullets,
@@ -519,13 +507,16 @@ class GameManager:
             self.spawn_manager.remove_enemy(enemy)
             if enemy.is_carrier:
                 self.power_up_manager.spawn_power_up(
-                    self.player_tank, self.spawn_manager.enemy_tanks
+                    active_players[0] if active_players else None,
+                    self.spawn_manager.enemy_tanks,
                 )
 
         # Apply deferred power-up effect
-        collected = self.collision_response_handler.consume_collected_power_up()
-        if collected is not None:
-            self._apply_power_up(collected)
+        collected_type, collected_player = (
+            self.collision_response_handler.consume_collected_power_up()
+        )
+        if collected_type is not None:
+            self._apply_power_up(collected_type, collected_player)
 
         # Powerup blink sound: plays when any powerup is active
         self.sound_manager.update_powerup_blink(bool(active_power_ups))
@@ -571,20 +562,23 @@ class GameManager:
 
     def _is_on_ice(self, tank) -> bool:
         """Check if the tank's center is over an ice tile."""
-        center_x = int(tank.x + tank.width / 2)
-        center_y = int(tank.y + tank.height / 2)
-        grid_x = center_x // self.map.tile_size
-        grid_y = center_y // self.map.tile_size
-        tile = self.map.get_tile_at(grid_x, grid_y)
-        return tile is not None and tile.is_slidable
+        return self.map.is_tile_slidable(tank.x, tank.y, tank.width, tank.height)
 
-    def _add_score(self, points: int) -> None:
-        """Add points to the player's score."""
-        self.score += points
+    def _apply_power_up(
+        self, power_up_type: PowerUpType, player: Optional[PlayerTank] = None
+    ) -> None:
+        """Dispatch power-up effect by type.
 
-    def _apply_power_up(self, power_up_type: PowerUpType) -> None:
-        """Dispatch power-up effect by type."""
+        Args:
+            power_up_type: The type of power-up to apply.
+            player: The player tank that collected the power-up.
+        """
         if self.state != GameState.RUNNING:
+            return
+        if player is None:
+            active = self.player_manager.get_active_players()
+            player = active[0] if active else None
+        if player is None:
             return
         handlers = {
             PowerUpType.HELMET: self._apply_helmet,
@@ -596,24 +590,24 @@ class GameManager:
         }
         handler = handlers.get(power_up_type)
         if handler:
-            handler()
+            handler(player)
         else:
             logger.warning(f"Unhandled power-up type: {power_up_type}")
 
-    def _apply_helmet(self) -> None:
+    def _apply_helmet(self, player: PlayerTank) -> None:
         """Grant temporary invincibility to the player."""
-        self.player_tank.activate_invincibility(HELMET_INVINCIBILITY_DURATION)
+        player.activate_invincibility(HELMET_INVINCIBILITY_DURATION)
         logger.info(
             f"Helmet power-up applied: player invincible "
             f"for {HELMET_INVINCIBILITY_DURATION}s"
         )
 
-    def _apply_extra_life(self) -> None:
+    def _apply_extra_life(self, player: PlayerTank) -> None:
         """Award the player one extra life."""
-        self.player_tank.lives += 1
-        logger.info(f"Extra Life power-up applied: lives now {self.player_tank.lives}")
+        player.lives += 1
+        logger.info(f"Extra Life power-up applied: lives now {player.lives}")
 
-    def _apply_bomb(self) -> None:
+    def _apply_bomb(self, player: PlayerTank) -> None:
         """Destroy all active enemies on the map without awarding points."""
         for enemy in list(self.spawn_manager.enemy_tanks):
             self.effect_manager.spawn(
@@ -624,14 +618,14 @@ class GameManager:
             self.spawn_manager.remove_enemy(enemy)
         logger.info("Bomb power-up applied: all enemies destroyed")
 
-    def _apply_clock(self) -> None:
+    def _apply_clock(self, player: PlayerTank) -> None:
         """Freeze all enemies for the clock duration."""
         self.freeze_timer = CLOCK_FREEZE_DURATION
         logger.info(
             f"Clock power-up applied: enemies frozen for {CLOCK_FREEZE_DURATION}s"
         )
 
-    def _apply_shovel(self) -> None:
+    def _apply_shovel(self, player: PlayerTank) -> None:
         """Fortify base walls with steel, restoring destroyed bricks first."""
         if not self._shovel_original_tiles:
             tiles = self.map.get_base_surrounding_tiles(include_empty=True)
@@ -680,12 +674,10 @@ class GameManager:
                         target = TileType.STEEL if should_show_steel else orig_type
                         self.map.set_tile_type(tile, target)
 
-    def _apply_star(self) -> None:
+    def _apply_star(self, player: PlayerTank) -> None:
         """Apply star upgrade to the player tank."""
-        self.player_tank.apply_star()
-        logger.info(
-            f"Star power-up applied: player at tier {self.player_tank.star_level}"
-        )
+        player.apply_star()
+        logger.info(f"Star power-up applied: player at tier {player.star_level}")
 
     def render(self) -> None:
         """Render the game state."""
@@ -721,14 +713,15 @@ class GameManager:
                 1.0, self._state_timer / GAME_OVER_RISE_DURATION
             )
 
+        all_bullets = self.player_manager.get_all_bullets() + self.bullets
         self.renderer.render(
             self.map,
-            self.player_tank,
+            self.player_manager.get_active_players(),
             self.spawn_manager.enemy_tanks,
-            self.bullets,
+            all_bullets,
             self.effect_manager,
             self.state,
-            self.score,
+            self.player_manager.score,
             power_ups=self.power_up_manager.get_power_ups(),
             game_over_rise_progress=game_over_rise_progress,
         )

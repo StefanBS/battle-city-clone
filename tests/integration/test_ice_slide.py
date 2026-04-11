@@ -31,11 +31,12 @@ def _move_player_to(game, px, py):
 
 
 def _set_input(game, direction):
-    """Set input handler to simulate holding a direction key."""
-    for d in game.input_handler.directions:
-        game.input_handler.directions[d] = False
+    """Set player input to simulate holding a direction key."""
+    player_input = game.player_manager._player_inputs[0]
+    for d in player_input._directions:
+        player_input._directions[d] = False
     if direction is not None:
-        game.input_handler.directions[direction] = True
+        player_input._directions[direction] = True
 
 
 def _clear_input(game):

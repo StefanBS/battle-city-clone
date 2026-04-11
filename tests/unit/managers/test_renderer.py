@@ -74,7 +74,7 @@ class TestRendererRender:
             mock_effect_manager = MagicMock()
             renderer.render(
                 mock_map,
-                mock_player,
+                [mock_player],
                 [mock_enemy1, mock_enemy2],
                 [mock_bullet1, mock_bullet2],
                 mock_effect_manager,

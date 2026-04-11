@@ -66,7 +66,9 @@ def spawn_carrier(game):
             break
         game.spawn_manager.enemy_tanks = []
         game.spawn_manager._pending_spawns = []
-        game.spawn_manager.spawn_enemy(game.player_tank, game.map)
+        game.spawn_manager.spawn_enemy(
+            game.player_manager.get_active_players(), game.map
+        )
         flush_pending_spawns(game)
     carriers = [e for e in game.spawn_manager.enemy_tanks if e.is_carrier]
     assert carriers, "No carrier found"

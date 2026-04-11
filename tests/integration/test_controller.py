@@ -5,6 +5,12 @@ from src.managers.game_manager import GameManager
 from src.states.game_state import GameState
 
 
+def _send_event(gm, event):
+    """Send event to both input_handler and player_manager."""
+    gm.input_handler.handle_event(event)
+    gm.player_manager.handle_event(event)
+
+
 class TestControllerGameplay:
     """Test controller input during gameplay with SDL GameController API."""
 
@@ -19,7 +25,7 @@ class TestControllerGameplay:
             pygame.CONTROLLERBUTTONDOWN,
             button=pygame.CONTROLLER_BUTTON_DPAD_UP,
         )
-        gm.input_handler.handle_event(event)
+        _send_event(gm, event)
         gm.update()
 
         assert gm.player_tank.y < initial_y
@@ -36,7 +42,7 @@ class TestControllerGameplay:
             axis=pygame.CONTROLLER_AXIS_LEFTY,
             value=-0.8,
         )
-        gm.input_handler.handle_event(event)
+        _send_event(gm, event)
         gm.update()
 
         assert gm.player_tank.y < initial_y
@@ -51,10 +57,10 @@ class TestControllerGameplay:
             pygame.CONTROLLERBUTTONDOWN,
             button=pygame.CONTROLLER_BUTTON_A,
         )
-        gm.input_handler.handle_event(event)
+        _send_event(gm, event)
         gm.update()
 
-        assert len(gm.bullets) > 0
+        assert len(gm.player_manager.get_all_bullets()) > 0
 
     def test_keyboard_still_works(self) -> None:
         """Keyboard input still works alongside controller."""
@@ -64,7 +70,7 @@ class TestControllerGameplay:
         initial_y = gm.player_tank.y
 
         key_event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_UP)
-        gm.input_handler.handle_event(key_event)
+        _send_event(gm, key_event)
         gm.update()
 
         assert gm.player_tank.y < initial_y
@@ -83,7 +89,7 @@ class TestRawJoystickGameplay:
         event = pygame.event.Event(
             pygame.JOYHATMOTION, value=(0, 1), hat=0, instance_id=0
         )
-        gm.input_handler.handle_event(event)
+        _send_event(gm, event)
         gm.update()
 
         assert gm.player_tank.y < initial_y
@@ -95,10 +101,10 @@ class TestRawJoystickGameplay:
         gm.state = GameState.RUNNING
 
         event = pygame.event.Event(pygame.JOYBUTTONDOWN, button=0, instance_id=0)
-        gm.input_handler.handle_event(event)
+        _send_event(gm, event)
         gm.update()
 
-        assert len(gm.bullets) > 0
+        assert len(gm.player_manager.get_all_bullets()) > 0
 
 
 class TestControllerMenuNavigation:

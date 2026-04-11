@@ -27,6 +27,7 @@ class TestGameManager:
             patch("src.managers.game_manager.SpawnManager"),
             patch("src.managers.game_manager.Map") as MockMap,
             patch("src.managers.game_manager.SettingsManager") as MockSM,
+            patch("src.managers.game_manager.PlayerManager") as MockPM,
         ):
             mock_tm_instance = MockTM.return_value
             mock_tm_instance.get_sprite.return_value = MagicMock(spec=pygame.Surface)
@@ -37,6 +38,16 @@ class TestGameManager:
             mock_map_instance.height = 16
             mock_map_instance.player_spawn = (4, 12)
             mock_map_instance.spawn_points = [(3, 1), (8, 1), (12, 1)]
+            mock_pm_instance = MockPM.return_value
+            mock_player = MagicMock()
+            mock_player.lives = 3
+            mock_player.health = 1
+            mock_player.x = 128
+            mock_player.y = 384
+            mock_player.is_moving = False
+            mock_pm_instance.get_active_players.return_value = [mock_player]
+            mock_pm_instance.score = 0
+            mock_pm_instance.get_all_bullets.return_value = []
             yield
 
     @pytest.fixture
@@ -151,10 +162,10 @@ class TestGameManager:
 
     def test_restart_after_game_over_resets_lives(self, game_manager):
         """Test that restarting after game over restores default lives."""
-        game_manager.player_tank.lives = 0
         game_manager.state = GameState.GAME_OVER
         game_manager._reset_game()
-        assert game_manager.player_tank.lives == 3
+        players = game_manager.player_manager.get_active_players()
+        assert players[0].lives == 3
 
     # --- Game State Tests --- #
 
@@ -165,9 +176,7 @@ class TestGameManager:
     def test_update_stops_when_not_running(self, game_manager):
         """Test that update method does nothing if state is not RUNNING."""
         game_manager.state = GameState.GAME_OVER
-        # Mock methods that should not be called during the update phase
-        # if game is not running. Collision processing happens before this check.
-        game_manager.player_tank.update = MagicMock()
+        game_manager.player_manager = MagicMock()
         # Use a real list for enemy_tanks for the update loop check
         mock_enemy = MagicMock(spec=EnemyTank)
         mock_enemy.tank_type = "basic"
@@ -177,7 +186,7 @@ class TestGameManager:
 
         game_manager.update()
 
-        game_manager.player_tank.update.assert_not_called()
+        game_manager.player_manager.update.assert_not_called()
         mock_enemy.update.assert_not_called()
         game_manager.spawn_manager.update.assert_not_called()
         game_manager.collision_response_handler.process_collisions.assert_not_called()
@@ -286,6 +295,7 @@ class TestGameManagerSoundWiring:
             patch("src.managers.game_manager.SpawnManager"),
             patch("src.managers.game_manager.Map") as MockMap,
             patch("src.managers.game_manager.SettingsManager") as MockSM,
+            patch("src.managers.game_manager.PlayerManager") as MockPM,
         ):
             mock_tm_instance = MockTM.return_value
             mock_tm_instance.get_sprite.return_value = MagicMock(spec=pygame.Surface)
@@ -296,6 +306,16 @@ class TestGameManagerSoundWiring:
             mock_map_instance.height = 16
             mock_map_instance.player_spawn = (4, 12)
             mock_map_instance.spawn_points = [(3, 1), (8, 1), (12, 1)]
+            mock_pm_instance = MockPM.return_value
+            mock_player = MagicMock()
+            mock_player.lives = 3
+            mock_player.health = 1
+            mock_player.x = 128
+            mock_player.y = 384
+            mock_player.is_moving = False
+            mock_pm_instance.get_active_players.return_value = [mock_player]
+            mock_pm_instance.score = 0
+            mock_pm_instance.get_all_bullets.return_value = []
             yield
 
     @pytest.fixture
@@ -363,6 +383,7 @@ class TestStageProgression:
             patch("src.managers.game_manager.SpawnManager"),
             patch("src.managers.game_manager.Map") as MockMap,
             patch("src.managers.game_manager.SettingsManager") as MockSM,
+            patch("src.managers.game_manager.PlayerManager") as MockPM,
         ):
             mock_tm_instance = MockTM.return_value
             mock_tm_instance.get_sprite.return_value = MagicMock(spec=pygame.Surface)
@@ -373,6 +394,16 @@ class TestStageProgression:
             mock_map_instance.height = 16
             mock_map_instance.player_spawn = (4, 12)
             mock_map_instance.spawn_points = [(3, 1), (8, 1), (12, 1)]
+            mock_pm_instance = MockPM.return_value
+            mock_player = MagicMock()
+            mock_player.lives = 3
+            mock_player.health = 1
+            mock_player.x = 128
+            mock_player.y = 384
+            mock_player.is_moving = False
+            mock_pm_instance.get_active_players.return_value = [mock_player]
+            mock_pm_instance.score = 0
+            mock_pm_instance.get_all_bullets.return_value = []
             yield
 
     @pytest.fixture
@@ -448,6 +479,7 @@ class TestPauseAndOptionsStateMachine:
             patch("src.managers.game_manager.SpawnManager"),
             patch("src.managers.game_manager.Map") as MockMap,
             patch("src.managers.game_manager.SettingsManager") as MockSM,
+            patch("src.managers.game_manager.PlayerManager") as MockPM,
         ):
             mock_tm_instance = MockTM.return_value
             mock_tm_instance.get_sprite.return_value = MagicMock(spec=pygame.Surface)
@@ -458,6 +490,16 @@ class TestPauseAndOptionsStateMachine:
             mock_map_instance.height = 16
             mock_map_instance.player_spawn = (4, 12)
             mock_map_instance.spawn_points = [(3, 1), (8, 1), (12, 1)]
+            mock_pm_instance = MockPM.return_value
+            mock_player = MagicMock()
+            mock_player.lives = 3
+            mock_player.health = 1
+            mock_player.x = 128
+            mock_player.y = 384
+            mock_player.is_moving = False
+            mock_pm_instance.get_active_players.return_value = [mock_player]
+            mock_pm_instance.score = 0
+            mock_pm_instance.get_all_bullets.return_value = []
             yield
 
     @pytest.fixture
@@ -777,17 +819,17 @@ class TestPauseAndOptionsStateMachine:
         """Update does not process game logic when PAUSED."""
         gm = game_manager
         gm.state = GameState.PAUSED
-        gm.player_tank.update = MagicMock()
+        gm.player_manager = MagicMock()
         gm.update()
-        gm.player_tank.update.assert_not_called()
+        gm.player_manager.update.assert_not_called()
 
     def test_update_does_nothing_when_in_options(self, game_manager):
         """Update does not process game logic when in OPTIONS_MENU."""
         gm = game_manager
         gm.state = GameState.OPTIONS_MENU
-        gm.player_tank.update = MagicMock()
+        gm.player_manager = MagicMock()
         gm.update()
-        gm.player_tank.update.assert_not_called()
+        gm.player_manager.update.assert_not_called()
 
     # --- Render routing ---
 
