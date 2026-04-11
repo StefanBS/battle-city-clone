@@ -65,7 +65,9 @@ class Map:
         # Scan tileset for brick variant sprites and collision defaults
         self._brick_variant_sprites: dict[BrickVariant, pygame.Surface] = {}
         self._tile_type_sprites: dict[TileType, pygame.Surface] = {}
-        self._tile_collision_defaults: dict[TileType, tuple[bool, bool, bool, bool, bool]] = {}
+        self._tile_collision_defaults: dict[
+            TileType, tuple[bool, bool, bool, bool, bool]
+        ] = {}
         self._scan_tileset(tiled_map)
 
         # Initialize grid

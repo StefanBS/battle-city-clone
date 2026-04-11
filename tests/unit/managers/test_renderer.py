@@ -260,9 +260,9 @@ class TestRenderPauseMenu:
 
         # The cached overlay should be blitted onto the game surface
         blit_calls = renderer.game_surface.blit.call_args_list
-        assert any(
-            call.args[0] is renderer._pause_overlay for call in blit_calls
-        ), "Expected _pause_overlay to be blitted onto game_surface"
+        assert any(call.args[0] is renderer._pause_overlay for call in blit_calls), (
+            "Expected _pause_overlay to be blitted onto game_surface"
+        )
 
     def test_paused_title_is_rendered(self, renderer):
         """Pause menu renders 'PAUSED' title."""

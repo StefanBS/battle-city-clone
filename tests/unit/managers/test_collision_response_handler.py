@@ -202,7 +202,12 @@ class TestBulletVsTile:
         bullet.rect = pygame.Rect(64, 64, 4, 4)
         bullet.direction = Direction.RIGHT
         tile = Tile(
-            TileType.BRICK, 4, 4, blocks_tanks=True, blocks_bullets=True, is_destructible=True
+            TileType.BRICK,
+            4,
+            4,
+            blocks_tanks=True,
+            blocks_bullets=True,
+            is_destructible=True,
         )
         handler.process_collisions([(bullet, tile)])
         assert not bullet.active
@@ -460,7 +465,14 @@ class TestExplosionEffects:
     def test_bullet_vs_brick_spawns_small_explosion(
         self, handler, mock_map, mock_effect_manager
     ):
-        tile = Tile(TileType.BRICK, 4, 4, blocks_tanks=True, blocks_bullets=True, is_destructible=True)
+        tile = Tile(
+            TileType.BRICK,
+            4,
+            4,
+            blocks_tanks=True,
+            blocks_bullets=True,
+            is_destructible=True,
+        )
         mock_map.get_tile_at.return_value = Tile(TileType.EMPTY, 4, 5)
         bullet = MagicMock(spec=Bullet)
         bullet.active = True
