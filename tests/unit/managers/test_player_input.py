@@ -86,17 +86,17 @@ class TestKeyboardPlayerInput:
         assert keyboard_input.get_movement_direction() == (0, 0)
         assert keyboard_input.consume_shoot() is False
 
-    def test_ignores_joystick_events(self, keyboard_input: PlayerInput) -> None:
-        """Keyboard source ignores joystick events."""
+    def test_also_handles_joystick_events(self, keyboard_input: PlayerInput) -> None:
+        """Keyboard source also handles joystick events for single-player use."""
         keyboard_input.handle_event(
             pygame.event.Event(pygame.JOYHATMOTION, value=(0, 1), hat=0, instance_id=0)
         )
-        assert keyboard_input.get_movement_direction() == (0, 0)
+        assert keyboard_input.get_movement_direction() == (0, -1)
 
         keyboard_input.handle_event(
             pygame.event.Event(pygame.JOYBUTTONDOWN, button=0, instance_id=0)
         )
-        assert keyboard_input.consume_shoot() is False
+        assert keyboard_input.consume_shoot() is True
 
 
 class TestJoystickPlayerInput:

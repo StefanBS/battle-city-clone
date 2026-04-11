@@ -71,11 +71,16 @@ class PlayerInput:
     def handle_event(self, event: pygame.event.Event) -> None:
         """Process a pygame event and update internal input state.
 
+        Keyboard source handles both keyboard and controller/joystick events
+        (since a single player may use either input device). Joystick source
+        handles only controller/joystick events filtered by joystick_index.
+
         Args:
             event: The pygame event to handle.
         """
         if self.source == InputSource.KEYBOARD:
             self._handle_keyboard_event(event)
+            self._handle_joystick_event(event)
         else:
             self._handle_joystick_event(event)
 
@@ -126,7 +131,7 @@ class PlayerInput:
         """Handle joystick/controller events filtered by joystick_index."""
         # --- SDL GameController API ---
         if event.type == pygame.CONTROLLERBUTTONDOWN:
-            if event.which != self.joystick_index:
+            if getattr(event, "which", self.joystick_index) != self.joystick_index:
                 return
             if event.button in CTRL_DPAD_BUTTONS:
                 direction = CTRL_DPAD_BUTTONS[event.button]
@@ -137,7 +142,7 @@ class PlayerInput:
                 self._shoot_pressed = True
 
         elif event.type == pygame.CONTROLLERBUTTONUP:
-            if event.which != self.joystick_index:
+            if getattr(event, "which", self.joystick_index) != self.joystick_index:
                 return
             if event.button in CTRL_DPAD_BUTTONS:
                 direction = CTRL_DPAD_BUTTONS[event.button]
@@ -155,7 +160,7 @@ class PlayerInput:
 
         # --- Raw joystick API ---
         elif event.type == pygame.JOYHATMOTION:
-            if event.joy != self.joystick_index:
+            if getattr(event, "joy", self.joystick_index) != self.joystick_index:
                 return
             hat_x, hat_y = event.value
             for d in self._directions:
@@ -173,7 +178,7 @@ class PlayerInput:
                 self._directions[hat_dir] = True
 
         elif event.type == pygame.JOYBUTTONDOWN:
-            if event.joy != self.joystick_index:
+            if getattr(event, "joy", self.joystick_index) != self.joystick_index:
                 return
             if event.button in JOY_SHOOT_BUTTONS:
                 self._shoot_pressed = True
@@ -198,12 +203,13 @@ class PlayerInput:
             self._directions[neg_dir] = False
             self._directions[pos_dir] = False
 
-    @staticmethod
-    def _get_joy_index(event: pygame.event.Event) -> int:
+    def _get_joy_index(self, event: pygame.event.Event) -> int:
         """Return the joystick index from a CONTROLLERAXISMOTION or JOYAXISMOTION event.
 
         CONTROLLERAXISMOTION uses ``which``; JOYAXISMOTION uses ``joy``.
+        Falls back to own joystick_index when the attribute is missing
+        (e.g. manually created test events).
         """
         if event.type == pygame.CONTROLLERAXISMOTION:
-            return event.which
-        return event.joy
+            return getattr(event, "which", self.joystick_index)
+        return getattr(event, "joy", self.joystick_index)
