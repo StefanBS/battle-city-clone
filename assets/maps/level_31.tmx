@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='utf-8'?>
+<?xml version='1.0' encoding='UTF-8'?>
 <map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="26" height="26" tilewidth="8" tileheight="8" infinite="0" nextlayerid="3" nextobjectid="5">
  <properties>
   <property name="enemy_armor" type="int" value="6" />
@@ -44,5 +44,5 @@
   <object id="2" name="enemy_spawn" x="96" y="0" />
   <object id="3" name="enemy_spawn" x="192" y="0" />
   <object id="4" name="player_spawn" x="64" y="192" />
- </objectgroup>
+ <object id="5" name="player_spawn_2" x="128" y="192" width="0" height="0" /></objectgroup>
 </map>
