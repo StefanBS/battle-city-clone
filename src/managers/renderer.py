@@ -33,6 +33,8 @@ class Renderer:
         self.screen = screen
         self.logical_width = logical_width
         self.logical_height = logical_height
+        self._center_x: int = logical_width // 2
+        self._center_y: int = logical_height // 2
         self.game_surface: pygame.Surface = pygame.Surface(
             (logical_width, logical_height)
         )
@@ -40,11 +42,12 @@ class Renderer:
         self.font: pygame.font.Font = pygame.font.Font(font_path, 24)
         self.small_font: pygame.font.Font = pygame.font.Font(font_path, 12)
 
-        # Map offset: center the map on the logical surface
         self.map_offset_x: int = (logical_width - map_width_px) // 2
         self.map_offset_y: int = (logical_height - map_height_px) // 2
 
-        self.map_surface: pygame.Surface = pygame.Surface((map_width_px, map_height_px))
+        self.map_surface: pygame.Surface = pygame.Surface(
+            (map_width_px, map_height_px)
+        )
 
         # Cached text surface for game over animation (set on first use)
         self._game_over_text: Optional[pygame.Surface] = None
@@ -105,7 +108,9 @@ class Renderer:
         game_map.draw_overlay(self.map_surface)
         effect_manager.draw(self.map_surface)
 
-        self.game_surface.blit(self.map_surface, (self.map_offset_x, self.map_offset_y))
+        self.game_surface.blit(
+            self.map_surface, (self.map_offset_x, self.map_offset_y)
+        )
 
         self._draw_hud(player_tank, score)
 
@@ -128,6 +133,18 @@ class Renderer:
             self.screen,
         )
         pygame.display.flip()
+
+    def _draw_centered_text(
+        self,
+        text: str,
+        font: pygame.font.Font,
+        color: Tuple[int, int, int],
+        y: int,
+    ) -> None:
+        """Render text centered horizontally at the given y position."""
+        surface = font.render(text, True, color)
+        rect = surface.get_rect(center=(self._center_x, y))
+        self.game_surface.blit(surface, rect)
 
     def _draw_hud(self, player_tank, score: int = 0) -> None:
         """Draw the heads-up display.
@@ -162,10 +179,9 @@ class Renderer:
         if self._game_over_text is None:
             self._game_over_text = self.font.render("GAME OVER", True, RED)
         text = self._game_over_text
-        center_y = self.logical_height // 2
         bottom_y = self.logical_height + text.get_height()
-        y = bottom_y + (center_y - bottom_y) * progress
-        text_rect = text.get_rect(center=(self.logical_width // 2, int(y)))
+        y = bottom_y + (self._center_y - bottom_y) * progress
+        text_rect = text.get_rect(center=(self._center_x, int(y)))
         self.game_surface.blit(text, text_rect)
 
     def _draw_game_over(self) -> None:
@@ -185,7 +201,7 @@ class Renderer:
         """
         self.game_surface.fill(BLACK)
 
-        half_height = self.logical_height // 2
+        half_height = self._center_y
         curtain_height = int(progress * half_height)
 
         if curtain_height > 0:
@@ -200,11 +216,9 @@ class Renderer:
             pygame.draw.rect(self.game_surface, GRAY, bottom_rect)
 
         if progress >= 1.0:
-            stage_text = self.font.render(f"STAGE {stage}", True, WHITE)
-            stage_rect = stage_text.get_rect(
-                center=(self.logical_width // 2, self.logical_height // 2)
+            self._draw_centered_text(
+                f"STAGE {stage}", self.font, WHITE, self._center_y
             )
-            self.game_surface.blit(stage_text, stage_rect)
 
         self._present_surface()
 
@@ -216,18 +230,10 @@ class Renderer:
     ) -> None:
         """Draw a semi-transparent overlay with centered title and subtitle."""
         self.game_surface.blit(self._dark_overlay, (0, 0))
-
-        text = self.font.render(title, True, title_color)
-        text_rect = text.get_rect(
-            center=(self.logical_width // 2, self.logical_height // 2)
+        self._draw_centered_text(title, self.font, title_color, self._center_y)
+        self._draw_centered_text(
+            subtitle, self.font, WHITE, self._center_y + 50
         )
-        self.game_surface.blit(text, text_rect)
-
-        subtitle_text = self.font.render(subtitle, True, WHITE)
-        subtitle_rect = subtitle_text.get_rect(
-            center=(self.logical_width // 2, self.logical_height // 2 + 50)
-        )
-        self.game_surface.blit(subtitle_text, subtitle_rect)
 
     def _draw_menu(
         self,
@@ -238,12 +244,13 @@ class Renderer:
         colors: Optional[List[Tuple[int, int, int]]] = None,
     ) -> List[pygame.Rect]:
         """Draw a vertical list of options with a cursor. Returns option rects."""
-        cx = self.logical_width // 2
         rects = []
         for i, label in enumerate(options):
             color = colors[i] if colors else WHITE
             text = self.small_font.render(label, True, color)
-            text_rect = text.get_rect(center=(cx, start_y + i * spacing))
+            text_rect = text.get_rect(
+                center=(self._center_x, start_y + i * spacing)
+            )
             self.game_surface.blit(text, text_rect)
             rects.append(text_rect)
 
@@ -263,16 +270,13 @@ class Renderer:
         """
         self.game_surface.fill(BLACK)
 
-        cx = self.logical_width // 2
-        cy = self.logical_height // 2
-
-        title = self.font.render("BATTLE CITY", True, WHITE)
-        title_rect = title.get_rect(center=(cx, cy - 80))
-        self.game_surface.blit(title, title_rect)
+        self._draw_centered_text(
+            "BATTLE CITY", self.font, WHITE, self._center_y - 80
+        )
 
         options = ["1 PLAYER", "2 PLAYERS", "OPTIONS", "DEMO", "QUIT"]
         colors = [WHITE, GRAY, WHITE, WHITE, WHITE]
-        self._draw_menu(options, menu_selection, cy, colors=colors)
+        self._draw_menu(options, menu_selection, self._center_y, colors=colors)
 
         self._present_surface()
 
@@ -284,15 +288,12 @@ class Renderer:
         """
         self.game_surface.blit(self._pause_overlay, (0, 0))
 
-        cx = self.logical_width // 2
-        cy = self.logical_height // 2
-
-        title = self.font.render("PAUSED", True, WHITE)
-        title_rect = title.get_rect(center=(cx, cy - 60))
-        self.game_surface.blit(title, title_rect)
+        self._draw_centered_text(
+            "PAUSED", self.font, WHITE, self._center_y - 60
+        )
 
         options = ["RESUME", "OPTIONS", "TITLE SCREEN", "QUIT"]
-        self._draw_menu(options, menu_selection, cy)
+        self._draw_menu(options, menu_selection, self._center_y)
 
         self._present_surface()
 
@@ -309,15 +310,12 @@ class Renderer:
         """Render options menu with difficulty toggle and volume slider."""
         self.game_surface.fill(BLACK)
 
-        cx = self.logical_width // 2
-        cy = self.logical_height // 2
         row_spacing = 40
 
-        title = self.font.render("OPTIONS", True, WHITE)
-        title_rect = title.get_rect(center=(cx, cy - 80))
-        self.game_surface.blit(title, title_rect)
+        self._draw_centered_text(
+            "OPTIONS", self.font, WHITE, self._center_y - 80
+        )
 
-        # Build option labels
         diff_label = f"DIFFICULTY  {difficulty.value.upper()}"
         filled = round(master_volume * 10)
         bar = "#" * filled + "-" * (10 - filled)
@@ -326,13 +324,16 @@ class Renderer:
 
         options = [diff_label, vol_label, "BACK"]
         rects = self._draw_menu(
-            options, selection, cy - row_spacing, spacing=row_spacing
+            options,
+            selection,
+            self._center_y - row_spacing,
+            spacing=row_spacing,
         )
 
-        # Draw < > hints on the selected row (except BACK)
         if selection < 2:
             self._draw_lr_hints(
-                rects[selection], cy - row_spacing + selection * row_spacing
+                rects[selection],
+                self._center_y - row_spacing + selection * row_spacing,
             )
 
         self._present_surface()
