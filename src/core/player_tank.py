@@ -29,6 +29,7 @@ class PlayerTank(Tank):
         *,
         map_width_px: int,
         map_height_px: int,
+        player_id: int = 1,
     ) -> None:
         """
         Initialize the player tank.
@@ -55,6 +56,7 @@ class PlayerTank(Tank):
             map_width_px=map_width_px,
             map_height_px=map_height_px,
         )
+        self.player_id: int = player_id
         self.star_level: int = 0
         self._update_sprite()
         self._shield_frames: list[pygame.Surface] = [
@@ -98,9 +100,8 @@ class PlayerTank(Tank):
 
     def _update_sprite(self) -> None:
         """Update sprite using tier-specific sprites."""
-        sprite_name = (
-            f"player_tank_tier{self.star_level}_{self.direction}_{self.animation_frame}"
-        )
+        prefix = "player2_tank" if self.player_id == 2 else "player_tank"
+        sprite_name = f"{prefix}_tier{self.star_level}_{self.direction}_{self.animation_frame}"
         try:
             self.sprite = self.texture_manager.get_sprite(sprite_name)
         except KeyError:

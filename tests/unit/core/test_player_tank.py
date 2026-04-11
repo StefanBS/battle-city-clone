@@ -12,6 +12,7 @@ from src.utils.constants import (
     BULLET_SPEED,
     STAR_BULLET_SPEED_MULTIPLIER,
     STAR_MAX_BULLETS,
+    FRIENDLY_FIRE_FREEZE_DURATION,
 )
 
 
@@ -276,6 +277,43 @@ class TestStarUpgrade:
             c.args[0] for c in mock_texture_manager.get_sprite.call_args_list
         ]
         assert any("tier1" in name for name in called_names)
+
+
+class TestPlayerTankPlayerId:
+    def test_default_player_id_is_1(self, mock_texture_manager):
+        """PlayerTank defaults to player_id=1."""
+        tank = PlayerTank(
+            0, 0, TILE_SIZE, mock_texture_manager,
+            map_width_px=512, map_height_px=512,
+        )
+        assert tank.player_id == 1
+
+    def test_player_id_2_accepted(self, mock_texture_manager):
+        """PlayerTank accepts player_id=2."""
+        tank = PlayerTank(
+            0, 0, TILE_SIZE, mock_texture_manager,
+            map_width_px=512, map_height_px=512,
+            player_id=2,
+        )
+        assert tank.player_id == 2
+
+    def test_player2_uses_player2_sprite_prefix(self, mock_texture_manager):
+        """Player 2 tank requests sprites with 'player2_tank_' prefix."""
+        tank = PlayerTank(
+            0, 0, TILE_SIZE, mock_texture_manager,
+            map_width_px=512, map_height_px=512,
+            player_id=2,
+        )
+        mock_texture_manager.get_sprite.assert_any_call("player2_tank_tier0_up_1")
+
+    def test_player1_uses_player_tank_sprite_prefix(self, mock_texture_manager):
+        """Player 1 tank requests sprites with 'player_tank_' prefix (unchanged)."""
+        tank = PlayerTank(
+            0, 0, TILE_SIZE, mock_texture_manager,
+            map_width_px=512, map_height_px=512,
+            player_id=1,
+        )
+        mock_texture_manager.get_sprite.assert_any_call("player_tank_tier0_up_1")
 
 
 class TestShieldAnimation:
