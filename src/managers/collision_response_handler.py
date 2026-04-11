@@ -41,7 +41,7 @@ class CollisionResponseHandler:
         self._add_score = add_score
         self._power_up_manager = power_up_manager
         self._sound_manager = sound_manager
-        self.collected_power_up_type: Optional[PowerUpType] = None
+        self._collected_power_up_type: Optional[PowerUpType] = None
 
         self._handlers: Dict[Tuple[Type, Type], Callable[[Any, Any, List], bool]] = {
             (Bullet, EnemyTank): self._handle_bullet_vs_enemy,
@@ -86,8 +86,8 @@ class CollisionResponseHandler:
             if handler is None:
                 continue
 
-            # Bullet pair consumption: if either object is a bullet,
-            # this is a bullet collision — consume the pair regardless
+            # Bullet events must be consumed before tank/powerup blocks
+            # to prevent a bullet-tile hit from also triggering tank revert.
             is_bullet_pair = isinstance(a, Bullet) or isinstance(b, Bullet)
 
             if is_bullet_pair:
@@ -258,13 +258,13 @@ class CollisionResponseHandler:
             self._add_score(POWERUP_COLLECT_POINTS)
             self._play_powerup()
             logger.info(f"Player collected power-up: {power_up_type.value}")
-            self.collected_power_up_type = power_up_type
+            self._collected_power_up_type = power_up_type
         return True
 
     def consume_collected_power_up(self) -> Optional[PowerUpType]:
         """Return and clear the collected power-up type (one-shot read)."""
-        result = self.collected_power_up_type
-        self.collected_power_up_type = None
+        result = self._collected_power_up_type
+        self._collected_power_up_type = None
         return result
 
     @staticmethod
