@@ -226,17 +226,17 @@ class TestGameManager:
             """MenuAction.RIGHT on difficulty row sets NORMAL."""
             game_manager.state = GameState.OPTIONS_MENU
             game_manager._options_selection = 0
-            game_manager.difficulty = Difficulty.EASY
+            game_manager.settings_manager.difficulty = Difficulty.EASY
             game_manager._handle_options_input(MenuAction.RIGHT)
-            assert game_manager.difficulty == Difficulty.NORMAL
+            assert game_manager.settings_manager.difficulty == Difficulty.NORMAL
 
         def test_options_input_left_difficulty_sets_easy(self, game_manager):
             """MenuAction.LEFT on difficulty row sets EASY."""
             game_manager.state = GameState.OPTIONS_MENU
             game_manager._options_selection = 0
-            game_manager.difficulty = Difficulty.NORMAL
+            game_manager.settings_manager.difficulty = Difficulty.NORMAL
             game_manager._handle_options_input(MenuAction.LEFT)
-            assert game_manager.difficulty == Difficulty.EASY
+            assert game_manager.settings_manager.difficulty == Difficulty.EASY
 
         def test_options_input_confirm_back(self, game_manager):
             """MenuAction.CONFIRM on Back returns to previous screen."""
@@ -806,9 +806,10 @@ class TestPauseAndOptionsStateMachine:
         gm.renderer = MagicMock()
         gm.settings_manager = MagicMock()
         gm.settings_manager.master_volume = 0.7
+        gm.settings_manager.difficulty = Difficulty.NORMAL
         gm.render()
         gm.renderer.render_options_menu.assert_called_once_with(
-            0.7, gm.difficulty.value, gm._options_selection
+            0.7, Difficulty.NORMAL.value, gm._options_selection
         )
 
     def test_render_title_uses_title_selection(self, game_manager_at_title):

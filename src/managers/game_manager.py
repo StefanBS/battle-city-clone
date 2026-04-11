@@ -85,7 +85,6 @@ class GameManager:
         self._options_from_pause: bool = False
         self._state_timer: float = 0.0
         self._demo_mode: bool = False
-        self.difficulty: Difficulty = self.settings_manager.difficulty
 
         # Renderer for title screen (recreated with map dims in _load_stage)
         self.renderer: Renderer = Renderer(
@@ -192,7 +191,7 @@ class GameManager:
             spawn_interval=5.0,
             player_tank=self.player_tank,
             effect_manager=self.effect_manager,
-            difficulty=self.difficulty,
+            difficulty=self.settings_manager.difficulty,
         )
 
         self.bullets: List[Bullet] = []
@@ -292,11 +291,15 @@ class GameManager:
             logger.info("Game resumed.")
             self.state = GameState.RUNNING
         elif self.state == GameState.OPTIONS_MENU:
-            self.settings_manager.save()
-            if self._options_from_pause:
-                self.state = GameState.PAUSED
-            else:
-                self.state = GameState.TITLE_SCREEN
+            self._exit_options()
+
+    def _exit_options(self) -> None:
+        """Save settings and return to the screen that opened options."""
+        self.settings_manager.save()
+        if self._options_from_pause:
+            self.state = GameState.PAUSED
+        else:
+            self.state = GameState.TITLE_SCREEN
 
     def _handle_title_input(self, action: MenuAction) -> None:
         """Handle menu action on the title screen."""
@@ -365,10 +368,9 @@ class GameManager:
         elif action in (MenuAction.LEFT, MenuAction.RIGHT):
             if self._options_selection == 0:
                 if action == MenuAction.LEFT:
-                    self.difficulty = Difficulty.EASY
+                    self.settings_manager.difficulty = Difficulty.EASY
                 else:
-                    self.difficulty = Difficulty.NORMAL
-                self.settings_manager.difficulty = self.difficulty
+                    self.settings_manager.difficulty = Difficulty.NORMAL
                 self.sound_manager.play_menu_select()
             elif self._options_selection == 1:
                 delta = -0.1 if action == MenuAction.LEFT else 0.1
@@ -381,11 +383,7 @@ class GameManager:
                 self.sound_manager.play_menu_select()
         elif action == MenuAction.CONFIRM:
             if self._options_selection == 2:
-                self.settings_manager.save()
-                if self._options_from_pause:
-                    self.state = GameState.PAUSED
-                else:
-                    self.state = GameState.TITLE_SCREEN
+                self._exit_options()
 
     def update(self) -> None:
         """Update game state."""
@@ -442,10 +440,7 @@ class GameManager:
         # Ice slide: trigger BEFORE move() so start_slide() captures the old direction
         self.player_tank.on_ice = self._is_on_ice(self.player_tank)
         if self.player_tank.on_ice and not self.player_tank.is_sliding:
-            if not has_valid_input:
-                if self.player_tank.start_slide():
-                    self.sound_manager.play_ice_slide()
-            elif (dx, dy) != self.player_tank.direction.delta:
+            if not has_valid_input or (dx, dy) != self.player_tank.direction.delta:
                 if self.player_tank.start_slide():
                     self.sound_manager.play_ice_slide()
 
@@ -702,7 +697,7 @@ class GameManager:
         if self.state == GameState.OPTIONS_MENU:
             self.renderer.render_options_menu(
                 self.settings_manager.master_volume,
-                self.difficulty.value,
+                self.settings_manager.difficulty.value,
                 self._options_selection,
             )
             return
