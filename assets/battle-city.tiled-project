@@ -46,6 +46,7 @@
             "type": "enum",
             "values": [
                 "player_spawn",
+                "player_spawn_2",
                 "enemy_spawn"
             ],
             "valuesAsFlags": false

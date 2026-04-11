@@ -36,6 +36,7 @@ class Map:
         self.tiles: List[List[Optional[Tile]]] = []
         self.spawn_points: List[Tuple[int, int]] = []
         self.player_spawn: Tuple[int, int] = (0, 0)
+        self.player_spawn_2: Optional[tuple[int, int]] = None
         self._animated_tiles: List[Tile] = []
         self._drawable_tiles: List[Tile] = []
         self._tile_cache_dirty: bool = True
@@ -237,6 +238,8 @@ class Map:
             if spawn_type == "player_spawn":
                 self.player_spawn = (grid_x, grid_y)
                 player_spawn_found = True
+            elif spawn_type == "player_spawn_2":
+                self.player_spawn_2 = (grid_x, grid_y)
             else:
                 self.spawn_points.append((grid_x, grid_y))
 
