@@ -192,6 +192,7 @@ class TestPlayerManagerUpdate:
         """Player.move() is called when a valid (non-diagonal) direction is active."""
         player = MagicMock(spec=PlayerTank)
         player.health = 1
+        player.is_frozen = False
         player.on_ice = False
         player.is_sliding = False
         player.direction = MagicMock()
@@ -260,6 +261,7 @@ class TestPlayerManagerUpdate:
         """start_slide() is called (and ice sound plays) when on ice with no input."""
         player = MagicMock(spec=PlayerTank)
         player.health = 1
+        player.is_frozen = False
         player.is_sliding = False
         player.direction = MagicMock()
         player.direction.delta = (0, -1)

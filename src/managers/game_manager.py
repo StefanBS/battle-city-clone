@@ -179,7 +179,7 @@ class GameManager:
             on_player_death=self.player_manager.handle_player_death,
         )
 
-        self.player_manager.create_players(self.map)
+        self.player_manager.create_players(self.map, two_player_mode=self._two_player_mode)
 
         # Renderer (fixed logical surface with map centered inside)
         self.renderer = Renderer(
@@ -452,15 +452,19 @@ class GameManager:
         self.player_manager.try_shoot()
 
         active_players = self.player_manager.get_active_players()
-        player_pos = (
-            (active_players[0].x, active_players[0].y) if active_players else None
-        )
 
         if self.freeze_timer > 0:
             self.freeze_timer -= dt
         else:
             for enemy in self.spawn_manager.enemy_tanks:
-                enemy.update(dt, player_position=player_pos)
+                closest_pos = None
+                if active_players:
+                    closest = min(
+                        active_players,
+                        key=lambda p: abs(p.x - enemy.x) + abs(p.y - enemy.y),
+                    )
+                    closest_pos = (closest.x, closest.y)
+                enemy.update(dt, player_position=closest_pos)
                 enemy.on_ice = self._is_on_ice(enemy)
                 if enemy.consume_shoot():
                     self._try_shoot(enemy)
@@ -723,7 +727,7 @@ class GameManager:
             all_bullets,
             self.effect_manager,
             self.state,
-            self.player_manager.score,
+            self.player_manager._scores,
             power_ups=self.power_up_manager.get_power_ups(),
             game_over_rise_progress=game_over_rise_progress,
         )

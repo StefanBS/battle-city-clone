@@ -868,3 +868,22 @@ class TestTwoPlayerMenu:
     def test_2_players_menu_is_selectable(self):
         """Index 1 (2 PLAYERS) is in selectable indices."""
         assert 1 in GameManager._SELECTABLE_MENU_INDICES
+
+
+class TestTwoPlayerGameLoop:
+    def test_two_player_mode_creates_two_players(self):
+        """Starting 2P mode creates two player tanks."""
+        import os
+
+        os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+        os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
+        pygame.init()
+        try:
+            gm = GameManager()
+            gm._two_player_mode = True
+            gm._new_game()
+            gm.state = GameState.RUNNING
+            players = gm.player_manager.get_active_players()
+            assert len(players) == 2
+        finally:
+            pygame.quit()

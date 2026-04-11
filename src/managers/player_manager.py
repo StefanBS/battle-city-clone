@@ -168,6 +168,9 @@ class PlayerManager:
 
             player.update(dt)
 
+            if player.is_frozen:
+                continue  # Skip movement for frozen players
+
             dx, dy = player_input.get_movement_direction()
             has_valid_input = (dx != 0 or dy != 0) and not (dx != 0 and dy != 0)
 
