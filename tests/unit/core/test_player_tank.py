@@ -410,3 +410,48 @@ class TestShieldAnimation:
         player_tank.activate_invincibility(1.5)
         player_tank.invincibility_timer = 1.0
         assert player_tank.shield_flicker_interval == SHIELD_FLICKER_INTERVAL
+
+
+class TestPlayerTankFreeze:
+    @pytest.fixture
+    def player(self, mock_texture_manager):
+        return PlayerTank(
+            0, 0, TILE_SIZE, mock_texture_manager,
+            map_width_px=512, map_height_px=512,
+        )
+
+    def test_not_frozen_by_default(self, player):
+        """PlayerTank is not frozen initially."""
+        assert player.is_frozen is False
+
+    def test_freeze_sets_is_frozen(self, player):
+        """freeze() sets is_frozen to True."""
+        player.freeze(FRIENDLY_FIRE_FREEZE_DURATION)
+        assert player.is_frozen is True
+
+    def test_freeze_timer_counts_down(self, player):
+        """update() decrements freeze timer."""
+        player.freeze(1.0)
+        player.update(0.5)
+        assert player.is_frozen is True
+        assert player._freeze_timer == pytest.approx(0.5)
+
+    def test_freeze_expires_after_duration(self, player):
+        """Freeze expires when timer reaches 0."""
+        player.freeze(1.0)
+        player.update(1.0)
+        assert player.is_frozen is False
+
+    def test_frozen_player_cannot_move(self, player):
+        """move() is a no-op when frozen."""
+        player.freeze(2.0)
+        old_x, old_y = player.x, player.y
+        player.move(1, 0, 0.016)
+        assert player.x == old_x
+        assert player.y == old_y
+
+    def test_frozen_player_cannot_shoot(self, player):
+        """shoot() returns None when frozen."""
+        player.freeze(2.0)
+        result = player.shoot()
+        assert result is None
