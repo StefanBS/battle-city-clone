@@ -576,7 +576,7 @@ class GameManager:
         grid_x = center_x // self.map.tile_size
         grid_y = center_y // self.map.tile_size
         tile = self.map.get_tile_at(grid_x, grid_y)
-        return tile is not None and tile.type == TileType.ICE
+        return tile is not None and tile.is_slidable
 
     def _add_score(self, points: int) -> None:
         """Add points to the player's score."""

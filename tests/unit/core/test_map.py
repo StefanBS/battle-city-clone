@@ -241,8 +241,42 @@ class TestCollisionDefaultsFromTSX:
         defaults = game_map._tile_collision_defaults
         assert TileType.STEEL in defaults
         assert TileType.WATER in defaults
-        assert defaults[TileType.STEEL] == (True, True)
-        assert defaults[TileType.WATER] == (True, False)
+        assert defaults[TileType.STEEL] == (True, True, False, False, False)
+        assert defaults[TileType.WATER] == (True, False, False, False, False)
+
+    def test_set_tile_type_clears_is_destructible(self, game_map):
+        """Destroying a brick tile clears is_destructible."""
+        tile = game_map.get_tile_at(2, 2)  # BRICK
+        assert tile.is_destructible is True
+        game_map.set_tile_type(tile, TileType.EMPTY)
+        assert tile.is_destructible is False
+
+    def test_set_tile_type_to_brick_sets_is_destructible(self, game_map):
+        """Changing to BRICK sets is_destructible."""
+        tile = game_map.get_tile_at(4, 6)  # EMPTY
+        game_map.set_tile_type(tile, TileType.BRICK)
+        assert tile.is_destructible is True
+
+    def test_set_tile_type_clears_is_overlay(self, game_map):
+        """Changing a bush tile to empty clears is_overlay."""
+        bush_tile = game_map.get_tile_at(0, 6)  # BUSH in test_map.tmx
+        assert bush_tile.is_overlay is True
+        game_map.set_tile_type(bush_tile, TileType.EMPTY)
+        assert bush_tile.is_overlay is False
+
+    def test_defaults_include_behavior_booleans(self, game_map):
+        """Defaults dict includes is_destructible, is_overlay, is_slidable."""
+        defaults = game_map._tile_collision_defaults
+        # BRICK should have is_destructible=True
+        brick = defaults[TileType.BRICK]
+        assert brick.is_destructible is True
+        assert brick.is_overlay is False
+        assert brick.is_slidable is False
+        # BUSH should have is_overlay=True
+        bush = defaults[TileType.BUSH]
+        assert bush.is_destructible is False
+        assert bush.is_overlay is True
+        assert bush.is_slidable is False
 
 
 class TestEnemyCompositionFallback:
@@ -440,6 +474,66 @@ infinite="0" nextlayerid="3" nextobjectid="3">
             assert (0, 0) in game_map.spawn_points
         finally:
             os.remove(tmx_path)
+
+
+class TestTileBehaviorProperties:
+    """Verify is_destructible, is_overlay, is_slidable are loaded from TSX."""
+
+    @pytest.fixture
+    def game_map(self, mock_texture_manager):
+        return Map(TEST_MAP_PATH, mock_texture_manager)
+
+    def test_brick_tile_is_destructible(self, game_map):
+        tile = game_map.get_tile_at(2, 2)  # BRICK in test_map.tmx
+        assert tile.is_destructible is True
+
+    def test_bush_tile_is_overlay(self, game_map):
+        tile = game_map.get_tile_at(0, 6)  # BUSH in test_map.tmx
+        assert tile.is_overlay is True
+
+    def test_empty_tile_not_destructible(self, game_map):
+        tile = game_map.get_tile_at(4, 6)  # EMPTY in test_map.tmx
+        assert tile.is_destructible is False
+
+    def test_empty_tile_not_overlay(self, game_map):
+        tile = game_map.get_tile_at(4, 6)  # EMPTY
+        assert tile.is_overlay is False
+
+    def test_empty_tile_not_slidable(self, game_map):
+        tile = game_map.get_tile_at(4, 6)  # EMPTY
+        assert tile.is_slidable is False
+
+    def test_ice_tile_is_slidable(self, game_map):
+        tile = game_map.get_tile_at(1, 6)  # ICE in test_map.tmx
+        assert tile.is_slidable is True
+
+
+class TestOverlayPropertyRendering:
+    """Verify overlay list uses is_overlay property, not TileType."""
+
+    @pytest.fixture
+    def game_map(self, mock_texture_manager):
+        return Map(TEST_MAP_PATH, mock_texture_manager)
+
+    def test_bush_in_overlay_list(self, game_map):
+        overlay = game_map.overlay_tiles
+        bush_found = any(t.is_overlay for t in overlay)
+        assert bush_found
+
+    def test_bush_not_in_drawable_list(self, game_map):
+        drawable = game_map.drawable_tiles
+        overlay_in_drawable = any(t.is_overlay for t in drawable)
+        assert not overlay_in_drawable
+
+    def test_set_tile_type_bush_to_empty_removes_from_overlay(self, game_map):
+        overlay_tile = None
+        for t in game_map.overlay_tiles:
+            if t.is_overlay:
+                overlay_tile = t
+                break
+        assert overlay_tile is not None
+        game_map.set_tile_type(overlay_tile, TileType.EMPTY)
+        assert overlay_tile not in game_map.overlay_tiles
 
 
 class TestGetBaseSurroundingTiles:

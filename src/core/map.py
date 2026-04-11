@@ -3,7 +3,7 @@ import pygame
 import pytmx
 from pytmx.util_pygame import load_pygame
 from loguru import logger
-from .tile import BrickVariant, Tile, TileType
+from .tile import BrickVariant, Tile, TileDefaults, TileType
 from src.managers.texture_manager import TextureManager
 from src.utils.constants import (
     Difficulty,
@@ -65,7 +65,7 @@ class Map:
         # Scan tileset for brick variant sprites and collision defaults
         self._brick_variant_sprites: dict[BrickVariant, pygame.Surface] = {}
         self._tile_type_sprites: dict[TileType, pygame.Surface] = {}
-        self._tile_collision_defaults: dict[TileType, tuple[bool, bool]] = {}
+        self._tile_collision_defaults: dict[TileType, TileDefaults] = {}
         self._scan_tileset(tiled_map)
 
         # Initialize grid
@@ -88,6 +88,9 @@ class Map:
                 tile_image = None
                 blocks_tanks = False
                 blocks_bullets = False
+                is_destructible = False
+                is_overlay = False
+                is_slidable = False
                 props = None
 
                 if gid:
@@ -101,6 +104,9 @@ class Map:
                             brick_variant = BrickVariant(bv_str)
                         blocks_tanks = bool(props.get("blocks_tanks", False))
                         blocks_bullets = bool(props.get("blocks_bullets", False))
+                        is_destructible = bool(props.get("is_destructible", False))
+                        is_overlay = bool(props.get("is_overlay", False))
+                        is_slidable = bool(props.get("is_slidable", False))
 
                     self._cache_sprite(scaled_cache, gid, tiled_map, gid)
                     tile_image = scaled_cache.get(gid)
@@ -114,6 +120,9 @@ class Map:
                     brick_variant=brick_variant,
                     blocks_tanks=blocks_tanks,
                     blocks_bullets=blocks_bullets,
+                    is_destructible=is_destructible,
+                    is_overlay=is_overlay,
+                    is_slidable=is_slidable,
                 )
 
                 # Check for native animation frames from TSX
@@ -177,9 +186,13 @@ class Map:
                     )
                 # Build collision defaults from TSX (first occurrence wins)
                 if tile_type_enum not in self._tile_collision_defaults:
-                    bt = bool(props.get("blocks_tanks", False))
-                    bb = bool(props.get("blocks_bullets", False))
-                    self._tile_collision_defaults[tile_type_enum] = (bt, bb)
+                    self._tile_collision_defaults[tile_type_enum] = TileDefaults(
+                        blocks_tanks=bool(props.get("blocks_tanks", False)),
+                        blocks_bullets=bool(props.get("blocks_bullets", False)),
+                        is_destructible=bool(props.get("is_destructible", False)),
+                        is_overlay=bool(props.get("is_overlay", False)),
+                        is_slidable=bool(props.get("is_slidable", False)),
+                    )
             if tt == "BRICK":
                 bv_str = props.get("brick_variant") or "full"
                 key = BrickVariant(bv_str)
@@ -304,7 +317,7 @@ class Map:
             for tile in row:
                 if not tile:
                     continue
-                if tile.type == TileType.BUSH:
+                if tile.is_overlay:
                     self._overlay_tiles.append(tile)
                 elif tile.type != TileType.EMPTY:
                     self._drawable_tiles.append(tile)
@@ -320,6 +333,16 @@ class Map:
     def height_px(self) -> int:
         """Map height in pixels."""
         return self.height * self.tile_size
+
+    @property
+    def drawable_tiles(self) -> List[Tile]:
+        """Tiles that are drawn below tanks and bullets."""
+        return self._drawable_tiles
+
+    @property
+    def overlay_tiles(self) -> List[Tile]:
+        """Tiles that are drawn above tanks and bullets (e.g. bushes)."""
+        return self._overlay_tiles
 
     def grid_to_pixels(self, grid_x: int, grid_y: int) -> Tuple[int, int]:
         """Convert grid coordinates to pixel coordinates."""
@@ -426,7 +449,7 @@ class Map:
 
     def _add_to_render_list(self, tile: Tile) -> None:
         """Add a tile to the appropriate render list based on its type."""
-        if tile.type == TileType.BUSH:
+        if tile.is_overlay:
             self._overlay_tiles.append(tile)
         elif tile.type != TileType.EMPTY:
             self._drawable_tiles.append(tile)
@@ -436,9 +459,12 @@ class Map:
         old_type = tile.type
         tile.type = new_type
         tile.tmx_sprite = self._tile_type_sprites.get(new_type)
-        bt, bb = self._tile_collision_defaults.get(new_type, (False, False))
-        tile.blocks_tanks = bt
-        tile.blocks_bullets = bb
+        defaults = self._tile_collision_defaults.get(new_type, TileDefaults())
+        tile.blocks_tanks = defaults.blocks_tanks
+        tile.blocks_bullets = defaults.blocks_bullets
+        tile.is_destructible = defaults.is_destructible
+        tile.is_overlay = defaults.is_overlay
+        tile.is_slidable = defaults.is_slidable
         self._tile_cache_dirty = True
         if old_type != new_type:
             self._remove_from_render_lists(tile)

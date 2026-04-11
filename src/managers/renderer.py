@@ -56,9 +56,7 @@ class Renderer:
         self.map_offset_x: int = (logical_width - map_width_px) // 2
         self.map_offset_y: int = (logical_height - map_height_px) // 2
 
-        self.map_surface: pygame.Surface = pygame.Surface(
-            (map_width_px, map_height_px)
-        )
+        self.map_surface: pygame.Surface = pygame.Surface((map_width_px, map_height_px))
 
         # Cached text surface for game over animation (set on first use)
         self._game_over_text: Optional[pygame.Surface] = None
@@ -119,9 +117,7 @@ class Renderer:
         game_map.draw_overlay(self.map_surface)
         effect_manager.draw(self.map_surface)
 
-        self.game_surface.blit(
-            self.map_surface, (self.map_offset_x, self.map_offset_y)
-        )
+        self.game_surface.blit(self.map_surface, (self.map_offset_x, self.map_offset_y))
 
         self._draw_hud(player_tank, score)
 
@@ -227,9 +223,7 @@ class Renderer:
             pygame.draw.rect(self.game_surface, GRAY, bottom_rect)
 
         if progress >= 1.0:
-            self._draw_centered_text(
-                f"STAGE {stage}", self.font, WHITE, self._center_y
-            )
+            self._draw_centered_text(f"STAGE {stage}", self.font, WHITE, self._center_y)
 
         self._present_surface()
 
@@ -242,9 +236,7 @@ class Renderer:
         """Draw a semi-transparent overlay with centered title and subtitle."""
         self.game_surface.blit(self._dark_overlay, (0, 0))
         self._draw_centered_text(title, self.font, title_color, self._center_y)
-        self._draw_centered_text(
-            subtitle, self.font, WHITE, self._center_y + 50
-        )
+        self._draw_centered_text(subtitle, self.font, WHITE, self._center_y + 50)
 
     def _draw_menu(
         self,
@@ -259,9 +251,7 @@ class Renderer:
         for i, label in enumerate(options):
             color = colors[i] if colors else WHITE
             text = self.small_font.render(label, True, color)
-            text_rect = text.get_rect(
-                center=(self._center_x, start_y + i * spacing)
-            )
+            text_rect = text.get_rect(center=(self._center_x, start_y + i * spacing))
             self.game_surface.blit(text, text_rect)
             rects.append(text_rect)
 
@@ -281,9 +271,7 @@ class Renderer:
         """
         self.game_surface.fill(BLACK)
 
-        self._draw_centered_text(
-            "BATTLE CITY", self.font, WHITE, self._center_y - 80
-        )
+        self._draw_centered_text("BATTLE CITY", self.font, WHITE, self._center_y - 80)
 
         options = ["1 PLAYER", "2 PLAYERS", "OPTIONS", "DEMO", "QUIT"]
         colors = [WHITE, GRAY, WHITE, WHITE, WHITE]
@@ -299,9 +287,7 @@ class Renderer:
         """
         self.game_surface.blit(self._pause_overlay, (0, 0))
 
-        self._draw_centered_text(
-            "PAUSED", self.font, WHITE, self._center_y - 60
-        )
+        self._draw_centered_text("PAUSED", self.font, WHITE, self._center_y - 60)
 
         options = ["RESUME", "OPTIONS", "TITLE SCREEN", "QUIT"]
         self._draw_menu(options, menu_selection, self._center_y)
@@ -323,9 +309,7 @@ class Renderer:
 
         row_spacing = 40
 
-        self._draw_centered_text(
-            "OPTIONS", self.font, WHITE, self._center_y - 80
-        )
+        self._draw_centered_text("OPTIONS", self.font, WHITE, self._center_y - 80)
 
         diff_label = f"DIFFICULTY  {difficulty.value.upper()}"
         filled = round(master_volume * 10)

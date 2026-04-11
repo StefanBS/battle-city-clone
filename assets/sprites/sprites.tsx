@@ -54,6 +54,7 @@
    <property name="blocks_bullets" type="bool" value="true"/>
    <property name="blocks_tanks" type="bool" value="true"/>
    <property name="brick_variant" value="full"/>
+   <property name="is_destructible" type="bool" value="true"/>
    <property name="tile_type" value="BRICK"/>
   </properties>
  </tile>
@@ -62,6 +63,7 @@
    <property name="blocks_bullets" type="bool" value="true"/>
    <property name="blocks_tanks" type="bool" value="true"/>
    <property name="brick_variant" value="right"/>
+   <property name="is_destructible" type="bool" value="true"/>
    <property name="tile_type" value="BRICK"/>
   </properties>
  </tile>
@@ -70,6 +72,7 @@
    <property name="blocks_bullets" type="bool" value="true"/>
    <property name="blocks_tanks" type="bool" value="true"/>
    <property name="brick_variant" value="bottom"/>
+   <property name="is_destructible" type="bool" value="true"/>
    <property name="tile_type" value="BRICK"/>
   </properties>
  </tile>
@@ -78,6 +81,7 @@
    <property name="blocks_bullets" type="bool" value="true"/>
    <property name="blocks_tanks" type="bool" value="true"/>
    <property name="brick_variant" value="left"/>
+   <property name="is_destructible" type="bool" value="true"/>
    <property name="tile_type" value="BRICK"/>
   </properties>
  </tile>
@@ -86,6 +90,7 @@
    <property name="blocks_bullets" type="bool" value="true"/>
    <property name="blocks_tanks" type="bool" value="true"/>
    <property name="brick_variant" value="top"/>
+   <property name="is_destructible" type="bool" value="true"/>
    <property name="tile_type" value="BRICK"/>
   </properties>
  </tile>
@@ -98,11 +103,13 @@
  </tile>
  <tile id="483">
   <properties>
+   <property name="is_overlay" type="bool" value="true"/>
    <property name="tile_type" value="BUSH"/>
   </properties>
  </tile>
  <tile id="484">
   <properties>
+   <property name="is_slidable" type="bool" value="true"/>
    <property name="tile_type" value="ICE"/>
   </properties>
  </tile>
