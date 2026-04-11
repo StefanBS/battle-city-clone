@@ -1,7 +1,7 @@
 import pygame
 from typing import List, Optional, Sequence, Tuple
 from src.states.game_state import GameState
-from src.utils.constants import WHITE, BLACK, RED, GREEN, GRAY
+from src.utils.constants import WHITE, BLACK, RED, GREEN, GRAY, Difficulty
 from src.utils.paths import resource_path
 
 
@@ -36,20 +36,14 @@ class Renderer:
         self.game_surface: pygame.Surface = pygame.Surface(
             (logical_width, logical_height)
         )
-        self.border_color: Tuple[int, int, int] = GRAY
-        self.background_color: Tuple[int, int, int] = BLACK
         font_path = resource_path("assets/fonts/PressStart2P-Regular.ttf")
         self.font: pygame.font.Font = pygame.font.Font(font_path, 24)
         self.small_font: pygame.font.Font = pygame.font.Font(font_path, 12)
-        self._scaled_surface: pygame.Surface = pygame.Surface(
-            (screen.get_width(), screen.get_height())
-        )
 
         # Map offset: center the map on the logical surface
         self.map_offset_x: int = (logical_width - map_width_px) // 2
         self.map_offset_y: int = (logical_height - map_height_px) // 2
 
-        # Map area surface for rendering entities at map-relative positions
         self.map_surface: pygame.Surface = pygame.Surface((map_width_px, map_height_px))
 
         # Cached text surface for game over animation (set on first use)
@@ -94,16 +88,11 @@ class Renderer:
             score: Current player score.
             power_ups: Active power-ups to draw.
         """
-        # Fill logical surface with border color (gray)
-        self.game_surface.fill(self.border_color)
+        self.game_surface.fill(GRAY)
+        self.map_surface.fill(BLACK)
 
-        # Clear the map area with black background
-        self.map_surface.fill(self.background_color)
-
-        # Draw ground tiles (everything except bushes)
         game_map.draw(self.map_surface)
 
-        # Draw game objects (tanks pass under bushes)
         player_tank.draw(self.map_surface)
         for enemy in enemy_tanks:
             enemy.draw(self.map_surface)
@@ -113,18 +102,13 @@ class Renderer:
             if bullet.active:
                 bullet.draw(self.map_surface)
 
-        # Draw bush overlay on top of tanks/bullets
         game_map.draw_overlay(self.map_surface)
-
         effect_manager.draw(self.map_surface)
 
-        # Blit the map surface onto the logical surface at the offset
         self.game_surface.blit(self.map_surface, (self.map_offset_x, self.map_offset_y))
 
-        # Draw HUD onto the logical surface (in the border area)
         self._draw_hud(player_tank, score)
 
-        # Draw game over/victory screen if needed onto logical surface
         if state == GameState.GAME_OVER:
             self._draw_game_over()
         elif state == GameState.VICTORY:
@@ -141,9 +125,8 @@ class Renderer:
         pygame.transform.scale(
             self.game_surface,
             (self.screen.get_width(), self.screen.get_height()),
-            self._scaled_surface,
+            self.screen,
         )
-        self.screen.blit(self._scaled_surface, (0, 0))
         pygame.display.flip()
 
     def _draw_hud(self, player_tank, score: int = 0) -> None:
@@ -200,21 +183,21 @@ class Renderer:
             progress: 0.0 (open) to 1.0 (fully closed).
             stage: Current stage number to display when closed.
         """
-        self.game_surface.fill(self.background_color)
+        self.game_surface.fill(BLACK)
 
         half_height = self.logical_height // 2
         curtain_height = int(progress * half_height)
 
         if curtain_height > 0:
             top_rect = pygame.Rect(0, 0, self.logical_width, curtain_height)
-            pygame.draw.rect(self.game_surface, self.border_color, top_rect)
+            pygame.draw.rect(self.game_surface, GRAY, top_rect)
             bottom_rect = pygame.Rect(
                 0,
                 self.logical_height - curtain_height,
                 self.logical_width,
                 curtain_height,
             )
-            pygame.draw.rect(self.game_surface, self.border_color, bottom_rect)
+            pygame.draw.rect(self.game_surface, GRAY, bottom_rect)
 
         if progress >= 1.0:
             stage_text = self.font.render(f"STAGE {stage}", True, WHITE)
@@ -246,6 +229,32 @@ class Renderer:
         )
         self.game_surface.blit(subtitle_text, subtitle_rect)
 
+    def _draw_menu(
+        self,
+        options: List[str],
+        selection: int,
+        start_y: int,
+        spacing: int = 30,
+        colors: Optional[List[Tuple[int, int, int]]] = None,
+    ) -> List[pygame.Rect]:
+        """Draw a vertical list of options with a cursor. Returns option rects."""
+        cx = self.logical_width // 2
+        rects = []
+        for i, label in enumerate(options):
+            color = colors[i] if colors else WHITE
+            text = self.small_font.render(label, True, color)
+            text_rect = text.get_rect(center=(cx, start_y + i * spacing))
+            self.game_surface.blit(text, text_rect)
+            rects.append(text_rect)
+
+        cursor_y = start_y + selection * spacing
+        cursor_text = self.small_font.render(">", True, WHITE)
+        cursor_rect = cursor_text.get_rect(
+            midright=(rects[selection].left - 10, cursor_y)
+        )
+        self.game_surface.blit(cursor_text, cursor_rect)
+        return rects
+
     def render_title_screen(self, menu_selection: int) -> None:
         """Render the title screen with menu options.
 
@@ -257,24 +266,13 @@ class Renderer:
         cx = self.logical_width // 2
         cy = self.logical_height // 2
 
-        # Title
         title = self.font.render("BATTLE CITY", True, WHITE)
         title_rect = title.get_rect(center=(cx, cy - 80))
         self.game_surface.blit(title, title_rect)
 
-        # Menu options
         options = ["1 PLAYER", "2 PLAYERS", "OPTIONS", "DEMO", "QUIT"]
         colors = [WHITE, GRAY, WHITE, WHITE, WHITE]
-        for i, (label, color) in enumerate(zip(options, colors)):
-            text = self.small_font.render(label, True, color)
-            text_rect = text.get_rect(center=(cx, cy + i * 30))
-            self.game_surface.blit(text, text_rect)
-
-        # Tank cursor next to selected option
-        cursor_y = cy + menu_selection * 30
-        cursor_text = self.small_font.render(">", True, WHITE)
-        cursor_rect = cursor_text.get_rect(midright=(cx - 60, cursor_y))
-        self.game_surface.blit(cursor_text, cursor_rect)
+        self._draw_menu(options, menu_selection, cy, colors=colors)
 
         self._present_surface()
 
@@ -294,15 +292,7 @@ class Renderer:
         self.game_surface.blit(title, title_rect)
 
         options = ["RESUME", "OPTIONS", "TITLE SCREEN", "QUIT"]
-        for i, label in enumerate(options):
-            text = self.small_font.render(label, True, WHITE)
-            text_rect = text.get_rect(center=(cx, cy + i * 30))
-            self.game_surface.blit(text, text_rect)
-
-        cursor_y = cy + menu_selection * 30
-        cursor_text = self.small_font.render(">", True, WHITE)
-        cursor_rect = cursor_text.get_rect(midright=(cx - 80, cursor_y))
-        self.game_surface.blit(cursor_text, cursor_rect)
+        self._draw_menu(options, menu_selection, cy)
 
         self._present_surface()
 
@@ -314,7 +304,7 @@ class Renderer:
         self.game_surface.blit(right_hint, (rect.right + 8, y - 6))
 
     def render_options_menu(
-        self, master_volume: float, difficulty: str, selection: int
+        self, master_volume: float, difficulty: Difficulty, selection: int
     ) -> None:
         """Render options menu with difficulty toggle and volume slider."""
         self.game_surface.fill(BLACK)
@@ -327,42 +317,22 @@ class Renderer:
         title_rect = title.get_rect(center=(cx, cy - 80))
         self.game_surface.blit(title, title_rect)
 
-        # Row 0: Difficulty
-        diff_y = cy - row_spacing
-        diff_label = f"DIFFICULTY  {difficulty.upper()}"
-        diff_text = self.small_font.render(diff_label, True, WHITE)
-        diff_rect = diff_text.get_rect(center=(cx, diff_y))
-        self.game_surface.blit(diff_text, diff_rect)
-
-        if selection == 0:
-            self._draw_lr_hints(diff_rect, diff_y)
-
-        # Row 1: Volume
-        vol_y = cy
+        # Build option labels
+        diff_label = f"DIFFICULTY  {difficulty.value.upper()}"
         filled = round(master_volume * 10)
         bar = "#" * filled + "-" * (10 - filled)
         pct = f"{round(master_volume * 100)}%"
         vol_label = f"VOLUME  [{bar}] {pct}"
-        vol_text = self.small_font.render(vol_label, True, WHITE)
-        vol_rect = vol_text.get_rect(center=(cx, vol_y))
-        self.game_surface.blit(vol_text, vol_rect)
 
-        if selection == 1:
-            self._draw_lr_hints(vol_rect, vol_y)
+        options = [diff_label, vol_label, "BACK"]
+        rects = self._draw_menu(
+            options, selection, cy - row_spacing, spacing=row_spacing
+        )
 
-        # Row 2: Back
-        back_y = cy + row_spacing
-        back_text = self.small_font.render("BACK", True, WHITE)
-        back_rect = back_text.get_rect(center=(cx, back_y))
-        self.game_surface.blit(back_text, back_rect)
-
-        # Cursor
-        rects = [diff_rect, vol_rect, back_rect]
-        ys = [diff_y, vol_y, back_y]
-        target_rect = rects[selection]
-        cursor_y = ys[selection]
-        cursor_text = self.small_font.render(">", True, WHITE)
-        cursor_rect = cursor_text.get_rect(midright=(target_rect.left - 10, cursor_y))
-        self.game_surface.blit(cursor_text, cursor_rect)
+        # Draw < > hints on the selected row (except BACK)
+        if selection < 2:
+            self._draw_lr_hints(
+                rects[selection], cy - row_spacing + selection * row_spacing
+            )
 
         self._present_surface()

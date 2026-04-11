@@ -697,7 +697,7 @@ class GameManager:
         if self.state == GameState.OPTIONS_MENU:
             self.renderer.render_options_menu(
                 self.settings_manager.master_volume,
-                self.settings_manager.difficulty.value,
+                self.settings_manager.difficulty,
                 self._options_selection,
             )
             return

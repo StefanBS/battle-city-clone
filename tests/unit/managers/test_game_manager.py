@@ -809,7 +809,7 @@ class TestPauseAndOptionsStateMachine:
         gm.settings_manager.difficulty = Difficulty.NORMAL
         gm.render()
         gm.renderer.render_options_menu.assert_called_once_with(
-            0.7, Difficulty.NORMAL.value, gm._options_selection
+            0.7, Difficulty.NORMAL, gm._options_selection
         )
 
     def test_render_title_uses_title_selection(self, game_manager_at_title):

@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 from src.managers.renderer import Renderer
 from src.states.game_state import GameState
+from src.utils.constants import Difficulty
 
 
 @pytest.fixture
@@ -43,8 +44,6 @@ class TestRendererInitialization:
         assert renderer.logical_height == 512
         assert renderer.map_offset_x == (512 - 416) // 2
         assert renderer.map_offset_y == (512 - 416) // 2
-        assert renderer.border_color == (128, 128, 128)
-        assert renderer.background_color == (0, 0, 0)
         assert renderer.font is not None
         assert renderer.small_font is not None
 
@@ -166,9 +165,8 @@ class TestRendererRender:
             renderer.render(mock_map, mock_player, [], [], mock_em, GameState.RUNNING)
 
         mock_scale.assert_called_once_with(
-            renderer.game_surface, (1024, 1024), renderer._scaled_surface
+            renderer.game_surface, (1024, 1024), renderer.screen
         )
-        renderer.screen.blit.assert_called_once_with(renderer._scaled_surface, (0, 0))
         mock_flip.assert_called_once()
 
 
@@ -319,7 +317,7 @@ class TestRenderOptionsMenu:
             patch("pygame.transform.scale"),
             patch("pygame.display.flip"),
         ):
-            renderer.render_options_menu(0.8, "normal", 0)
+            renderer.render_options_menu(0.8, Difficulty.NORMAL, 0)
 
         render_calls = [call.args[0] for call in renderer.font.render.call_args_list]
         assert "OPTIONS" in render_calls
@@ -330,7 +328,7 @@ class TestRenderOptionsMenu:
             patch("pygame.transform.scale"),
             patch("pygame.display.flip"),
         ):
-            renderer.render_options_menu(0.8, "normal", 0)
+            renderer.render_options_menu(0.8, Difficulty.NORMAL, 0)
 
         render_calls = [
             call.args[0] for call in renderer.small_font.render.call_args_list
@@ -345,7 +343,7 @@ class TestRenderOptionsMenu:
             patch("pygame.transform.scale"),
             patch("pygame.display.flip"),
         ):
-            renderer.render_options_menu(0.8, "normal", 0)
+            renderer.render_options_menu(0.8, Difficulty.NORMAL, 0)
 
         render_calls = [
             call.args[0] for call in renderer.small_font.render.call_args_list
@@ -358,7 +356,7 @@ class TestRenderOptionsMenu:
             patch("pygame.transform.scale"),
             patch("pygame.display.flip"),
         ):
-            renderer.render_options_menu(0.8, "normal", 0)
+            renderer.render_options_menu(0.8, Difficulty.NORMAL, 0)
 
         render_calls = [
             call.args[0] for call in renderer.small_font.render.call_args_list
