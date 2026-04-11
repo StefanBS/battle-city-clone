@@ -81,7 +81,7 @@ def test_player_bullet_vs_tile(
     player_tank.direction = Direction.UP
     bullet_obj = player_tank.shoot()
     assert bullet_obj is not None, "Bullet failed to spawn."
-    game_manager.player_manager._bullets.append(bullet_obj)
+    game_manager.player_manager.add_bullet(bullet_obj)
     bullet = bullet_obj
 
     # Simulate game time until bullet should have hit (or passed)
@@ -182,7 +182,7 @@ def test_player_bullet_destroys_enemy_tank(game_manager_fixture, mocker):
     player_tank.direction = Direction.UP
     bullet_obj = player_tank.shoot()
     assert bullet_obj is not None, "Bullet failed to spawn."
-    game_manager.player_manager._bullets.append(bullet_obj)
+    game_manager.player_manager.add_bullet(bullet_obj)
     bullet = bullet_obj
 
     # Simulate game time until bullet should have hit

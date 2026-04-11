@@ -456,9 +456,9 @@ class TestPlayerManagerScore:
 
 
 class TestPlayerManagerIsOnIce:
-    def test_not_on_ice_when_no_tile(self, player_manager, mock_game_map):
-        """Returns False when get_tile_at returns None."""
-        mock_game_map.get_tile_at.return_value = None
+    def test_not_on_ice_delegates_to_map(self, player_manager, mock_game_map):
+        """Returns False when map.is_tile_slidable returns False."""
+        mock_game_map.is_tile_slidable.return_value = False
 
         player = MagicMock(spec=PlayerTank)
         player.x = 0
@@ -467,26 +467,13 @@ class TestPlayerManagerIsOnIce:
         player.height = TILE_SIZE
 
         assert player_manager._is_on_ice(player, mock_game_map) is False
+        mock_game_map.is_tile_slidable.assert_called_once_with(
+            player.x, player.y, player.width, player.height
+        )
 
-    def test_not_on_ice_when_tile_not_slidable(self, player_manager, mock_game_map):
-        """Returns False when tile.is_slidable is False."""
-        brick_tile = MagicMock(spec=Tile)
-        brick_tile.is_slidable = False
-        mock_game_map.get_tile_at.return_value = brick_tile
-
-        player = MagicMock(spec=PlayerTank)
-        player.x = 0
-        player.y = 0
-        player.width = TILE_SIZE
-        player.height = TILE_SIZE
-
-        assert player_manager._is_on_ice(player, mock_game_map) is False
-
-    def test_on_ice_when_tile_is_slidable(self, player_manager, mock_game_map):
-        """Returns True when tile.is_slidable is True."""
-        ice_tile = MagicMock(spec=Tile)
-        ice_tile.is_slidable = True
-        mock_game_map.get_tile_at.return_value = ice_tile
+    def test_on_ice_delegates_to_map(self, player_manager, mock_game_map):
+        """Returns True when map.is_tile_slidable returns True."""
+        mock_game_map.is_tile_slidable.return_value = True
 
         player = MagicMock(spec=PlayerTank)
         player.x = 0
@@ -495,25 +482,6 @@ class TestPlayerManagerIsOnIce:
         player.height = TILE_SIZE
 
         assert player_manager._is_on_ice(player, mock_game_map) is True
-
-    def test_tile_lookup_uses_tank_centre(self, player_manager, mock_game_map):
-        """The tile is looked up at the tank's centre, not origin."""
-        mock_game_map.get_tile_at.return_value = None
-        mock_game_map.tile_size = TILE_SIZE
-
-        player = MagicMock(spec=PlayerTank)
-        player.x = float(2 * TILE_SIZE)
-        player.y = float(3 * TILE_SIZE)
-        player.width = TILE_SIZE
-        player.height = TILE_SIZE
-
-        player_manager._is_on_ice(player, mock_game_map)
-
-        expected_grid_x = (2 * TILE_SIZE + TILE_SIZE // 2) // TILE_SIZE
-        expected_grid_y = (3 * TILE_SIZE + TILE_SIZE // 2) // TILE_SIZE
-        mock_game_map.get_tile_at.assert_called_once_with(
-            expected_grid_x, expected_grid_y
-        )
 
 
 # ---------------------------------------------------------------------------

@@ -100,17 +100,17 @@ class GameManager:
 
     @property
     def player_tank(self) -> Optional[PlayerTank]:
-        """Return the first active player tank for backward compatibility.
+        """Convenience property returning the first active player tank.
 
-        Integration tests and rendering code that need a single player reference
-        can use this property. Returns None if no active players exist.
+        Used by integration tests that need a single player reference.
+        Returns None if no active players exist.
         """
         active = self.player_manager.get_active_players()
         return active[0] if active else None
 
     @property
     def score(self) -> int:
-        """Return the player score for backward compatibility."""
+        """Convenience property delegating to player_manager.score."""
         return self.player_manager.score
 
     def _reset_game(self) -> None:
@@ -562,12 +562,7 @@ class GameManager:
 
     def _is_on_ice(self, tank) -> bool:
         """Check if the tank's center is over an ice tile."""
-        center_x = int(tank.x + tank.width / 2)
-        center_y = int(tank.y + tank.height / 2)
-        grid_x = center_x // self.map.tile_size
-        grid_y = center_y // self.map.tile_size
-        tile = self.map.get_tile_at(grid_x, grid_y)
-        return tile is not None and tile.is_slidable
+        return self.map.is_tile_slidable(tank.x, tank.y, tank.width, tank.height)
 
     def _apply_power_up(
         self, power_up_type: PowerUpType, player: Optional[PlayerTank] = None

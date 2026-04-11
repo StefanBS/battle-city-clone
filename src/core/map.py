@@ -527,6 +527,27 @@ class Map:
             result.extend(self._cached_tiles_by_type.get(tt, []))
         return result
 
+    def is_tile_slidable(
+        self, tank_x: float, tank_y: float, tank_w: float, tank_h: float
+    ) -> bool:
+        """Check if the tile under a tank's center is slidable (ice).
+
+        Args:
+            tank_x: Tank x position in pixels.
+            tank_y: Tank y position in pixels.
+            tank_w: Tank width in pixels.
+            tank_h: Tank height in pixels.
+
+        Returns:
+            True if the tile under the tank center has is_slidable set.
+        """
+        center_x = int(tank_x + tank_w / 2)
+        center_y = int(tank_y + tank_h / 2)
+        grid_x = center_x // self.tile_size
+        grid_y = center_y // self.tile_size
+        tile = self.get_tile_at(grid_x, grid_y)
+        return tile is not None and tile.is_slidable
+
     def get_base(self) -> Optional[Tile]:
         """Find and return a player base tile, if it exists."""
         self._ensure_cache()

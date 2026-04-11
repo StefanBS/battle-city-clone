@@ -171,12 +171,23 @@ class PlayerManager:
     # ------------------------------------------------------------------
 
     def get_all_bullets(self) -> list[Bullet]:
-        """Return all active player bullets.
+        """Return all player bullets (pruned to active-only by update()).
 
         Returns:
-            List of active Bullet instances.
+            Shallow copy of the internal bullet list.
         """
-        return [b for b in self._bullets if b.active]
+        return list(self._bullets)
+
+    def add_bullet(self, bullet: Bullet) -> None:
+        """Add a bullet to the player bullet list.
+
+        Useful for tests that need to inject bullets outside the normal
+        input → try_shoot flow.
+
+        Args:
+            bullet: The bullet to add.
+        """
+        self._bullets.append(bullet)
 
     def get_active_players(self) -> list[PlayerTank]:
         """Return players that are still alive (health > 0).
@@ -264,19 +275,7 @@ class PlayerManager:
     # Private helpers
     # ------------------------------------------------------------------
 
-    def _is_on_ice(self, tank: PlayerTank, game_map: "Map") -> bool:
-        """Return True if the tank's centre is over a slidable (ice) tile.
-
-        Args:
-            tank: The tank to check.
-            game_map: The map providing tile information.
-
-        Returns:
-            True when the tile under the tank centre has is_slidable set.
-        """
-        center_x = int(tank.x + tank.width / 2)
-        center_y = int(tank.y + tank.height / 2)
-        grid_x = center_x // game_map.tile_size
-        grid_y = center_y // game_map.tile_size
-        tile = game_map.get_tile_at(grid_x, grid_y)
-        return tile is not None and tile.is_slidable
+    @staticmethod
+    def _is_on_ice(tank: PlayerTank, game_map: "Map") -> bool:
+        """Return True if the tank's centre is over a slidable (ice) tile."""
+        return game_map.is_tile_slidable(tank.x, tank.y, tank.width, tank.height)
