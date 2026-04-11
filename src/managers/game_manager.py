@@ -729,7 +729,7 @@ class GameManager:
             all_bullets,
             self.effect_manager,
             self.state,
-            self.player_manager._scores,
+            self.player_manager.scores,
             power_ups=self.power_up_manager.get_power_ups(),
             game_over_rise_progress=game_over_rise_progress,
         )

@@ -742,6 +742,28 @@ class TestPlayerManagerTwoPlayerCreation:
         player_manager.add_score(100)
         assert player_manager.score == 100
 
+    def test_2p_no_controllers_keyboard_plus_joystick(
+        self, player_manager, mock_game_map
+    ):
+        """2P + 0 controllers: P1=keyboard, P2=joystick 0 (both exclusive)."""
+        mock_game_map.player_spawn_2 = (16, 24)
+        with patch("pygame.joystick.get_count", return_value=0):
+            player_manager.create_players(mock_game_map, two_player_mode=True)
+
+        assert player_manager._player_inputs[0].source == InputSource.KEYBOARD
+        assert player_manager._player_inputs[0]._exclusive is True
+        assert player_manager._player_inputs[1].source == InputSource.JOYSTICK
+        assert player_manager._player_inputs[1]._exclusive is True
+
+    def test_scores_property_returns_copy(self, player_manager, mock_game_map):
+        """scores property returns a copy, not the internal dict."""
+        with patch("pygame.joystick.get_count", return_value=0):
+            player_manager.create_players(mock_game_map)
+        player_manager.add_score(100)
+        scores = player_manager.scores
+        scores[1] = 999
+        assert player_manager.get_score(1) == 100
+
 
 # ---------------------------------------------------------------------------
 # TestPlayerManagerLifeStealing

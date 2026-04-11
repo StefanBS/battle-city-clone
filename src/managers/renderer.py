@@ -1,5 +1,5 @@
 import pygame
-from typing import List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 from src.states.game_state import GameState
 from src.utils.constants import (
     WHITE,
@@ -85,7 +85,7 @@ class Renderer:
         bullets: List,
         effect_manager,
         state: GameState,
-        scores=0,
+        scores: Union[Dict[int, int], int] = 0,
         power_ups: Sequence = (),
         game_over_rise_progress: Optional[float] = None,
     ) -> None:
@@ -154,7 +154,9 @@ class Renderer:
         rect = surface.get_rect(center=(self._center_x, y))
         self.game_surface.blit(surface, rect)
 
-    def _draw_hud(self, player_tanks: List, scores=0) -> None:
+    def _draw_hud(
+        self, player_tanks: List, scores: Union[Dict[int, int], int] = 0
+    ) -> None:
         """Draw the heads-up display.
 
         Args:

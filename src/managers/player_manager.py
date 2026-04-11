@@ -261,6 +261,11 @@ class PlayerManager:
             self._scores[player_id] = 0
         self._scores[player_id] += points
 
+    @property
+    def scores(self) -> dict[int, int]:
+        """Per-player scores dict {player_id: score}."""
+        return dict(self._scores)
+
     def get_score(self, player_id: int) -> int:
         """Get a specific player's score.
 
