@@ -73,21 +73,21 @@ class TestGameManager:
         assert game_manager_at_title._title_selection == 0
 
     def test_title_screen_cursor_moves(self, game_manager_at_title, key_down_event):
-        """Test up/down keys cycle through selectable items (0, 2, 3, 4)."""
+        """Test up/down keys cycle through selectable items (0, 1, 2, 3, 4)."""
         gm = game_manager_at_title
         assert gm._title_selection == 0
+        pygame.event.post(key_down_event(pygame.K_DOWN))
+        gm.handle_events()
+        assert gm._title_selection == 1
         pygame.event.post(key_down_event(pygame.K_DOWN))
         gm.handle_events()
         assert gm._title_selection == 2
         pygame.event.post(key_down_event(pygame.K_DOWN))
         gm.handle_events()
         assert gm._title_selection == 3
-        pygame.event.post(key_down_event(pygame.K_DOWN))
-        gm.handle_events()
-        assert gm._title_selection == 4
         pygame.event.post(key_down_event(pygame.K_UP))
         gm.handle_events()
-        assert gm._title_selection == 3
+        assert gm._title_selection == 2
 
     def test_title_screen_enter_starts_game(
         self, game_manager_at_title, key_down_event
@@ -99,15 +99,16 @@ class TestGameManager:
         gm.handle_events()
         assert gm.state == GameState.STAGE_CURTAIN_CLOSE
 
-    def test_title_screen_enter_on_disabled_does_nothing(
+    def test_title_screen_enter_on_2_players_starts_game(
         self, game_manager_at_title, key_down_event
     ):
-        """Test Enter on '2 PLAYERS' (disabled) does nothing."""
+        """Test Enter on '2 PLAYERS' (index 1) starts the game in two-player mode."""
         gm = game_manager_at_title
         gm._title_selection = 1
         pygame.event.post(key_down_event(pygame.K_RETURN))
         gm.handle_events()
-        assert gm.state == GameState.TITLE_SCREEN
+        assert gm.state == GameState.STAGE_CURTAIN_CLOSE
+        assert gm._two_player_mode is True
 
     def test_victory_r_does_nothing(self, game_manager, key_down_event):
         """Test pressing R during VICTORY does nothing (auto-advances instead)."""
@@ -861,3 +862,9 @@ class TestPauseAndOptionsStateMachine:
         gm._title_selection = 2
         gm.render()
         gm.renderer.render_title_screen.assert_called_once_with(2)
+
+
+class TestTwoPlayerMenu:
+    def test_2_players_menu_is_selectable(self):
+        """Index 1 (2 PLAYERS) is in selectable indices."""
+        assert 1 in GameManager._SELECTABLE_MENU_INDICES

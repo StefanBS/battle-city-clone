@@ -54,7 +54,7 @@ from src.utils.paths import resource_path
 class GameManager:
     """Manages the core game loop and window."""
 
-    _SELECTABLE_MENU_INDICES = (0, 2, 3, 4)  # Skip disabled "2 PLAYERS" at index 1
+    _SELECTABLE_MENU_INDICES = (0, 1, 2, 3, 4)
 
     def __init__(self) -> None:
         """Initialize the game window and persistent resources."""
@@ -88,6 +88,7 @@ class GameManager:
         self._options_from_pause: bool = False
         self._state_timer: float = 0.0
         self._demo_mode: bool = False
+        self._two_player_mode: bool = False
 
         # Renderer for title screen (recreated with map dims in _load_stage)
         self.renderer: Renderer = Renderer(
@@ -328,10 +329,11 @@ class GameManager:
             self._title_selection = indices[pos]
             self.sound_manager.play_menu_select()
         elif action == MenuAction.CONFIRM:
-            if self._title_selection in (0, 3):
+            if self._title_selection in (0, 1, 3):
                 self._demo_mode = self._title_selection == 3
-                label = "Demo" if self._demo_mode else "1 Player"
-                logger.info(f"{label} selected, starting game.")
+                self._two_player_mode = self._title_selection == 1
+                labels = {0: "1 Player", 1: "2 Players", 3: "Demo"}
+                logger.info(f"{labels[self._title_selection]} selected, starting game.")
                 self._new_game()
                 self.state = GameState.STAGE_CURTAIN_CLOSE
                 self._state_timer = 0.0

@@ -85,7 +85,7 @@ class Renderer:
         bullets: List,
         effect_manager,
         state: GameState,
-        score: int = 0,
+        scores=0,
         power_ups: Sequence = (),
         game_over_rise_progress: Optional[float] = None,
     ) -> None:
@@ -97,7 +97,7 @@ class Renderer:
             enemy_tanks: List of enemy tanks.
             bullets: List of bullets.
             state: Current game state.
-            score: Current player score.
+            scores: Per-player scores dict {player_id: score} or int for 1P total.
             power_ups: Active power-ups to draw.
         """
         self.game_surface.fill(GRAY)
@@ -120,7 +120,7 @@ class Renderer:
 
         self.game_surface.blit(self.map_surface, (self.map_offset_x, self.map_offset_y))
 
-        self._draw_hud(player_tanks, score)
+        self._draw_hud(player_tanks, scores)
 
         if state == GameState.GAME_OVER:
             self._draw_game_over()
@@ -154,30 +154,65 @@ class Renderer:
         rect = surface.get_rect(center=(self._center_x, y))
         self.game_surface.blit(surface, rect)
 
-    def _draw_hud(self, player_tanks: List, score: int = 0) -> None:
+    def _draw_hud(self, player_tanks: List, scores=0) -> None:
         """Draw the heads-up display.
 
         Args:
-            player_tanks: List of player tanks (uses first player for lives).
-            score: Current player score.
+            player_tanks: List of player tanks.
+            scores: Per-player scores dict {player_id: score} or int for 1P total.
         """
-        lives = player_tanks[0].lives if player_tanks else 0
-        if self._cached_lives != lives:
-            self._cached_lives = lives
-            self._cached_lives_text = self.small_font.render(
-                f"Lives: {lives}", True, WHITE
-            )
-        self.game_surface.blit(self._cached_lives_text, (10, 10))
+        if isinstance(scores, int):
+            scores = {1: scores}
 
-        if self._cached_score != score:
-            self._cached_score = score
-            self._cached_score_text = self.small_font.render(
-                f"Score: {score:>6}", True, WHITE
+        is_two_player = len(player_tanks) > 1
+
+        if is_two_player:
+            for i, player in enumerate(player_tanks):
+                pid = player.player_id
+                player_score = scores.get(pid, 0)
+
+                if player.health <= 0 and player.lives <= 0:
+                    label = f"P{pid}: OUT"
+                    label_surface = self.small_font.render(label, True, GRAY)
+                else:
+                    label = f"P{pid}: {player.lives}"
+                    label_surface = self.small_font.render(label, True, WHITE)
+
+                score_text = f"{player_score:>6}"
+                score_surface = self.small_font.render(score_text, True, WHITE)
+
+                if i == 0:  # P1 on the left
+                    self.game_surface.blit(label_surface, (10, 10))
+                    self.game_surface.blit(score_surface, (10, 24))
+                else:  # P2 on the right
+                    label_rect = label_surface.get_rect(
+                        topright=(self.logical_width - 10, 10)
+                    )
+                    self.game_surface.blit(label_surface, label_rect)
+                    score_rect = score_surface.get_rect(
+                        topright=(self.logical_width - 10, 24)
+                    )
+                    self.game_surface.blit(score_surface, score_rect)
+        else:
+            # 1P HUD (unchanged appearance)
+            lives = player_tanks[0].lives if player_tanks else 0
+            total_score = sum(scores.values())
+            if self._cached_lives != lives:
+                self._cached_lives = lives
+                self._cached_lives_text = self.small_font.render(
+                    f"Lives: {lives}", True, WHITE
+                )
+            self.game_surface.blit(self._cached_lives_text, (10, 10))
+
+            if self._cached_score != total_score:
+                self._cached_score = total_score
+                self._cached_score_text = self.small_font.render(
+                    f"Score: {total_score:>6}", True, WHITE
+                )
+            score_rect = self._cached_score_text.get_rect(
+                topright=(self.logical_width - 10, 10)
             )
-        score_rect = self._cached_score_text.get_rect(
-            topright=(self.logical_width - 10, 10)
-        )
-        self.game_surface.blit(self._cached_score_text, score_rect)
+            self.game_surface.blit(self._cached_score_text, score_rect)
 
     def _draw_game_over_rising(self, progress: float) -> None:
         """Draw 'GAME OVER' text rising from bottom to center.
@@ -276,7 +311,7 @@ class Renderer:
         self._draw_centered_text("BATTLE CITY", self.font, WHITE, self._center_y - 80)
 
         options = ["1 PLAYER", "2 PLAYERS", "OPTIONS", "DEMO", "QUIT"]
-        colors = [WHITE, GRAY, WHITE, WHITE, WHITE]
+        colors = [WHITE, WHITE, WHITE, WHITE, WHITE]
         self._draw_menu(options, menu_selection, self._center_y, colors=colors)
 
         self._present_surface()
