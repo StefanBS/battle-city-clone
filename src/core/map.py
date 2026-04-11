@@ -65,7 +65,7 @@ class Map:
         # Scan tileset for brick variant sprites and collision defaults
         self._brick_variant_sprites: dict[BrickVariant, pygame.Surface] = {}
         self._tile_type_sprites: dict[TileType, pygame.Surface] = {}
-        self._tile_collision_defaults: dict[TileType, tuple[bool, bool]] = {}
+        self._tile_collision_defaults: dict[TileType, tuple[bool, bool, bool, bool, bool]] = {}
         self._scan_tileset(tiled_map)
 
         # Initialize grid
@@ -188,7 +188,10 @@ class Map:
                 if tile_type_enum not in self._tile_collision_defaults:
                     bt = bool(props.get("blocks_tanks", False))
                     bb = bool(props.get("blocks_bullets", False))
-                    self._tile_collision_defaults[tile_type_enum] = (bt, bb)
+                    d = bool(props.get("is_destructible", False))
+                    o = bool(props.get("is_overlay", False))
+                    s = bool(props.get("is_slidable", False))
+                    self._tile_collision_defaults[tile_type_enum] = (bt, bb, d, o, s)
             if tt == "BRICK":
                 bv_str = props.get("brick_variant") or "full"
                 key = BrickVariant(bv_str)
@@ -445,9 +448,14 @@ class Map:
         old_type = tile.type
         tile.type = new_type
         tile.tmx_sprite = self._tile_type_sprites.get(new_type)
-        bt, bb = self._tile_collision_defaults.get(new_type, (False, False))
+        bt, bb, d, o, s = self._tile_collision_defaults.get(
+            new_type, (False, False, False, False, False)
+        )
         tile.blocks_tanks = bt
         tile.blocks_bullets = bb
+        tile.is_destructible = d
+        tile.is_overlay = o
+        tile.is_slidable = s
         self._tile_cache_dirty = True
         if old_type != new_type:
             self._remove_from_render_lists(tile)

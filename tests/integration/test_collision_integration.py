@@ -34,7 +34,9 @@ def test_player_bullet_vs_tile(
 
     # Manually place the specified tile type at the target location
     if 0 <= target_y_grid < game_map.height and 0 <= target_x_grid < game_map.width:
-        bt, bb = game_map._tile_collision_defaults.get(tile_to_place, (False, False))
+        bt, bb, d, o, s = game_map._tile_collision_defaults.get(
+            tile_to_place, (False, False, False, False, False)
+        )
         target_tile = Tile(
             tile_to_place,
             target_x_grid,
@@ -42,6 +44,9 @@ def test_player_bullet_vs_tile(
             SUB_TILE_SIZE,
             blocks_tanks=bt,
             blocks_bullets=bb,
+            is_destructible=d,
+            is_overlay=o,
+            is_slidable=s,
         )
         game_map.place_tile(target_x_grid, target_y_grid, target_tile)
         logger.debug(

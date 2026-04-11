@@ -241,8 +241,45 @@ class TestCollisionDefaultsFromTSX:
         defaults = game_map._tile_collision_defaults
         assert TileType.STEEL in defaults
         assert TileType.WATER in defaults
-        assert defaults[TileType.STEEL] == (True, True)
-        assert defaults[TileType.WATER] == (True, False)
+        assert defaults[TileType.STEEL] == (True, True, False, False, False)
+        assert defaults[TileType.WATER] == (True, False, False, False, False)
+
+    def test_set_tile_type_clears_is_destructible(self, game_map):
+        """Destroying a brick tile clears is_destructible."""
+        tile = game_map.get_tile_at(2, 2)  # BRICK
+        assert tile.is_destructible is True
+        game_map.set_tile_type(tile, TileType.EMPTY)
+        assert tile.is_destructible is False
+
+    def test_set_tile_type_to_brick_sets_is_destructible(self, game_map):
+        """Changing to BRICK sets is_destructible."""
+        tile = game_map.get_tile_at(4, 6)  # EMPTY
+        game_map.set_tile_type(tile, TileType.BRICK)
+        assert tile.is_destructible is True
+
+    def test_set_tile_type_clears_is_overlay(self, game_map):
+        """Changing a bush tile to empty clears is_overlay."""
+        bush_tile = None
+        for row in game_map.tiles:
+            for tile in row:
+                if tile and tile.is_overlay:
+                    bush_tile = tile
+                    break
+            if bush_tile:
+                break
+        assert bush_tile is not None, "No overlay tile found in test map"
+        game_map.set_tile_type(bush_tile, TileType.EMPTY)
+        assert bush_tile.is_overlay is False
+
+    def test_defaults_include_behavior_booleans(self, game_map):
+        """Defaults dict includes is_destructible, is_overlay, is_slidable."""
+        defaults = game_map._tile_collision_defaults
+        # BRICK should have is_destructible=True
+        bt, bb, d, o, s = defaults[TileType.BRICK]
+        assert d is True and o is False and s is False
+        # BUSH should have is_overlay=True
+        bt, bb, d, o, s = defaults[TileType.BUSH]
+        assert d is False and o is True and s is False
 
 
 class TestEnemyCompositionFallback:
