@@ -739,3 +739,71 @@ class TestPlayerManagerTwoPlayerCreation:
             player_manager.create_players(mock_game_map)
         player_manager.add_score(100)
         assert player_manager.score == 100
+
+
+# ---------------------------------------------------------------------------
+# TestPlayerManagerLifeStealing
+# ---------------------------------------------------------------------------
+
+
+class TestPlayerManagerLifeStealing:
+    @pytest.fixture
+    def two_player_pm(self, player_manager, mock_game_map):
+        """Create a 2P PlayerManager."""
+        mock_game_map.player_spawn_2 = (16, 24)
+        with patch("pygame.joystick.get_count", return_value=1):
+            player_manager.create_players(mock_game_map, two_player_mode=True)
+        return player_manager
+
+    def test_life_steal_from_other_player(self, two_player_pm):
+        """When P1 dies with 0 lives, steal 1 from P2 if P2 has 2+."""
+        p1 = two_player_pm._players[0]
+        p2 = two_player_pm._players[1]
+        p1.lives = 0
+        p1.health = 0
+        p2.lives = 3
+
+        result = two_player_pm.handle_player_death(p1)
+
+        assert result is False  # game continues
+        assert p2.lives == 2
+        assert p1.lives == 1  # received stolen life, respawn() does not decrement
+
+    def test_no_life_steal_when_other_has_one_life(self, two_player_pm):
+        """No steal if the other player has < 2 lives."""
+        p1 = two_player_pm._players[0]
+        p2 = two_player_pm._players[1]
+        p1.lives = 0
+        p1.health = 0
+        p2.lives = 1
+
+        result = two_player_pm.handle_player_death(p1)
+
+        assert p2.lives == 1  # unchanged
+
+    def test_game_over_only_when_both_eliminated(self, two_player_pm):
+        """is_game_over() is True only when both players are dead with 0 lives."""
+        p1 = two_player_pm._players[0]
+        p2 = two_player_pm._players[1]
+
+        p1.lives = 0
+        p1.health = 0
+        p2.lives = 2
+        p2.health = 1
+        assert two_player_pm.is_game_over() is False
+
+        p2.lives = 0
+        p2.health = 0
+        assert two_player_pm.is_game_over() is True
+
+    def test_one_player_eliminated_game_continues(self, two_player_pm):
+        """Game continues when one player is eliminated but other is alive."""
+        p1 = two_player_pm._players[0]
+        p2 = two_player_pm._players[1]
+        p1.lives = 0
+        p1.health = 0
+        p2.lives = 2
+        p2.health = 1
+
+        result = two_player_pm.handle_player_death(p1)
+        assert result is False
