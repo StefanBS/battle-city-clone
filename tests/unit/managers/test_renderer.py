@@ -364,6 +364,53 @@ class TestRenderOptionsMenu:
         assert ">" in render_calls
 
 
+class TestTwoPlayerHUD:
+    def test_two_player_hud_shows_both_players(self, renderer):
+        """2P HUD renders info for both players."""
+        p1 = MagicMock()
+        p1.lives = 3
+        p1.health = 1
+        p1.player_id = 1
+        p2 = MagicMock()
+        p2.lives = 2
+        p2.health = 1
+        p2.player_id = 2
+
+        renderer.small_font.render.reset_mock()
+        renderer._draw_hud([p1, p2], {1: 100, 2: 200})
+        rendered_texts = [c[0][0] for c in renderer.small_font.render.call_args_list]
+        assert any("P1" in t for t in rendered_texts)
+        assert any("P2" in t for t in rendered_texts)
+
+    def test_one_player_hud_no_prefix(self, renderer):
+        """1P HUD shows lives/score without P1/P2 prefix."""
+        p1 = MagicMock()
+        p1.lives = 3
+        p1.health = 1
+        p1.player_id = 1
+
+        renderer.small_font.render.reset_mock()
+        renderer._draw_hud([p1], {1: 100})
+        rendered_texts = [c[0][0] for c in renderer.small_font.render.call_args_list]
+        assert not any("P1" in t for t in rendered_texts)
+
+    def test_eliminated_player_shows_out(self, renderer):
+        """Eliminated player shows 'OUT'."""
+        p1 = MagicMock()
+        p1.lives = 3
+        p1.health = 1
+        p1.player_id = 1
+        p2 = MagicMock()
+        p2.lives = 0
+        p2.health = 0
+        p2.player_id = 2
+
+        renderer.small_font.render.reset_mock()
+        renderer._draw_hud([p1, p2], {1: 100, 2: 50})
+        rendered_texts = [c[0][0] for c in renderer.small_font.render.call_args_list]
+        assert any("OUT" in t for t in rendered_texts)
+
+
 class TestRenderTitleScreenUpdated:
     """Tests for updated title screen with OPTIONS and QUIT."""
 
