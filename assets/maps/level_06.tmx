@@ -1,7 +1,6 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="26" height="26" tilewidth="8" tileheight="8" infinite="0" nextlayerid="3" nextobjectid="5">
  <properties>
-  <property name="difficulty" value="easy" />
   <property name="enemy_armor" type="int" value="2" />
   <property name="enemy_basic" type="int" value="9" />
   <property name="enemy_fast" type="int" value="2" />
