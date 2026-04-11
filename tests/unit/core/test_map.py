@@ -593,7 +593,8 @@ class TestMapPlayerSpawn2:
 
         mock_layer = MagicMock()
         mock_layer.name = "spawn_points"
-        mock_layer.__iter__ = lambda self: iter([mock_obj_p1, mock_obj_p2, mock_obj_enemy])
+        objs = [mock_obj_p1, mock_obj_p2, mock_obj_enemy]
+        mock_layer.__iter__ = lambda self: iter(objs)
         mock_tiled.objectgroups = [mock_layer]
 
         map_obj._load_spawn_points(mock_tiled)

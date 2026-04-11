@@ -693,8 +693,8 @@ class TestPlayerManagerTwoPlayerCreation:
         assert p2.x == 16 * TILE_SIZE
         assert p2.y == 24 * TILE_SIZE
 
-    def test_2p_one_controller_keyboard_plus_joystick(self, player_manager, mock_game_map):
-        """2P + 1 controller: P1=keyboard, P2=joystick 0 (both exclusive)."""
+    def test_2p_one_controller_input(self, player_manager, mock_game_map):
+        """2P + 1 controller: P1=keyboard, P2=joystick 0."""
         mock_game_map.player_spawn_2 = (16, 24)
         with patch("pygame.joystick.get_count", return_value=1):
             player_manager.create_players(mock_game_map, two_player_mode=True)
@@ -779,7 +779,7 @@ class TestPlayerManagerLifeStealing:
         p1.health = 0
         p2.lives = 1
 
-        result = two_player_pm.handle_player_death(p1)
+        two_player_pm.handle_player_death(p1)
 
         assert p2.lives == 1  # unchanged
 

@@ -299,7 +299,7 @@ class TestPlayerTankPlayerId:
 
     def test_player2_uses_player2_sprite_prefix(self, mock_texture_manager):
         """Player 2 tank requests sprites with 'player2_tank_' prefix."""
-        tank = PlayerTank(
+        PlayerTank(
             0, 0, TILE_SIZE, mock_texture_manager,
             map_width_px=512, map_height_px=512,
             player_id=2,
@@ -308,7 +308,7 @@ class TestPlayerTankPlayerId:
 
     def test_player1_uses_player_tank_sprite_prefix(self, mock_texture_manager):
         """Player 1 tank requests sprites with 'player_tank_' prefix (unchanged)."""
-        tank = PlayerTank(
+        PlayerTank(
             0, 0, TILE_SIZE, mock_texture_manager,
             map_width_px=512, map_height_px=512,
             player_id=1,

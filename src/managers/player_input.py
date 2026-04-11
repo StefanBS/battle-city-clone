@@ -44,7 +44,9 @@ class PlayerInput:
     joystick_index.
     """
 
-    def __init__(self, source: InputSource, joystick_index: int = 0, *, exclusive: bool = False) -> None:
+    def __init__(
+        self, source: InputSource, joystick_index: int = 0, *, exclusive: bool = False
+    ) -> None:
         """Initialize PlayerInput.
 
         Args:

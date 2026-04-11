@@ -827,7 +827,7 @@ class TestFriendlyFire:
 
 
 class TestPerPlayerScoring:
-    def test_enemy_kill_awards_score_to_bullet_owner(self, mock_map, mock_effect_manager):
+    def test_enemy_kill_awards_score_to_owner(self, mock_map, mock_effect_manager):
         """Score is routed to the player who fired the killing bullet."""
         scores_received = []
 

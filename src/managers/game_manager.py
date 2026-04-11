@@ -179,7 +179,9 @@ class GameManager:
             on_player_death=self.player_manager.handle_player_death,
         )
 
-        self.player_manager.create_players(self.map, two_player_mode=self._two_player_mode)
+        self.player_manager.create_players(
+            self.map, two_player_mode=self._two_player_mode
+        )
 
         # Renderer (fixed logical surface with map centered inside)
         self.renderer = Renderer(

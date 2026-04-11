@@ -102,7 +102,9 @@ class PlayerTank(Tank):
     def _update_sprite(self) -> None:
         """Update sprite using tier-specific sprites."""
         prefix = "player2_tank" if self.player_id == 2 else "player_tank"
-        sprite_name = f"{prefix}_tier{self.star_level}_{self.direction}_{self.animation_frame}"
+        sprite_name = (
+            f"{prefix}_tier{self.star_level}_{self.direction}_{self.animation_frame}"
+        )
         try:
             self.sprite = self.texture_manager.get_sprite(sprite_name)
         except KeyError:
