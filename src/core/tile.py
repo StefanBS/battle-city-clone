@@ -39,6 +39,7 @@ class Tile:
     TMX sprite that determines its visual appearance.
     """
 
+    # Class-level defaults so MagicMock(spec=Tile) exposes these attrs
     is_destructible: bool = False
     is_overlay: bool = False
     is_slidable: bool = False

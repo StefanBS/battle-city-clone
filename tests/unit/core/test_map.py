@@ -506,6 +506,10 @@ class TestTileBehaviorProperties:
         tile = game_map.get_tile_at(4, 6)  # EMPTY
         assert tile.is_slidable is False
 
+    def test_ice_tile_is_slidable(self, game_map):
+        tile = game_map.get_tile_at(1, 6)  # ICE in test_map.tmx
+        assert tile.is_slidable is True
+
 
 class TestOverlayPropertyRendering:
     """Verify overlay list uses is_overlay property, not TileType."""
