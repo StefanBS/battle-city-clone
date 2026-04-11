@@ -67,6 +67,12 @@ class PlayerTank(Tank):
         self._apply_star_stats()
         self._update_sprite()
 
+    def restore_star_level(self, level: int) -> None:
+        """Restore star level (e.g., after stage load). Clamps to 0-3."""
+        self.star_level = max(0, min(3, level))
+        self._apply_star_stats()
+        self._update_sprite()
+
     def _apply_star_stats(self) -> None:
         """Apply stats based on current star level."""
         if self.star_level >= 1:
@@ -93,7 +99,10 @@ class PlayerTank(Tank):
         sprite_name = (
             f"player_tank_tier{self.star_level}_{self.direction}_{self.animation_frame}"
         )
-        self.sprite = self.texture_manager.get_sprite(sprite_name)
+        try:
+            self.sprite = self.texture_manager.get_sprite(sprite_name)
+        except KeyError:
+            logger.error(f"Sprite '{sprite_name}' not found for player tank.")
 
     def activate_invincibility(self, duration: float) -> None:
         """Activate invincibility for the given duration."""

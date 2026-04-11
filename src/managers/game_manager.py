@@ -97,7 +97,7 @@ class GameManager:
         )
 
     def _reset_game(self) -> None:
-        """Backward-compatible alias. Use _new_game() for new code."""
+        """Start a new game and immediately enter RUNNING state (used by tests)."""
         self._new_game()
         self.state = GameState.RUNNING
 
@@ -205,9 +205,7 @@ class GameManager:
         # Restore player progress
         self.player_tank.lives = player_lives
         if player_star_level > 0:
-            self.player_tank.star_level = player_star_level
-            self.player_tank._apply_star_stats()
-            self.player_tank._update_sprite()
+            self.player_tank.restore_star_level(player_star_level)
 
         # Grant spawn invincibility (after progress restoration)
         self.player_tank.activate_invincibility(SPAWN_INVINCIBILITY_DURATION)

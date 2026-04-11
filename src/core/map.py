@@ -291,7 +291,7 @@ class Map:
         self._tile_cache_dirty = True
 
     def damage_brick(
-        self, tile: Tile, bullet_direction: str, bullet_rect: pygame.Rect
+        self, tile: Tile, bullet_direction: Direction, bullet_rect: pygame.Rect
     ) -> None:
         """Damage a brick tile and any adjacent brick the bullet overlaps.
 
@@ -304,7 +304,7 @@ class Map:
 
         # Check adjacent tiles PERPENDICULAR to bullet direction.
         # The bullet may straddle two tiles across its narrow axis.
-        if bullet_direction in ("left", "right"):
+        if bullet_direction in (Direction.LEFT, Direction.RIGHT):
             offsets = [(0, -1), (0, 1)]  # above and below
         else:
             offsets = [(-1, 0), (1, 0)]  # left and right
@@ -322,7 +322,7 @@ class Map:
         BrickVariant.BOTTOM: (0, 0.5, 1, 0.5),
     }
 
-    def _damage_single_brick(self, tile: Tile, bullet_direction: str) -> None:
+    def _damage_single_brick(self, tile: Tile, bullet_direction: Direction) -> None:
         """Damage one brick tile. Full → half, half → destroyed."""
         if tile.type != TileType.BRICK:
             return
