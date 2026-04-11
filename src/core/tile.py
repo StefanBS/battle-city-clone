@@ -39,6 +39,12 @@ class Tile:
     TMX sprite that determines its visual appearance.
     """
 
+    is_destructible: bool = False
+    is_overlay: bool = False
+    is_slidable: bool = False
+    blocks_tanks: bool = False
+    blocks_bullets: bool = False
+
     def __init__(
         self,
         tile_type: TileType,

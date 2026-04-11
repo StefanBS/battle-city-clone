@@ -201,7 +201,9 @@ class TestBulletVsTile:
         bullet.power_bullet = False
         bullet.rect = pygame.Rect(64, 64, 4, 4)
         bullet.direction = Direction.RIGHT
-        tile = Tile(TileType.BRICK, 4, 4, blocks_tanks=True, blocks_bullets=True)
+        tile = Tile(
+            TileType.BRICK, 4, 4, blocks_tanks=True, blocks_bullets=True, is_destructible=True
+        )
         handler.process_collisions([(bullet, tile)])
         assert not bullet.active
         mock_map.damage_brick.assert_called_once_with(tile, "right", bullet.rect)
@@ -217,6 +219,7 @@ class TestBulletVsTile:
         tile = MagicMock(spec=Tile)
         tile.type = TileType.BASE
         tile.blocks_bullets = True
+        tile.is_destructible = False
         tile.x, tile.y = 0, 0
         handler.process_collisions([(bullet, tile)])
         assert not bullet.active
@@ -457,7 +460,7 @@ class TestExplosionEffects:
     def test_bullet_vs_brick_spawns_small_explosion(
         self, handler, mock_map, mock_effect_manager
     ):
-        tile = Tile(TileType.BRICK, 4, 4, blocks_tanks=True, blocks_bullets=True)
+        tile = Tile(TileType.BRICK, 4, 4, blocks_tanks=True, blocks_bullets=True, is_destructible=True)
         mock_map.get_tile_at.return_value = Tile(TileType.EMPTY, 4, 5)
         bullet = MagicMock(spec=Bullet)
         bullet.active = True
@@ -478,6 +481,7 @@ class TestExplosionEffects:
         tile = MagicMock(spec=Tile)
         tile.type = TileType.STEEL
         tile.blocks_bullets = True
+        tile.is_destructible = False
         tile.x, tile.y = 0, 0
         handler.process_collisions([(bullet, tile)])
         mock_effect_manager.spawn.assert_called_once_with(
@@ -494,6 +498,7 @@ class TestExplosionEffects:
         tile = MagicMock(spec=Tile)
         tile.type = TileType.BASE
         tile.blocks_bullets = True
+        tile.is_destructible = False
         tile.x, tile.y = 0, 0
         handler.process_collisions([(bullet, tile)])
         mock_effect_manager.spawn.assert_called_once_with(
@@ -704,6 +709,7 @@ class TestPowerBulletVsSteel:
         base_tile = MagicMock(spec=Tile)
         base_tile.type = TileType.BASE
         base_tile.blocks_bullets = True
+        base_tile.is_destructible = False
         base_tile.x = 8
         base_tile.y = 14
         base_tile.rect = pygame.Rect(128, 224, 16, 16)
