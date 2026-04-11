@@ -59,9 +59,12 @@ class PowerUpManager:
 
     def update(self, dt: float) -> None:
         """Update all active power-ups; remove any that have timed out."""
+        any_expired = False
         for pu in self.active_power_ups:
             pu.update(dt)
-        if any(not pu.active for pu in self.active_power_ups):
+            if not pu.active:
+                any_expired = True
+        if any_expired:
             self.active_power_ups = [pu for pu in self.active_power_ups if pu.active]
 
     def get_power_ups(self) -> List[PowerUp]:

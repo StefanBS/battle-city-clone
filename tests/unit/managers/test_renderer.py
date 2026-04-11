@@ -252,22 +252,19 @@ class TestRenderCurtain:
 class TestRenderPauseMenu:
     """Tests for render_pause_menu."""
 
-    def test_overlay_surface_is_created_and_blitted(self, renderer):
-        """Pause menu creates a semi-transparent overlay and blits it."""
-        mock_overlay = MagicMock(spec=pygame.Surface)
+    def test_overlay_is_blitted(self, renderer):
+        """Pause menu blits the pre-created overlay onto the game surface."""
         with (
-            patch("pygame.Surface") as mock_surface_cls,
             patch("pygame.transform.scale"),
             patch("pygame.display.flip"),
         ):
-            mock_surface_cls.return_value = mock_overlay
             renderer.render_pause_menu(0)
 
-        # The overlay should be created with SRCALPHA and blitted
-        mock_surface_cls.assert_called_once_with(
-            (renderer.logical_width, renderer.logical_height), pygame.SRCALPHA
-        )
-        mock_overlay.fill.assert_called_once_with((0, 0, 0, 160))
+        # The cached overlay should be blitted onto the game surface
+        blit_calls = renderer.game_surface.blit.call_args_list
+        assert any(
+            call.args[0] is renderer._pause_overlay for call in blit_calls
+        ), "Expected _pause_overlay to be blitted onto game_surface"
 
     def test_paused_title_is_rendered(self, renderer):
         """Pause menu renders 'PAUSED' title."""

@@ -33,8 +33,6 @@ class SettingsManager:
             logger.warning(
                 f"Could not load settings from {self._path}; using defaults."
             )
-            self.master_volume = 1.0
-            self.difficulty = Difficulty.NORMAL
 
     def save(self) -> None:
         """Save current settings to file."""
@@ -42,6 +40,9 @@ class SettingsManager:
             "master_volume": round(self.master_volume, 1),
             "difficulty": self.difficulty.value,
         }
-        with open(self._path, "w") as f:
-            json.dump(data, f, indent=2)
-        logger.debug(f"Settings saved to {self._path}")
+        try:
+            with open(self._path, "w") as f:
+                json.dump(data, f, indent=2)
+            logger.debug(f"Settings saved to {self._path}")
+        except OSError:
+            logger.warning(f"Could not save settings to {self._path}.")

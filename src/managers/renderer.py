@@ -55,6 +55,22 @@ class Renderer:
         # Cached text surface for game over animation (set on first use)
         self._game_over_text: Optional[pygame.Surface] = None
 
+        # HUD text cache (re-render only when values change)
+        self._cached_lives: Optional[int] = None
+        self._cached_lives_text: Optional[pygame.Surface] = None
+        self._cached_score: Optional[int] = None
+        self._cached_score_text: Optional[pygame.Surface] = None
+
+        # Reusable overlay surfaces for pause/game-over screens
+        self._pause_overlay: pygame.Surface = pygame.Surface(
+            (logical_width, logical_height), pygame.SRCALPHA
+        )
+        self._pause_overlay.fill((0, 0, 0, 160))
+        self._dark_overlay: pygame.Surface = pygame.Surface(
+            (logical_width, logical_height), pygame.SRCALPHA
+        )
+        self._dark_overlay.fill((0, 0, 0, 128))
+
     def render(
         self,
         game_map,
@@ -137,12 +153,22 @@ class Renderer:
             player_tank: The player's tank (used for lives).
             score: Current player score.
         """
-        lives_text = self.small_font.render(f"Lives: {player_tank.lives}", True, WHITE)
-        self.game_surface.blit(lives_text, (10, 10))
+        if self._cached_lives != player_tank.lives:
+            self._cached_lives = player_tank.lives
+            self._cached_lives_text = self.small_font.render(
+                f"Lives: {player_tank.lives}", True, WHITE
+            )
+        self.game_surface.blit(self._cached_lives_text, (10, 10))
 
-        score_text = self.small_font.render(f"Score: {score:>6}", True, WHITE)
-        score_rect = score_text.get_rect(topright=(self.logical_width - 10, 10))
-        self.game_surface.blit(score_text, score_rect)
+        if self._cached_score != score:
+            self._cached_score = score
+            self._cached_score_text = self.small_font.render(
+                f"Score: {score:>6}", True, WHITE
+            )
+        score_rect = self._cached_score_text.get_rect(
+            topright=(self.logical_width - 10, 10)
+        )
+        self.game_surface.blit(self._cached_score_text, score_rect)
 
     def _draw_game_over_rising(self, progress: float) -> None:
         """Draw 'GAME OVER' text rising from bottom to center.
@@ -206,11 +232,7 @@ class Renderer:
         subtitle: str,
     ) -> None:
         """Draw a semi-transparent overlay with centered title and subtitle."""
-        overlay = pygame.Surface(
-            (self.logical_width, self.logical_height), pygame.SRCALPHA
-        )
-        overlay.fill((0, 0, 0, 128))
-        self.game_surface.blit(overlay, (0, 0))
+        self.game_surface.blit(self._dark_overlay, (0, 0))
 
         text = self.font.render(title, True, title_color)
         text_rect = text.get_rect(
@@ -262,11 +284,7 @@ class Renderer:
         Does NOT clear the game surface — draws on top of the
         last rendered game frame to show the paused game behind.
         """
-        overlay = pygame.Surface(
-            (self.logical_width, self.logical_height), pygame.SRCALPHA
-        )
-        overlay.fill((0, 0, 0, 160))
-        self.game_surface.blit(overlay, (0, 0))
+        self.game_surface.blit(self._pause_overlay, (0, 0))
 
         cx = self.logical_width // 2
         cy = self.logical_height // 2

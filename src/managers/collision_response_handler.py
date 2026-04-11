@@ -56,10 +56,21 @@ class CollisionResponseHandler:
             (EnemyTank, Tile): self._handle_tank_vs_tile,
         }
 
-    def _play_sound(self, play_fn: str) -> None:
-        """Call a SoundManager play method if available."""
+    def _play_explosion(self) -> None:
         if self._sound_manager is not None:
-            getattr(self._sound_manager, play_fn)()
+            self._sound_manager.play_explosion()
+
+    def _play_brick_hit(self) -> None:
+        if self._sound_manager is not None:
+            self._sound_manager.play_brick_hit()
+
+    def _play_bullet_hit_bullet(self) -> None:
+        if self._sound_manager is not None:
+            self._sound_manager.play_bullet_hit_bullet()
+
+    def _play_powerup(self) -> None:
+        if self._sound_manager is not None:
+            self._sound_manager.play_powerup()
 
     def process_collisions(self, events: List[Tuple[Any, Any]]) -> List[EnemyTank]:
         """Process collision events and return list of enemies to remove."""
@@ -153,7 +164,7 @@ class CollisionResponseHandler:
                 float(enemy.rect.centerx),
                 float(enemy.rect.centery),
             )
-            self._play_sound("play_explosion")
+            self._play_explosion()
         return True
 
     def _handle_bullet_vs_player(
@@ -177,7 +188,7 @@ class CollisionResponseHandler:
                     float(player.rect.centerx),
                     float(player.rect.centery),
                 )
-                self._play_sound("play_explosion")
+                self._play_explosion()
                 self._set_game_state(GameState.GAME_OVER)
             else:
                 player.respawn()
@@ -202,9 +213,9 @@ class CollisionResponseHandler:
             float(bullet.rect.centery),
         )
         if tile.type == TileType.BASE:
-            self._play_sound("play_explosion")
+            self._play_explosion()
         else:
-            self._play_sound("play_brick_hit")
+            self._play_brick_hit()
 
         if tile.type == TileType.STEEL:
             if bullet.power_bullet:
@@ -231,7 +242,7 @@ class CollisionResponseHandler:
         logger.debug("Bullet hit bullet. Both deactivated.")
         bullet_a.active = False
         bullet_b.active = False
-        self._play_sound("play_bullet_hit_bullet")
+        self._play_bullet_hit_bullet()
         return True
 
     def _handle_player_vs_powerup(
@@ -245,7 +256,7 @@ class CollisionResponseHandler:
         power_up_type = self._power_up_manager.collect_power_up(power_up)
         if power_up_type is not None:
             self._add_score(POWERUP_COLLECT_POINTS)
-            self._play_sound("play_powerup")
+            self._play_powerup()
             logger.info(f"Player collected power-up: {power_up_type.value}")
             self.collected_power_up_type = power_up_type
         return True

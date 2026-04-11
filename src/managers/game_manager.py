@@ -492,10 +492,10 @@ class GameManager:
         player_base: Optional[Tile] = self.map.get_base()
 
         player_bullets = [
-            b for b in self.bullets if b.owner_type == OwnerType.PLAYER and b.active
+            b for b in self.bullets if b.owner_type == OwnerType.PLAYER
         ]
         enemy_bullets = [
-            b for b in self.bullets if b.owner_type == OwnerType.ENEMY and b.active
+            b for b in self.bullets if b.owner_type == OwnerType.ENEMY
         ]
 
         active_power_ups = self.power_up_manager.get_power_ups()
