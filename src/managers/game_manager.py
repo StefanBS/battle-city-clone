@@ -40,11 +40,8 @@ from src.managers.collision_manager import CollisionManager
 from src.managers.collision_response_handler import CollisionResponseHandler
 from src.managers.effect_manager import EffectManager
 from src.managers.texture_manager import TextureManager
-from src.managers.input_handler import (
-    InputHandler,
-    JOY_START_BUTTON,
-    CTRL_START_BUTTON,
-)
+from src.managers.input_handler import InputHandler
+from src.managers.player_input import CTRL_START_BUTTON, JOY_START_BUTTON
 from src.managers.spawn_manager import SpawnManager
 from src.managers.renderer import Renderer
 from src.managers.power_up_manager import PowerUpManager
@@ -489,10 +486,6 @@ class GameManager:
         player_base: Optional[Tile] = self.map.get_base()
 
         player_bullets = self.player_manager.get_all_bullets()
-        # Also include any player bullets in self.bullets (from _try_shoot legacy path)
-        for b in self.bullets:
-            if b.owner_type == OwnerType.PLAYER and b.active:
-                player_bullets.append(b)
         enemy_bullets = [b for b in self.bullets if b.owner_type == OwnerType.ENEMY]
 
         active_power_ups = self.power_up_manager.get_power_ups()

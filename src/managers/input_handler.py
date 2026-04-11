@@ -2,27 +2,14 @@ import pygame
 from typing import Optional
 from loguru import logger
 from src.utils.constants import Direction, MenuAction
-
-AXIS_DEADZONE: float = 0.5
-
-# Raw joystick API (fallback for controllers not in SDL's GameController DB)
-JOY_AXIS_X: int = 0
-JOY_AXIS_Y: int = 1
-JOY_SHOOT_BUTTONS: tuple[int, ...] = (0, 1)
-JOY_START_BUTTON: int = 7
-
-# SDL GameController API (normalized IDs for recognized controllers like Xbox)
-CTRL_DPAD_BUTTONS: dict[int, Direction] = {
-    pygame.CONTROLLER_BUTTON_DPAD_UP: Direction.UP,
-    pygame.CONTROLLER_BUTTON_DPAD_DOWN: Direction.DOWN,
-    pygame.CONTROLLER_BUTTON_DPAD_LEFT: Direction.LEFT,
-    pygame.CONTROLLER_BUTTON_DPAD_RIGHT: Direction.RIGHT,
-}
-CTRL_SHOOT_BUTTONS: tuple[int, ...] = (
-    pygame.CONTROLLER_BUTTON_A,
-    pygame.CONTROLLER_BUTTON_B,
+from src.managers.player_input import (
+    AXIS_DEADZONE,
+    CTRL_DPAD_BUTTONS,
+    CTRL_SHOOT_BUTTONS,
+    JOY_AXIS_X,
+    JOY_AXIS_Y,
+    JOY_SHOOT_BUTTONS,
 )
-CTRL_START_BUTTON: int = pygame.CONTROLLER_BUTTON_START
 
 _DIRECTION_TO_MENU_ACTION: dict[Direction, MenuAction] = {
     Direction.UP: MenuAction.UP,

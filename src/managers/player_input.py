@@ -13,6 +13,7 @@ AXIS_DEADZONE: float = 0.5
 JOY_AXIS_X: int = 0
 JOY_AXIS_Y: int = 1
 JOY_SHOOT_BUTTONS: tuple[int, ...] = (0, 1)
+JOY_START_BUTTON: int = 7
 
 # SDL GameController API (normalized IDs for recognized controllers like Xbox)
 CTRL_DPAD_BUTTONS: dict[int, Direction] = {
@@ -25,6 +26,7 @@ CTRL_SHOOT_BUTTONS: tuple[int, ...] = (
     pygame.CONTROLLER_BUTTON_A,
     pygame.CONTROLLER_BUTTON_B,
 )
+CTRL_START_BUTTON: int = pygame.CONTROLLER_BUTTON_START
 
 
 class InputSource(Enum):
