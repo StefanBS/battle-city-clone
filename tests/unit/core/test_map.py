@@ -392,6 +392,56 @@ infinite="0" nextlayerid="2" nextobjectid="1">
             os.remove(tmx_path)
 
 
+class TestSpawnPointTypeProperty:
+    """Verify _load_spawn_points reads spawn_point_type property with name fallback."""
+
+    def test_name_based_fallback_still_works(self, mock_texture_manager):
+        """Existing maps with name-based spawn points still load correctly."""
+        game_map = Map(TEST_MAP_PATH, mock_texture_manager)
+        assert game_map.player_spawn == (4, 6)
+        assert len(game_map.spawn_points) >= 1
+
+    def test_spawn_point_type_property_used(self, mock_texture_manager):
+        """Spawn points with spawn_point_type property are correctly loaded."""
+        import os
+
+        tmx_content = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" \
+renderorder="right-down" width="2" height="2" tilewidth="8" tileheight="8" \
+infinite="0" nextlayerid="3" nextobjectid="3">
+ <tileset firstgid="1" source="../../assets/sprites/sprites.tsx"/>
+ <layer id="1" name="Tile Layer 1" width="2" height="2">
+  <data encoding="csv">
+0,0,
+0,0
+</data>
+ </layer>
+ <objectgroup id="2" name="spawn_points">
+  <object id="1" name="" x="0" y="0" width="0" height="0">
+   <properties>
+    <property name="spawn_point_type" value="enemy_spawn"/>
+   </properties>
+  </object>
+  <object id="2" name="" x="8" y="8" width="0" height="0">
+   <properties>
+    <property name="spawn_point_type" value="player_spawn"/>
+   </properties>
+  </object>
+ </objectgroup>
+</map>
+"""
+        tmx_path = "tests/assets/spawn_type_prop.tmx"
+        with open(tmx_path, "w") as f:
+            f.write(tmx_content)
+        try:
+            game_map = Map(tmx_path, mock_texture_manager)
+            assert game_map.player_spawn == (1, 1)
+            assert (0, 0) in game_map.spawn_points
+        finally:
+            os.remove(tmx_path)
+
+
 class TestGetBaseSurroundingTiles:
     @pytest.fixture
     def game_map(self, mock_texture_manager):

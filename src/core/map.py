@@ -215,7 +215,13 @@ class Map:
             grid_x = int(obj.x // tmx_tw)
             grid_y = int(obj.y // tmx_th)
 
-            if obj.name == "player_spawn":
+            # Prefer spawn_point_type property, fall back to object name
+            obj_props = obj.properties if hasattr(obj, "properties") else {}
+            spawn_type = obj_props.get("spawn_point_type") if obj_props else None
+            if spawn_type is None:
+                spawn_type = obj.name
+
+            if spawn_type == "player_spawn":
                 self.player_spawn = (grid_x, grid_y)
                 player_spawn_found = True
             else:
