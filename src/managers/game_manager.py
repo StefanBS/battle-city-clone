@@ -713,11 +713,12 @@ class GameManager:
                 1.0, self._state_timer / GAME_OVER_RISE_DURATION
             )
 
+        all_bullets = self.player_manager.get_all_bullets() + self.bullets
         self.renderer.render(
             self.map,
             self.player_manager.get_active_players(),
             self.spawn_manager.enemy_tanks,
-            self.bullets,
+            all_bullets,
             self.effect_manager,
             self.state,
             self.player_manager.score,

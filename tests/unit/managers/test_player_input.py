@@ -148,14 +148,14 @@ class TestJoystickPlayerInput:
         )
         assert joystick_input_1.get_movement_direction() == (0, 0)
 
-    def test_ignores_keyboard_events(self, joystick_input: PlayerInput) -> None:
-        """Joystick source ignores keyboard KEYDOWN events."""
+    def test_also_handles_keyboard_events(self, joystick_input: PlayerInput) -> None:
+        """All sources handle keyboard input (merged OR logic)."""
         joystick_input.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_UP))
-        assert joystick_input.get_movement_direction() == (0, 0)
+        assert joystick_input.get_movement_direction() == (0, -1)
         joystick_input.handle_event(
             pygame.event.Event(pygame.KEYDOWN, key=pygame.K_SPACE)
         )
-        assert joystick_input.consume_shoot() is False
+        assert joystick_input.consume_shoot() is True
 
     def test_axis_with_deadzone(self, joystick_input: PlayerInput) -> None:
         """Axis within deadzone sets no direction; beyond deadzone sets direction."""

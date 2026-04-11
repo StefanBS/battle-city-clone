@@ -73,18 +73,16 @@ class PlayerInput:
     def handle_event(self, event: pygame.event.Event) -> None:
         """Process a pygame event and update internal input state.
 
-        Keyboard source handles both keyboard and controller/joystick events
-        (since a single player may use either input device). Joystick source
-        handles only controller/joystick events filtered by joystick_index.
+        Both keyboard and joystick events are always handled regardless of
+        source type, matching the original InputHandler behavior where keyboard
+        and joystick input were merged with OR logic. The source type only
+        affects which joystick index is used for filtering.
 
         Args:
             event: The pygame event to handle.
         """
-        if self.source == InputSource.KEYBOARD:
-            self._handle_keyboard_event(event)
-            self._handle_joystick_event(event)
-        else:
-            self._handle_joystick_event(event)
+        self._handle_keyboard_event(event)
+        self._handle_joystick_event(event)
 
     def get_movement_direction(self) -> tuple[int, int]:
         """Return the current movement direction as a (dx, dy) vector.
