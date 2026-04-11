@@ -44,6 +44,7 @@ class SpawnManager:
         player_tank: PlayerTank,
         effect_manager: Optional[EffectManager] = None,
         difficulty: Difficulty = Difficulty.NORMAL,
+        powerup_carrier_indices: Optional[tuple[int, ...]] = None,
     ) -> None:
         """Initialize the SpawnManager.
 
@@ -55,6 +56,8 @@ class SpawnManager:
             player_tank: The player tank (for collision checking on initial spawn).
             effect_manager: EffectManager for spawn animations (optional).
             difficulty: AI difficulty level for spawned enemies.
+            powerup_carrier_indices: Tuple of spawn indices that carry powerups.
+                Falls back to POWERUP_CARRIER_INDICES constant when not provided.
         """
         self.tile_size = TILE_SIZE
         self._difficulty = difficulty
@@ -69,6 +72,11 @@ class SpawnManager:
         self.total_enemy_spawns: int = 0
         self.spawn_timer: float = 0.0
         self._effect_manager = effect_manager
+        self._powerup_carrier_indices: tuple[int, ...] = (
+            powerup_carrier_indices
+            if powerup_carrier_indices is not None
+            else POWERUP_CARRIER_INDICES
+        )
         self._pending_spawns: List[_PendingSpawn] = []
 
         # Set class-level base position for AI targeting
@@ -152,7 +160,7 @@ class SpawnManager:
 
         tank_type = self._spawn_queue.pop()
         self.total_enemy_spawns += 1
-        is_carrier = (self.total_enemy_spawns - 1) in POWERUP_CARRIER_INDICES
+        is_carrier = (self.total_enemy_spawns - 1) in self._powerup_carrier_indices
 
         if self._effect_manager is not None:
             # Play spawn animation, materialize tank when it finishes

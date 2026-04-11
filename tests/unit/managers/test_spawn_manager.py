@@ -493,3 +493,66 @@ class TestSpawnManagerCarrier:
         manager.update(0.0, mock_player_tank, mock_game_map)
         carrier_tanks = [t for t in manager.enemy_tanks if t.is_carrier]
         assert len(carrier_tanks) == 1
+
+
+class TestSpawnManagerCustomCarriers:
+    """Tests for custom powerup_carrier_indices parameter."""
+
+    SPAWN_POINTS = TestSpawnManager.SPAWN_POINTS
+
+    @pytest.fixture
+    def mock_player_tank(self):
+        player = MagicMock()
+        player.rect = pygame.Rect(7 * TILE_SIZE, 14 * TILE_SIZE, TILE_SIZE, TILE_SIZE)
+        return player
+
+    @pytest.fixture
+    def mock_game_map(self):
+        game_map = MagicMock()
+        game_map.get_collidable_tiles.return_value = []
+        game_map.spawn_points = self.SPAWN_POINTS
+        game_map.width_px = 16 * TILE_SIZE
+        game_map.height_px = 16 * TILE_SIZE
+        game_map.tile_size = SUB_TILE_SIZE
+        game_map.grid_to_pixels.side_effect = lambda gx, gy: (
+            gx * SUB_TILE_SIZE,
+            gy * SUB_TILE_SIZE,
+        )
+        return game_map
+
+    def test_custom_carrier_indices_used(
+        self, mock_texture_manager, mock_player_tank, mock_game_map
+    ):
+        """SpawnManager uses custom carrier indices instead of default."""
+        # Set carrier at index 1 (the 2nd enemy spawned)
+        manager = SpawnManager(
+            texture_manager=mock_texture_manager,
+            game_map=mock_game_map,
+            enemy_composition=_DEFAULT_COMPOSITION,
+            spawn_interval=5.0,
+            player_tank=mock_player_tank,
+            powerup_carrier_indices=(1,),
+        )
+        # Initial spawn is index 0 (not a carrier)
+        assert not manager.enemy_tanks[0].is_carrier
+
+        # Next spawn is index 1 (should be a carrier)
+        manager.enemy_tanks = []
+        manager.spawn_enemy(mock_player_tank, mock_game_map)
+        carrier_tanks = [t for t in manager.enemy_tanks if t.is_carrier]
+        assert len(carrier_tanks) == 1
+
+    def test_default_carrier_indices_when_not_provided(
+        self, mock_texture_manager, mock_player_tank, mock_game_map
+    ):
+        """SpawnManager falls back to POWERUP_CARRIER_INDICES when not provided."""
+        from src.utils.constants import POWERUP_CARRIER_INDICES
+
+        manager = SpawnManager(
+            texture_manager=mock_texture_manager,
+            game_map=mock_game_map,
+            enemy_composition=_DEFAULT_COMPOSITION,
+            spawn_interval=5.0,
+            player_tank=mock_player_tank,
+        )
+        assert manager._powerup_carrier_indices == POWERUP_CARRIER_INDICES
