@@ -34,6 +34,7 @@ class CollisionResponseHandler:
         add_score: Callable[[int], None] = lambda _: None,
         power_up_manager: Optional[PowerUpManager] = None,
         sound_manager: Optional[SoundManager] = None,
+        on_player_death: Optional[Callable[[PlayerTank], bool]] = None,
     ) -> None:
         self._map = game_map
         self._set_game_state = set_game_state
@@ -41,7 +42,9 @@ class CollisionResponseHandler:
         self._add_score = add_score
         self._power_up_manager = power_up_manager
         self._sound_manager = sound_manager
+        self._on_player_death = on_player_death
         self._collected_power_up_type: Optional[PowerUpType] = None
+        self._collected_power_up_player: Optional[PlayerTank] = None
 
         self._handlers: Dict[Tuple[Type, Type], Callable[[Any, Any, List], bool]] = {
             (Bullet, EnemyTank): self._handle_bullet_vs_enemy,
@@ -189,7 +192,11 @@ class CollisionResponseHandler:
                     float(player.rect.centery),
                 )
                 self._play_explosion()
-                self._set_game_state(GameState.GAME_OVER)
+                if self._on_player_death is not None:
+                    if self._on_player_death(player):
+                        self._set_game_state(GameState.GAME_OVER)
+                else:
+                    self._set_game_state(GameState.GAME_OVER)
             else:
                 player.respawn()
         return True
@@ -259,13 +266,23 @@ class CollisionResponseHandler:
             self._play_powerup()
             logger.info(f"Player collected power-up: {power_up_type.value}")
             self._collected_power_up_type = power_up_type
+            self._collected_power_up_player = player
         return True
 
-    def consume_collected_power_up(self) -> Optional[PowerUpType]:
-        """Return and clear the collected power-up type (one-shot read)."""
-        result = self._collected_power_up_type
+    def consume_collected_power_up(
+        self,
+    ) -> tuple[Optional[PowerUpType], Optional[PlayerTank]]:
+        """Return and clear the collected power-up type and player (one-shot read).
+
+        Returns:
+            Tuple of (power_up_type, collecting_player). Both None when nothing
+            was collected.
+        """
+        result_type = self._collected_power_up_type
+        result_player = self._collected_power_up_player
         self._collected_power_up_type = None
-        return result
+        self._collected_power_up_player = None
+        return result_type, result_player
 
     @staticmethod
     def _caused_collision(mover: Tank, other: Tank) -> bool:
