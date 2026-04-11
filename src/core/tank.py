@@ -14,6 +14,7 @@ from src.utils.constants import (
     TANK_HEIGHT,
     TANK_ANIMATION_DISTANCE,
     TANK_ALIGN_THRESHOLD,
+    TANK_BLINK_INTERVAL,
     BULLET_WIDTH,
     BULLET_HEIGHT,
     BULLET_SPEED,
@@ -83,7 +84,7 @@ class Tank(GameObject):
         self.invincibility_timer: float = 0
         self.invincibility_duration: float = 0
         self.blink_timer: float = 0
-        self.blink_interval: float = 0.2  # Blink every 0.2 seconds during invincibility
+        self.blink_interval: float = TANK_BLINK_INTERVAL
         self.animation_frame: int = 1  # Start with frame 1
         self._on_ice: bool = False
         self._sliding: bool = False

@@ -16,6 +16,7 @@ from src.utils.constants import (
     EffectType,
     POWERUP_CARRIER_INDICES,
     TILE_SIZE,
+    TILE_SIZE_HALF,
     TankType,
 )
 
@@ -38,7 +39,7 @@ class SpawnManager:
         self,
         texture_manager: TextureManager,
         game_map: Map,
-        enemy_composition: dict[str, int],
+        enemy_composition: dict[TankType, int],
         spawn_interval: float,
         player_tank: PlayerTank,
         effect_manager: Optional[EffectManager] = None,
@@ -49,8 +50,7 @@ class SpawnManager:
         Args:
             texture_manager: TextureManager for loading enemy sprites.
             game_map: The game map (spawn points, dimensions, collision).
-            enemy_composition: Dict with keys "basic", "fast", "power", "armor"
-                mapping to enemy counts for this stage.
+            enemy_composition: Dict mapping TankType to enemy counts for this stage.
             spawn_interval: Seconds between spawn attempts.
             player_tank: The player tank (for collision checking on initial spawn).
             effect_manager: EffectManager for spawn animations (optional).
@@ -82,22 +82,22 @@ class SpawnManager:
         # Initial spawn
         self.spawn_enemy(player_tank, game_map)
 
-    def _build_spawn_queue(self, enemy_composition: dict[str, int]) -> List[TankType]:
+    def _build_spawn_queue(
+        self, enemy_composition: dict[TankType, int]
+    ) -> List[TankType]:
         """Build a shuffled list of enemy types from the composition dict.
 
         Args:
-            enemy_composition: Dict with keys "basic", "fast", "power", "armor"
-                mapping to enemy counts.
+            enemy_composition: Dict mapping TankType to enemy counts.
 
         Returns:
             Shuffled list of TankType enum members.
         """
-        queue: List[TankType] = (
-            [TankType.BASIC] * enemy_composition["basic"]
-            + [TankType.FAST] * enemy_composition["fast"]
-            + [TankType.POWER] * enemy_composition["power"]
-            + [TankType.ARMOR] * enemy_composition["armor"]
-        )
+        queue: List[TankType] = [
+            tank_type
+            for tank_type, count in enemy_composition.items()
+            for _ in range(count)
+        ]
         random.shuffle(queue)
         return queue
 
@@ -156,8 +156,8 @@ class SpawnManager:
 
         if self._effect_manager is not None:
             # Play spawn animation, materialize tank when it finishes
-            center_x = float(x + TILE_SIZE // 2)
-            center_y = float(y + TILE_SIZE // 2)
+            center_x = float(x + TILE_SIZE_HALF)
+            center_y = float(y + TILE_SIZE_HALF)
             effect = self._effect_manager.spawn(EffectType.SPAWN, center_x, center_y)
             self._pending_spawns.append(
                 _PendingSpawn(

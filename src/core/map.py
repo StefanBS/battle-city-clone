@@ -5,7 +5,7 @@ from pytmx.util_pygame import load_pygame
 from loguru import logger
 from .tile import BrickVariant, Tile, TileType
 from src.managers.texture_manager import TextureManager
-from src.utils.constants import Direction, SUB_TILE_SIZE
+from src.utils.constants import Direction, SUB_TILE_SIZE, TankType
 
 
 class Map:
@@ -220,19 +220,26 @@ class Map:
                 "No 'player_spawn' object found, defaulting to bottom-center"
             )
 
-    def _read_enemy_composition(self, tiled_map: pytmx.TiledMap) -> dict[str, int]:
+    def _read_enemy_composition(
+        self, tiled_map: pytmx.TiledMap
+    ) -> dict[TankType, int]:
         """Read enemy type counts from map-level custom properties."""
         props = tiled_map.properties or {}
         composition = {
-            "basic": int(props.get("enemy_basic", 0)),
-            "fast": int(props.get("enemy_fast", 0)),
-            "power": int(props.get("enemy_power", 0)),
-            "armor": int(props.get("enemy_armor", 0)),
+            TankType.BASIC: int(props.get("enemy_basic", 0)),
+            TankType.FAST: int(props.get("enemy_fast", 0)),
+            TankType.POWER: int(props.get("enemy_power", 0)),
+            TankType.ARMOR: int(props.get("enemy_armor", 0)),
         }
         total = sum(composition.values())
         if total == 0:
             logger.warning("No enemy composition in map properties, using defaults")
-            composition = {"basic": 20, "fast": 0, "power": 0, "armor": 0}
+            composition = {
+                TankType.BASIC: 20,
+                TankType.FAST: 0,
+                TankType.POWER: 0,
+                TankType.ARMOR: 0,
+            }
         return composition
 
     def _build_derived_tile_lists(self) -> None:
