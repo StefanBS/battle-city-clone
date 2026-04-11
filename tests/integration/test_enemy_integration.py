@@ -100,7 +100,7 @@ def test_enemy_spawning_rules(game_manager_fixture):
             f"Attempting spawn (Current total: {total_spawned_before}/{max_spawns})"
         )
         spawn_success = game_manager.spawn_manager.spawn_enemy(
-            game_manager.player_tank, game_manager.map
+            game_manager.player_manager.get_active_players(), game_manager.map
         )
 
         total_spawned_after = game_manager.spawn_manager.total_enemy_spawns
@@ -206,7 +206,7 @@ def test_enemy_spawn_blocked(game_manager_fixture):
 
         spawned_count_before = len(game_manager.spawn_manager.enemy_tanks)
         spawn_success = game_manager.spawn_manager.spawn_enemy(
-            game_manager.player_tank, game_manager.map
+            game_manager.player_manager.get_active_players(), game_manager.map
         )  # Attempt spawn
         spawned_count_after = len(game_manager.spawn_manager.enemy_tanks)
 

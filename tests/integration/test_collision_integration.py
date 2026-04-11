@@ -588,7 +588,7 @@ def test_player_tank_vs_enemy_tank_no_overlap(game_manager_fixture, mocker):
 
         # Run collision detection and response
         game_manager.collision_manager.check_collisions(
-            player_tank=player_tank,
+            player_tanks=[player_tank],
             player_bullets=[],
             enemy_tanks=[enemy_tank],
             enemy_bullets=[],

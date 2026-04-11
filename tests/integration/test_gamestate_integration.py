@@ -80,8 +80,9 @@ def test_player_game_over_on_zero_lives():
     # Ensure the player starts with at least 1 life for the test
     assert player_tank.lives >= 1
 
-    # Set lives to 1 to guarantee game over on next death
-    player_tank.lives = 1
+    # Set lives to 0 to guarantee game over on next death
+    # (handle_player_death checks lives > 0 to decide respawn vs game over)
+    player_tank.lives = 0
 
     # Disable spawn invincibility so damage can land
     player_tank.is_invincible = False
@@ -98,7 +99,12 @@ def test_player_game_over_on_zero_lives():
     mock_enemy_bullet.active = True  # Needs to be active to be processed
 
     # 2. Mock the player tank's take_damage to return True (fatal hit)
-    player_tank.take_damage = MagicMock(return_value=True)
+    #    Also set health to 0 since handle_player_death checks it for game over.
+    def _mock_take_damage(amount=1):
+        player_tank.health = 0
+        return True
+
+    player_tank.take_damage = MagicMock(side_effect=_mock_take_damage)
 
     # 3. Mock CollisionManager to report a collision between the mock bullet and player
     # Need to mock the instance within game_manager
