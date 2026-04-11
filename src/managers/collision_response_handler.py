@@ -14,6 +14,7 @@ from src.core.tile import Tile, TileType
 from src.utils.constants import (
     EffectType,
     ENEMY_POINTS,
+    FRIENDLY_FIRE_FREEZE_DURATION,
     OwnerType,
     POWERUP_COLLECT_POINTS,
     PowerUpType,
@@ -31,7 +32,7 @@ class CollisionResponseHandler:
         game_map: Map,
         set_game_state: Callable[[GameState], None],
         effect_manager: EffectManager,
-        add_score: Callable[[int], None] = lambda _: None,
+        add_score: Callable[..., None] = lambda *args, **kwargs: None,
         power_up_manager: Optional[PowerUpManager] = None,
         sound_manager: Optional[SoundManager] = None,
         on_player_death: Optional[Callable[[PlayerTank], bool]] = None,
@@ -161,7 +162,8 @@ class CollisionResponseHandler:
         if destroyed:
             logger.info(f"Enemy tank (type: {enemy.tank_type}) destroyed.")
             enemies_to_remove.append(enemy)
-            self._add_score(ENEMY_POINTS.get(enemy.tank_type, 0))
+            player_id = getattr(bullet.owner, "player_id", 1)
+            self._add_score(ENEMY_POINTS.get(enemy.tank_type, 0), player_id=player_id)
             self._effect_manager.spawn(
                 EffectType.LARGE_EXPLOSION,
                 float(enemy.rect.centerx),
@@ -178,6 +180,19 @@ class CollisionResponseHandler:
     ) -> bool:
         if not bullet.active:
             return False
+
+        # A tank's own bullet cannot hit itself
+        if getattr(bullet, "owner", None) is player:
+            return False
+
+        # Friendly fire: player bullet hits a player -> freeze
+        if bullet.owner_type == OwnerType.PLAYER:
+            bullet.active = False
+            if not player.is_invincible:
+                player.freeze(FRIENDLY_FIRE_FREEZE_DURATION)
+            return True
+
+        # Enemy bullet hits player -> damage
         if bullet.owner_type != OwnerType.ENEMY:
             return False
         logger.debug("Enemy bullet hit player tank.")
@@ -262,7 +277,8 @@ class CollisionResponseHandler:
             return False
         power_up_type = self._power_up_manager.collect_power_up(power_up)
         if power_up_type is not None:
-            self._add_score(POWERUP_COLLECT_POINTS)
+            player_id = getattr(player, "player_id", 1)
+            self._add_score(POWERUP_COLLECT_POINTS, player_id=player_id)
             self._play_powerup()
             logger.info(f"Player collected power-up: {power_up_type.value}")
             self._collected_power_up_type = power_up_type

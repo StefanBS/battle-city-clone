@@ -14,6 +14,8 @@ from src.states.game_state import GameState
 from src.utils.constants import (
     Direction,
     EffectType,
+    FRIENDLY_FIRE_FREEZE_DURATION,
+    OwnerType,
     TankType,
     TILE_SIZE,
     PowerUpType,
@@ -176,14 +178,15 @@ class TestBulletVsPlayer:
         mock_player.take_damage.assert_not_called()
 
     def test_player_bullet_does_not_damage_player(self, handler, mock_player):
-        """Friendly fire — player bullet should not damage player."""
+        """Friendly fire — player bullet freezes player instead of damaging."""
         bullet = MagicMock(spec=Bullet)
         bullet.active = True
-        bullet.owner_type = "player"
-        bullet.owner = MagicMock()
+        bullet.owner_type = OwnerType.PLAYER
+        bullet.owner = MagicMock(spec=PlayerTank)
+
         handler.process_collisions([(bullet, mock_player)])
         mock_player.take_damage.assert_not_called()
-        assert bullet.active
+        assert not bullet.active
 
 
 class TestBulletVsTile:
@@ -583,8 +586,9 @@ class TestScoring:
         """Destroying an enemy awards points based on tank type."""
         mock_enemy.tank_type = tank_type
         mock_enemy.take_damage.return_value = True
+        mock_bullet.owner.player_id = 1
         handler.process_collisions([(mock_bullet, mock_enemy)])
-        mock_add_score.assert_called_once_with(expected_points)
+        mock_add_score.assert_called_once_with(expected_points, player_id=1)
 
     def test_enemy_damaged_not_destroyed_no_points(
         self, handler, mock_bullet, mock_enemy, mock_add_score
@@ -610,7 +614,7 @@ class TestPlayerVsPowerUp:
     ):
         score_tracker = {"score": 0}
 
-        def add_score(pts):
+        def add_score(pts, **kwargs):
             score_tracker["score"] += pts
 
         h = CollisionResponseHandler(
@@ -733,3 +737,125 @@ class TestPowerBulletVsSteel:
         base_tile.rect = pygame.Rect(128, 224, 16, 16)
         handler.process_collisions([(power_bullet, base_tile)])
         assert not power_bullet.active
+
+
+class TestFriendlyFire:
+    def test_player_bullet_freezes_other_player(self, handler):
+        """Player bullet hitting another player freezes instead of damaging."""
+        bullet = MagicMock(spec=Bullet)
+        bullet.active = True
+        bullet.owner_type = OwnerType.PLAYER
+        bullet.owner = MagicMock(spec=PlayerTank)
+
+        target = MagicMock(spec=PlayerTank)
+        target.is_invincible = False
+
+        result = handler._handle_bullet_vs_player(bullet, target, [])
+
+        assert result is True
+        assert bullet.active is False
+        target.freeze.assert_called_once_with(FRIENDLY_FIRE_FREEZE_DURATION)
+        target.take_damage.assert_not_called()
+
+    def test_player_bullet_does_not_freeze_invincible_player(self, handler):
+        """Friendly fire on invincible player deactivates bullet but doesn't freeze."""
+        bullet = MagicMock(spec=Bullet)
+        bullet.active = True
+        bullet.owner_type = OwnerType.PLAYER
+
+        target = MagicMock(spec=PlayerTank)
+        target.is_invincible = True
+
+        result = handler._handle_bullet_vs_player(bullet, target, [])
+
+        assert result is True
+        assert bullet.active is False
+        target.freeze.assert_not_called()
+
+    def test_player_bullet_does_not_hit_self(self, handler):
+        """A player's own bullet cannot hit themselves (self-hit guard)."""
+        player = MagicMock(spec=PlayerTank)
+        player.is_invincible = False
+
+        bullet = MagicMock(spec=Bullet)
+        bullet.active = True
+        bullet.owner_type = OwnerType.PLAYER
+        bullet.owner = player
+
+        result = handler._handle_bullet_vs_player(bullet, player, [])
+
+        assert result is False
+        assert bullet.active is True
+        player.freeze.assert_not_called()
+
+    def test_enemy_bullet_still_damages_player(self, handler):
+        """Enemy bullets still damage the player (unchanged behavior)."""
+        bullet = MagicMock(spec=Bullet)
+        bullet.active = True
+        bullet.owner_type = OwnerType.ENEMY
+        bullet.rect = MagicMock()
+        bullet.rect.centerx = 100
+        bullet.rect.centery = 100
+
+        target = MagicMock(spec=PlayerTank)
+        target.is_invincible = False
+        target.take_damage.return_value = False
+
+        result = handler._handle_bullet_vs_player(bullet, target, [])
+
+        assert result is True
+        target.take_damage.assert_called_once()
+
+    def test_enemy_bullet_hits_frozen_player(self, handler):
+        """A frozen player can still be hit by enemy bullets (real damage)."""
+        bullet = MagicMock(spec=Bullet)
+        bullet.active = True
+        bullet.owner_type = OwnerType.ENEMY
+        bullet.rect = MagicMock()
+        bullet.rect.centerx = 100
+        bullet.rect.centery = 100
+
+        target = MagicMock(spec=PlayerTank)
+        target.is_invincible = False
+        target.is_frozen = True
+        target.take_damage.return_value = False
+
+        result = handler._handle_bullet_vs_player(bullet, target, [])
+
+        assert result is True
+        target.take_damage.assert_called_once()
+
+
+class TestPerPlayerScoring:
+    def test_enemy_kill_awards_score_to_bullet_owner(self, mock_map, mock_effect_manager):
+        """Score is routed to the player who fired the killing bullet."""
+        scores_received = []
+
+        def track_score(points, player_id=1):
+            scores_received.append((points, player_id))
+
+        handler = CollisionResponseHandler(
+            game_map=mock_map,
+            set_game_state=MagicMock(),
+            effect_manager=mock_effect_manager,
+            add_score=track_score,
+        )
+
+        bullet = MagicMock(spec=Bullet)
+        bullet.active = True
+        bullet.owner_type = OwnerType.PLAYER
+        bullet.owner = MagicMock(spec=PlayerTank)
+        bullet.owner.player_id = 2
+
+        enemy = MagicMock(spec=EnemyTank)
+        enemy.tank_type = TankType.BASIC
+        enemy.take_damage.return_value = True
+        enemy.rect = MagicMock()
+        enemy.rect.centerx = 100
+        enemy.rect.centery = 100
+        enemy.is_carrier = False
+
+        handler._handle_bullet_vs_enemy(bullet, enemy, [])
+
+        assert len(scores_received) == 1
+        assert scores_received[0][1] == 2  # awarded to player 2
