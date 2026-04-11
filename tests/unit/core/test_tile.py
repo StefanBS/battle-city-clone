@@ -153,3 +153,27 @@ class TestTileCollisionProperties:
     def test_blocks_bullets_set_from_constructor(self):
         tile = Tile(TileType.WATER, 0, 0, blocks_tanks=True, blocks_bullets=False)
         assert tile.blocks_bullets is False
+
+    def test_default_is_destructible_false(self):
+        tile = Tile(TileType.EMPTY, 0, 0)
+        assert tile.is_destructible is False
+
+    def test_default_is_overlay_false(self):
+        tile = Tile(TileType.EMPTY, 0, 0)
+        assert tile.is_overlay is False
+
+    def test_default_is_slidable_false(self):
+        tile = Tile(TileType.EMPTY, 0, 0)
+        assert tile.is_slidable is False
+
+    def test_is_destructible_set_from_constructor(self):
+        tile = Tile(TileType.BRICK, 0, 0, is_destructible=True)
+        assert tile.is_destructible is True
+
+    def test_is_overlay_set_from_constructor(self):
+        tile = Tile(TileType.BUSH, 0, 0, is_overlay=True)
+        assert tile.is_overlay is True
+
+    def test_is_slidable_set_from_constructor(self):
+        tile = Tile(TileType.ICE, 0, 0, is_slidable=True)
+        assert tile.is_slidable is True

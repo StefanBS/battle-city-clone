@@ -49,6 +49,9 @@ class Tile:
         brick_variant: "BrickVariant" = BrickVariant.FULL,
         blocks_tanks: bool = False,
         blocks_bullets: bool = False,
+        is_destructible: bool = False,
+        is_overlay: bool = False,
+        is_slidable: bool = False,
     ) -> None:
         logger.trace(f"Creating Tile ({tile_type.name}) at grid ({x}, {y})")
         self.type = tile_type
@@ -58,6 +61,9 @@ class Tile:
         self.rect = pygame.Rect(x * size, y * size, size, size)
         self.blocks_tanks = blocks_tanks
         self.blocks_bullets = blocks_bullets
+        self.is_destructible = is_destructible
+        self.is_overlay = is_overlay
+        self.is_slidable = is_slidable
 
         # TMX sprite: the actual tile image from the map editor
         self.tmx_sprite: Optional[pygame.Surface] = tmx_sprite
