@@ -507,6 +507,34 @@ class TestTileBehaviorProperties:
         assert tile.is_slidable is False
 
 
+class TestOverlayPropertyRendering:
+    """Verify overlay list uses is_overlay property, not TileType."""
+
+    @pytest.fixture
+    def game_map(self, mock_texture_manager):
+        return Map(TEST_MAP_PATH, mock_texture_manager)
+
+    def test_bush_in_overlay_list(self, game_map):
+        overlay = game_map.overlay_tiles
+        bush_found = any(t.is_overlay for t in overlay)
+        assert bush_found
+
+    def test_bush_not_in_drawable_list(self, game_map):
+        drawable = game_map.drawable_tiles
+        overlay_in_drawable = any(t.is_overlay for t in drawable)
+        assert not overlay_in_drawable
+
+    def test_set_tile_type_bush_to_empty_removes_from_overlay(self, game_map):
+        overlay_tile = None
+        for t in game_map.overlay_tiles:
+            if t.is_overlay:
+                overlay_tile = t
+                break
+        assert overlay_tile is not None
+        game_map.set_tile_type(overlay_tile, TileType.EMPTY)
+        assert overlay_tile not in game_map.overlay_tiles
+
+
 class TestGetBaseSurroundingTiles:
     @pytest.fixture
     def game_map(self, mock_texture_manager):

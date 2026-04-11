@@ -316,7 +316,7 @@ class Map:
             for tile in row:
                 if not tile:
                     continue
-                if tile.type == TileType.BUSH:
+                if tile.is_overlay:
                     self._overlay_tiles.append(tile)
                 elif tile.type != TileType.EMPTY:
                     self._drawable_tiles.append(tile)
@@ -332,6 +332,16 @@ class Map:
     def height_px(self) -> int:
         """Map height in pixels."""
         return self.height * self.tile_size
+
+    @property
+    def drawable_tiles(self) -> List[Tile]:
+        """Tiles that are drawn below tanks and bullets."""
+        return self._drawable_tiles
+
+    @property
+    def overlay_tiles(self) -> List[Tile]:
+        """Tiles that are drawn above tanks and bullets (e.g. bushes)."""
+        return self._overlay_tiles
 
     def grid_to_pixels(self, grid_x: int, grid_y: int) -> Tuple[int, int]:
         """Convert grid coordinates to pixel coordinates."""
@@ -438,7 +448,7 @@ class Map:
 
     def _add_to_render_list(self, tile: Tile) -> None:
         """Add a tile to the appropriate render list based on its type."""
-        if tile.type == TileType.BUSH:
+        if tile.is_overlay:
             self._overlay_tiles.append(tile)
         elif tile.type != TileType.EMPTY:
             self._drawable_tiles.append(tile)
