@@ -88,6 +88,9 @@ class Map:
                 tile_image = None
                 blocks_tanks = False
                 blocks_bullets = False
+                is_destructible = False
+                is_overlay = False
+                is_slidable = False
                 props = None
 
                 if gid:
@@ -101,6 +104,9 @@ class Map:
                             brick_variant = BrickVariant(bv_str)
                         blocks_tanks = bool(props.get("blocks_tanks", False))
                         blocks_bullets = bool(props.get("blocks_bullets", False))
+                        is_destructible = bool(props.get("is_destructible", False))
+                        is_overlay = bool(props.get("is_overlay", False))
+                        is_slidable = bool(props.get("is_slidable", False))
 
                     self._cache_sprite(scaled_cache, gid, tiled_map, gid)
                     tile_image = scaled_cache.get(gid)
@@ -114,6 +120,9 @@ class Map:
                     brick_variant=brick_variant,
                     blocks_tanks=blocks_tanks,
                     blocks_bullets=blocks_bullets,
+                    is_destructible=is_destructible,
+                    is_overlay=is_overlay,
+                    is_slidable=is_slidable,
                 )
 
                 # Check for native animation frames from TSX

@@ -442,6 +442,34 @@ infinite="0" nextlayerid="3" nextobjectid="3">
             os.remove(tmx_path)
 
 
+class TestTileBehaviorProperties:
+    """Verify is_destructible, is_overlay, is_slidable are loaded from TSX."""
+
+    @pytest.fixture
+    def game_map(self, mock_texture_manager):
+        return Map(TEST_MAP_PATH, mock_texture_manager)
+
+    def test_brick_tile_is_destructible(self, game_map):
+        tile = game_map.get_tile_at(2, 2)  # BRICK in test_map.tmx
+        assert tile.is_destructible is True
+
+    def test_bush_tile_is_overlay(self, game_map):
+        tile = game_map.get_tile_at(0, 6)  # BUSH in test_map.tmx
+        assert tile.is_overlay is True
+
+    def test_empty_tile_not_destructible(self, game_map):
+        tile = game_map.get_tile_at(4, 6)  # EMPTY in test_map.tmx
+        assert tile.is_destructible is False
+
+    def test_empty_tile_not_overlay(self, game_map):
+        tile = game_map.get_tile_at(4, 6)  # EMPTY
+        assert tile.is_overlay is False
+
+    def test_empty_tile_not_slidable(self, game_map):
+        tile = game_map.get_tile_at(4, 6)  # EMPTY
+        assert tile.is_slidable is False
+
+
 class TestGetBaseSurroundingTiles:
     @pytest.fixture
     def game_map(self, mock_texture_manager):
