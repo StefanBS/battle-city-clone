@@ -259,15 +259,8 @@ class TestCollisionDefaultsFromTSX:
 
     def test_set_tile_type_clears_is_overlay(self, game_map):
         """Changing a bush tile to empty clears is_overlay."""
-        bush_tile = None
-        for row in game_map.tiles:
-            for tile in row:
-                if tile and tile.is_overlay:
-                    bush_tile = tile
-                    break
-            if bush_tile:
-                break
-        assert bush_tile is not None, "No overlay tile found in test map"
+        bush_tile = game_map.get_tile_at(0, 6)  # BUSH in test_map.tmx
+        assert bush_tile.is_overlay is True
         game_map.set_tile_type(bush_tile, TileType.EMPTY)
         assert bush_tile.is_overlay is False
 
@@ -275,11 +268,15 @@ class TestCollisionDefaultsFromTSX:
         """Defaults dict includes is_destructible, is_overlay, is_slidable."""
         defaults = game_map._tile_collision_defaults
         # BRICK should have is_destructible=True
-        bt, bb, d, o, s = defaults[TileType.BRICK]
-        assert d is True and o is False and s is False
+        brick = defaults[TileType.BRICK]
+        assert brick.is_destructible is True
+        assert brick.is_overlay is False
+        assert brick.is_slidable is False
         # BUSH should have is_overlay=True
-        bt, bb, d, o, s = defaults[TileType.BUSH]
-        assert d is False and o is True and s is False
+        bush = defaults[TileType.BUSH]
+        assert bush.is_destructible is False
+        assert bush.is_overlay is True
+        assert bush.is_slidable is False
 
 
 class TestEnemyCompositionFallback:

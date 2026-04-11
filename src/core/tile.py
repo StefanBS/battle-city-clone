@@ -1,5 +1,5 @@
 from enum import Enum, auto
-from typing import List, Optional, Tuple
+from typing import List, NamedTuple, Optional, Tuple
 import pygame
 from loguru import logger
 from src.managers.texture_manager import TextureManager
@@ -30,6 +30,16 @@ class BrickVariant(str, Enum):
 
     def __str__(self) -> str:
         return self.value
+
+
+class TileDefaults(NamedTuple):
+    """Default boolean properties for a tile type, loaded from the tileset."""
+
+    blocks_tanks: bool = False
+    blocks_bullets: bool = False
+    is_destructible: bool = False
+    is_overlay: bool = False
+    is_slidable: bool = False
 
 
 class Tile:

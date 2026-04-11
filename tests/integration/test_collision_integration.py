@@ -2,7 +2,7 @@ import pytest
 from loguru import logger
 from src.utils.constants import Direction, FPS, TILE_SIZE, SUB_TILE_SIZE, TankType
 from src.states.game_state import GameState
-from src.core.tile import BrickVariant, Tile, TileType
+from src.core.tile import BrickVariant, Tile, TileDefaults, TileType
 from src.core.enemy_tank import EnemyTank
 
 # Tests related to collision interactions between different game objects
@@ -34,19 +34,17 @@ def test_player_bullet_vs_tile(
 
     # Manually place the specified tile type at the target location
     if 0 <= target_y_grid < game_map.height and 0 <= target_x_grid < game_map.width:
-        bt, bb, d, o, s = game_map._tile_collision_defaults.get(
-            tile_to_place, (False, False, False, False, False)
-        )
+        defaults = game_map._tile_collision_defaults.get(tile_to_place, TileDefaults())
         target_tile = Tile(
             tile_to_place,
             target_x_grid,
             target_y_grid,
             SUB_TILE_SIZE,
-            blocks_tanks=bt,
-            blocks_bullets=bb,
-            is_destructible=d,
-            is_overlay=o,
-            is_slidable=s,
+            blocks_tanks=defaults.blocks_tanks,
+            blocks_bullets=defaults.blocks_bullets,
+            is_destructible=defaults.is_destructible,
+            is_overlay=defaults.is_overlay,
+            is_slidable=defaults.is_slidable,
         )
         game_map.place_tile(target_x_grid, target_y_grid, target_tile)
         logger.debug(
