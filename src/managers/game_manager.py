@@ -497,12 +497,8 @@ class GameManager:
         bullet_blocking_tiles: List[Tile] = self.map.get_bullet_blocking_tiles()
         player_base: Optional[Tile] = self.map.get_base()
 
-        player_bullets = [
-            b for b in self.bullets if b.owner_type == OwnerType.PLAYER
-        ]
-        enemy_bullets = [
-            b for b in self.bullets if b.owner_type == OwnerType.ENEMY
-        ]
+        player_bullets = [b for b in self.bullets if b.owner_type == OwnerType.PLAYER]
+        enemy_bullets = [b for b in self.bullets if b.owner_type == OwnerType.ENEMY]
 
         active_power_ups = self.power_up_manager.get_power_ups()
 
@@ -675,8 +671,7 @@ class GameManager:
         if self.shovel_timer <= SHOVEL_WARNING_DURATION:
             self._shovel_flash_timer += dt
             should_show_steel = (
-                self._shovel_flash_timer % SHOVEL_FLASH_CYCLE
-                < SHOVEL_FLASH_INTERVAL
+                self._shovel_flash_timer % SHOVEL_FLASH_CYCLE < SHOVEL_FLASH_INTERVAL
             )
             if should_show_steel != self._shovel_flash_showing_steel:
                 self._shovel_flash_showing_steel = should_show_steel
