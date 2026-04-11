@@ -658,3 +658,84 @@ class TestPlayerManagerReset:
         assert player_manager._bullets == []
         assert player_manager.score == 0
         assert player_manager._preserved_state == {}
+
+
+# ---------------------------------------------------------------------------
+# TestPlayerManagerTwoPlayerCreation
+# ---------------------------------------------------------------------------
+
+
+class TestPlayerManagerTwoPlayerCreation:
+    def test_create_two_players(self, player_manager, mock_game_map):
+        """create_players(two_player_mode=True) produces two active players."""
+        mock_game_map.player_spawn_2 = (16, 24)
+        with patch("pygame.joystick.get_count", return_value=1):
+            player_manager.create_players(mock_game_map, two_player_mode=True)
+        players = player_manager.get_active_players()
+        assert len(players) == 2
+
+    def test_player2_has_player_id_2(self, player_manager, mock_game_map):
+        """Second player has player_id=2."""
+        mock_game_map.player_spawn_2 = (16, 24)
+        with patch("pygame.joystick.get_count", return_value=1):
+            player_manager.create_players(mock_game_map, two_player_mode=True)
+        assert player_manager._players[0].player_id == 1
+        assert player_manager._players[1].player_id == 2
+
+    def test_player2_at_spawn_2_position(self, player_manager, mock_game_map):
+        """Player 2 spawns at player_spawn_2 coordinates."""
+        mock_game_map.player_spawn_2 = (16, 24)
+        with patch("pygame.joystick.get_count", return_value=1):
+            player_manager.create_players(mock_game_map, two_player_mode=True)
+        p2 = player_manager._players[1]
+        assert p2.x == 16 * TILE_SIZE
+        assert p2.y == 24 * TILE_SIZE
+
+    def test_2p_one_controller_keyboard_plus_joystick(self, player_manager, mock_game_map):
+        """2P + 1 controller: P1=keyboard, P2=joystick 0 (both exclusive)."""
+        mock_game_map.player_spawn_2 = (16, 24)
+        with patch("pygame.joystick.get_count", return_value=1):
+            player_manager.create_players(mock_game_map, two_player_mode=True)
+        assert player_manager._player_inputs[0].source == InputSource.KEYBOARD
+        assert player_manager._player_inputs[0]._exclusive is True
+        assert player_manager._player_inputs[1].source == InputSource.JOYSTICK
+        assert player_manager._player_inputs[1].joystick_index == 0
+        assert player_manager._player_inputs[1]._exclusive is True
+
+    def test_2p_two_controllers_both_joystick(self, player_manager, mock_game_map):
+        """2P + 2 controllers: P1=joystick 0, P2=joystick 1 (both exclusive)."""
+        mock_game_map.player_spawn_2 = (16, 24)
+        with patch("pygame.joystick.get_count", return_value=2):
+            player_manager.create_players(mock_game_map, two_player_mode=True)
+        assert player_manager._player_inputs[0].source == InputSource.JOYSTICK
+        assert player_manager._player_inputs[0].joystick_index == 0
+        assert player_manager._player_inputs[1].source == InputSource.JOYSTICK
+        assert player_manager._player_inputs[1].joystick_index == 1
+
+    def test_2p_fallback_spawn_when_no_spawn_2(self, player_manager, mock_game_map):
+        """When player_spawn_2 is absent, derive P2 position from P1."""
+        mock_game_map.player_spawn_2 = None
+        mock_game_map.player_spawn = (8, 24)
+        with patch("pygame.joystick.get_count", return_value=1):
+            player_manager.create_players(mock_game_map, two_player_mode=True)
+        p2 = player_manager._players[1]
+        assert p2.x == (8 + 8) * TILE_SIZE
+        assert p2.y == 24 * TILE_SIZE
+
+    def test_2p_per_player_scores(self, player_manager, mock_game_map):
+        """Per-player scores start at 0 and accumulate independently."""
+        mock_game_map.player_spawn_2 = (16, 24)
+        with patch("pygame.joystick.get_count", return_value=1):
+            player_manager.create_players(mock_game_map, two_player_mode=True)
+        player_manager.add_score(100, player_id=1)
+        player_manager.add_score(200, player_id=2)
+        assert player_manager.get_score(1) == 100
+        assert player_manager.get_score(2) == 200
+        assert player_manager.score == 300
+
+    def test_1p_add_score_backward_compatible(self, player_manager, mock_game_map):
+        """add_score() without player_id works for 1P."""
+        with patch("pygame.joystick.get_count", return_value=0):
+            player_manager.create_players(mock_game_map)
+        player_manager.add_score(100)
+        assert player_manager.score == 100
