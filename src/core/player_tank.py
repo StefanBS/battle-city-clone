@@ -4,6 +4,8 @@ from .tank import Tank
 from src.managers.texture_manager import TextureManager
 from src.utils.constants import (
     Direction,
+    INITIAL_PLAYER_LIVES,
+    MAX_STAR_LEVEL,
     OwnerType,
     BULLET_SPEED,
     SPAWN_INVINCIBILITY_DURATION,
@@ -48,7 +50,7 @@ class PlayerTank(Tank):
             tile_size,
             None,
             health=1,
-            lives=3,
+            lives=INITIAL_PLAYER_LIVES,
             owner_type=OwnerType.PLAYER,
             map_width_px=map_width_px,
             map_height_px=map_height_px,
@@ -62,14 +64,14 @@ class PlayerTank(Tank):
 
     def apply_star(self) -> None:
         """Apply a star upgrade (up to tier 3)."""
-        if self.star_level < 3:
+        if self.star_level < MAX_STAR_LEVEL:
             self.star_level += 1
         self._apply_star_stats()
         self._update_sprite()
 
     def restore_star_level(self, level: int) -> None:
         """Restore star level (e.g., after stage load). Clamps to 0-3."""
-        self.star_level = max(0, min(3, level))
+        self.star_level = max(0, min(MAX_STAR_LEVEL, level))
         self._apply_star_stats()
         self._update_sprite()
 

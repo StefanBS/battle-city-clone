@@ -3,6 +3,7 @@
 import pygame
 from loguru import logger
 
+from src.utils.constants import AUDIO_MIXER_CHANNELS, SOUND_FADEOUT_MS
 from src.utils.paths import resource_path
 
 
@@ -32,7 +33,7 @@ class SoundManager:
 
         try:
             pygame.mixer.init()
-            pygame.mixer.set_num_channels(16)
+            pygame.mixer.set_num_channels(AUDIO_MIXER_CHANNELS)
         except pygame.error:
             logger.warning("Audio mixer failed to initialize; sounds disabled.")
             return
@@ -128,10 +129,10 @@ class SoundManager:
         """Stop a looping sound with short fadeout to avoid audio pops."""
         channel = self._looping_channels.pop(name, None)
         if channel is not None:
-            channel.fadeout(50)
+            channel.fadeout(SOUND_FADEOUT_MS)
 
     def stop_loops(self) -> None:
         """Stop all looping sounds. Does not affect one-shot sounds."""
         for channel in self._looping_channels.values():
-            channel.fadeout(50)
+            channel.fadeout(SOUND_FADEOUT_MS)
         self._looping_channels.clear()

@@ -1,7 +1,18 @@
 import pygame
 from typing import List, Optional, Sequence, Tuple
 from src.states.game_state import GameState
-from src.utils.constants import WHITE, BLACK, RED, GREEN, GRAY, Difficulty
+from src.utils.constants import (
+    WHITE,
+    BLACK,
+    RED,
+    GREEN,
+    GRAY,
+    Difficulty,
+    FONT_SIZE_LARGE,
+    FONT_SIZE_SMALL,
+    PAUSE_OVERLAY_ALPHA,
+    DARK_OVERLAY_ALPHA,
+)
 from src.utils.paths import resource_path
 
 
@@ -39,8 +50,8 @@ class Renderer:
             (logical_width, logical_height)
         )
         font_path = resource_path("assets/fonts/PressStart2P-Regular.ttf")
-        self.font: pygame.font.Font = pygame.font.Font(font_path, 24)
-        self.small_font: pygame.font.Font = pygame.font.Font(font_path, 12)
+        self.font: pygame.font.Font = pygame.font.Font(font_path, FONT_SIZE_LARGE)
+        self.small_font: pygame.font.Font = pygame.font.Font(font_path, FONT_SIZE_SMALL)
 
         self.map_offset_x: int = (logical_width - map_width_px) // 2
         self.map_offset_y: int = (logical_height - map_height_px) // 2
@@ -62,11 +73,11 @@ class Renderer:
         self._pause_overlay: pygame.Surface = pygame.Surface(
             (logical_width, logical_height), pygame.SRCALPHA
         )
-        self._pause_overlay.fill((0, 0, 0, 160))
+        self._pause_overlay.fill((0, 0, 0, PAUSE_OVERLAY_ALPHA))
         self._dark_overlay: pygame.Surface = pygame.Surface(
             (logical_width, logical_height), pygame.SRCALPHA
         )
-        self._dark_overlay.fill((0, 0, 0, 128))
+        self._dark_overlay.fill((0, 0, 0, DARK_OVERLAY_ALPHA))
 
     def render(
         self,

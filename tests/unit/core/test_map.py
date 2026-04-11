@@ -1,6 +1,7 @@
 import pytest
 from src.core.map import Map
 from src.core.tile import TileType
+from src.utils.constants import TankType
 from src.utils.paths import resource_path
 
 TEST_MAP_PATH = "tests/assets/test_map.tmx"
@@ -193,10 +194,10 @@ class TestEnemyCompositionFromTMX:
 
     def test_enemy_composition_values(self, game_map):
         comp = game_map.enemy_composition
-        assert comp["basic"] == 18
-        assert comp["fast"] == 2
-        assert comp["power"] == 0
-        assert comp["armor"] == 0
+        assert comp[TankType.BASIC] == 18
+        assert comp[TankType.FAST] == 2
+        assert comp[TankType.POWER] == 0
+        assert comp[TankType.ARMOR] == 0
 
     def test_enemy_composition_sum(self, game_map):
         comp = game_map.enemy_composition
@@ -267,10 +268,10 @@ infinite="0" nextlayerid="2" nextobjectid="1">
         try:
             game_map = Map(tmx_path, mock_texture_manager)
             assert game_map.enemy_composition == {
-                "basic": 20,
-                "fast": 0,
-                "power": 0,
-                "armor": 0,
+                TankType.BASIC: 20,
+                TankType.FAST: 0,
+                TankType.POWER: 0,
+                TankType.ARMOR: 0,
             }
         finally:
             os.remove(tmx_path)

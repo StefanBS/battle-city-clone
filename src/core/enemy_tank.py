@@ -4,11 +4,13 @@ from loguru import logger
 from .tank import Tank
 from typing import TypedDict
 from src.utils.constants import (
+    CARRIER_BLINK_CYCLE,
     Difficulty,
     Direction,
+    DIRECTION_CHANGE_RANDOM_OFFSET,
     OwnerType,
+    SHOOT_RANDOM_OFFSET,
     TankType,
-    CARRIER_BLINK_INTERVAL,
 )
 from src.managers.texture_manager import TextureManager
 
@@ -137,8 +139,8 @@ class EnemyTank(Tank):
         """Update sprite using type-specific prefix and carrier red variant."""
         if (
             self.is_carrier
-            and self.carrier_blink_timer % (CARRIER_BLINK_INTERVAL * 2)
-            >= CARRIER_BLINK_INTERVAL
+            and self.carrier_blink_timer % CARRIER_BLINK_CYCLE
+            >= CARRIER_BLINK_CYCLE / 2
         ):
             sprite_name = (
                 f"{self._sprite_prefix}_red_{self.direction}_{self.animation_frame}"
@@ -280,14 +282,14 @@ class EnemyTank(Tank):
         if self.direction_timer >= self.direction_change_interval:
             logger.trace(f"EnemyTank ({self.tank_type}) direction timer triggered.")
             self._change_direction(player_position=player_position)
-            self.direction_timer = random.uniform(0, 0.5)  # Add small random offset
+            self.direction_timer = random.uniform(0, DIRECTION_CHANGE_RANDOM_OFFSET)
 
         # Shoot periodically (reduced interval when aligned with a target)
         reduced_threshold = self.shoot_interval * self.aligned_shoot_multiplier
         if self.shoot_timer >= self.shoot_interval:
             logger.trace(f"EnemyTank ({self.tank_type}) shoot timer triggered.")
             self._wants_to_shoot = True
-            self.shoot_timer = random.uniform(0, 0.3)  # Add small random offset
+            self.shoot_timer = random.uniform(0, SHOOT_RANDOM_OFFSET)
         elif (
             self.aligned_shoot_multiplier < 1.0
             and self.shoot_timer >= reduced_threshold
@@ -301,7 +303,7 @@ class EnemyTank(Tank):
             if aligned:
                 logger.trace(f"EnemyTank ({self.tank_type}) aligned shoot triggered.")
                 self._wants_to_shoot = True
-                self.shoot_timer = random.uniform(0, 0.3)
+                self.shoot_timer = random.uniform(0, SHOOT_RANDOM_OFFSET)
 
         if not self._sliding:
             dx, dy = self.direction.delta

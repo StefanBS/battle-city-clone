@@ -5,7 +5,14 @@ from src.managers.spawn_manager import SpawnManager
 from src.managers.effect_manager import EffectManager
 from src.core.effect import Effect
 from src.core.enemy_tank import EnemyTank
-from src.utils.constants import EffectType, TILE_SIZE, SUB_TILE_SIZE
+from src.utils.constants import EffectType, TILE_SIZE, SUB_TILE_SIZE, TankType
+
+_DEFAULT_COMPOSITION = {
+    TankType.BASIC: 18,
+    TankType.FAST: 2,
+    TankType.POWER: 0,
+    TankType.ARMOR: 0,
+}
 
 
 class TestSpawnManager:
@@ -51,7 +58,7 @@ class TestSpawnManager:
         manager = SpawnManager(
             texture_manager=mock_texture_manager,
             game_map=mock_game_map,
-            enemy_composition={"basic": 18, "fast": 2, "power": 0, "armor": 0},
+            enemy_composition=_DEFAULT_COMPOSITION,
             spawn_interval=5.0,
             player_tank=mock_player_tank,
         )
@@ -208,7 +215,7 @@ class TestSpawnManager:
         manager = SpawnManager(
             texture_manager=mock_texture_manager,
             game_map=mock_game_map,
-            enemy_composition={"basic": 18, "fast": 2, "power": 0, "armor": 0},
+            enemy_composition=_DEFAULT_COMPOSITION,
             spawn_interval=5.0,
             player_tank=mock_player_tank,
         )
@@ -223,7 +230,12 @@ class TestSpawnManager:
         manager = SpawnManager(
             texture_manager=mock_texture_manager,
             game_map=mock_game_map,
-            enemy_composition={"basic": 2, "fast": 5, "power": 10, "armor": 3},
+            enemy_composition={
+                TankType.BASIC: 2,
+                TankType.FAST: 5,
+                TankType.POWER: 10,
+                TankType.ARMOR: 3,
+            },
             spawn_interval=5.0,
             player_tank=mock_player_tank,
         )
@@ -237,7 +249,7 @@ class TestSpawnManager:
         manager = SpawnManager(
             texture_manager=mock_texture_manager,
             game_map=mock_game_map,
-            enemy_composition={"basic": 18, "fast": 2, "power": 0, "armor": 0},
+            enemy_composition=_DEFAULT_COMPOSITION,
             spawn_interval=5.0,
             player_tank=mock_player_tank,
         )
@@ -254,7 +266,12 @@ class TestSpawnManager:
         manager = SpawnManager(
             texture_manager=mock_texture_manager,
             game_map=mock_game_map,
-            enemy_composition={"basic": 20, "fast": 0, "power": 0, "armor": 0},
+            enemy_composition={
+                TankType.BASIC: 20,
+                TankType.FAST: 0,
+                TankType.POWER: 0,
+                TankType.ARMOR: 0,
+            },
             spawn_interval=5.0,
             player_tank=mock_player_tank,
         )
@@ -305,7 +322,7 @@ class TestSpawnAnimation:
         return SpawnManager(
             texture_manager=mock_texture_manager,
             game_map=mock_game_map,
-            enemy_composition={"basic": 18, "fast": 2, "power": 0, "armor": 0},
+            enemy_composition=_DEFAULT_COMPOSITION,
             spawn_interval=5.0,
             player_tank=mock_player_tank,
             effect_manager=mock_effect_manager,
@@ -411,7 +428,7 @@ class TestSpawnManagerCarrier:
         return SpawnManager(
             texture_manager=mock_texture_manager,
             game_map=mock_game_map,
-            enemy_composition={"basic": 18, "fast": 2, "power": 0, "armor": 0},
+            enemy_composition=_DEFAULT_COMPOSITION,
             spawn_interval=5.0,
             player_tank=mock_player_tank,
         )
@@ -452,7 +469,7 @@ class TestSpawnManagerCarrier:
         manager = SpawnManager(
             texture_manager=mock_texture_manager,
             game_map=mock_game_map,
-            enemy_composition={"basic": 18, "fast": 2, "power": 0, "armor": 0},
+            enemy_composition=_DEFAULT_COMPOSITION,
             spawn_interval=5.0,
             player_tank=mock_player_tank,
             effect_manager=mock_effect_manager,

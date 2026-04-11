@@ -6,14 +6,11 @@ from src.managers.texture_manager import TextureManager
 from src.utils.constants import (
     ATLAS_BG_COLOR,
     EffectType,
-    TILE_SIZE,
+    LARGE_EXPLOSION_SIZE,
     SMALL_EXPLOSION_FRAME_DURATION,
     LARGE_EXPLOSION_FRAME_DURATION,
     SPAWN_FRAME_DURATION,
 )
-
-# Size of scaled-up explosion frames for large explosions
-_LARGE_EXPLOSION_SIZE = TILE_SIZE * 2
 
 
 class EffectManager:
@@ -58,7 +55,7 @@ class EffectManager:
 
         small_frames = [frame_1, frame_2, frame_3]
 
-        size = (_LARGE_EXPLOSION_SIZE, _LARGE_EXPLOSION_SIZE)
+        size = (LARGE_EXPLOSION_SIZE, LARGE_EXPLOSION_SIZE)
         large_frames = small_frames + [
             pygame.transform.scale(frame_2, size),
             pygame.transform.scale(frame_3, size),

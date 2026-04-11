@@ -9,7 +9,9 @@ from src.core.bullet import Bullet
 from src.states.game_state import GameState
 from src.utils.constants import (
     Difficulty,
+    ENEMY_SPAWN_INTERVAL,
     OwnerType,
+    VOLUME_ADJUSTMENT_STEP,
     WINDOW_TITLE,
     FPS,
     TILE_SIZE,
@@ -23,6 +25,7 @@ from src.utils.constants import (
     CLOCK_FREEZE_DURATION,
     SHOVEL_DURATION,
     SHOVEL_WARNING_DURATION,
+    SHOVEL_FLASH_CYCLE,
     SHOVEL_FLASH_INTERVAL,
     EffectType,
     CURTAIN_CLOSE_DURATION,
@@ -188,7 +191,7 @@ class GameManager:
             texture_manager=self.texture_manager,
             game_map=self.map,
             enemy_composition=self.map.enemy_composition,
-            spawn_interval=5.0,
+            spawn_interval=ENEMY_SPAWN_INTERVAL,
             player_tank=self.player_tank,
             effect_manager=self.effect_manager,
             difficulty=self.settings_manager.difficulty,
@@ -373,7 +376,10 @@ class GameManager:
                     self.settings_manager.difficulty = Difficulty.NORMAL
                 self.sound_manager.play_menu_select()
             elif self._options_selection == 1:
-                delta = -0.1 if action == MenuAction.LEFT else 0.1
+                if action == MenuAction.LEFT:
+                    delta = -VOLUME_ADJUSTMENT_STEP
+                else:
+                    delta = VOLUME_ADJUSTMENT_STEP
                 self.settings_manager.master_volume = max(
                     0.0, min(1.0, self.settings_manager.master_volume + delta)
                 )
@@ -664,7 +670,7 @@ class GameManager:
         if self.shovel_timer <= SHOVEL_WARNING_DURATION:
             self._shovel_flash_timer += dt
             should_show_steel = (
-                self._shovel_flash_timer % (SHOVEL_FLASH_INTERVAL * 2)
+                self._shovel_flash_timer % SHOVEL_FLASH_CYCLE
                 < SHOVEL_FLASH_INTERVAL
             )
             if should_show_steel != self._shovel_flash_showing_steel:
