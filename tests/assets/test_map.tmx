@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="10" height="10" tilewidth="8" tileheight="8" infinite="0" nextlayerid="3" nextobjectid="3">
- <properties><property name="enemy_basic" type="int" value="18" /><property name="enemy_fast" type="int" value="2" /><property name="enemy_power" type="int" value="0" /><property name="enemy_armor" type="int" value="0" /></properties><tileset firstgid="1" source="../../assets/sprites/sprites.tsx" />
+ <properties><property name="enemy_basic" type="int" value="18" /><property name="enemy_fast" type="int" value="2" /><property name="enemy_power" type="int" value="0" /><property name="enemy_armor" type="int" value="0" /><property name="spawn_interval" type="float" value="3.5"/><property name="difficulty" value="easy"/><property name="powerup_carriers" value="2,7,14"/></properties><tileset firstgid="1" source="../../assets/sprites/sprites.tsx" />
  <layer id="1" name="Tile Layer 1" width="10" height="10">
   <data encoding="csv">
 483,483,0,0,0,0,0,0,483,483,

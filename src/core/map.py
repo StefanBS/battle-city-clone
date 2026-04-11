@@ -5,7 +5,14 @@ from pytmx.util_pygame import load_pygame
 from loguru import logger
 from .tile import BrickVariant, Tile, TileType
 from src.managers.texture_manager import TextureManager
-from src.utils.constants import Direction, SUB_TILE_SIZE, TankType
+from src.utils.constants import (
+    Difficulty,
+    Direction,
+    ENEMY_SPAWN_INTERVAL,
+    POWERUP_CARRIER_INDICES,
+    SUB_TILE_SIZE,
+    TankType,
+)
 
 
 class Map:
@@ -139,7 +146,7 @@ class Map:
         self._load_spawn_points(tiled_map)
 
         # Read enemy composition from map-level properties
-        self.enemy_composition = self._read_enemy_composition(tiled_map)
+        self._read_level_properties(tiled_map)
 
     def _scan_tileset(self, tiled_map: pytmx.TiledMap) -> None:
         """Scan the tileset for brick variant sprites and collision defaults.
@@ -208,7 +215,13 @@ class Map:
             grid_x = int(obj.x // tmx_tw)
             grid_y = int(obj.y // tmx_th)
 
-            if obj.name == "player_spawn":
+            # Prefer spawn_point_type property, fall back to object name
+            obj_props = obj.properties if hasattr(obj, "properties") else {}
+            spawn_type = obj_props.get("spawn_point_type") if obj_props else None
+            if spawn_type is None:
+                spawn_type = obj.name
+
+            if spawn_type == "player_spawn":
                 self.player_spawn = (grid_x, grid_y)
                 player_spawn_found = True
             else:
@@ -220,11 +233,16 @@ class Map:
                 "No 'player_spawn' object found, defaulting to bottom-center"
             )
 
-    def _read_enemy_composition(
-        self, tiled_map: pytmx.TiledMap
-    ) -> dict[TankType, int]:
-        """Read enemy type counts from map-level custom properties."""
+    def _read_level_properties(self, tiled_map: pytmx.TiledMap) -> None:
+        """Read per-level properties from TMX map-level custom properties.
+
+        Reads enemy composition, spawn interval, difficulty override,
+        and power-up carrier indices. All properties fall back to
+        sensible defaults when absent.
+        """
         props = tiled_map.properties or {}
+
+        # Enemy composition (existing logic)
         composition = {
             TankType.BASIC: int(props.get("enemy_basic", 0)),
             TankType.FAST: int(props.get("enemy_fast", 0)),
@@ -240,7 +258,42 @@ class Map:
                 TankType.POWER: 0,
                 TankType.ARMOR: 0,
             }
-        return composition
+        self.enemy_composition = composition
+
+        # Spawn interval
+        self.spawn_interval: float = float(
+            props.get("spawn_interval", ENEMY_SPAWN_INTERVAL)
+        )
+
+        # Difficulty override
+        diff_str = props.get("difficulty")
+        if diff_str is not None:
+            try:
+                self.difficulty_override: Optional[Difficulty] = Difficulty(
+                    str(diff_str).strip()
+                )
+            except ValueError:
+                logger.warning(
+                    f"Invalid difficulty value '{diff_str}', ignoring override"
+                )
+                self.difficulty_override = None
+        else:
+            self.difficulty_override = None
+
+        # Power-up carrier indices
+        carriers_str = props.get("powerup_carriers")
+        if carriers_str:
+            try:
+                self.powerup_carrier_indices: tuple[int, ...] = tuple(
+                    int(s.strip()) for s in str(carriers_str).split(",")
+                )
+            except ValueError:
+                logger.warning(
+                    f"Invalid powerup_carriers '{carriers_str}', using defaults"
+                )
+                self.powerup_carrier_indices = POWERUP_CARRIER_INDICES
+        else:
+            self.powerup_carrier_indices = POWERUP_CARRIER_INDICES
 
     def _build_derived_tile_lists(self) -> None:
         """Build the lists of animated, drawable, and overlay tiles."""
