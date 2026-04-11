@@ -1,12 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="26" height="26" tilewidth="8" tileheight="8" infinite="0" nextlayerid="3" nextobjectid="5">
  <properties>
-  <property name="enemy_basic" type="int" value="4"/>
-  <property name="enemy_fast" type="int" value="8"/>
-  <property name="enemy_power" type="int" value="4"/>
-  <property name="enemy_armor" type="int" value="4"/>
+  <property name="difficulty" value="normal" />
+  <property name="enemy_armor" type="int" value="4" />
+  <property name="enemy_basic" type="int" value="4" />
+  <property name="enemy_fast" type="int" value="8" />
+  <property name="enemy_power" type="int" value="4" />
+  <property name="powerup_carriers" value="1,6,12" />
+  <property name="spawn_interval" type="float" value="3.0" />
  </properties>
- <tileset firstgid="1" source="../sprites/sprites.tsx"/>
+ <tileset firstgid="1" source="../sprites/sprites.tsx" />
  <layer id="1" name="Tile Layer 1" width="26" height="26">
   <data encoding="csv">
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -38,9 +41,9 @@
 </data>
  </layer>
  <objectgroup id="2" name="spawn_points">
-  <object id="1" name="enemy_spawn" x="0" y="0"/>
-  <object id="2" name="enemy_spawn" x="96" y="0"/>
-  <object id="3" name="enemy_spawn" x="192" y="0"/>
-  <object id="4" name="player_spawn" x="64" y="192"/>
+  <object id="1" name="enemy_spawn" x="0" y="0" />
+  <object id="2" name="enemy_spawn" x="96" y="0" />
+  <object id="3" name="enemy_spawn" x="192" y="0" />
+  <object id="4" name="player_spawn" x="64" y="192" />
  </objectgroup>
 </map>
