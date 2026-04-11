@@ -41,7 +41,7 @@ class SpawnManager:
         game_map: Map,
         enemy_composition: dict[TankType, int],
         spawn_interval: float,
-        player_tank: PlayerTank,
+        player_tanks: List[PlayerTank],
         effect_manager: Optional[EffectManager] = None,
         difficulty: Difficulty = Difficulty.NORMAL,
         powerup_carrier_indices: Optional[tuple[int, ...]] = None,
@@ -53,7 +53,7 @@ class SpawnManager:
             game_map: The game map (spawn points, dimensions, collision).
             enemy_composition: Dict mapping TankType to enemy counts for this stage.
             spawn_interval: Seconds between spawn attempts.
-            player_tank: The player tank (for collision checking on initial spawn).
+            player_tanks: Player tanks for collision checking on initial spawn.
             effect_manager: EffectManager for spawn animations (optional).
             difficulty: AI difficulty level for spawned enemies.
             powerup_carrier_indices: Tuple of spawn indices that carry powerups.
@@ -88,7 +88,7 @@ class SpawnManager:
             )
 
         # Initial spawn
-        self.spawn_enemy(player_tank, game_map)
+        self.spawn_enemy(player_tanks, game_map)
 
     def _build_spawn_queue(
         self, enemy_composition: dict[TankType, int]
@@ -112,15 +112,16 @@ class SpawnManager:
     def _is_spawn_blocked(
         self,
         rect: pygame.Rect,
-        player_tank: PlayerTank,
+        player_tanks: List[PlayerTank],
         game_map: Map,
     ) -> bool:
         """Check if a spawn rect overlaps any obstacle."""
         for map_rect in game_map.get_collidable_tiles():
             if rect.colliderect(map_rect):
                 return True
-        if player_tank and rect.colliderect(player_tank.rect):
-            return True
+        for player_tank in player_tanks:
+            if player_tank and rect.colliderect(player_tank.rect):
+                return True
         for enemy in self.enemy_tanks:
             if rect.colliderect(enemy.rect):
                 return True
@@ -132,7 +133,7 @@ class SpawnManager:
                 return True
         return False
 
-    def spawn_enemy(self, player_tank: PlayerTank, game_map: Map) -> bool:
+    def spawn_enemy(self, player_tanks: List[PlayerTank], game_map: Map) -> bool:
         """Spawn a new enemy tank at a random spawn point if under the spawn limit.
 
         If an EffectManager is available, plays a spawn animation first and
@@ -140,7 +141,7 @@ class SpawnManager:
         tank appears immediately.
 
         Args:
-            player_tank: The player tank (for collision checking).
+            player_tanks: List of player tanks (for collision checking).
             game_map: The game map (for collision checking).
 
         Returns:
@@ -154,7 +155,7 @@ class SpawnManager:
         x, y = game_map.grid_to_pixels(spawn_grid_x, spawn_grid_y)
 
         temp_rect = pygame.Rect(x, y, self.tile_size, self.tile_size)
-        if self._is_spawn_blocked(temp_rect, player_tank, game_map):
+        if self._is_spawn_blocked(temp_rect, player_tanks, game_map):
             logger.warning(f"Spawn point ({x}, {y}) was blocked.")
             return False
 
@@ -203,7 +204,7 @@ class SpawnManager:
             f"{' [CARRIER]' if is_carrier else ''}"
         )
 
-    def update(self, dt: float, player_tank: PlayerTank, game_map: Map) -> None:
+    def update(self, dt: float, player_tanks: List[PlayerTank], game_map: Map) -> None:
         """Update spawn timer and attempt to spawn enemies.
 
         Also checks pending spawns and materializes tanks whose
@@ -211,7 +212,7 @@ class SpawnManager:
 
         Args:
             dt: Delta time in seconds.
-            player_tank: The player tank (for collision checking).
+            player_tanks: List of player tanks (for collision checking).
             game_map: The game map (for collision checking).
         """
         # Materialize tanks whose spawn animation is done
@@ -229,7 +230,7 @@ class SpawnManager:
         if self.spawn_timer >= self.spawn_interval:
             logger.trace("Spawn timer triggered.")
             # Reset timer only if spawn was successful
-            if self.spawn_enemy(player_tank, game_map):
+            if self.spawn_enemy(player_tanks, game_map):
                 self.spawn_timer = 0
 
     def remove_enemy(self, enemy: EnemyTank) -> None:

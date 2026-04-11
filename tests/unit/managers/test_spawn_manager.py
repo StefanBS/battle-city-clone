@@ -60,7 +60,7 @@ class TestSpawnManager:
             game_map=mock_game_map,
             enemy_composition=_DEFAULT_COMPOSITION,
             spawn_interval=5.0,
-            player_tank=mock_player_tank,
+            player_tanks=[mock_player_tank],
         )
         return manager
 
@@ -80,7 +80,7 @@ class TestSpawnManager:
         spawn_manager.enemy_tanks = []
         spawn_manager.total_enemy_spawns = 0
 
-        result = spawn_manager.spawn_enemy(mock_player_tank, mock_game_map)
+        result = spawn_manager.spawn_enemy([mock_player_tank], mock_game_map)
 
         assert result is True
         assert len(spawn_manager.enemy_tanks) == 1
@@ -96,7 +96,7 @@ class TestSpawnManager:
         spawn_manager.total_enemy_spawns = spawn_manager.max_enemy_spawns
 
         initial_enemies = len(spawn_manager.enemy_tanks)
-        result = spawn_manager.spawn_enemy(mock_player_tank, mock_game_map)
+        result = spawn_manager.spawn_enemy([mock_player_tank], mock_game_map)
 
         assert result is False
         assert len(spawn_manager.enemy_tanks) == initial_enemies
@@ -115,7 +115,7 @@ class TestSpawnManager:
 
         initial_enemies = len(spawn_manager.enemy_tanks)
         initial_spawns = spawn_manager.total_enemy_spawns
-        result = spawn_manager.spawn_enemy(mock_player_tank, mock_game_map)
+        result = spawn_manager.spawn_enemy([mock_player_tank], mock_game_map)
 
         assert result is False
         assert len(spawn_manager.enemy_tanks) == initial_enemies
@@ -138,7 +138,7 @@ class TestSpawnManager:
         spawn_manager.enemy_tanks = [existing_enemy]
         spawn_manager.total_enemy_spawns = 1
 
-        result = spawn_manager.spawn_enemy(mock_player_tank, mock_game_map)
+        result = spawn_manager.spawn_enemy([mock_player_tank], mock_game_map)
 
         assert result is False
         assert len(spawn_manager.enemy_tanks) == 1
@@ -153,8 +153,8 @@ class TestSpawnManager:
         with patch.object(
             spawn_manager, "spawn_enemy", return_value=True
         ) as mock_spawn:
-            spawn_manager.update(0.1, mock_player_tank, mock_game_map)
-            mock_spawn.assert_called_once_with(mock_player_tank, mock_game_map)
+            spawn_manager.update(0.1, [mock_player_tank], mock_game_map)
+            mock_spawn.assert_called_once_with([mock_player_tank], mock_game_map)
 
         # Timer should be reset after successful spawn
         # (We patched spawn_enemy so we check timer logic directly)
@@ -176,7 +176,7 @@ class TestSpawnManager:
         spawn_manager.enemy_tanks = []
         spawn_manager.total_enemy_spawns = 0
 
-        spawn_manager.update(0.0, mock_player_tank, mock_game_map)
+        spawn_manager.update(0.0, [mock_player_tank], mock_game_map)
 
         assert spawn_manager.spawn_timer == pytest.approx(0.0)
 
@@ -205,7 +205,7 @@ class TestSpawnManager:
         spawn_manager.spawn_timer = 0.0
 
         with patch.object(spawn_manager, "spawn_enemy") as mock_spawn:
-            spawn_manager.update(0.1, mock_player_tank, mock_game_map)
+            spawn_manager.update(0.1, [mock_player_tank], mock_game_map)
             mock_spawn.assert_not_called()
 
     def test_spawn_queue_built_from_composition(
@@ -217,7 +217,7 @@ class TestSpawnManager:
             game_map=mock_game_map,
             enemy_composition=_DEFAULT_COMPOSITION,
             spawn_interval=5.0,
-            player_tank=mock_player_tank,
+            player_tanks=[mock_player_tank],
         )
         # Stage 1: (18, 2, 0, 0) = 20 total
         assert manager.max_enemy_spawns == 20
@@ -237,7 +237,7 @@ class TestSpawnManager:
                 TankType.ARMOR: 3,
             },
             spawn_interval=5.0,
-            player_tank=mock_player_tank,
+            player_tanks=[mock_player_tank],
         )
         types_in_queue = set(manager._spawn_queue)
         assert len(types_in_queue) > 1
@@ -251,7 +251,7 @@ class TestSpawnManager:
             game_map=mock_game_map,
             enemy_composition=_DEFAULT_COMPOSITION,
             spawn_interval=5.0,
-            player_tank=mock_player_tank,
+            player_tanks=[mock_player_tank],
         )
         # Exhaust all 20 spawns
         for _ in range(25):  # more than 20 to test stop
@@ -273,7 +273,7 @@ class TestSpawnManager:
                 TankType.ARMOR: 0,
             },
             spawn_interval=5.0,
-            player_tank=mock_player_tank,
+            player_tanks=[mock_player_tank],
         )
         assert manager.max_enemy_spawns == 20
 
@@ -324,7 +324,7 @@ class TestSpawnAnimation:
             game_map=mock_game_map,
             enemy_composition=_DEFAULT_COMPOSITION,
             spawn_interval=5.0,
-            player_tank=mock_player_tank,
+            player_tanks=[mock_player_tank],
             effect_manager=mock_effect_manager,
         )
 
@@ -430,7 +430,7 @@ class TestSpawnManagerCarrier:
             game_map=mock_game_map,
             enemy_composition=_DEFAULT_COMPOSITION,
             spawn_interval=5.0,
-            player_tank=mock_player_tank,
+            player_tanks=[mock_player_tank],
         )
 
     def test_fourth_enemy_is_carrier(
@@ -439,11 +439,11 @@ class TestSpawnManagerCarrier:
         # Initial spawn was enemy 0 (index 0). Spawn indices 1, 2, 3.
         # Clear enemy_tanks between spawns to avoid collision blocking.
         spawn_manager.enemy_tanks = []
-        spawn_manager.spawn_enemy(mock_player_tank, mock_game_map)
+        spawn_manager.spawn_enemy([mock_player_tank], mock_game_map)
         spawn_manager.enemy_tanks = []
-        spawn_manager.spawn_enemy(mock_player_tank, mock_game_map)
+        spawn_manager.spawn_enemy([mock_player_tank], mock_game_map)
         spawn_manager.enemy_tanks = []
-        spawn_manager.spawn_enemy(mock_player_tank, mock_game_map)
+        spawn_manager.spawn_enemy([mock_player_tank], mock_game_map)
         # The 4th tank (index 3) should be the carrier
         carrier_tanks = [t for t in spawn_manager.enemy_tanks if t.is_carrier]
         assert len(carrier_tanks) == 1
@@ -451,9 +451,9 @@ class TestSpawnManagerCarrier:
     def test_non_carrier_indices(self, spawn_manager, mock_player_tank, mock_game_map):
         # Spawn indices 1 and 2 — neither should be a carrier.
         spawn_manager.enemy_tanks = []
-        spawn_manager.spawn_enemy(mock_player_tank, mock_game_map)
+        spawn_manager.spawn_enemy([mock_player_tank], mock_game_map)
         spawn_manager.enemy_tanks = []
-        spawn_manager.spawn_enemy(mock_player_tank, mock_game_map)
+        spawn_manager.spawn_enemy([mock_player_tank], mock_game_map)
         # Enemies at indices 1 and 2 should not be carriers
         carrier_tanks = [t for t in spawn_manager.enemy_tanks if t.is_carrier]
         assert len(carrier_tanks) == 0
@@ -471,26 +471,26 @@ class TestSpawnManagerCarrier:
             game_map=mock_game_map,
             enemy_composition=_DEFAULT_COMPOSITION,
             spawn_interval=5.0,
-            player_tank=mock_player_tank,
+            player_tanks=[mock_player_tank],
             effect_manager=mock_effect_manager,
         )
         # Materialize spawns 0, 1, 2 immediately, then spawn index 3 (carrier)
         # via the pending path. Clear pending+tanks between to avoid collisions.
         for _ in range(2):
             mock_effect.active = False
-            manager.update(0.0, mock_player_tank, mock_game_map)
+            manager.update(0.0, [mock_player_tank], mock_game_map)
             manager.enemy_tanks = []
             mock_effect.active = True
-            manager.spawn_enemy(mock_player_tank, mock_game_map)
+            manager.spawn_enemy([mock_player_tank], mock_game_map)
         # Now materialize spawns so far, then spawn the carrier (index 3)
         mock_effect.active = False
-        manager.update(0.0, mock_player_tank, mock_game_map)
+        manager.update(0.0, [mock_player_tank], mock_game_map)
         manager.enemy_tanks = []
         mock_effect.active = True
-        manager.spawn_enemy(mock_player_tank, mock_game_map)
+        manager.spawn_enemy([mock_player_tank], mock_game_map)
         # Complete the carrier's pending spawn animation
         mock_effect.active = False
-        manager.update(0.0, mock_player_tank, mock_game_map)
+        manager.update(0.0, [mock_player_tank], mock_game_map)
         carrier_tanks = [t for t in manager.enemy_tanks if t.is_carrier]
         assert len(carrier_tanks) == 1
 
@@ -530,7 +530,7 @@ class TestSpawnManagerCustomCarriers:
             game_map=mock_game_map,
             enemy_composition=_DEFAULT_COMPOSITION,
             spawn_interval=5.0,
-            player_tank=mock_player_tank,
+            player_tanks=[mock_player_tank],
             powerup_carrier_indices=(1,),
         )
         # Initial spawn is index 0 (not a carrier)
@@ -538,7 +538,7 @@ class TestSpawnManagerCustomCarriers:
 
         # Next spawn is index 1 (should be a carrier)
         manager.enemy_tanks = []
-        manager.spawn_enemy(mock_player_tank, mock_game_map)
+        manager.spawn_enemy([mock_player_tank], mock_game_map)
         carrier_tanks = [t for t in manager.enemy_tanks if t.is_carrier]
         assert len(carrier_tanks) == 1
 
@@ -553,6 +553,6 @@ class TestSpawnManagerCustomCarriers:
             game_map=mock_game_map,
             enemy_composition=_DEFAULT_COMPOSITION,
             spawn_interval=5.0,
-            player_tank=mock_player_tank,
+            player_tanks=[mock_player_tank],
         )
         assert manager._powerup_carrier_indices == POWERUP_CARRIER_INDICES

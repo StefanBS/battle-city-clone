@@ -19,7 +19,7 @@ class CollisionManager:
 
     def check_collisions(
         self,
-        player_tank: Optional[Collidable],
+        player_tanks: Sequence[Collidable],
         player_bullets: Sequence[Collidable],
         enemy_tanks: Sequence[Collidable],
         enemy_bullets: Sequence[Collidable],
@@ -32,22 +32,20 @@ class CollisionManager:
         Checks for collisions between different groups of game objects.
 
         Args:
-            player_tank: The player's tank object, or None if not present.
+            player_tanks: List of player tank objects (may be empty).
             player_bullets: A list/group of player bullet objects.
             enemy_tanks: A list/group of enemy tank objects.
             enemy_bullets: A list/group of enemy bullet objects.
             tank_blocking_tiles: Tiles that block tank movement.
             bullet_blocking_tiles: Tiles that block bullets.
             player_base: The player's base object, or None if not present.
-            power_ups: Active power-up objects to check against the player.
+            power_ups: Active power-up objects to check against players.
         """
         self._collision_events.clear()
         self._seen_pairs.clear()
 
-        # Combine tanks, handling potential None for player_tank
-        all_tanks: List[Collidable] = []
-        if player_tank:
-            all_tanks.append(player_tank)
+        # Combine tanks
+        all_tanks: List[Collidable] = list(player_tanks)
         all_tanks.extend(enemy_tanks)
 
         # Bullet collisions
@@ -60,7 +58,7 @@ class CollisionManager:
         if player_base:
             self._check_group_vs_single(player_bullets, player_base)
             self._check_group_vs_single(enemy_bullets, player_base)
-        if player_tank:
+        for player_tank in player_tanks:
             self._check_group_vs_single(enemy_bullets, player_tank)
 
         # Tank collisions
@@ -68,7 +66,7 @@ class CollisionManager:
         self._check_self_collisions(all_tanks)
 
         # Power-up collection
-        if player_tank:
+        for player_tank in player_tanks:
             for power_up in power_ups:
                 if player_tank.rect.colliderect(power_up.rect):
                     self._queue_collision(player_tank, power_up)
