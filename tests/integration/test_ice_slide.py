@@ -3,14 +3,21 @@
 Uses real objects (no mocks) with SDL_VIDEODRIVER=dummy for headless execution.
 """
 
+import pygame
 import pytest
 from src.core.tile import TileType
-from src.managers.player_input import CombinedInput
 from src.utils.constants import (
     Direction,
     ICE_SLIDE_DISTANCE,
     SUB_TILE_SIZE,
 )
+
+_DIRECTION_TO_KEY = {
+    Direction.UP: pygame.K_UP,
+    Direction.DOWN: pygame.K_DOWN,
+    Direction.LEFT: pygame.K_LEFT,
+    Direction.RIGHT: pygame.K_RIGHT,
+}
 
 
 def _place_ice_patch(game, grid_x, grid_y, width=4, height=4):
@@ -32,19 +39,14 @@ def _move_player_to(game, px, py):
 
 
 def _set_input(game, direction):
-    """Set player input to simulate holding a direction key."""
+    """Simulate holding exactly one direction key (or none)."""
     player_input = game.player_manager._player_inputs[0]
-    # 1P wraps keyboard + controller in a CombinedInput; the KeyboardInput
-    # is always first (see PlayerManager._one_player_inputs).
-    kb = (
-        player_input._inputs[0]
-        if isinstance(player_input, CombinedInput)
-        else player_input
-    )
-    for d in kb._directions:
-        kb._directions[d] = False
+    for key in _DIRECTION_TO_KEY.values():
+        player_input.handle_event(pygame.event.Event(pygame.KEYUP, key=key))
     if direction is not None:
-        kb._directions[direction] = True
+        player_input.handle_event(
+            pygame.event.Event(pygame.KEYDOWN, key=_DIRECTION_TO_KEY[direction])
+        )
 
 
 def _clear_input(game):

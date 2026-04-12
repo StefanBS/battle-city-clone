@@ -137,11 +137,13 @@ class InputHandler:
         pos_action: MenuAction,
     ) -> None:
         state = classify_axis(raw_value)
-        new_state: Optional[MenuAction] = {
-            AxisState.NEGATIVE: neg_action,
-            AxisState.POSITIVE: pos_action,
-            AxisState.NEUTRAL: None,
-        }[state]
+        new_state: Optional[MenuAction]
+        if state is AxisState.NEGATIVE:
+            new_state = neg_action
+        elif state is AxisState.POSITIVE:
+            new_state = pos_action
+        else:
+            new_state = None
         prev_state = self._axis_menu_h if horizontal else self._axis_menu_v
         if new_state != prev_state:
             if horizontal:

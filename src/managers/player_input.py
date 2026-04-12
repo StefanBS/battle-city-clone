@@ -68,7 +68,7 @@ class PlayerInput(Protocol):
     def clear_pending_shoot(self) -> None: ...
 
 
-class KeyboardInput:
+class _DirectionalInput:
     def __init__(self) -> None:
         self._directions: dict[Direction, bool] = {
             Direction.UP: False,
@@ -77,16 +77,6 @@ class KeyboardInput:
             Direction.RIGHT: False,
         }
         self._shoot_pressed: bool = False
-
-    def handle_event(self, event: pygame.event.Event) -> None:
-        if event.type == pygame.KEYDOWN:
-            if event.key in KEY_TO_DIRECTION:
-                self._directions[KEY_TO_DIRECTION[event.key]] = True
-            if event.key == pygame.K_SPACE:
-                self._shoot_pressed = True
-        elif event.type == pygame.KEYUP:
-            if event.key in KEY_TO_DIRECTION:
-                self._directions[KEY_TO_DIRECTION[event.key]] = False
 
     def get_movement_direction(self) -> tuple[int, int]:
         dx = 0
@@ -108,16 +98,22 @@ class KeyboardInput:
         self._shoot_pressed = False
 
 
-class ControllerInput:
+class KeyboardInput(_DirectionalInput):
+    def handle_event(self, event: pygame.event.Event) -> None:
+        if event.type == pygame.KEYDOWN:
+            if event.key in KEY_TO_DIRECTION:
+                self._directions[KEY_TO_DIRECTION[event.key]] = True
+            if event.key == pygame.K_SPACE:
+                self._shoot_pressed = True
+        elif event.type == pygame.KEYUP:
+            if event.key in KEY_TO_DIRECTION:
+                self._directions[KEY_TO_DIRECTION[event.key]] = False
+
+
+class ControllerInput(_DirectionalInput):
     def __init__(self, instance_id: int | None = None) -> None:
+        super().__init__()
         self.instance_id = instance_id
-        self._directions: dict[Direction, bool] = {
-            Direction.UP: False,
-            Direction.DOWN: False,
-            Direction.LEFT: False,
-            Direction.RIGHT: False,
-        }
-        self._shoot_pressed: bool = False
 
     def handle_event(self, event: pygame.event.Event) -> None:
         if event.type not in _CONTROLLER_EVENT_TYPES:
@@ -143,25 +139,6 @@ class ControllerInput:
                 self._handle_axis(event.value, Direction.LEFT, Direction.RIGHT)
             elif event.axis == pygame.CONTROLLER_AXIS_LEFTY:
                 self._handle_axis(event.value, Direction.UP, Direction.DOWN)
-
-    def get_movement_direction(self) -> tuple[int, int]:
-        dx = 0
-        dy = 0
-        for direction, pressed in self._directions.items():
-            if pressed:
-                ddx, ddy = direction.delta
-                dx += ddx
-                dy += ddy
-        return (dx, dy)
-
-    def consume_shoot(self) -> bool:
-        if self._shoot_pressed:
-            self._shoot_pressed = False
-            return True
-        return False
-
-    def clear_pending_shoot(self) -> None:
-        self._shoot_pressed = False
 
     def _handle_axis(
         self, raw_value: int, neg_dir: Direction, pos_dir: Direction

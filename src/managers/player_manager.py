@@ -86,17 +86,15 @@ class PlayerManager:
             self._players.append(make_player(p2_spawn, 2))
             self._player_inputs.extend(self._two_player_inputs(controller_instance_ids))
         else:
-            self._player_inputs.extend(self._one_player_inputs(controller_instance_ids))
+            self._player_inputs.extend(self._one_player_inputs())
 
         for player in self._players:
             if player.player_id not in self._scores:
                 self._scores[player.player_id] = 0
 
     @staticmethod
-    def _one_player_inputs(instance_ids: list[int]) -> list[PlayerInput]:
-        return [
-            CombinedInput([KeyboardInput(), ControllerInput(instance_id=None)])
-        ]
+    def _one_player_inputs() -> list[PlayerInput]:
+        return [CombinedInput([KeyboardInput(), ControllerInput(instance_id=None)])]
 
     @staticmethod
     def _two_player_inputs(instance_ids: list[int]) -> list[PlayerInput]:
