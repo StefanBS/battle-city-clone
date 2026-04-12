@@ -4,7 +4,9 @@ Uses real objects (no mocks) with SDL_VIDEODRIVER=dummy for headless execution.
 """
 
 import pytest
+import pygame
 from src.core.tile import TileType
+from src.managers.player_input import CombinedInput
 from src.utils.constants import (
     Direction,
     ICE_SLIDE_DISTANCE,
@@ -30,13 +32,26 @@ def _move_player_to(game, px, py):
     game.player_tank.rect.topleft = (round(px), round(py))
 
 
+_DIRECTION_TO_KEY = {
+    Direction.UP: pygame.K_UP,
+    Direction.DOWN: pygame.K_DOWN,
+    Direction.LEFT: pygame.K_LEFT,
+    Direction.RIGHT: pygame.K_RIGHT,
+}
+
+
 def _set_input(game, direction):
     """Set player input to simulate holding a direction key."""
     player_input = game.player_manager._player_inputs[0]
-    for d in player_input._directions:
-        player_input._directions[d] = False
+    kb = (
+        player_input._inputs[0]
+        if isinstance(player_input, CombinedInput)
+        else player_input
+    )
+    for d in kb._directions:
+        kb._directions[d] = False
     if direction is not None:
-        player_input._directions[direction] = True
+        kb._directions[direction] = True
 
 
 def _clear_input(game):
