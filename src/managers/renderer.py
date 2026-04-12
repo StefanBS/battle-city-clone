@@ -321,14 +321,14 @@ class Renderer:
         """Render the title screen with menu options.
 
         Args:
-            menu_selection: Currently selected menu item (0-4).
+            menu_selection: Currently selected menu item (0-3).
         """
         self.game_surface.fill(BLACK)
 
         self._draw_centered_text("BATTLE CITY", self.font, WHITE, self._center_y - 80)
 
-        options = ["1 PLAYER", "2 PLAYERS", "OPTIONS", "DEMO", "QUIT"]
-        colors = [WHITE, WHITE, WHITE, WHITE, WHITE]
+        options = ["1 PLAYER", "2 PLAYERS", "OPTIONS", "QUIT"]
+        colors = [WHITE, WHITE, WHITE, WHITE]
         self._draw_menu(options, menu_selection, self._center_y, colors=colors)
 
         self._present_surface()

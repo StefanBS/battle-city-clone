@@ -606,19 +606,10 @@ class TestPauseAndOptionsStateMachine:
         assert gm._options_from_pause is False
         assert gm._options_selection == 0
 
-    def test_title_demo_starts_game(self, game_manager_at_title, key_down_event):
-        """Enter on DEMO (index 3) on title screen starts demo mode."""
+    def test_title_quit_exits(self, game_manager_at_title, key_down_event):
+        """Enter on QUIT (index 3) on title screen exits the game."""
         gm = game_manager_at_title
         gm._title_selection = 3
-        pygame.event.post(key_down_event(pygame.K_RETURN))
-        gm.handle_events()
-        assert gm.state == GameState.STAGE_CURTAIN_CLOSE
-        assert gm._demo_mode is True
-
-    def test_title_quit_exits(self, game_manager_at_title, key_down_event):
-        """Enter on QUIT (index 4) on title screen exits the game."""
-        gm = game_manager_at_title
-        gm._title_selection = 4
         gm.sound_manager = MagicMock()
         pygame.event.post(key_down_event(pygame.K_RETURN))
         gm.handle_events()

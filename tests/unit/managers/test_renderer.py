@@ -414,8 +414,8 @@ class TestTwoPlayerHUD:
 class TestRenderTitleScreenUpdated:
     """Tests for updated title screen with OPTIONS and QUIT."""
 
-    def test_five_menu_items_rendered(self, renderer):
-        """Title screen renders 1 PLAYER, 2 PLAYERS, OPTIONS, DEMO, QUIT."""
+    def test_menu_items_rendered(self, renderer):
+        """Title screen renders 1 PLAYER, 2 PLAYERS, OPTIONS, QUIT."""
         with (
             patch("pygame.transform.scale"),
             patch("pygame.display.flip"),
@@ -428,5 +428,4 @@ class TestRenderTitleScreenUpdated:
         assert "1 PLAYER" in render_calls
         assert "2 PLAYERS" in render_calls
         assert "OPTIONS" in render_calls
-        assert "DEMO" in render_calls
         assert "QUIT" in render_calls
