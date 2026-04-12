@@ -277,17 +277,13 @@ class TestMenuActionsController:
     def test_dpad_down_produces_menu_down(
         self, handler, ctrl_button_down_event
     ) -> None:
-        handler.handle_event(
-            ctrl_button_down_event(pygame.CONTROLLER_BUTTON_DPAD_DOWN)
-        )
+        handler.handle_event(ctrl_button_down_event(pygame.CONTROLLER_BUTTON_DPAD_DOWN))
         assert MenuAction.DOWN in handler.consume_menu_actions()
 
     def test_dpad_left_produces_menu_left(
         self, handler, ctrl_button_down_event
     ) -> None:
-        handler.handle_event(
-            ctrl_button_down_event(pygame.CONTROLLER_BUTTON_DPAD_LEFT)
-        )
+        handler.handle_event(ctrl_button_down_event(pygame.CONTROLLER_BUTTON_DPAD_LEFT))
         assert MenuAction.LEFT in handler.consume_menu_actions()
 
     def test_dpad_right_produces_menu_right(
@@ -298,9 +294,7 @@ class TestMenuActionsController:
         )
         assert MenuAction.RIGHT in handler.consume_menu_actions()
 
-    def test_a_button_produces_confirm(
-        self, handler, ctrl_button_down_event
-    ) -> None:
+    def test_a_button_produces_confirm(self, handler, ctrl_button_down_event) -> None:
         handler.handle_event(ctrl_button_down_event(pygame.CONTROLLER_BUTTON_A))
         assert MenuAction.CONFIRM in handler.consume_menu_actions()
 
@@ -315,9 +309,7 @@ class TestMenuActionsAxisEdgeDetection:
     def test_axis_crossing_deadzone_produces_action(
         self, handler, ctrl_axis_event
     ) -> None:
-        handler.handle_event(
-            ctrl_axis_event(pygame.CONTROLLER_AXIS_LEFTX, -0.8)
-        )
+        handler.handle_event(ctrl_axis_event(pygame.CONTROLLER_AXIS_LEFTX, -0.8))
         assert MenuAction.LEFT in handler.consume_menu_actions()
 
     def test_axis_held_does_not_repeat(self, handler, ctrl_axis_event) -> None:
