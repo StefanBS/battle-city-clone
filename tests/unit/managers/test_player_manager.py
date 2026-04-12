@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 import pygame
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from src.core.bullet import Bullet
 from src.core.map import Map
@@ -75,8 +75,7 @@ class TestPlayerManagerCreation:
         self, player_manager, mock_game_map, mock_texture_manager
     ):
         """create_players() produces exactly one active player."""
-        with patch("pygame.joystick.get_count", return_value=0):
-            player_manager.create_players(mock_game_map)
+        player_manager.create_players(mock_game_map, controller_instance_ids=[])
 
         players = player_manager.get_active_players()
         assert len(players) == 1
@@ -89,8 +88,7 @@ class TestPlayerManagerCreation:
         mock_game_map.player_spawn = (3, 22)
         mock_game_map.tile_size = TILE_SIZE
 
-        with patch("pygame.joystick.get_count", return_value=0):
-            player_manager.create_players(mock_game_map)
+        player_manager.create_players(mock_game_map, controller_instance_ids=[])
 
         player = player_manager.get_active_players()[0]
         expected_x = 3 * TILE_SIZE
@@ -102,43 +100,39 @@ class TestPlayerManagerCreation:
         self, player_manager, mock_game_map
     ):
         """Keyboard input source is assigned when no joystick is present."""
-        with patch("pygame.joystick.get_count", return_value=0):
-            player_manager.create_players(mock_game_map)
+        player_manager.create_players(mock_game_map, controller_instance_ids=[])
 
         assert player_manager._player_inputs[0].source == InputSource.KEYBOARD
 
-    def test_create_players_joystick_when_available(
+    def test_create_players_controller_when_available(
         self, player_manager, mock_game_map
     ):
-        """Joystick input source is assigned when a joystick is detected."""
-        with patch("pygame.joystick.get_count", return_value=1):
-            player_manager.create_players(mock_game_map)
+        """Controller input source is assigned when a joystick is detected."""
+        player_manager.create_players(mock_game_map, controller_instance_ids=[7])
 
-        assert player_manager._player_inputs[0].source == InputSource.JOYSTICK
+        assert player_manager._player_inputs[0].source == InputSource.CONTROLLER
+        assert player_manager._player_inputs[0].instance_id == 7
 
     def test_create_players_clears_previous_state(self, player_manager, mock_game_map):
         """Calling create_players() twice resets players, inputs, and bullets."""
-        with patch("pygame.joystick.get_count", return_value=0):
-            player_manager.create_players(mock_game_map)
-            # Manually add a bullet to the list
-            player_manager._bullets.append(MagicMock(spec=Bullet))
-            player_manager.create_players(mock_game_map)
+        player_manager.create_players(mock_game_map, controller_instance_ids=[])
+        # Manually add a bullet to the list
+        player_manager._bullets.append(MagicMock(spec=Bullet))
+        player_manager.create_players(mock_game_map, controller_instance_ids=[])
 
         assert len(player_manager._players) == 1
         assert len(player_manager._bullets) == 0
 
     def test_get_active_players_returns_living(self, player_manager, mock_game_map):
         """get_active_players() filters out dead tanks."""
-        with patch("pygame.joystick.get_count", return_value=0):
-            player_manager.create_players(mock_game_map)
+        player_manager.create_players(mock_game_map, controller_instance_ids=[])
 
         player_manager._players[0].health = 0
         assert player_manager.get_active_players() == []
 
     def test_get_all_bullets_empty_initially(self, player_manager, mock_game_map):
         """No bullets exist immediately after create_players()."""
-        with patch("pygame.joystick.get_count", return_value=0):
-            player_manager.create_players(mock_game_map)
+        player_manager.create_players(mock_game_map, controller_instance_ids=[])
 
         assert player_manager.get_all_bullets() == []
 
@@ -152,8 +146,7 @@ class TestPlayerManagerUpdate:
     @pytest.fixture(autouse=True)
     def setup(self, player_manager, mock_game_map, mock_texture_manager):
         """Create a single player before each test in this class."""
-        with patch("pygame.joystick.get_count", return_value=0):
-            player_manager.create_players(mock_game_map)
+        player_manager.create_players(mock_game_map, controller_instance_ids=[])
         self.pm = player_manager
         self.game_map = mock_game_map
 
@@ -315,8 +308,7 @@ class TestPlayerManagerShooting:
     @pytest.fixture(autouse=True)
     def setup(self, player_manager, mock_game_map):
         """Create a single player before each test in this class."""
-        with patch("pygame.joystick.get_count", return_value=0):
-            player_manager.create_players(mock_game_map)
+        player_manager.create_players(mock_game_map, controller_instance_ids=[])
         self.pm = player_manager
 
     def test_try_shoot_creates_bullet(self, mock_sound_manager):
@@ -417,8 +409,7 @@ class TestPlayerManagerHandleEvent:
         self, player_manager, mock_game_map
     ):
         """handle_event() propagates the event to the PlayerInput."""
-        with patch("pygame.joystick.get_count", return_value=0):
-            player_manager.create_players(mock_game_map)
+        player_manager.create_players(mock_game_map, controller_instance_ids=[])
 
         pi = MagicMock(spec=PlayerInput)
         player_manager._player_inputs = [pi]
@@ -495,15 +486,13 @@ class TestPlayerManagerStatePreservation:
         self, player_manager, mock_game_map, mock_texture_manager
     ):
         """Preserved lives are restored onto a new player tank."""
-        with patch("pygame.joystick.get_count", return_value=0):
-            player_manager.create_players(mock_game_map)
+        player_manager.create_players(mock_game_map, controller_instance_ids=[])
 
         player_manager._players[0].lives = 5
         player_manager.preserve_state()
 
         # Simulate stage transition: create fresh tanks
-        with patch("pygame.joystick.get_count", return_value=0):
-            player_manager.create_players(mock_game_map)
+        player_manager.create_players(mock_game_map, controller_instance_ids=[])
 
         player_manager.restore_state()
 
@@ -513,14 +502,12 @@ class TestPlayerManagerStatePreservation:
         self, player_manager, mock_game_map, mock_texture_manager
     ):
         """Preserved star_level is restored onto a new player tank."""
-        with patch("pygame.joystick.get_count", return_value=0):
-            player_manager.create_players(mock_game_map)
+        player_manager.create_players(mock_game_map, controller_instance_ids=[])
 
         player_manager._players[0].restore_star_level(2)
         player_manager.preserve_state()
 
-        with patch("pygame.joystick.get_count", return_value=0):
-            player_manager.create_players(mock_game_map)
+        player_manager.create_players(mock_game_map, controller_instance_ids=[])
 
         player_manager.restore_state()
 
@@ -530,8 +517,7 @@ class TestPlayerManagerStatePreservation:
         self, player_manager, mock_game_map, mock_texture_manager
     ):
         """restore_state() with empty preserved state does not crash."""
-        with patch("pygame.joystick.get_count", return_value=0):
-            player_manager.create_players(mock_game_map)
+        player_manager.create_players(mock_game_map, controller_instance_ids=[])
 
         # _preserved_state is empty by default — should not raise
         player_manager.restore_state()
@@ -561,8 +547,7 @@ class TestPlayerManagerDeathHandling:
         self, player_manager, mock_game_map, mock_texture_manager
     ):
         """handle_player_death returns True when the last player is eliminated."""
-        with patch("pygame.joystick.get_count", return_value=0):
-            player_manager.create_players(mock_game_map)
+        player_manager.create_players(mock_game_map, controller_instance_ids=[])
 
         player = player_manager._players[0]
         player.lives = 0
@@ -576,8 +561,7 @@ class TestPlayerManagerDeathHandling:
         self, player_manager, mock_game_map, mock_texture_manager
     ):
         """Edge case: lives = 0 but health > 0 — is_game_over returns False."""
-        with patch("pygame.joystick.get_count", return_value=0):
-            player_manager.create_players(mock_game_map)
+        player_manager.create_players(mock_game_map, controller_instance_ids=[])
 
         player = player_manager._players[0]
         player.lives = 0
@@ -599,8 +583,7 @@ class TestPlayerManagerGameOver:
         self, player_manager, mock_game_map, mock_texture_manager
     ):
         """is_game_over() returns False when the player is still alive."""
-        with patch("pygame.joystick.get_count", return_value=0):
-            player_manager.create_players(mock_game_map)
+        player_manager.create_players(mock_game_map, controller_instance_ids=[])
 
         player = player_manager._players[0]
         player.health = 1
@@ -612,8 +595,7 @@ class TestPlayerManagerGameOver:
         self, player_manager, mock_game_map, mock_texture_manager
     ):
         """is_game_over() returns True when the player is dead with no lives."""
-        with patch("pygame.joystick.get_count", return_value=0):
-            player_manager.create_players(mock_game_map)
+        player_manager.create_players(mock_game_map, controller_instance_ids=[])
 
         player = player_manager._players[0]
         player.health = 0
@@ -625,8 +607,7 @@ class TestPlayerManagerGameOver:
         self, player_manager, mock_game_map, mock_texture_manager
     ):
         """is_game_over() returns False when the player is dead but has lives left."""
-        with patch("pygame.joystick.get_count", return_value=0):
-            player_manager.create_players(mock_game_map)
+        player_manager.create_players(mock_game_map, controller_instance_ids=[])
 
         player = player_manager._players[0]
         player.health = 0
@@ -645,8 +626,7 @@ class TestPlayerManagerReset:
         self, player_manager, mock_game_map, mock_texture_manager
     ):
         """reset() clears players, inputs, bullets, score, and preserved state."""
-        with patch("pygame.joystick.get_count", return_value=0):
-            player_manager.create_players(mock_game_map)
+        player_manager.create_players(mock_game_map, controller_instance_ids=[])
 
         player_manager.add_score(500)
         player_manager._bullets.append(MagicMock(spec=Bullet))
@@ -670,55 +650,77 @@ class TestPlayerManagerTwoPlayerCreation:
     def test_create_two_players(self, player_manager, mock_game_map):
         """create_players(two_player_mode=True) produces two active players."""
         mock_game_map.player_spawn_2 = (16, 24)
-        with patch("pygame.joystick.get_count", return_value=1):
-            player_manager.create_players(mock_game_map, two_player_mode=True)
+        player_manager.create_players(
+            mock_game_map, controller_instance_ids=[0], two_player_mode=True
+        )
         players = player_manager.get_active_players()
         assert len(players) == 2
 
     def test_player2_has_player_id_2(self, player_manager, mock_game_map):
         """Second player has player_id=2."""
         mock_game_map.player_spawn_2 = (16, 24)
-        with patch("pygame.joystick.get_count", return_value=1):
-            player_manager.create_players(mock_game_map, two_player_mode=True)
+        player_manager.create_players(
+            mock_game_map, controller_instance_ids=[0], two_player_mode=True
+        )
         assert player_manager._players[0].player_id == 1
         assert player_manager._players[1].player_id == 2
 
     def test_player2_at_spawn_2_position(self, player_manager, mock_game_map):
         """Player 2 spawns at player_spawn_2 coordinates."""
         mock_game_map.player_spawn_2 = (16, 24)
-        with patch("pygame.joystick.get_count", return_value=1):
-            player_manager.create_players(mock_game_map, two_player_mode=True)
+        player_manager.create_players(
+            mock_game_map, controller_instance_ids=[0], two_player_mode=True
+        )
         p2 = player_manager._players[1]
         assert p2.x == 16 * TILE_SIZE
         assert p2.y == 24 * TILE_SIZE
 
     def test_2p_one_controller_input(self, player_manager, mock_game_map):
-        """2P + 1 controller: P1=keyboard, P2=joystick 0."""
+        """2P + 1 controller: P1=keyboard, P2=controller bound by instance_id."""
         mock_game_map.player_spawn_2 = (16, 24)
-        with patch("pygame.joystick.get_count", return_value=1):
-            player_manager.create_players(mock_game_map, two_player_mode=True)
+        player_manager.create_players(
+            mock_game_map, controller_instance_ids=[4], two_player_mode=True
+        )
         assert player_manager._player_inputs[0].source == InputSource.KEYBOARD
         assert player_manager._player_inputs[0]._exclusive is True
-        assert player_manager._player_inputs[1].source == InputSource.JOYSTICK
-        assert player_manager._player_inputs[1].joystick_index == 0
+        assert player_manager._player_inputs[1].source == InputSource.CONTROLLER
+        assert player_manager._player_inputs[1].instance_id == 4
         assert player_manager._player_inputs[1]._exclusive is True
 
-    def test_2p_two_controllers_both_joystick(self, player_manager, mock_game_map):
-        """2P + 2 controllers: P1=joystick 0, P2=joystick 1 (both exclusive)."""
+    def test_2p_two_controllers_both_controller(self, player_manager, mock_game_map):
+        """2P + 2 controllers: each player bound to its own instance_id."""
         mock_game_map.player_spawn_2 = (16, 24)
-        with patch("pygame.joystick.get_count", return_value=2):
-            player_manager.create_players(mock_game_map, two_player_mode=True)
-        assert player_manager._player_inputs[0].source == InputSource.JOYSTICK
-        assert player_manager._player_inputs[0].joystick_index == 0
-        assert player_manager._player_inputs[1].source == InputSource.JOYSTICK
-        assert player_manager._player_inputs[1].joystick_index == 1
+        player_manager.create_players(
+            mock_game_map, controller_instance_ids=[8, 12], two_player_mode=True
+        )
+        assert player_manager._player_inputs[0].source == InputSource.CONTROLLER
+        assert player_manager._player_inputs[0].instance_id == 8
+        assert player_manager._player_inputs[1].source == InputSource.CONTROLLER
+        assert player_manager._player_inputs[1].instance_id == 12
+
+    def test_2p_two_controllers_non_sequential_instance_ids(
+        self, player_manager, mock_game_map
+    ):
+        """Regression: non-sequential instance_ids (e.g. 0 and 5) route correctly.
+
+        Previously PlayerInput stored a device index that assumed 0-based
+        sequential IDs, so plugging a second controller later whose SDL
+        instance_id wasn't 1 broke per-player routing.
+        """
+        mock_game_map.player_spawn_2 = (16, 24)
+        player_manager.create_players(
+            mock_game_map, controller_instance_ids=[0, 5], two_player_mode=True
+        )
+        assert player_manager._player_inputs[0].instance_id == 0
+        assert player_manager._player_inputs[1].instance_id == 5
 
     def test_2p_fallback_spawn_when_no_spawn_2(self, player_manager, mock_game_map):
         """When player_spawn_2 is absent, derive P2 position from P1."""
         mock_game_map.player_spawn_2 = None
         mock_game_map.player_spawn = (8, 24)
-        with patch("pygame.joystick.get_count", return_value=1):
-            player_manager.create_players(mock_game_map, two_player_mode=True)
+        player_manager.create_players(
+            mock_game_map, controller_instance_ids=[0], two_player_mode=True
+        )
         p2 = player_manager._players[1]
         assert p2.x == (8 + 8) * TILE_SIZE
         assert p2.y == 24 * TILE_SIZE
@@ -726,8 +728,9 @@ class TestPlayerManagerTwoPlayerCreation:
     def test_2p_per_player_scores(self, player_manager, mock_game_map):
         """Per-player scores start at 0 and accumulate independently."""
         mock_game_map.player_spawn_2 = (16, 24)
-        with patch("pygame.joystick.get_count", return_value=1):
-            player_manager.create_players(mock_game_map, two_player_mode=True)
+        player_manager.create_players(
+            mock_game_map, controller_instance_ids=[0], two_player_mode=True
+        )
         player_manager.add_score(100, player_id=1)
         player_manager.add_score(200, player_id=2)
         assert player_manager.get_score(1) == 100
@@ -736,24 +739,25 @@ class TestPlayerManagerTwoPlayerCreation:
 
     def test_1p_add_score_backward_compatible(self, player_manager, mock_game_map):
         """add_score() without player_id works for 1P."""
-        with patch("pygame.joystick.get_count", return_value=0):
-            player_manager.create_players(mock_game_map)
+        player_manager.create_players(mock_game_map, controller_instance_ids=[])
         player_manager.add_score(100)
         assert player_manager.score == 100
 
-    def test_2p_no_controllers_keyboard_plus_joystick(
-        self, player_manager, mock_game_map
-    ):
-        """2P + 0 controllers: P1=keyboard, P2=joystick 0 (both exclusive)."""
+    def test_2p_no_controllers_both_keyboard(self, player_manager, mock_game_map):
+        """2P + 0 controllers: both players fall back to keyboard (degenerate).
+
+        This mode is not playable (P1 and P2 both fight for arrow keys) but
+        must not crash; the UI guards against entering it.
+        """
         mock_game_map.player_spawn_2 = (16, 24)
-        with patch("pygame.joystick.get_count", return_value=0):
-            player_manager.create_players(mock_game_map, two_player_mode=True)
+        player_manager.create_players(
+            mock_game_map, controller_instance_ids=[], two_player_mode=True
+        )
 
         assert player_manager._player_inputs[0].source == InputSource.KEYBOARD
         assert player_manager._player_inputs[0]._exclusive is True
-        assert player_manager._player_inputs[1].source == InputSource.JOYSTICK
+        assert player_manager._player_inputs[1].source == InputSource.KEYBOARD
         assert player_manager._player_inputs[1]._exclusive is True
-
 
 
 # ---------------------------------------------------------------------------
@@ -766,8 +770,9 @@ class TestPlayerManagerLifeStealing:
     def two_player_pm(self, player_manager, mock_game_map):
         """Create a 2P PlayerManager."""
         mock_game_map.player_spawn_2 = (16, 24)
-        with patch("pygame.joystick.get_count", return_value=1):
-            player_manager.create_players(mock_game_map, two_player_mode=True)
+        player_manager.create_players(
+            mock_game_map, controller_instance_ids=[0], two_player_mode=True
+        )
         return player_manager
 
     def test_life_steal_from_other_player(self, two_player_pm):
@@ -810,4 +815,3 @@ class TestPlayerManagerLifeStealing:
         p2.lives = 0
         p2.health = 0
         assert two_player_pm.is_game_over() is True
-

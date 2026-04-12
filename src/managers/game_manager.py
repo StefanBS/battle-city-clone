@@ -41,7 +41,7 @@ from src.managers.collision_response_handler import CollisionResponseHandler
 from src.managers.effect_manager import EffectManager
 from src.managers.texture_manager import TextureManager
 from src.managers.input_handler import InputHandler
-from src.managers.player_input import CTRL_START_BUTTON, JOY_START_BUTTON
+from src.managers.player_input import CTRL_START_BUTTON
 from src.managers.spawn_manager import SpawnManager
 from src.managers.renderer import Renderer
 from src.managers.power_up_manager import PowerUpManager
@@ -180,7 +180,9 @@ class GameManager:
         )
 
         self.player_manager.create_players(
-            self.map, two_player_mode=self._two_player_mode
+            self.map,
+            controller_instance_ids=self.input_handler.controller_instance_ids,
+            two_player_mode=self._two_player_mode,
         )
 
         # Renderer (fixed logical surface with map centered inside)
@@ -261,11 +263,8 @@ class GameManager:
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     self._handle_escape()
-            elif event.type in (
-                pygame.CONTROLLERBUTTONDOWN,
-                pygame.JOYBUTTONDOWN,
-            ):
-                if event.button in (CTRL_START_BUTTON, JOY_START_BUTTON):
+            elif event.type == pygame.CONTROLLERBUTTONDOWN:
+                if event.button == CTRL_START_BUTTON:
                     self._handle_escape()
 
             self.input_handler.handle_event(event)

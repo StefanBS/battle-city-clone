@@ -52,71 +52,15 @@ def key_up_event():
 
 
 @pytest.fixture
-def joy_hat_event():
-    """Factory fixture to create JOYHATMOTION events."""
-
-    def _joy_hat_event(
-        value: tuple, hat: int = 0, instance_id: int = 0
-    ) -> pygame.event.Event:
-        return pygame.event.Event(
-            pygame.JOYHATMOTION, value=value, hat=hat, instance_id=instance_id
-        )
-
-    return _joy_hat_event
-
-
-@pytest.fixture
-def joy_axis_event():
-    """Factory fixture to create JOYAXISMOTION events."""
-
-    def _joy_axis_event(
-        axis: int, value: float, instance_id: int = 0
-    ) -> pygame.event.Event:
-        return pygame.event.Event(
-            pygame.JOYAXISMOTION, axis=axis, value=value, instance_id=instance_id
-        )
-
-    return _joy_axis_event
-
-
-@pytest.fixture
-def joy_button_down_event():
-    """Factory fixture to create JOYBUTTONDOWN events."""
-
-    def _joy_button_down_event(button: int, instance_id: int = 0) -> pygame.event.Event:
-        return pygame.event.Event(
-            pygame.JOYBUTTONDOWN, button=button, instance_id=instance_id
-        )
-
-    return _joy_button_down_event
-
-
-@pytest.fixture
-def joy_device_added_event():
-    """Factory fixture to create JOYDEVICEADDED events."""
-
-    def _joy_device_added_event(device_index: int = 0) -> pygame.event.Event:
-        return pygame.event.Event(pygame.JOYDEVICEADDED, device_index=device_index)
-
-    return _joy_device_added_event
-
-
-@pytest.fixture
-def joy_device_removed_event():
-    """Factory fixture to create JOYDEVICEREMOVED events."""
-
-    def _joy_device_removed_event(instance_id: int = 0) -> pygame.event.Event:
-        return pygame.event.Event(pygame.JOYDEVICEREMOVED, instance_id=instance_id)
-
-    return _joy_device_removed_event
-
-
-@pytest.fixture
 def ctrl_button_down_event():
     """Factory fixture to create CONTROLLERBUTTONDOWN events."""
 
-    def _ctrl_button_down_event(button: int) -> pygame.event.Event:
-        return pygame.event.Event(pygame.CONTROLLERBUTTONDOWN, button=button)
+    def _ctrl_button_down_event(
+        button: int, instance_id: int = 0
+    ) -> pygame.event.Event:
+        return pygame.event.Event(
+            pygame.CONTROLLERBUTTONDOWN, button=button, instance_id=instance_id
+        )
 
     return _ctrl_button_down_event
 
@@ -125,17 +69,56 @@ def ctrl_button_down_event():
 def ctrl_button_up_event():
     """Factory fixture to create CONTROLLERBUTTONUP events."""
 
-    def _ctrl_button_up_event(button: int) -> pygame.event.Event:
-        return pygame.event.Event(pygame.CONTROLLERBUTTONUP, button=button)
+    def _ctrl_button_up_event(
+        button: int, instance_id: int = 0
+    ) -> pygame.event.Event:
+        return pygame.event.Event(
+            pygame.CONTROLLERBUTTONUP, button=button, instance_id=instance_id
+        )
 
     return _ctrl_button_up_event
 
 
 @pytest.fixture
 def ctrl_axis_event():
-    """Factory fixture to create CONTROLLERAXISMOTION events."""
+    """Factory fixture to create CONTROLLERAXISMOTION events.
 
-    def _ctrl_axis_event(axis: int, value: float) -> pygame.event.Event:
-        return pygame.event.Event(pygame.CONTROLLERAXISMOTION, axis=axis, value=value)
+    ``value`` is a float in [-1.0, 1.0] that is converted to the int16 range
+    that pygame uses for real CONTROLLERAXISMOTION events.
+    """
+
+    def _ctrl_axis_event(
+        axis: int, value: float, instance_id: int = 0
+    ) -> pygame.event.Event:
+        return pygame.event.Event(
+            pygame.CONTROLLERAXISMOTION,
+            axis=axis,
+            value=int(value * 32767),
+            instance_id=instance_id,
+        )
 
     return _ctrl_axis_event
+
+
+@pytest.fixture
+def ctrl_device_added_event():
+    """Factory fixture to create CONTROLLERDEVICEADDED events."""
+
+    def _ctrl_device_added_event(device_index: int = 0) -> pygame.event.Event:
+        return pygame.event.Event(
+            pygame.CONTROLLERDEVICEADDED, device_index=device_index
+        )
+
+    return _ctrl_device_added_event
+
+
+@pytest.fixture
+def ctrl_device_removed_event():
+    """Factory fixture to create CONTROLLERDEVICEREMOVED events."""
+
+    def _ctrl_device_removed_event(instance_id: int = 0) -> pygame.event.Event:
+        return pygame.event.Event(
+            pygame.CONTROLLERDEVICEREMOVED, instance_id=instance_id
+        )
+
+    return _ctrl_device_removed_event

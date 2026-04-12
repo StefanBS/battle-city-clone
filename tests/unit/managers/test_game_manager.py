@@ -274,14 +274,6 @@ class TestGameManager:
             game_manager.handle_events()
             assert game_manager.state == GameState.PAUSED
 
-        def test_joy_start_button_triggers_escape(self, game_manager):
-            """Raw joystick Start button triggers _handle_escape."""
-            game_manager.state = GameState.RUNNING
-            event = pygame.event.Event(pygame.JOYBUTTONDOWN, button=7, instance_id=0)
-            pygame.event.post(event)
-            game_manager.handle_events()
-            assert game_manager.state == GameState.PAUSED
-
 
 class TestGameManagerSoundWiring:
     @pytest.fixture
