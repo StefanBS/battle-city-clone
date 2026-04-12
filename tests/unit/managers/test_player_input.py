@@ -339,6 +339,127 @@ class TestPlayerInputExclusiveMode:
         assert pi.consume_shoot() is True
 
 
+class TestControllerInput:
+    @pytest.fixture
+    def ci(self):
+        from src.managers.player_input import ControllerInput
+        return ControllerInput(instance_id=0)
+
+    @pytest.fixture
+    def ci_any(self):
+        from src.managers.player_input import ControllerInput
+        return ControllerInput(instance_id=None)
+
+    def test_dpad_up_sets_direction(self, ci, ctrl_button_down_event) -> None:
+        ci.handle_event(
+            ctrl_button_down_event(pygame.CONTROLLER_BUTTON_DPAD_UP)
+        )
+        assert ci.get_movement_direction() == (0, -1)
+
+    def test_dpad_release_clears_direction(
+        self, ci, ctrl_button_down_event, ctrl_button_up_event
+    ) -> None:
+        ci.handle_event(
+            ctrl_button_down_event(pygame.CONTROLLER_BUTTON_DPAD_UP)
+        )
+        ci.handle_event(
+            ctrl_button_up_event(pygame.CONTROLLER_BUTTON_DPAD_UP)
+        )
+        assert ci.get_movement_direction() == (0, 0)
+
+    def test_dpad_press_clears_opposite_on_same_axis(
+        self, ci, ctrl_button_down_event
+    ) -> None:
+        """Regression for #138: pressing LEFT while RIGHT held cancels RIGHT."""
+        ci.handle_event(
+            ctrl_button_down_event(pygame.CONTROLLER_BUTTON_DPAD_RIGHT)
+        )
+        ci.handle_event(
+            ctrl_button_down_event(pygame.CONTROLLER_BUTTON_DPAD_LEFT)
+        )
+        assert ci.get_movement_direction() == (-1, 0)
+
+    def test_dpad_press_preserves_perpendicular_axis(
+        self, ci, ctrl_button_down_event
+    ) -> None:
+        ci.handle_event(
+            ctrl_button_down_event(pygame.CONTROLLER_BUTTON_DPAD_LEFT)
+        )
+        ci.handle_event(
+            ctrl_button_down_event(pygame.CONTROLLER_BUTTON_DPAD_UP)
+        )
+        assert ci.get_movement_direction() == (-1, -1)
+
+    def test_axis_inside_deadzone_is_zero(self, ci, ctrl_axis_event) -> None:
+        ci.handle_event(ctrl_axis_event(pygame.CONTROLLER_AXIS_LEFTX, 0.3))
+        assert ci.get_movement_direction() == (0, 0)
+
+    def test_axis_beyond_positive_deadzone_sets_direction(
+        self, ci, ctrl_axis_event
+    ) -> None:
+        ci.handle_event(ctrl_axis_event(pygame.CONTROLLER_AXIS_LEFTX, 0.8))
+        assert ci.get_movement_direction() == (1, 0)
+
+    def test_axis_beyond_negative_deadzone_sets_direction(
+        self, ci, ctrl_axis_event
+    ) -> None:
+        ci.handle_event(ctrl_axis_event(pygame.CONTROLLER_AXIS_LEFTY, -0.8))
+        assert ci.get_movement_direction() == (0, -1)
+
+    def test_axis_return_to_neutral_clears_direction(
+        self, ci, ctrl_axis_event
+    ) -> None:
+        ci.handle_event(ctrl_axis_event(pygame.CONTROLLER_AXIS_LEFTX, 0.8))
+        ci.handle_event(ctrl_axis_event(pygame.CONTROLLER_AXIS_LEFTX, 0.0))
+        assert ci.get_movement_direction() == (0, 0)
+
+    def test_shoot_button_a(self, ci, ctrl_button_down_event) -> None:
+        ci.handle_event(ctrl_button_down_event(pygame.CONTROLLER_BUTTON_A))
+        assert ci.consume_shoot() is True
+
+    def test_shoot_button_b(self, ci, ctrl_button_down_event) -> None:
+        ci.handle_event(ctrl_button_down_event(pygame.CONTROLLER_BUTTON_B))
+        assert ci.consume_shoot() is True
+
+    def test_instance_id_filter_rejects_foreign_events(
+        self, ci, ctrl_button_down_event
+    ) -> None:
+        ci.handle_event(
+            ctrl_button_down_event(
+                pygame.CONTROLLER_BUTTON_DPAD_UP, instance_id=99
+            )
+        )
+        assert ci.get_movement_direction() == (0, 0)
+
+    def test_instance_id_none_accepts_any_controller(
+        self, ci_any, ctrl_button_down_event
+    ) -> None:
+        ci_any.handle_event(
+            ctrl_button_down_event(
+                pygame.CONTROLLER_BUTTON_DPAD_UP, instance_id=42
+            )
+        )
+        assert ci_any.get_movement_direction() == (0, -1)
+
+    def test_instance_id_accepts_matching_nonzero(
+        self, ctrl_button_down_event
+    ) -> None:
+        from src.managers.player_input import ControllerInput
+        ci = ControllerInput(instance_id=5)
+        ci.handle_event(
+            ctrl_button_down_event(
+                pygame.CONTROLLER_BUTTON_DPAD_UP, instance_id=5
+            )
+        )
+        assert ci.get_movement_direction() == (0, -1)
+
+    def test_ignores_keyboard_events(self, ci, key_down_event) -> None:
+        ci.handle_event(key_down_event(pygame.K_UP))
+        ci.handle_event(key_down_event(pygame.K_SPACE))
+        assert ci.get_movement_direction() == (0, 0)
+        assert ci.consume_shoot() is False
+
+
 class TestKeyboardInput:
     @pytest.fixture
     def ki(self):

@@ -212,3 +212,70 @@ class KeyboardInput:
 
     def clear_pending_shoot(self) -> None:
         self._shoot_pressed = False
+
+
+class ControllerInput:
+    def __init__(self, instance_id: int | None = None) -> None:
+        self.instance_id = instance_id
+        self._directions: dict[Direction, bool] = {
+            Direction.UP: False,
+            Direction.DOWN: False,
+            Direction.LEFT: False,
+            Direction.RIGHT: False,
+        }
+        self._shoot_pressed: bool = False
+
+    def handle_event(self, event: pygame.event.Event) -> None:
+        if event.type not in _CONTROLLER_EVENT_TYPES:
+            return
+        if (
+            self.instance_id is not None
+            and getattr(event, "instance_id", None) != self.instance_id
+        ):
+            return
+
+        if event.type == pygame.CONTROLLERBUTTONDOWN:
+            if event.button in CTRL_DPAD_BUTTONS:
+                direction = CTRL_DPAD_BUTTONS[event.button]
+                self._directions[direction.opposite] = False
+                self._directions[direction] = True
+            elif event.button in CTRL_SHOOT_BUTTONS:
+                self._shoot_pressed = True
+        elif event.type == pygame.CONTROLLERBUTTONUP:
+            if event.button in CTRL_DPAD_BUTTONS:
+                self._directions[CTRL_DPAD_BUTTONS[event.button]] = False
+        elif event.type == pygame.CONTROLLERAXISMOTION:
+            if event.axis == pygame.CONTROLLER_AXIS_LEFTX:
+                self._handle_axis(event.value, Direction.LEFT, Direction.RIGHT)
+            elif event.axis == pygame.CONTROLLER_AXIS_LEFTY:
+                self._handle_axis(event.value, Direction.UP, Direction.DOWN)
+
+    def get_movement_direction(self) -> tuple[int, int]:
+        dx = 0
+        dy = 0
+        for direction, pressed in self._directions.items():
+            if pressed:
+                ddx, ddy = direction.delta
+                dx += ddx
+                dy += ddy
+        return (dx, dy)
+
+    def consume_shoot(self) -> bool:
+        if self._shoot_pressed:
+            self._shoot_pressed = False
+            return True
+        return False
+
+    def clear_pending_shoot(self) -> None:
+        self._shoot_pressed = False
+
+    def _handle_axis(
+        self, raw_value: int, neg_dir: Direction, pos_dir: Direction
+    ) -> None:
+        state = classify_axis(raw_value)
+        neg = state is AxisState.NEGATIVE
+        pos = state is AxisState.POSITIVE
+        if self._directions[neg_dir] == neg and self._directions[pos_dir] == pos:
+            return
+        self._directions[neg_dir] = neg
+        self._directions[pos_dir] = pos
