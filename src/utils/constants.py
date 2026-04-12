@@ -83,6 +83,7 @@ class MenuAction(Enum):
     LEFT = auto()
     RIGHT = auto()
     CONFIRM = auto()
+    BACK = auto()
 
 
 class EffectType(Enum):

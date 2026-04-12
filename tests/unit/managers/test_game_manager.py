@@ -677,6 +677,64 @@ class TestPauseAndOptionsStateMachine:
         gm.handle_events()
         assert gm.state == GameState.EXIT
 
+    def test_pause_back_resumes(self, game_manager):
+        """BACK action in pause menu resumes the game regardless of selection."""
+        gm = game_manager
+        gm.state = GameState.PAUSED
+        gm._pause_selection = 2  # not on RESUME
+        gm._handle_pause_input(MenuAction.BACK)
+        assert gm.state == GameState.RUNNING
+
+    def test_options_back_exits(self, game_manager):
+        """BACK action in options menu exits options (like ESC)."""
+        gm = game_manager
+        gm.state = GameState.OPTIONS_MENU
+        gm._options_from_pause = True
+        gm._handle_options_input(MenuAction.BACK)
+        assert gm.state == GameState.PAUSED
+
+    def test_options_back_from_title_returns_to_title(self, game_manager):
+        """BACK in options opened from title returns to the title screen."""
+        gm = game_manager
+        gm.state = GameState.OPTIONS_MENU
+        gm._options_from_pause = False
+        gm._handle_options_input(MenuAction.BACK)
+        assert gm.state == GameState.TITLE_SCREEN
+
+    def test_held_direction_before_pause_does_not_move_selector(
+        self, game_manager, key_down_event
+    ):
+        """A KEYDOWN queued while RUNNING must not jump the pause selector.
+
+        Regression: previously, an UP KEYDOWN fired before pressing ESC would
+        queue MenuAction.UP in InputHandler; on transition to PAUSED the stale
+        action was consumed and moved the selector from 0 (Resume) to 3 (Quit).
+        """
+        gm = game_manager
+        gm.state = GameState.RUNNING
+        gm.sound_manager = MagicMock()
+        # Both events land in the same handle_events batch: UP queues a menu
+        # action, ESC pauses and should drain it before _process_menu_actions.
+        pygame.event.post(key_down_event(pygame.K_UP))
+        pygame.event.post(key_down_event(pygame.K_ESCAPE))
+        gm.handle_events()
+        assert gm.state == GameState.PAUSED
+        assert gm._pause_selection == 0
+
+    def test_resume_clears_pending_shoot(self, game_manager):
+        """Resuming from pause clears buffered shoot input on all players.
+
+        Regression: pressing controller A to select Resume used to also fire a
+        bullet on the first RUNNING frame because the press was captured as
+        both a menu CONFIRM and a shoot.
+        """
+        gm = game_manager
+        gm.state = GameState.PAUSED
+        gm._pause_selection = 0
+        gm._handle_pause_input(MenuAction.CONFIRM)
+        assert gm.state == GameState.RUNNING
+        gm.player_manager.clear_pending_shoot.assert_called_once()
+
     def test_pause_navigation_up_down(self, game_manager, key_down_event):
         """UP/DOWN navigation wraps through 4 pause items."""
         gm = game_manager

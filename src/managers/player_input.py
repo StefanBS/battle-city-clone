@@ -124,6 +124,10 @@ class PlayerInput:
             return True
         return False
 
+    def clear_pending_shoot(self) -> None:
+        """Clear any pending shoot input without consuming it as a shot."""
+        self._shoot_pressed = False
+
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
