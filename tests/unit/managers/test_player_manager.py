@@ -796,6 +796,7 @@ class TestPlayerManagerLifeStealing:
         assert result is False  # game continues
         assert p2.lives == 2
         assert p1.lives == 1  # received stolen life, respawn() does not decrement
+        assert p1.health == p1.max_health  # revived player has full health
 
     def test_no_life_steal_when_other_has_one_life(self, two_player_pm):
         """No steal if the other player has < 2 lives."""

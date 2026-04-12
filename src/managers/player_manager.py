@@ -286,6 +286,7 @@ class PlayerManager:
             if other is not player and other.lives >= 2:
                 other.lives -= 1
                 player.lives = 1
+                player.health = player.max_health
                 player.respawn()
                 return False
 
