@@ -281,16 +281,6 @@ class PlayerManager:
             player.respawn()
             return False
 
-        # No lives left — try life stealing from other player
-        for other in self._players:
-            if other is not player and other.lives >= 2:
-                other.lives -= 1
-                player.lives = 1
-                player.health = player.max_health
-                player.respawn()
-                return False
-
-        # No steal possible — check if game is over
         return self.is_game_over()
 
     def is_game_over(self) -> bool:

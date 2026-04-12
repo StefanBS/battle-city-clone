@@ -769,11 +769,11 @@ class TestPlayerManagerTwoPlayerCreation:
 
 
 # ---------------------------------------------------------------------------
-# TestPlayerManagerLifeStealing
+# TestPlayerManagerTwoPlayerDeath
 # ---------------------------------------------------------------------------
 
 
-class TestPlayerManagerLifeStealing:
+class TestPlayerManagerTwoPlayerDeath:
     @pytest.fixture
     def two_player_pm(self, player_manager, mock_game_map):
         """Create a 2P PlayerManager."""
@@ -783,8 +783,8 @@ class TestPlayerManagerLifeStealing:
         )
         return player_manager
 
-    def test_life_steal_from_other_player(self, two_player_pm):
-        """When P1 dies with 0 lives, steal 1 from P2 if P2 has 2+."""
+    def test_dead_player_does_not_borrow_from_partner(self, two_player_pm):
+        """Each player has their own life pool — no transfers between players."""
         p1 = two_player_pm._players[0]
         p2 = two_player_pm._players[1]
         p1.lives = 0
@@ -793,22 +793,20 @@ class TestPlayerManagerLifeStealing:
 
         result = two_player_pm.handle_player_death(p1)
 
-        assert result is False  # game continues
-        assert p2.lives == 2
-        assert p1.lives == 1  # received stolen life, respawn() does not decrement
-        assert p1.health == p1.max_health  # revived player has full health
+        assert result is False  # game continues because p2 is still alive
+        assert p2.lives == 3  # untouched
+        assert p1.lives == 0  # stays dead
 
-    def test_no_life_steal_when_other_has_one_life(self, two_player_pm):
-        """No steal if the other player has < 2 lives."""
+    def test_game_over_when_last_player_dies(self, two_player_pm):
+        """Game ends when the surviving player loses their last life."""
         p1 = two_player_pm._players[0]
         p2 = two_player_pm._players[1]
         p1.lives = 0
         p1.health = 0
-        p2.lives = 1
+        p2.lives = 0
+        p2.health = 0
 
-        two_player_pm.handle_player_death(p1)
-
-        assert p2.lives == 1  # unchanged
+        assert two_player_pm.handle_player_death(p2) is True
 
     def test_game_over_only_when_both_eliminated(self, two_player_pm):
         """is_game_over() is True only when both players are dead with 0 lives."""
