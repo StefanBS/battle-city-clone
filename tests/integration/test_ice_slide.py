@@ -4,7 +4,6 @@ Uses real objects (no mocks) with SDL_VIDEODRIVER=dummy for headless execution.
 """
 
 import pytest
-import pygame
 from src.core.tile import TileType
 from src.managers.player_input import CombinedInput
 from src.utils.constants import (
@@ -30,14 +29,6 @@ def _move_player_to(game, px, py):
     game.player_tank.prev_x = float(px)
     game.player_tank.prev_y = float(py)
     game.player_tank.rect.topleft = (round(px), round(py))
-
-
-_DIRECTION_TO_KEY = {
-    Direction.UP: pygame.K_UP,
-    Direction.DOWN: pygame.K_DOWN,
-    Direction.LEFT: pygame.K_LEFT,
-    Direction.RIGHT: pygame.K_RIGHT,
-}
 
 
 def _set_input(game, direction):
