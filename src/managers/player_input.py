@@ -20,6 +20,21 @@ def normalize_axis(raw_value: int) -> float:
     return raw_value / AXIS_MAX
 
 
+class AxisState(Enum):
+    NEGATIVE = auto()
+    NEUTRAL = auto()
+    POSITIVE = auto()
+
+
+def classify_axis(raw_value: int) -> AxisState:
+    value = normalize_axis(raw_value)
+    if value < -AXIS_DEADZONE:
+        return AxisState.NEGATIVE
+    if value > AXIS_DEADZONE:
+        return AxisState.POSITIVE
+    return AxisState.NEUTRAL
+
+
 KEY_TO_DIRECTION: dict[int, Direction] = {
     pygame.K_UP: Direction.UP,
     pygame.K_DOWN: Direction.DOWN,

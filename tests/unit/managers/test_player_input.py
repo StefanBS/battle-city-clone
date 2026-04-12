@@ -1,6 +1,12 @@
 import pytest
 import pygame
-from src.managers.player_input import AXIS_MAX, InputSource, PlayerInput
+from src.managers.player_input import (
+    AXIS_MAX,
+    AxisState,
+    InputSource,
+    PlayerInput,
+    classify_axis,
+)
 
 
 @pytest.fixture
@@ -331,3 +337,27 @@ class TestPlayerInputExclusiveMode:
             )
         )
         assert pi.consume_shoot() is True
+
+
+class TestClassifyAxis:
+    def test_neutral_at_zero(self) -> None:
+        assert classify_axis(0) is AxisState.NEUTRAL
+
+    def test_neutral_inside_positive_deadzone(self) -> None:
+        # AXIS_DEADZONE = 0.5; an int16 just below 0.5 * AXIS_MAX is NEUTRAL
+        assert classify_axis(int(0.49 * AXIS_MAX)) is AxisState.NEUTRAL
+
+    def test_neutral_inside_negative_deadzone(self) -> None:
+        assert classify_axis(int(-0.49 * AXIS_MAX)) is AxisState.NEUTRAL
+
+    def test_positive_just_above_deadzone(self) -> None:
+        assert classify_axis(int(0.51 * AXIS_MAX)) is AxisState.POSITIVE
+
+    def test_negative_just_below_deadzone(self) -> None:
+        assert classify_axis(int(-0.51 * AXIS_MAX)) is AxisState.NEGATIVE
+
+    def test_positive_int16_max(self) -> None:
+        assert classify_axis(AXIS_MAX) is AxisState.POSITIVE
+
+    def test_negative_int16_min(self) -> None:
+        assert classify_axis(-AXIS_MAX) is AxisState.NEGATIVE
