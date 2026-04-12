@@ -10,7 +10,12 @@ from src.core.bullet import Bullet
 from src.core.map import Map
 from src.core.player_tank import PlayerTank
 from src.core.tile import Tile
-from src.managers.player_input import InputSource, PlayerInput
+from src.managers.player_input import (
+    CombinedInput,
+    ControllerInput,
+    KeyboardInput,
+    PlayerInput,
+)
 from src.managers.player_manager import PlayerManager
 from src.managers.sound_manager import SoundManager
 from src.utils.constants import TILE_SIZE
@@ -96,22 +101,29 @@ class TestPlayerManagerCreation:
         assert player.x == expected_x
         assert player.y == expected_y
 
-    def test_create_players_keyboard_when_no_joystick(
+    def test_create_players_1p_is_combined_input(
         self, player_manager, mock_game_map
-    ):
-        """Keyboard input source is assigned when no joystick is present."""
+    ) -> None:
+        """1P always wraps keyboard + non-filtering controller in CombinedInput.
+
+        Uses ControllerInput(instance_id=None) regardless of whether a
+        controller is currently plugged in, so hot-plugging Just Works.
+        """
         player_manager.create_players(mock_game_map, controller_instance_ids=[])
+        pi = player_manager._player_inputs[0]
+        assert isinstance(pi, CombinedInput)
+        assert len(pi._inputs) == 2
+        assert isinstance(pi._inputs[0], KeyboardInput)
+        assert isinstance(pi._inputs[1], ControllerInput)
+        assert pi._inputs[1].instance_id is None
 
-        assert player_manager._player_inputs[0].source == InputSource.KEYBOARD
-
-    def test_create_players_controller_when_available(
+    def test_create_players_1p_combined_ignores_instance_ids(
         self, player_manager, mock_game_map
-    ):
-        """Controller input source is assigned when a joystick is detected."""
+    ) -> None:
         player_manager.create_players(mock_game_map, controller_instance_ids=[7])
-
-        assert player_manager._player_inputs[0].source == InputSource.CONTROLLER
-        assert player_manager._player_inputs[0].instance_id == 7
+        pi = player_manager._player_inputs[0]
+        assert isinstance(pi, CombinedInput)
+        assert pi._inputs[1].instance_id is None
 
     def test_create_players_clears_previous_state(self, player_manager, mock_game_map):
         """Calling create_players() twice resets players, inputs, and bullets."""
@@ -164,7 +176,7 @@ class TestPlayerManagerUpdate:
         player.height = TILE_SIZE
         self.pm._players = [player]
         # Pair with a keyboard input that has no keys pressed
-        self.pm._player_inputs = [PlayerInput(InputSource.KEYBOARD)]
+        self.pm._player_inputs = [KeyboardInput()]
 
         self.pm.update(0.016, self.game_map)
 
@@ -175,7 +187,7 @@ class TestPlayerManagerUpdate:
         player = MagicMock(spec=PlayerTank)
         player.health = 0
         self.pm._players = [player]
-        self.pm._player_inputs = [PlayerInput(InputSource.KEYBOARD)]
+        self.pm._player_inputs = [KeyboardInput()]
 
         self.pm.update(0.016, self.game_map)
 
@@ -195,7 +207,7 @@ class TestPlayerManagerUpdate:
         player.height = TILE_SIZE
         self.pm._players = [player]
 
-        pi = PlayerInput(InputSource.KEYBOARD)
+        pi = KeyboardInput()
         pi.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_UP))
         self.pm._player_inputs = [pi]
 
@@ -217,7 +229,7 @@ class TestPlayerManagerUpdate:
         player.height = TILE_SIZE
         self.pm._players = [player]
 
-        pi = PlayerInput(InputSource.KEYBOARD)
+        pi = KeyboardInput()
         # Press both UP and RIGHT simultaneously
         pi.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_UP))
         pi.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RIGHT))
@@ -241,7 +253,7 @@ class TestPlayerManagerUpdate:
         player.height = TILE_SIZE
         self.pm._players = [player]
 
-        pi = PlayerInput(InputSource.KEYBOARD)
+        pi = KeyboardInput()
         pi.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_UP))
         self.pm._player_inputs = [pi]
 
@@ -271,7 +283,7 @@ class TestPlayerManagerUpdate:
         player.height = TILE_SIZE
 
         self.pm._players = [player]
-        self.pm._player_inputs = [PlayerInput(InputSource.KEYBOARD)]  # no keys pressed
+        self.pm._player_inputs = [KeyboardInput()]  # no keys pressed
 
         self.pm.update(0.016, self.game_map)
 
@@ -323,7 +335,7 @@ class TestPlayerManagerShooting:
         player.shoot.return_value = bullet
 
         self.pm._players = [player]
-        pi = PlayerInput(InputSource.KEYBOARD)
+        pi = KeyboardInput()
         pi._shoot_pressed = True  # simulate a shoot press
         self.pm._player_inputs = [pi]
 
@@ -340,7 +352,7 @@ class TestPlayerManagerShooting:
         player.max_bullets = 1
 
         self.pm._players = [player]
-        self.pm._player_inputs = [PlayerInput(InputSource.KEYBOARD)]
+        self.pm._player_inputs = [KeyboardInput()]
 
         self.pm.try_shoot()
 
@@ -359,7 +371,7 @@ class TestPlayerManagerShooting:
         self.pm._bullets = [existing_bullet]
 
         self.pm._players = [player]
-        pi = PlayerInput(InputSource.KEYBOARD)
+        pi = KeyboardInput()
         pi._shoot_pressed = True
         self.pm._player_inputs = [pi]
 
@@ -374,7 +386,7 @@ class TestPlayerManagerShooting:
         player.max_bullets = 1
 
         self.pm._players = [player]
-        pi = PlayerInput(InputSource.KEYBOARD)
+        pi = KeyboardInput()
         pi._shoot_pressed = True
         self.pm._player_inputs = [pi]
 
@@ -390,7 +402,7 @@ class TestPlayerManagerShooting:
         player.shoot.return_value = None
 
         self.pm._players = [player]
-        pi = PlayerInput(InputSource.KEYBOARD)
+        pi = KeyboardInput()
         pi._shoot_pressed = True
         self.pm._player_inputs = [pi]
 
@@ -681,11 +693,9 @@ class TestPlayerManagerTwoPlayerCreation:
         player_manager.create_players(
             mock_game_map, controller_instance_ids=[4], two_player_mode=True
         )
-        assert player_manager._player_inputs[0].source == InputSource.KEYBOARD
-        assert player_manager._player_inputs[0]._exclusive is True
-        assert player_manager._player_inputs[1].source == InputSource.CONTROLLER
+        assert isinstance(player_manager._player_inputs[0], KeyboardInput)
+        assert isinstance(player_manager._player_inputs[1], ControllerInput)
         assert player_manager._player_inputs[1].instance_id == 4
-        assert player_manager._player_inputs[1]._exclusive is True
 
     def test_2p_two_controllers_both_controller(self, player_manager, mock_game_map):
         """2P + 2 controllers: each player bound to its own instance_id."""
@@ -693,9 +703,9 @@ class TestPlayerManagerTwoPlayerCreation:
         player_manager.create_players(
             mock_game_map, controller_instance_ids=[8, 12], two_player_mode=True
         )
-        assert player_manager._player_inputs[0].source == InputSource.CONTROLLER
+        assert isinstance(player_manager._player_inputs[0], ControllerInput)
         assert player_manager._player_inputs[0].instance_id == 8
-        assert player_manager._player_inputs[1].source == InputSource.CONTROLLER
+        assert isinstance(player_manager._player_inputs[1], ControllerInput)
         assert player_manager._player_inputs[1].instance_id == 12
 
     def test_2p_two_controllers_non_sequential_instance_ids(
@@ -754,10 +764,8 @@ class TestPlayerManagerTwoPlayerCreation:
             mock_game_map, controller_instance_ids=[], two_player_mode=True
         )
 
-        assert player_manager._player_inputs[0].source == InputSource.KEYBOARD
-        assert player_manager._player_inputs[0]._exclusive is True
-        assert player_manager._player_inputs[1].source == InputSource.KEYBOARD
-        assert player_manager._player_inputs[1]._exclusive is True
+        assert isinstance(player_manager._player_inputs[0], KeyboardInput)
+        assert isinstance(player_manager._player_inputs[1], KeyboardInput)
 
 
 # ---------------------------------------------------------------------------

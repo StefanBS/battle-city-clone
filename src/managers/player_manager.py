@@ -9,7 +9,12 @@ from loguru import logger
 
 from src.core.bullet import Bullet
 from src.core.player_tank import PlayerTank
-from src.managers.player_input import InputSource, PlayerInput
+from src.managers.player_input import (
+    CombinedInput,
+    ControllerInput,
+    KeyboardInput,
+    PlayerInput,
+)
 
 if TYPE_CHECKING:
     from src.core.map import Map
@@ -81,58 +86,31 @@ class PlayerManager:
             self._players.append(make_player(p2_spawn, 2))
             self._player_inputs.extend(self._two_player_inputs(controller_instance_ids))
         else:
-            self._player_inputs.extend(self._one_player_inputs(controller_instance_ids))
+            self._player_inputs.extend(self._one_player_inputs())
 
         for player in self._players:
             if player.player_id not in self._scores:
                 self._scores[player.player_id] = 0
 
     @staticmethod
-    def _one_player_inputs(instance_ids: list[int]) -> list[PlayerInput]:
-        """Build the PlayerInput list for 1P mode.
-
-        1P is non-exclusive: a single PlayerInput accepts both keyboard and
-        controller events. When a controller is available we bind the first
-        one's instance_id; its value is effectively ignored by the filter
-        (non-exclusive short-circuits) but we still need something valid.
-        """
-        if instance_ids:
-            return [PlayerInput(InputSource.CONTROLLER, instance_id=instance_ids[0])]
-        return [PlayerInput(InputSource.KEYBOARD)]
+    def _one_player_inputs() -> list[PlayerInput]:
+        return [CombinedInput([KeyboardInput(), ControllerInput(instance_id=None)])]
 
     @staticmethod
     def _two_player_inputs(instance_ids: list[int]) -> list[PlayerInput]:
         """Build the PlayerInput list for 2P mode (always exclusive)."""
         if len(instance_ids) >= 2:
             return [
-                PlayerInput(
-                    InputSource.CONTROLLER,
-                    instance_id=instance_ids[0],
-                    exclusive=True,
-                ),
-                PlayerInput(
-                    InputSource.CONTROLLER,
-                    instance_id=instance_ids[1],
-                    exclusive=True,
-                ),
+                ControllerInput(instance_ids[0]),
+                ControllerInput(instance_ids[1]),
             ]
         if len(instance_ids) == 1:
-            return [
-                PlayerInput(InputSource.KEYBOARD, exclusive=True),
-                PlayerInput(
-                    InputSource.CONTROLLER,
-                    instance_id=instance_ids[0],
-                    exclusive=True,
-                ),
-            ]
+            return [KeyboardInput(), ControllerInput(instance_ids[0])]
         logger.warning(
             "2-player mode started without any controllers; P1 and P2 will "
             "both use the keyboard and compete for the same keys."
         )
-        return [
-            PlayerInput(InputSource.KEYBOARD, exclusive=True),
-            PlayerInput(InputSource.KEYBOARD, exclusive=True),
-        ]
+        return [KeyboardInput(), KeyboardInput()]
 
     def handle_event(self, event: pygame.event.Event) -> None:
         """Forward a pygame event to all PlayerInput instances.

@@ -2,7 +2,7 @@ import pytest
 import pygame
 from unittest.mock import patch, MagicMock
 from src.managers.input_handler import InputHandler
-from src.managers.player_input import InputSource, PlayerInput
+from src.managers.player_input import ControllerInput
 from src.utils.constants import MenuAction
 
 
@@ -179,7 +179,7 @@ class TestControllerHotPlug:
             handler.handle_event(ctrl_device_added_event(device_index=0))
         assert handler.controller_instance_ids == [42]
 
-        pi = PlayerInput(InputSource.CONTROLLER, instance_id=42, exclusive=True)
+        pi = ControllerInput(instance_id=42)
         pi.handle_event(
             ctrl_button_down_event(pygame.CONTROLLER_BUTTON_A, instance_id=42)
         )
@@ -190,8 +190,8 @@ class TestControllerButtonUp:
     """Tests for CONTROLLERBUTTONUP handling (direction release)."""
 
     def test_dpad_up_release_clears_direction(self) -> None:
-        """Releasing a held D-pad direction clears it in PlayerInput."""
-        pi = PlayerInput(InputSource.CONTROLLER, instance_id=0)
+        """Releasing a held D-pad direction clears it in ControllerInput."""
+        pi = ControllerInput(instance_id=0)
         pi.handle_event(
             pygame.event.Event(
                 pygame.CONTROLLERBUTTONDOWN,
@@ -277,17 +277,13 @@ class TestMenuActionsController:
     def test_dpad_down_produces_menu_down(
         self, handler, ctrl_button_down_event
     ) -> None:
-        handler.handle_event(
-            ctrl_button_down_event(pygame.CONTROLLER_BUTTON_DPAD_DOWN)
-        )
+        handler.handle_event(ctrl_button_down_event(pygame.CONTROLLER_BUTTON_DPAD_DOWN))
         assert MenuAction.DOWN in handler.consume_menu_actions()
 
     def test_dpad_left_produces_menu_left(
         self, handler, ctrl_button_down_event
     ) -> None:
-        handler.handle_event(
-            ctrl_button_down_event(pygame.CONTROLLER_BUTTON_DPAD_LEFT)
-        )
+        handler.handle_event(ctrl_button_down_event(pygame.CONTROLLER_BUTTON_DPAD_LEFT))
         assert MenuAction.LEFT in handler.consume_menu_actions()
 
     def test_dpad_right_produces_menu_right(
@@ -298,9 +294,7 @@ class TestMenuActionsController:
         )
         assert MenuAction.RIGHT in handler.consume_menu_actions()
 
-    def test_a_button_produces_confirm(
-        self, handler, ctrl_button_down_event
-    ) -> None:
+    def test_a_button_produces_confirm(self, handler, ctrl_button_down_event) -> None:
         handler.handle_event(ctrl_button_down_event(pygame.CONTROLLER_BUTTON_A))
         assert MenuAction.CONFIRM in handler.consume_menu_actions()
 
@@ -315,9 +309,7 @@ class TestMenuActionsAxisEdgeDetection:
     def test_axis_crossing_deadzone_produces_action(
         self, handler, ctrl_axis_event
     ) -> None:
-        handler.handle_event(
-            ctrl_axis_event(pygame.CONTROLLER_AXIS_LEFTX, -0.8)
-        )
+        handler.handle_event(ctrl_axis_event(pygame.CONTROLLER_AXIS_LEFTX, -0.8))
         assert MenuAction.LEFT in handler.consume_menu_actions()
 
     def test_axis_held_does_not_repeat(self, handler, ctrl_axis_event) -> None:

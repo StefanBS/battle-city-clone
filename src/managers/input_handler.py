@@ -6,10 +6,10 @@ import pygame
 from loguru import logger
 
 from src.managers.player_input import (
-    AXIS_DEADZONE,
     CTRL_DPAD_BUTTONS,
     KEY_TO_DIRECTION,
-    normalize_axis,
+    AxisState,
+    classify_axis,
 )
 from src.utils.constants import Direction, MenuAction
 
@@ -120,26 +120,27 @@ class InputHandler:
             elif event.button in _CTRL_MENU_BUTTONS:
                 self._menu_actions.append(_CTRL_MENU_BUTTONS[event.button])
         elif event.type == pygame.CONTROLLERAXISMOTION:
-            value = normalize_axis(event.value)
             if event.axis == pygame.CONTROLLER_AXIS_LEFTX:
                 self._emit_axis_menu_action(
-                    True, value, MenuAction.LEFT, MenuAction.RIGHT
+                    True, event.value, MenuAction.LEFT, MenuAction.RIGHT
                 )
             elif event.axis == pygame.CONTROLLER_AXIS_LEFTY:
                 self._emit_axis_menu_action(
-                    False, value, MenuAction.UP, MenuAction.DOWN
+                    False, event.value, MenuAction.UP, MenuAction.DOWN
                 )
 
     def _emit_axis_menu_action(
         self,
         horizontal: bool,
-        value: float,
+        raw_value: int,
         neg_action: MenuAction,
         pos_action: MenuAction,
     ) -> None:
-        if value < -AXIS_DEADZONE:
-            new_state: Optional[MenuAction] = neg_action
-        elif value > AXIS_DEADZONE:
+        state = classify_axis(raw_value)
+        new_state: Optional[MenuAction]
+        if state is AxisState.NEGATIVE:
+            new_state = neg_action
+        elif state is AxisState.POSITIVE:
             new_state = pos_action
         else:
             new_state = None
