@@ -129,6 +129,16 @@ class TestCollisionManager:
             enemy_bullets=[mock_objects["e_bullets"][0]],
         )
 
+    def test_player_bullet_vs_player_tank(self, collision_manager, mock_objects):
+        """Test collision between player bullet and player tank (friendly fire)."""
+        self._assert_single_collision(
+            collision_manager,
+            mock_objects["p_bullets"][0],
+            mock_objects["player"],
+            player_tanks=[mock_objects["player"]],
+            player_bullets=[mock_objects["p_bullets"][0]],
+        )
+
     def test_enemy_bullet_vs_player_base(self, collision_manager, mock_objects):
         """Test collision between enemy bullet and player base."""
         self._assert_single_collision(

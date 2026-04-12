@@ -174,3 +174,45 @@ class TestJoystickPlayerInput:
             )
         )
         assert joystick_input.get_movement_direction() == (-1, 0)
+
+
+class TestPlayerInputExclusiveMode:
+    def test_exclusive_keyboard_ignores_joystick(self):
+        """In exclusive mode, KEYBOARD source ignores joystick events."""
+        pi = PlayerInput(InputSource.KEYBOARD, exclusive=True)
+        pi.handle_event(
+            pygame.event.Event(pygame.JOYBUTTONDOWN, button=0, joy=0)
+        )
+        assert pi.consume_shoot() is False
+
+    def test_exclusive_joystick_ignores_keyboard(self):
+        """In exclusive mode, JOYSTICK source ignores keyboard events."""
+        pi = PlayerInput(InputSource.JOYSTICK, joystick_index=0, exclusive=True)
+        pi.handle_event(
+            pygame.event.Event(pygame.KEYDOWN, key=pygame.K_SPACE)
+        )
+        assert pi.consume_shoot() is False
+
+    def test_non_exclusive_keyboard_handles_joystick(self):
+        """Without exclusive mode, KEYBOARD source still handles joystick (default)."""
+        pi = PlayerInput(InputSource.KEYBOARD)
+        pi.handle_event(
+            pygame.event.Event(pygame.JOYBUTTONDOWN, button=0, joy=0)
+        )
+        assert pi.consume_shoot() is True
+
+    def test_exclusive_keyboard_handles_keyboard(self):
+        """In exclusive mode, KEYBOARD source still handles keyboard events."""
+        pi = PlayerInput(InputSource.KEYBOARD, exclusive=True)
+        pi.handle_event(
+            pygame.event.Event(pygame.KEYDOWN, key=pygame.K_SPACE)
+        )
+        assert pi.consume_shoot() is True
+
+    def test_exclusive_joystick_handles_joystick(self):
+        """In exclusive mode, JOYSTICK source still handles joystick events."""
+        pi = PlayerInput(InputSource.JOYSTICK, joystick_index=0, exclusive=True)
+        pi.handle_event(
+            pygame.event.Event(pygame.JOYBUTTONDOWN, button=0, joy=0)
+        )
+        assert pi.consume_shoot() is True

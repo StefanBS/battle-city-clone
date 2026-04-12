@@ -29,6 +29,7 @@ class PlayerTank(Tank):
         *,
         map_width_px: int,
         map_height_px: int,
+        player_id: int = 1,
     ) -> None:
         """
         Initialize the player tank.
@@ -55,7 +56,9 @@ class PlayerTank(Tank):
             map_width_px=map_width_px,
             map_height_px=map_height_px,
         )
+        self.player_id: int = player_id
         self.star_level: int = 0
+        self._freeze_timer: float = 0.0
         self._update_sprite()
         self._shield_frames: list[pygame.Surface] = [
             texture_manager.get_sprite("shield_1"),
@@ -64,14 +67,15 @@ class PlayerTank(Tank):
 
     def apply_star(self) -> None:
         """Apply a star upgrade (up to tier 3)."""
-        if self.star_level < MAX_STAR_LEVEL:
-            self.star_level += 1
-        self._apply_star_stats()
-        self._update_sprite()
+        self._set_star_level(min(self.star_level + 1, MAX_STAR_LEVEL))
 
     def restore_star_level(self, level: int) -> None:
         """Restore star level (e.g., after stage load). Clamps to 0-3."""
-        self.star_level = max(0, min(MAX_STAR_LEVEL, level))
+        self._set_star_level(max(0, min(MAX_STAR_LEVEL, level)))
+
+    def _set_star_level(self, level: int) -> None:
+        """Set star level and apply stats and sprite changes."""
+        self.star_level = level
         self._apply_star_stats()
         self._update_sprite()
 
@@ -98,13 +102,29 @@ class PlayerTank(Tank):
 
     def _update_sprite(self) -> None:
         """Update sprite using tier-specific sprites."""
+        prefix = "player2_tank" if self.player_id == 2 else "player_tank"
         sprite_name = (
-            f"player_tank_tier{self.star_level}_{self.direction}_{self.animation_frame}"
+            f"{prefix}_tier{self.star_level}_{self.direction}_{self.animation_frame}"
         )
         try:
             self.sprite = self.texture_manager.get_sprite(sprite_name)
         except KeyError:
             logger.error(f"Sprite '{sprite_name}' not found for player tank.")
+
+    @property
+    def is_frozen(self) -> bool:
+        """Whether the player is currently frozen (friendly fire)."""
+        return self._freeze_timer > 0
+
+    def freeze(self, duration: float) -> None:
+        """Freeze the player for the given duration (friendly fire effect)."""
+        self._freeze_timer = duration
+
+    def update(self, dt: float) -> None:
+        """Update timers including freeze countdown."""
+        super().update(dt)
+        if self._freeze_timer > 0:
+            self._freeze_timer = max(0.0, self._freeze_timer - dt)
 
     def activate_invincibility(self, duration: float) -> None:
         """Activate invincibility for the given duration."""
@@ -125,6 +145,8 @@ class PlayerTank(Tank):
             dy: Y movement amount (-1, 0, or 1)
             dt: Time elapsed since last update in seconds
         """
+        if self.is_frozen:
+            return
         if dx == 0 and dy == 0:
             return
 
@@ -144,6 +166,12 @@ class PlayerTank(Tank):
 
         self._move(dx, dy, dt)
 
+    def shoot(self):
+        """Shoot a bullet. Returns None if frozen."""
+        if self.is_frozen:
+            return None
+        return super().shoot()
+
     def respawn(self) -> None:
         """Respawn the tank at its initial position."""
         if self.lives > 0:
@@ -154,10 +182,8 @@ class PlayerTank(Tank):
             self.prev_x = self.x
             self.prev_y = self.y
             self.activate_invincibility(SPAWN_INVINCIBILITY_DURATION)
-            self.star_level = 0
-            self._apply_star_stats()
             self.direction = Direction.UP
-            self._update_sprite()
+            self._set_star_level(0)
 
     def draw(self, surface: pygame.Surface) -> None:
         """Draw the player tank with shield overlay when invincible."""

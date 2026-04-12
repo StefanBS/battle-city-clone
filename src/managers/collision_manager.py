@@ -60,6 +60,7 @@ class CollisionManager:
             self._check_group_vs_single(enemy_bullets, player_base)
         for player_tank in player_tanks:
             self._check_group_vs_single(enemy_bullets, player_tank)
+            self._check_group_vs_single(player_bullets, player_tank)
 
         # Tank collisions
         self._check_group_vs_group(all_tanks, tank_blocking_tiles)

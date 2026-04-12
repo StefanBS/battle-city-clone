@@ -1,5 +1,5 @@
 import pygame
-from typing import List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 from src.states.game_state import GameState
 from src.utils.constants import (
     WHITE,
@@ -61,11 +61,8 @@ class Renderer:
         # Cached text surface for game over animation (set on first use)
         self._game_over_text: Optional[pygame.Surface] = None
 
-        # HUD text cache (re-render only when values change)
-        self._cached_lives: Optional[int] = None
-        self._cached_lives_text: Optional[pygame.Surface] = None
-        self._cached_score: Optional[int] = None
-        self._cached_score_text: Optional[pygame.Surface] = None
+        # HUD text cache: {slot -> (label_str, score_str, label_surf, score_surf)}
+        self._cached_hud: Dict[str, tuple] = {}
 
         # Reusable overlay surfaces for pause/game-over screens
         self._pause_overlay: pygame.Surface = pygame.Surface(
@@ -85,7 +82,7 @@ class Renderer:
         bullets: List,
         effect_manager,
         state: GameState,
-        score: int = 0,
+        scores: Optional[Dict[int, int]] = None,
         power_ups: Sequence = (),
         game_over_rise_progress: Optional[float] = None,
     ) -> None:
@@ -97,7 +94,7 @@ class Renderer:
             enemy_tanks: List of enemy tanks.
             bullets: List of bullets.
             state: Current game state.
-            score: Current player score.
+            scores: Per-player scores dict {player_id: score}.
             power_ups: Active power-ups to draw.
         """
         self.game_surface.fill(GRAY)
@@ -120,7 +117,7 @@ class Renderer:
 
         self.game_surface.blit(self.map_surface, (self.map_offset_x, self.map_offset_y))
 
-        self._draw_hud(player_tanks, score)
+        self._draw_hud(player_tanks, scores)
 
         if state == GameState.GAME_OVER:
             self._draw_game_over()
@@ -154,30 +151,85 @@ class Renderer:
         rect = surface.get_rect(center=(self._center_x, y))
         self.game_surface.blit(surface, rect)
 
-    def _draw_hud(self, player_tanks: List, score: int = 0) -> None:
+    def _draw_hud(
+        self, player_tanks: List, scores: Optional[Dict[int, int]] = None
+    ) -> None:
         """Draw the heads-up display.
 
         Args:
-            player_tanks: List of player tanks (uses first player for lives).
-            score: Current player score.
+            player_tanks: List of player tanks.
+            scores: Per-player scores dict {player_id: score}.
         """
-        lives = player_tanks[0].lives if player_tanks else 0
-        if self._cached_lives != lives:
-            self._cached_lives = lives
-            self._cached_lives_text = self.small_font.render(
-                f"Lives: {lives}", True, WHITE
-            )
-        self.game_surface.blit(self._cached_lives_text, (10, 10))
+        if scores is None:
+            scores = {}
 
-        if self._cached_score != score:
-            self._cached_score = score
-            self._cached_score_text = self.small_font.render(
-                f"Score: {score:>6}", True, WHITE
+        is_2p = len(player_tanks) > 1
+
+        if is_2p:
+            for i, player in enumerate(player_tanks):
+                pid = player.player_id
+                player_score = scores.get(pid, 0)
+                eliminated = player.health <= 0 and player.lives <= 0
+                if eliminated:
+                    label = f"P{pid}: OUT"
+                    color = GRAY
+                else:
+                    label = f"P{pid}: {player.lives}"
+                    color = WHITE
+                align = "left" if i == 0 else "right"
+                self._draw_hud_slot(
+                    f"p{pid}", label, f"{player_score:>6}", color, align
+                )
+        else:
+            lives = player_tanks[0].lives if player_tanks else 0
+            total_score = sum(scores.values())
+            self._draw_hud_slot(
+                "lives", f"Lives: {lives}", None, WHITE, "left"
             )
-        score_rect = self._cached_score_text.get_rect(
-            topright=(self.logical_width - 10, 10)
-        )
-        self.game_surface.blit(self._cached_score_text, score_rect)
+            self._draw_hud_slot(
+                "score", f"Score: {total_score:>6}", None, WHITE, "right"
+            )
+
+    def _draw_hud_slot(
+        self,
+        slot: str,
+        label: str,
+        score_text: Optional[str],
+        color: Tuple[int, int, int],
+        align: str,
+    ) -> None:
+        """Render and blit a cached HUD slot (label + optional score line).
+
+        Re-renders only when the text changes.
+        """
+        cached = self._cached_hud.get(slot)
+        if cached is None or cached[0] != label or cached[1] != score_text:
+            label_surf = self.small_font.render(label, True, color)
+            score_surf = (
+                self.small_font.render(score_text, True, WHITE)
+                if score_text
+                else None
+            )
+            self._cached_hud[slot] = (label, score_text, label_surf, score_surf)
+        else:
+            label_surf = cached[2]
+            score_surf = cached[3]
+
+        if align == "left":
+            self.game_surface.blit(label_surf, (10, 10))
+            if score_surf:
+                self.game_surface.blit(score_surf, (10, 24))
+        else:
+            label_rect = label_surf.get_rect(
+                topright=(self.logical_width - 10, 10)
+            )
+            self.game_surface.blit(label_surf, label_rect)
+            if score_surf:
+                score_rect = score_surf.get_rect(
+                    topright=(self.logical_width - 10, 24)
+                )
+                self.game_surface.blit(score_surf, score_rect)
+                self.game_surface.blit(score_surf, score_rect)
 
     def _draw_game_over_rising(self, progress: float) -> None:
         """Draw 'GAME OVER' text rising from bottom to center.
@@ -276,7 +328,7 @@ class Renderer:
         self._draw_centered_text("BATTLE CITY", self.font, WHITE, self._center_y - 80)
 
         options = ["1 PLAYER", "2 PLAYERS", "OPTIONS", "DEMO", "QUIT"]
-        colors = [WHITE, GRAY, WHITE, WHITE, WHITE]
+        colors = [WHITE, WHITE, WHITE, WHITE, WHITE]
         self._draw_menu(options, menu_selection, self._center_y, colors=colors)
 
         self._present_surface()

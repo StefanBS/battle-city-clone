@@ -41,7 +41,7 @@ class PlayerManager:
         self._players: list[PlayerTank] = []
         self._player_inputs: list[PlayerInput] = []
         self._bullets: list[Bullet] = []
-        self._score: int = 0
+        self._scores: dict[int, int] = {}
         self._preserved_state: dict[int, dict] = {}
 
     # ------------------------------------------------------------------
@@ -53,11 +53,14 @@ class PlayerManager:
 
         For 1P mode: creates one PlayerTank at game_map.player_spawn.
         Assigns a joystick input if a joystick is detected, otherwise keyboard.
+        For 2P mode: creates two PlayerTanks and assigns inputs as follows:
+        - 2+ controllers: P1=joystick 0, P2=joystick 1 (both exclusive)
+        - 1 controller: P1=keyboard (exclusive), P2=joystick 0 (exclusive)
         Clears any previously stored players, inputs, and bullets.
 
         Args:
             game_map: The loaded Map object providing spawn position and dimensions.
-            two_player_mode: Reserved for future 2-player support (unused).
+            two_player_mode: When True, creates a second player tank.
         """
         self._players.clear()
         self._player_inputs.clear()
@@ -65,25 +68,53 @@ class PlayerManager:
 
         map_width_px = game_map.width * game_map.tile_size
         map_height_px = game_map.height * game_map.tile_size
-        start_x = game_map.player_spawn[0] * game_map.tile_size
-        start_y = game_map.player_spawn[1] * game_map.tile_size
 
-        player = PlayerTank(
-            start_x,
-            start_y,
-            game_map.tile_size,
-            self._texture_manager,
-            map_width_px=map_width_px,
-            map_height_px=map_height_px,
-        )
-        self._players.append(player)
-
-        if pygame.joystick.get_count() > 0:
-            self._player_inputs.append(
-                PlayerInput(InputSource.JOYSTICK, joystick_index=0)
+        def make_player(spawn: tuple[int, int], pid: int) -> PlayerTank:
+            return PlayerTank(
+                spawn[0] * game_map.tile_size,
+                spawn[1] * game_map.tile_size,
+                game_map.tile_size,
+                self._texture_manager,
+                map_width_px=map_width_px,
+                map_height_px=map_height_px,
+                player_id=pid,
             )
+
+        self._players.append(make_player(game_map.player_spawn, 1))
+
+        if two_player_mode:
+            p2_spawn = game_map.player_spawn_2
+            if p2_spawn is None:
+                px = game_map.player_spawn[0] + 8
+                p2_spawn = (px, game_map.player_spawn[1])
+            self._players.append(make_player(p2_spawn, 2))
+
+            joy_count = pygame.joystick.get_count()
+            if joy_count >= 2:
+                self._player_inputs.append(
+                    PlayerInput(InputSource.JOYSTICK, joystick_index=0, exclusive=True)
+                )
+                self._player_inputs.append(
+                    PlayerInput(InputSource.JOYSTICK, joystick_index=1, exclusive=True)
+                )
+            else:
+                self._player_inputs.append(
+                    PlayerInput(InputSource.KEYBOARD, exclusive=True)
+                )
+                self._player_inputs.append(
+                    PlayerInput(InputSource.JOYSTICK, joystick_index=0, exclusive=True)
+                )
         else:
-            self._player_inputs.append(PlayerInput(InputSource.KEYBOARD))
+            if pygame.joystick.get_count() > 0:
+                self._player_inputs.append(
+                    PlayerInput(InputSource.JOYSTICK, joystick_index=0)
+                )
+            else:
+                self._player_inputs.append(PlayerInput(InputSource.KEYBOARD))
+
+        for player in self._players:
+            if player.player_id not in self._scores:
+                self._scores[player.player_id] = 0
 
     # ------------------------------------------------------------------
     # Event forwarding
@@ -199,16 +230,36 @@ class PlayerManager:
 
     @property
     def score(self) -> int:
-        """Current player score."""
-        return self._score
+        """Total score across all players."""
+        return sum(self._scores.values())
 
-    def add_score(self, points: int) -> None:
-        """Increment the player score.
+    def add_score(self, points: int, player_id: int = 1) -> None:
+        """Add points to a specific player's score.
 
         Args:
             points: Number of points to add.
+            player_id: The player whose score to update (defaults to 1 for
+                backward compatibility with 1-player mode).
         """
-        self._score += points
+        if player_id not in self._scores:
+            self._scores[player_id] = 0
+        self._scores[player_id] += points
+
+    @property
+    def scores(self) -> dict[int, int]:
+        """Per-player scores dict {player_id: score}. Read-only view."""
+        return self._scores
+
+    def get_score(self, player_id: int) -> int:
+        """Get a specific player's score.
+
+        Args:
+            player_id: The player whose score to retrieve.
+
+        Returns:
+            The player's current score, or 0 if not found.
+        """
+        return self._scores.get(player_id, 0)
 
     # ------------------------------------------------------------------
     # State preservation
@@ -217,17 +268,17 @@ class PlayerManager:
     def preserve_state(self) -> None:
         """Save player state before stage transition."""
         self._preserved_state = {}
-        for i, player in enumerate(self._players):
-            self._preserved_state[i] = {
+        for player in self._players:
+            self._preserved_state[player.player_id] = {
                 "lives": player.lives,
                 "star_level": player.star_level,
             }
 
     def restore_state(self) -> None:
         """Restore player state after new tank creation."""
-        for i, player in enumerate(self._players):
-            if i in self._preserved_state:
-                state = self._preserved_state[i]
+        for player in self._players:
+            state = self._preserved_state.get(player.player_id)
+            if state is not None:
                 player.lives = state["lives"]
                 if state["star_level"] > 0:
                     player.restore_star_level(state["star_level"])
@@ -248,7 +299,16 @@ class PlayerManager:
         if player.lives > 0:
             player.respawn()
             return False
-        # No lives left — player eliminated
+
+        # No lives left — try life stealing from other player
+        for other in self._players:
+            if other is not player and other.lives >= 2:
+                other.lives -= 1
+                player.lives = 1
+                player.respawn()
+                return False
+
+        # No steal possible — check if game is over
         return self.is_game_over()
 
     def is_game_over(self) -> bool:
@@ -268,7 +328,7 @@ class PlayerManager:
         self._players.clear()
         self._player_inputs.clear()
         self._bullets.clear()
-        self._score = 0
+        self._scores = {}
         self._preserved_state = {}
 
     # ------------------------------------------------------------------

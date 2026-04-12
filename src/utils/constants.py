@@ -168,6 +168,7 @@ TANK_ALIGN_THRESHOLD: float = 4.0  # max px offset for steering assist
 TANK_BLINK_INTERVAL: float = 0.2  # blink interval during invincibility
 ICE_SLIDE_DISTANCE: float = 32.0  # pixels a tank slides after leaving ice
 INITIAL_PLAYER_LIVES: int = 3
+FRIENDLY_FIRE_FREEZE_DURATION: float = 2.0
 
 # Atlas background color used as colorkey for transparency
 ATLAS_BG_COLOR: tuple[int, int, int] = (0, 0, 1)

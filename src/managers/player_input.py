@@ -44,16 +44,21 @@ class PlayerInput:
     joystick_index.
     """
 
-    def __init__(self, source: InputSource, joystick_index: int = 0) -> None:
+    def __init__(
+        self, source: InputSource, joystick_index: int = 0, *, exclusive: bool = False
+    ) -> None:
         """Initialize PlayerInput.
 
         Args:
             source: Whether this player uses KEYBOARD or JOYSTICK input.
             joystick_index: The joystick/controller index (only used when
                 source is JOYSTICK).
+            exclusive: When True, only events matching the assigned source type
+                are processed. Used in 2-player mode to prevent input crosstalk.
         """
         self.source = source
         self.joystick_index = joystick_index
+        self._exclusive = exclusive
 
         self._directions: Dict[Direction, bool] = {
             Direction.UP: False,
@@ -78,11 +83,20 @@ class PlayerInput:
         and joystick input were merged with OR logic. The source type only
         affects which joystick index is used for filtering.
 
+        In exclusive mode, only the assigned source type is processed. This
+        is used in 2-player mode to prevent input crosstalk between players.
+
         Args:
             event: The pygame event to handle.
         """
-        self._handle_keyboard_event(event)
-        self._handle_joystick_event(event)
+        if self._exclusive:
+            if self.source == InputSource.KEYBOARD:
+                self._handle_keyboard_event(event)
+            else:
+                self._handle_joystick_event(event)
+        else:
+            self._handle_keyboard_event(event)
+            self._handle_joystick_event(event)
 
     def get_movement_direction(self) -> tuple[int, int]:
         """Return the current movement direction as a (dx, dy) vector.
