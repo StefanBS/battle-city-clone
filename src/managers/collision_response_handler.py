@@ -192,9 +192,9 @@ class CollisionResponseHandler:
                 player.freeze(FRIENDLY_FIRE_FREEZE_DURATION)
             return True
 
-        # Enemy bullet hits player -> damage
         if bullet.owner_type != OwnerType.ENEMY:
             return False
+
         logger.debug("Enemy bullet hit player tank.")
         bullet.active = False
         if not player.is_invincible:

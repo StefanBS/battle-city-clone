@@ -268,17 +268,17 @@ class PlayerManager:
     def preserve_state(self) -> None:
         """Save player state before stage transition."""
         self._preserved_state = {}
-        for i, player in enumerate(self._players):
-            self._preserved_state[i] = {
+        for player in self._players:
+            self._preserved_state[player.player_id] = {
                 "lives": player.lives,
                 "star_level": player.star_level,
             }
 
     def restore_state(self) -> None:
         """Restore player state after new tank creation."""
-        for i, player in enumerate(self._players):
-            if i in self._preserved_state:
-                state = self._preserved_state[i]
+        for player in self._players:
+            state = self._preserved_state.get(player.player_id)
+            if state is not None:
                 player.lives = state["lives"]
                 if state["star_level"] > 0:
                     player.restore_star_level(state["star_level"])

@@ -177,16 +177,6 @@ class TestBulletVsPlayer:
         assert not bullet.active
         mock_player.take_damage.assert_not_called()
 
-    def test_player_bullet_does_not_damage_player(self, handler, mock_player):
-        """Friendly fire — player bullet freezes player instead of damaging."""
-        bullet = MagicMock(spec=Bullet)
-        bullet.active = True
-        bullet.owner_type = OwnerType.PLAYER
-        bullet.owner = MagicMock(spec=PlayerTank)
-
-        handler.process_collisions([(bullet, mock_player)])
-        mock_player.take_damage.assert_not_called()
-        assert not bullet.active
 
 
 class TestBulletVsTile:

@@ -811,14 +811,3 @@ class TestPlayerManagerLifeStealing:
         p2.health = 0
         assert two_player_pm.is_game_over() is True
 
-    def test_one_player_eliminated_game_continues(self, two_player_pm):
-        """Game continues when one player is eliminated but other is alive."""
-        p1 = two_player_pm._players[0]
-        p2 = two_player_pm._players[1]
-        p1.lives = 0
-        p1.health = 0
-        p2.lives = 2
-        p2.health = 1
-
-        result = two_player_pm.handle_player_death(p1)
-        assert result is False

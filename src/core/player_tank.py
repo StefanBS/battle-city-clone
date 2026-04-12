@@ -67,14 +67,15 @@ class PlayerTank(Tank):
 
     def apply_star(self) -> None:
         """Apply a star upgrade (up to tier 3)."""
-        if self.star_level < MAX_STAR_LEVEL:
-            self.star_level += 1
-        self._apply_star_stats()
-        self._update_sprite()
+        self._set_star_level(min(self.star_level + 1, MAX_STAR_LEVEL))
 
     def restore_star_level(self, level: int) -> None:
         """Restore star level (e.g., after stage load). Clamps to 0-3."""
-        self.star_level = max(0, min(MAX_STAR_LEVEL, level))
+        self._set_star_level(max(0, min(MAX_STAR_LEVEL, level)))
+
+    def _set_star_level(self, level: int) -> None:
+        """Set star level and apply stats and sprite changes."""
+        self.star_level = level
         self._apply_star_stats()
         self._update_sprite()
 
@@ -181,10 +182,8 @@ class PlayerTank(Tank):
             self.prev_x = self.x
             self.prev_y = self.y
             self.activate_invincibility(SPAWN_INVINCIBILITY_DURATION)
-            self.star_level = 0
-            self._apply_star_stats()
             self.direction = Direction.UP
-            self._update_sprite()
+            self._set_star_level(0)
 
     def draw(self, surface: pygame.Surface) -> None:
         """Draw the player tank with shield overlay when invincible."""
