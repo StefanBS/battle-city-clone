@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Optional
 
 import pygame
+from loguru import logger
 
 from src.core.bullet import Bullet
 from src.core.player_tank import PlayerTank
@@ -48,18 +49,26 @@ class PlayerManager:
     # Setup
     # ------------------------------------------------------------------
 
-    def create_players(self, game_map: "Map", two_player_mode: bool = False) -> None:
+    def create_players(
+        self,
+        game_map: "Map",
+        controller_instance_ids: list[int],
+        two_player_mode: bool = False,
+    ) -> None:
         """Create player tank(s) at map spawn points and assign input sources.
 
         For 1P mode: creates one PlayerTank at game_map.player_spawn.
-        Assigns a joystick input if a joystick is detected, otherwise keyboard.
+        Assigns a controller input if one is detected, otherwise keyboard.
         For 2P mode: creates two PlayerTanks and assigns inputs as follows:
-        - 2+ controllers: P1=joystick 0, P2=joystick 1 (both exclusive)
-        - 1 controller: P1=keyboard (exclusive), P2=joystick 0 (exclusive)
+        - 2+ controllers: P1=controller 0, P2=controller 1 (both exclusive)
+        - 1 controller: P1=keyboard (exclusive), P2=controller 0 (exclusive)
         Clears any previously stored players, inputs, and bullets.
 
         Args:
             game_map: The loaded Map object providing spawn position and dimensions.
+            controller_instance_ids: SDL instance_ids of currently-open game
+                controllers, supplied by InputHandler (the single source of
+                truth for the device registry).
             two_player_mode: When True, creates a second player tank.
         """
         self._players.clear()
@@ -88,33 +97,64 @@ class PlayerManager:
                 px = game_map.player_spawn[0] + 8
                 p2_spawn = (px, game_map.player_spawn[1])
             self._players.append(make_player(p2_spawn, 2))
-
-            joy_count = pygame.joystick.get_count()
-            if joy_count >= 2:
-                self._player_inputs.append(
-                    PlayerInput(InputSource.JOYSTICK, joystick_index=0, exclusive=True)
-                )
-                self._player_inputs.append(
-                    PlayerInput(InputSource.JOYSTICK, joystick_index=1, exclusive=True)
-                )
-            else:
-                self._player_inputs.append(
-                    PlayerInput(InputSource.KEYBOARD, exclusive=True)
-                )
-                self._player_inputs.append(
-                    PlayerInput(InputSource.JOYSTICK, joystick_index=0, exclusive=True)
-                )
+            self._player_inputs.extend(
+                self._two_player_inputs(controller_instance_ids)
+            )
         else:
-            if pygame.joystick.get_count() > 0:
-                self._player_inputs.append(
-                    PlayerInput(InputSource.JOYSTICK, joystick_index=0)
-                )
-            else:
-                self._player_inputs.append(PlayerInput(InputSource.KEYBOARD))
+            self._player_inputs.extend(
+                self._one_player_inputs(controller_instance_ids)
+            )
 
         for player in self._players:
             if player.player_id not in self._scores:
                 self._scores[player.player_id] = 0
+
+    @staticmethod
+    def _one_player_inputs(instance_ids: list[int]) -> list[PlayerInput]:
+        """Build the PlayerInput list for 1P mode.
+
+        1P is non-exclusive: a single PlayerInput accepts both keyboard and
+        controller events. When a controller is available we bind the first
+        one's instance_id; its value is effectively ignored by the filter
+        (non-exclusive short-circuits) but we still need something valid.
+        """
+        if instance_ids:
+            return [PlayerInput(InputSource.CONTROLLER, instance_id=instance_ids[0])]
+        return [PlayerInput(InputSource.KEYBOARD)]
+
+    @staticmethod
+    def _two_player_inputs(instance_ids: list[int]) -> list[PlayerInput]:
+        """Build the PlayerInput list for 2P mode (always exclusive)."""
+        if len(instance_ids) >= 2:
+            return [
+                PlayerInput(
+                    InputSource.CONTROLLER,
+                    instance_id=instance_ids[0],
+                    exclusive=True,
+                ),
+                PlayerInput(
+                    InputSource.CONTROLLER,
+                    instance_id=instance_ids[1],
+                    exclusive=True,
+                ),
+            ]
+        if len(instance_ids) == 1:
+            return [
+                PlayerInput(InputSource.KEYBOARD, exclusive=True),
+                PlayerInput(
+                    InputSource.CONTROLLER,
+                    instance_id=instance_ids[0],
+                    exclusive=True,
+                ),
+            ]
+        logger.warning(
+            "2-player mode started without any controllers; P1 and P2 will "
+            "both use the keyboard and compete for the same keys."
+        )
+        return [
+            PlayerInput(InputSource.KEYBOARD, exclusive=True),
+            PlayerInput(InputSource.KEYBOARD, exclusive=True),
+        ]
 
     # ------------------------------------------------------------------
     # Event forwarding

@@ -1,4 +1,4 @@
-"""Per-player gameplay input encapsulation (keyboard or joystick)."""
+"""Per-player gameplay input encapsulation (keyboard or controller)."""
 
 from enum import Enum, auto
 from typing import Dict, Optional
@@ -8,14 +8,24 @@ import pygame
 from src.utils.constants import Direction
 
 AXIS_DEADZONE: float = 0.5
+"""Threshold on a normalized axis value (range [-1.0, 1.0]) above which the
+stick is considered tilted in that direction."""
 
-# Raw joystick API (fallback for controllers not in SDL's GameController DB)
-JOY_AXIS_X: int = 0
-JOY_AXIS_Y: int = 1
-JOY_SHOOT_BUTTONS: tuple[int, ...] = (0, 1)
-JOY_START_BUTTON: int = 7
+# pygame's CONTROLLERAXISMOTION events carry int16 values in [-32768, 32767].
+AXIS_MAX = 32767
 
-# SDL GameController API (normalized IDs for recognized controllers like Xbox)
+
+def normalize_axis(raw_value: int) -> float:
+    """Normalize an SDL GameController axis int16 value to ``[-1.0, 1.0]``."""
+    return raw_value / AXIS_MAX
+
+KEY_TO_DIRECTION: dict[int, Direction] = {
+    pygame.K_UP: Direction.UP,
+    pygame.K_DOWN: Direction.DOWN,
+    pygame.K_LEFT: Direction.LEFT,
+    pygame.K_RIGHT: Direction.RIGHT,
+}
+
 CTRL_DPAD_BUTTONS: dict[int, Direction] = {
     pygame.CONTROLLER_BUTTON_DPAD_UP: Direction.UP,
     pygame.CONTROLLER_BUTTON_DPAD_DOWN: Direction.DOWN,
@@ -28,36 +38,51 @@ CTRL_SHOOT_BUTTONS: tuple[int, ...] = (
 )
 CTRL_START_BUTTON: int = pygame.CONTROLLER_BUTTON_START
 
+_CONTROLLER_EVENT_TYPES: tuple[int, ...] = (
+    pygame.CONTROLLERBUTTONDOWN,
+    pygame.CONTROLLERBUTTONUP,
+    pygame.CONTROLLERAXISMOTION,
+)
+
 
 class InputSource(Enum):
     """Input source type for a player."""
 
     KEYBOARD = auto()
-    JOYSTICK = auto()
+    CONTROLLER = auto()
 
 
 class PlayerInput:
-    """Encapsulates per-player gameplay input from a keyboard or joystick.
+    """Encapsulates per-player gameplay input from a keyboard or controller.
 
     For KEYBOARD source, handles arrow keys for direction and SPACE to shoot.
-    For JOYSTICK source, handles controller/joystick events filtered by
-    joystick_index.
+    For CONTROLLER source, handles SDL GameController events filtered by the
+    device's SDL instance_id.
     """
 
     def __init__(
-        self, source: InputSource, joystick_index: int = 0, *, exclusive: bool = False
+        self,
+        source: InputSource,
+        instance_id: Optional[int] = None,
+        *,
+        exclusive: bool = False,
     ) -> None:
         """Initialize PlayerInput.
 
         Args:
-            source: Whether this player uses KEYBOARD or JOYSTICK input.
-            joystick_index: The joystick/controller index (only used when
-                source is JOYSTICK).
-            exclusive: When True, only events matching the assigned source type
-                are processed. Used in 2-player mode to prevent input crosstalk.
+            source: Whether this player uses KEYBOARD or CONTROLLER input.
+            instance_id: SDL instance_id of the controller this player is
+                bound to. Required when source is CONTROLLER. Ignored for
+                KEYBOARD source (still stored so exclusive-mode keyboard
+                players can be constructed without one).
+            exclusive: When True, only events matching the assigned source
+                type are processed and controller events are filtered by
+                instance_id. Used in 2-player mode to prevent input crosstalk.
         """
+        if source == InputSource.CONTROLLER and instance_id is None:
+            raise ValueError("instance_id is required when source is CONTROLLER")
         self.source = source
-        self.joystick_index = joystick_index
+        self.instance_id = instance_id
         self._exclusive = exclusive
 
         self._directions: Dict[Direction, bool] = {
@@ -68,23 +93,12 @@ class PlayerInput:
         }
         self._shoot_pressed: bool = False
 
-        self._key_mappings: Dict[int, Direction] = {
-            pygame.K_UP: Direction.UP,
-            pygame.K_DOWN: Direction.DOWN,
-            pygame.K_LEFT: Direction.LEFT,
-            pygame.K_RIGHT: Direction.RIGHT,
-        }
-
     def handle_event(self, event: pygame.event.Event) -> None:
         """Process a pygame event and update internal input state.
 
-        Both keyboard and joystick events are always handled regardless of
-        source type, matching the original InputHandler behavior where keyboard
-        and joystick input were merged with OR logic. The source type only
-        affects which joystick index is used for filtering.
-
-        In exclusive mode, only the assigned source type is processed. This
-        is used in 2-player mode to prevent input crosstalk between players.
+        In non-exclusive (1P) mode both keyboard and controller events drive
+        the single player. In exclusive (2P) mode only the assigned source
+        type is processed to prevent input crosstalk between players.
 
         Args:
             event: The pygame event to handle.
@@ -93,10 +107,10 @@ class PlayerInput:
             if self.source == InputSource.KEYBOARD:
                 self._handle_keyboard_event(event)
             else:
-                self._handle_joystick_event(event)
+                self._handle_controller_event(event)
         else:
             self._handle_keyboard_event(event)
-            self._handle_joystick_event(event)
+            self._handle_controller_event(event)
 
     def get_movement_direction(self) -> tuple[int, int]:
         """Return the current movement direction as a (dx, dy) vector.
@@ -133,24 +147,35 @@ class PlayerInput:
     # ------------------------------------------------------------------
 
     def _handle_keyboard_event(self, event: pygame.event.Event) -> None:
-        """Handle keyboard events (KEYDOWN / KEYUP)."""
         if event.type == pygame.KEYDOWN:
-            if event.key in self._key_mappings:
-                direction = self._key_mappings[event.key]
-                self._directions[direction] = True
+            if event.key in KEY_TO_DIRECTION:
+                self._directions[KEY_TO_DIRECTION[event.key]] = True
             if event.key == pygame.K_SPACE:
                 self._shoot_pressed = True
         elif event.type == pygame.KEYUP:
-            if event.key in self._key_mappings:
-                direction = self._key_mappings[event.key]
-                self._directions[direction] = False
+            if event.key in KEY_TO_DIRECTION:
+                self._directions[KEY_TO_DIRECTION[event.key]] = False
 
-    def _handle_joystick_event(self, event: pygame.event.Event) -> None:
-        """Handle joystick/controller events filtered by joystick_index."""
-        # --- SDL GameController API ---
+    def _event_belongs_to_this_player(self, event: pygame.event.Event) -> bool:
+        """Return True if this controller event should drive this player.
+
+        Returns False for non-controller events so the caller can skip its
+        dispatch. In 1P (non-exclusive) mode any controller drives the single
+        player; in 2P (exclusive) mode the event's instance_id must match
+        this player's bound controller.
+        """
+        if event.type not in _CONTROLLER_EVENT_TYPES:
+            return False
+        if not self._exclusive:
+            return True
+        return getattr(event, "instance_id", None) == self.instance_id
+
+    def _handle_controller_event(self, event: pygame.event.Event) -> None:
+        """Handle SDL GameController events for this player."""
+        if not self._event_belongs_to_this_player(event):
+            return
+
         if event.type == pygame.CONTROLLERBUTTONDOWN:
-            if getattr(event, "which", self.joystick_index) != self.joystick_index:
-                return
             if event.button in CTRL_DPAD_BUTTONS:
                 direction = CTRL_DPAD_BUTTONS[event.button]
                 for d in self._directions:
@@ -160,74 +185,30 @@ class PlayerInput:
                 self._shoot_pressed = True
 
         elif event.type == pygame.CONTROLLERBUTTONUP:
-            if getattr(event, "which", self.joystick_index) != self.joystick_index:
-                return
             if event.button in CTRL_DPAD_BUTTONS:
                 direction = CTRL_DPAD_BUTTONS[event.button]
                 self._directions[direction] = False
 
-        # --- Axis motion (CONTROLLER and raw JOY share axis indices 0/1) ---
-        elif event.type in (pygame.CONTROLLERAXISMOTION, pygame.JOYAXISMOTION):
-            joy_index = self._get_joy_index(event)
-            if joy_index != self.joystick_index:
-                return
-            if event.axis in (pygame.CONTROLLER_AXIS_LEFTX, JOY_AXIS_X):
-                self._handle_axis(event.value, Direction.LEFT, Direction.RIGHT)
-            elif event.axis in (pygame.CONTROLLER_AXIS_LEFTY, JOY_AXIS_Y):
-                self._handle_axis(event.value, Direction.UP, Direction.DOWN)
-
-        # --- Raw joystick API ---
-        elif event.type == pygame.JOYHATMOTION:
-            if getattr(event, "joy", self.joystick_index) != self.joystick_index:
-                return
-            hat_x, hat_y = event.value
-            for d in self._directions:
-                self._directions[d] = False
-            hat_dir: Optional[Direction] = None
-            if hat_y > 0:
-                hat_dir = Direction.UP
-            elif hat_y < 0:
-                hat_dir = Direction.DOWN
-            elif hat_x > 0:
-                hat_dir = Direction.RIGHT
-            elif hat_x < 0:
-                hat_dir = Direction.LEFT
-            if hat_dir is not None:
-                self._directions[hat_dir] = True
-
-        elif event.type == pygame.JOYBUTTONDOWN:
-            if getattr(event, "joy", self.joystick_index) != self.joystick_index:
-                return
-            if event.button in JOY_SHOOT_BUTTONS:
-                self._shoot_pressed = True
+        elif event.type == pygame.CONTROLLERAXISMOTION:
+            value = normalize_axis(event.value)
+            if event.axis == pygame.CONTROLLER_AXIS_LEFTX:
+                self._handle_axis(value, Direction.LEFT, Direction.RIGHT)
+            elif event.axis == pygame.CONTROLLER_AXIS_LEFTY:
+                self._handle_axis(value, Direction.UP, Direction.DOWN)
 
     def _handle_axis(
         self, value: float, neg_dir: Direction, pos_dir: Direction
     ) -> None:
-        """Update direction state for an axis value with deadzone.
-
-        Args:
-            value: The raw axis value in [-1.0, 1.0].
-            neg_dir: Direction to activate when value < -deadzone.
-            pos_dir: Direction to activate when value > +deadzone.
-        """
         if value < -AXIS_DEADZONE:
-            self._directions[neg_dir] = True
-            self._directions[pos_dir] = False
+            neg, pos = True, False
         elif value > AXIS_DEADZONE:
-            self._directions[pos_dir] = True
-            self._directions[neg_dir] = False
+            neg, pos = False, True
         else:
-            self._directions[neg_dir] = False
-            self._directions[pos_dir] = False
-
-    def _get_joy_index(self, event: pygame.event.Event) -> int:
-        """Return the joystick index from a CONTROLLERAXISMOTION or JOYAXISMOTION event.
-
-        CONTROLLERAXISMOTION uses ``which``; JOYAXISMOTION uses ``joy``.
-        Falls back to own joystick_index when the attribute is missing
-        (e.g. manually created test events).
-        """
-        if event.type == pygame.CONTROLLERAXISMOTION:
-            return getattr(event, "which", self.joystick_index)
-        return getattr(event, "joy", self.joystick_index)
+            neg, pos = False, False
+        if (
+            self._directions[neg_dir] == neg
+            and self._directions[pos_dir] == pos
+        ):
+            return
+        self._directions[neg_dir] = neg
+        self._directions[pos_dir] = pos

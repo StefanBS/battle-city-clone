@@ -1,19 +1,34 @@
-import pygame
+"""Menu and system input, backed by the SDL GameController API."""
+
 from typing import Optional
+
+import pygame
 from loguru import logger
-from src.utils.constants import Direction, MenuAction
+
 from src.managers.player_input import (
     AXIS_DEADZONE,
     CTRL_DPAD_BUTTONS,
-    JOY_AXIS_X,
-    JOY_AXIS_Y,
+    KEY_TO_DIRECTION,
+    normalize_axis,
 )
+from src.utils.constants import Direction, MenuAction
+
+try:
+    from pygame._sdl2 import controller as sdl_controller  # type: ignore
+except ImportError:
+    sdl_controller = None  # type: ignore
+
 
 _DIRECTION_TO_MENU_ACTION: dict[Direction, MenuAction] = {
     Direction.UP: MenuAction.UP,
     Direction.DOWN: MenuAction.DOWN,
     Direction.LEFT: MenuAction.LEFT,
     Direction.RIGHT: MenuAction.RIGHT,
+}
+
+_CTRL_MENU_BUTTONS: dict[int, MenuAction] = {
+    pygame.CONTROLLER_BUTTON_A: MenuAction.CONFIRM,
+    pygame.CONTROLLER_BUTTON_B: MenuAction.BACK,
 }
 
 _CONFIRM_KEYS: tuple[int, ...] = (pygame.K_RETURN, pygame.K_r)
@@ -23,24 +38,124 @@ class InputHandler:
     """Handles keyboard and controller input for menus and system actions.
 
     Gameplay input (movement, shooting) is handled by PlayerInput via
-    PlayerManager. This class handles menu navigation, pause, joystick
-    hot-plug, and confirm keys.
+    PlayerManager. This class opens every connected SDL GameController,
+    tracks hot-plug, and produces MenuAction values for navigation.
     """
 
     def __init__(self) -> None:
-        """Initialize the input handler."""
-        self.joystick: Optional["pygame.joystick.JoystickType"] = None
-        self._init_joystick()
+        """Initialize the input handler and open any present controllers."""
+        self._controllers: dict[int, "sdl_controller.Controller"] = {}
         self._menu_actions: list[MenuAction] = []
         self._axis_menu_h: Optional[MenuAction] = None
         self._axis_menu_v: Optional[MenuAction] = None
+        self._init_controllers()
 
-    def _init_joystick(self) -> None:
-        """Detect and initialize the first connected joystick."""
-        if pygame.joystick.get_count() > 0:
-            self.joystick = pygame.joystick.Joystick(0)
-            self.joystick.init()
-            logger.info(f"Joystick connected: {self.joystick.get_name()}")
+    # ------------------------------------------------------------------
+    # Controller registry
+    # ------------------------------------------------------------------
+
+    def _init_controllers(self) -> None:
+        """Open every connected device recognized as a game controller."""
+        if sdl_controller is None:
+            logger.warning(
+                "pygame._sdl2.controller is unavailable; controller input disabled."
+            )
+            return
+        sdl_controller.init()
+        for device_index in range(pygame.joystick.get_count()):
+            self._open_controller(device_index)
+
+    def _open_controller(self, device_index: int) -> None:
+        """Open a device as a game controller and register it by instance_id.
+
+        Skips devices SDL doesn't recognize as game controllers (e.g. flight
+        sticks, steering wheels) and is a no-op if the device's instance_id
+        is already registered, which prevents handle leaks if SDL emits
+        CONTROLLERDEVICEADDED more than once for the same device.
+        """
+        if sdl_controller is None:
+            return
+        if not sdl_controller.is_controller(device_index):
+            logger.debug(
+                f"Device {device_index} is not a game controller; skipping."
+            )
+            return
+        ctrl = sdl_controller.Controller(device_index)
+        ctrl.init()
+        instance_id = ctrl.as_joystick().get_instance_id()
+        if instance_id in self._controllers:
+            ctrl.quit()
+            return
+        self._controllers[instance_id] = ctrl
+        logger.info(
+            f"Controller connected: {ctrl.name} "
+            f"(device_index={device_index}, instance_id={instance_id})"
+        )
+
+    def _close_controller(self, instance_id: int) -> None:
+        """Close the SDL handle and drop the controller from the registry."""
+        ctrl = self._controllers.pop(instance_id, None)
+        if ctrl is None:
+            return
+        logger.info(
+            f"Controller disconnected: {ctrl.name} (instance_id={instance_id})"
+        )
+        ctrl.quit()
+
+    @property
+    def controller_instance_ids(self) -> list[int]:
+        """Return instance_ids of every currently-open controller."""
+        return list(self._controllers.keys())
+
+    # ------------------------------------------------------------------
+    # Event dispatch
+    # ------------------------------------------------------------------
+
+    def handle_event(self, event: pygame.event.Event) -> None:
+        """Route a pygame event to the appropriate input source handler."""
+        if event.type == pygame.KEYDOWN:
+            self._handle_keyboard_event(event)
+        elif event.type in (
+            pygame.CONTROLLERDEVICEADDED,
+            pygame.CONTROLLERDEVICEREMOVED,
+        ):
+            self._handle_device_event(event)
+        elif event.type in (
+            pygame.CONTROLLERBUTTONDOWN,
+            pygame.CONTROLLERAXISMOTION,
+        ):
+            self._handle_controller_event(event)
+
+    def _handle_keyboard_event(self, event: pygame.event.Event) -> None:
+        direction = KEY_TO_DIRECTION.get(event.key)
+        if direction is not None:
+            self._menu_actions.append(_DIRECTION_TO_MENU_ACTION[direction])
+        if event.key in _CONFIRM_KEYS:
+            self._menu_actions.append(MenuAction.CONFIRM)
+
+    def _handle_device_event(self, event: pygame.event.Event) -> None:
+        if event.type == pygame.CONTROLLERDEVICEADDED:
+            self._open_controller(event.device_index)
+        elif event.type == pygame.CONTROLLERDEVICEREMOVED:
+            self._close_controller(event.instance_id)
+
+    def _handle_controller_event(self, event: pygame.event.Event) -> None:
+        if event.type == pygame.CONTROLLERBUTTONDOWN:
+            if event.button in CTRL_DPAD_BUTTONS:
+                direction = CTRL_DPAD_BUTTONS[event.button]
+                self._menu_actions.append(_DIRECTION_TO_MENU_ACTION[direction])
+            elif event.button in _CTRL_MENU_BUTTONS:
+                self._menu_actions.append(_CTRL_MENU_BUTTONS[event.button])
+        elif event.type == pygame.CONTROLLERAXISMOTION:
+            value = normalize_axis(event.value)
+            if event.axis == pygame.CONTROLLER_AXIS_LEFTX:
+                self._emit_axis_menu_action(
+                    True, value, MenuAction.LEFT, MenuAction.RIGHT
+                )
+            elif event.axis == pygame.CONTROLLER_AXIS_LEFTY:
+                self._emit_axis_menu_action(
+                    False, value, MenuAction.UP, MenuAction.DOWN
+                )
 
     def _emit_axis_menu_action(
         self,
@@ -51,7 +166,7 @@ class InputHandler:
     ) -> None:
         """Emit a menu action when an axis crosses the deadzone threshold."""
         if value < -AXIS_DEADZONE:
-            new_state = neg_action
+            new_state: Optional[MenuAction] = neg_action
         elif value > AXIS_DEADZONE:
             new_state = pos_action
         else:
@@ -65,88 +180,12 @@ class InputHandler:
             if new_state is not None:
                 self._menu_actions.append(new_state)
 
-    def handle_event(self, event: pygame.event.Event) -> None:
-        """Handle a pygame event to update menu and system input state.
-
-        Handles keyboard, raw joystick (JOY*), and SDL GameController
-        (CONTROLLER*) events for menu navigation and system actions.
-        Gameplay input (movement, shooting) is handled by PlayerInput.
-
-        Args:
-            event: The pygame event to handle
-        """
-        if event.type == pygame.KEYDOWN:
-            direction = {
-                pygame.K_UP: Direction.UP,
-                pygame.K_DOWN: Direction.DOWN,
-                pygame.K_LEFT: Direction.LEFT,
-                pygame.K_RIGHT: Direction.RIGHT,
-            }.get(event.key)
-            if direction is not None:
-                self._menu_actions.append(_DIRECTION_TO_MENU_ACTION[direction])
-            if event.key in _CONFIRM_KEYS:
-                self._menu_actions.append(MenuAction.CONFIRM)
-
-        # --- Hot-plug (shared by both APIs) ---
-        elif event.type == pygame.JOYDEVICEADDED:
-            if self.joystick is None:
-                self.joystick = pygame.joystick.Joystick(event.device_index)
-                self.joystick.init()
-                logger.info(f"Joystick connected: {self.joystick.get_name()}")
-        elif event.type == pygame.JOYDEVICEREMOVED:
-            if (
-                self.joystick is not None
-                and event.instance_id == self.joystick.get_instance_id()
-            ):
-                logger.info(f"Joystick disconnected: {self.joystick.get_name()}")
-                self.joystick = None
-
-        # --- SDL GameController API (recognized controllers) ---
-        elif event.type == pygame.CONTROLLERBUTTONDOWN:
-            if event.button in CTRL_DPAD_BUTTONS:
-                direction = CTRL_DPAD_BUTTONS[event.button]
-                self._menu_actions.append(_DIRECTION_TO_MENU_ACTION[direction])
-            elif event.button == pygame.CONTROLLER_BUTTON_A:
-                self._menu_actions.append(MenuAction.CONFIRM)
-            elif event.button == pygame.CONTROLLER_BUTTON_B:
-                self._menu_actions.append(MenuAction.BACK)
-
-        # --- Axis motion (shared: CONTROLLER_AXIS_LEFTX == 0, LEFTY == 1) ---
-        elif event.type in (
-            pygame.CONTROLLERAXISMOTION,
-            pygame.JOYAXISMOTION,
-        ):
-            if event.axis in (pygame.CONTROLLER_AXIS_LEFTX, JOY_AXIS_X):
-                self._emit_axis_menu_action(
-                    True, event.value, MenuAction.LEFT, MenuAction.RIGHT
-                )
-            elif event.axis in (pygame.CONTROLLER_AXIS_LEFTY, JOY_AXIS_Y):
-                self._emit_axis_menu_action(
-                    False, event.value, MenuAction.UP, MenuAction.DOWN
-                )
-
-        # --- Raw joystick API (unrecognized controllers) ---
-        elif event.type == pygame.JOYHATMOTION:
-            hat_x, hat_y = event.value
-            hat_dir: Optional[Direction] = None
-            if hat_y > 0:
-                hat_dir = Direction.UP
-            elif hat_y < 0:
-                hat_dir = Direction.DOWN
-            elif hat_x > 0:
-                hat_dir = Direction.RIGHT
-            elif hat_x < 0:
-                hat_dir = Direction.LEFT
-            if hat_dir is not None:
-                self._menu_actions.append(_DIRECTION_TO_MENU_ACTION[hat_dir])
-        elif event.type == pygame.JOYBUTTONDOWN:
-            if event.button == 0:
-                self._menu_actions.append(MenuAction.CONFIRM)
-            elif event.button == 1:
-                self._menu_actions.append(MenuAction.BACK)
+    # ------------------------------------------------------------------
+    # Menu action queue
+    # ------------------------------------------------------------------
 
     def reset(self) -> None:
-        """Reset all input state. Called between stages."""
+        """Reset menu action queue and axis edge-detection state."""
         self._menu_actions.clear()
         self._axis_menu_h = None
         self._axis_menu_v = None

@@ -69,7 +69,11 @@ class TestTwoPlayerStageTransition:
         p2.restore_star_level(1)
 
         gm.player_manager.preserve_state()
-        gm.player_manager.create_players(gm.map, two_player_mode=True)
+        gm.player_manager.create_players(
+            gm.map,
+            controller_instance_ids=gm.input_handler.controller_instance_ids,
+            two_player_mode=True,
+        )
         gm.player_manager.restore_state()
 
         assert gm.player_manager._players[0].lives == 5

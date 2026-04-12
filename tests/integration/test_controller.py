@@ -1,7 +1,8 @@
-"""Integration tests for controller/gamepad support."""
+"""Integration tests for SDL GameController gameplay input."""
 
 import pygame
 from src.managers.game_manager import GameManager
+from src.managers.player_input import AXIS_MAX
 from src.states.game_state import GameState
 
 
@@ -12,7 +13,7 @@ def _send_event(gm, event):
 
 
 class TestControllerGameplay:
-    """Test controller input during gameplay with SDL GameController API."""
+    """Test controller input during gameplay via the SDL GameController API."""
 
     def test_ctrl_dpad_moves_player(self) -> None:
         """Controller D-pad UP moves the player tank up."""
@@ -24,6 +25,7 @@ class TestControllerGameplay:
         event = pygame.event.Event(
             pygame.CONTROLLERBUTTONDOWN,
             button=pygame.CONTROLLER_BUTTON_DPAD_UP,
+            instance_id=0,
         )
         _send_event(gm, event)
         gm.update()
@@ -40,7 +42,8 @@ class TestControllerGameplay:
         event = pygame.event.Event(
             pygame.CONTROLLERAXISMOTION,
             axis=pygame.CONTROLLER_AXIS_LEFTY,
-            value=-0.8,
+            value=int(-0.8 * AXIS_MAX),
+            instance_id=0,
         )
         _send_event(gm, event)
         gm.update()
@@ -56,6 +59,7 @@ class TestControllerGameplay:
         event = pygame.event.Event(
             pygame.CONTROLLERBUTTONDOWN,
             button=pygame.CONTROLLER_BUTTON_A,
+            instance_id=0,
         )
         _send_event(gm, event)
         gm.update()
@@ -76,37 +80,6 @@ class TestControllerGameplay:
         assert gm.player_tank.y < initial_y
 
 
-class TestRawJoystickGameplay:
-    """Test raw joystick input (fallback for unrecognized controllers)."""
-
-    def test_hat_moves_player(self) -> None:
-        """Raw joystick hat moves the player tank."""
-        gm = GameManager()
-        gm._reset_game()
-        gm.state = GameState.RUNNING
-        initial_y = gm.player_tank.y
-
-        event = pygame.event.Event(
-            pygame.JOYHATMOTION, value=(0, 1), hat=0, instance_id=0
-        )
-        _send_event(gm, event)
-        gm.update()
-
-        assert gm.player_tank.y < initial_y
-
-    def test_raw_button_fires_bullet(self) -> None:
-        """Raw joystick button 0 fires a bullet."""
-        gm = GameManager()
-        gm._reset_game()
-        gm.state = GameState.RUNNING
-
-        event = pygame.event.Event(pygame.JOYBUTTONDOWN, button=0, instance_id=0)
-        _send_event(gm, event)
-        gm.update()
-
-        assert len(gm.player_manager.get_all_bullets()) > 0
-
-
 class TestControllerMenuNavigation:
     """Test controller input in menus."""
 
@@ -119,6 +92,7 @@ class TestControllerMenuNavigation:
             pygame.event.Event(
                 pygame.CONTROLLERBUTTONDOWN,
                 button=pygame.CONTROLLER_BUTTON_DPAD_DOWN,
+                instance_id=0,
             )
         )
         gm.handle_events()
@@ -134,6 +108,7 @@ class TestControllerMenuNavigation:
             pygame.event.Event(
                 pygame.CONTROLLERBUTTONDOWN,
                 button=pygame.CONTROLLER_BUTTON_A,
+                instance_id=0,
             )
         )
         gm.handle_events()
