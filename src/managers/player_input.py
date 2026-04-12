@@ -172,3 +172,43 @@ class PlayerInput:
             return
         self._directions[neg_dir] = neg
         self._directions[pos_dir] = pos
+
+
+class KeyboardInput:
+    def __init__(self) -> None:
+        self._directions: dict[Direction, bool] = {
+            Direction.UP: False,
+            Direction.DOWN: False,
+            Direction.LEFT: False,
+            Direction.RIGHT: False,
+        }
+        self._shoot_pressed: bool = False
+
+    def handle_event(self, event: pygame.event.Event) -> None:
+        if event.type == pygame.KEYDOWN:
+            if event.key in KEY_TO_DIRECTION:
+                self._directions[KEY_TO_DIRECTION[event.key]] = True
+            if event.key == pygame.K_SPACE:
+                self._shoot_pressed = True
+        elif event.type == pygame.KEYUP:
+            if event.key in KEY_TO_DIRECTION:
+                self._directions[KEY_TO_DIRECTION[event.key]] = False
+
+    def get_movement_direction(self) -> tuple[int, int]:
+        dx = 0
+        dy = 0
+        for direction, pressed in self._directions.items():
+            if pressed:
+                ddx, ddy = direction.delta
+                dx += ddx
+                dy += ddy
+        return (dx, dy)
+
+    def consume_shoot(self) -> bool:
+        if self._shoot_pressed:
+            self._shoot_pressed = False
+            return True
+        return False
+
+    def clear_pending_shoot(self) -> None:
+        self._shoot_pressed = False

@@ -339,6 +339,65 @@ class TestPlayerInputExclusiveMode:
         assert pi.consume_shoot() is True
 
 
+class TestKeyboardInput:
+    @pytest.fixture
+    def ki(self):
+        from src.managers.player_input import KeyboardInput
+        return KeyboardInput()
+
+    def test_initial_direction_zero(self, ki) -> None:
+        assert ki.get_movement_direction() == (0, 0)
+
+    def test_initial_shoot_false(self, ki) -> None:
+        assert ki.consume_shoot() is False
+
+    def test_arrow_up_sets_direction(self, ki, key_down_event) -> None:
+        ki.handle_event(key_down_event(pygame.K_UP))
+        assert ki.get_movement_direction() == (0, -1)
+
+    def test_arrow_release_clears_direction(
+        self, ki, key_down_event, key_up_event
+    ) -> None:
+        ki.handle_event(key_down_event(pygame.K_UP))
+        ki.handle_event(key_up_event(pygame.K_UP))
+        assert ki.get_movement_direction() == (0, 0)
+
+    def test_held_opposite_cancels(self, ki, key_down_event) -> None:
+        ki.handle_event(key_down_event(pygame.K_UP))
+        ki.handle_event(key_down_event(pygame.K_DOWN))
+        assert ki.get_movement_direction() == (0, 0)
+
+    def test_space_sets_shoot(self, ki, key_down_event) -> None:
+        ki.handle_event(key_down_event(pygame.K_SPACE))
+        assert ki.consume_shoot() is True
+
+    def test_consume_shoot_clears_flag(self, ki, key_down_event) -> None:
+        ki.handle_event(key_down_event(pygame.K_SPACE))
+        ki.consume_shoot()
+        assert ki.consume_shoot() is False
+
+    def test_clear_pending_shoot(self, ki, key_down_event) -> None:
+        ki.handle_event(key_down_event(pygame.K_SPACE))
+        ki.clear_pending_shoot()
+        assert ki.consume_shoot() is False
+
+    def test_ignores_non_gameplay_keys(self, ki, key_down_event) -> None:
+        ki.handle_event(key_down_event(pygame.K_a))
+        ki.handle_event(key_down_event(pygame.K_ESCAPE))
+        assert ki.get_movement_direction() == (0, 0)
+        assert ki.consume_shoot() is False
+
+    def test_ignores_controller_events(self, ki, ctrl_button_down_event) -> None:
+        ki.handle_event(
+            ctrl_button_down_event(pygame.CONTROLLER_BUTTON_DPAD_UP)
+        )
+        ki.handle_event(
+            ctrl_button_down_event(pygame.CONTROLLER_BUTTON_A)
+        )
+        assert ki.get_movement_direction() == (0, 0)
+        assert ki.consume_shoot() is False
+
+
 class TestClassifyAxis:
     def test_neutral_at_zero(self) -> None:
         assert classify_axis(0) is AxisState.NEUTRAL
