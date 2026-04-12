@@ -66,6 +66,7 @@ class Map:
         # Scan tileset for brick variant sprites and collision defaults
         self._brick_variant_sprites: dict[BrickVariant, pygame.Surface] = {}
         self._tile_type_sprites: dict[TileType, pygame.Surface] = {}
+        self._base_destroyed_sprites: list[pygame.Surface] = []
         self._tile_collision_defaults: dict[TileType, TileDefaults] = {}
         self._scan_tileset(tiled_map)
 
@@ -174,6 +175,7 @@ class Map:
             gids = range(ts.firstgid, ts.firstgid + ts.tilecount)
         else:
             gids = [tid + ts.firstgid for tid in tile_ids]
+        base_destroyed_gids: list[int] = []
         for gid in gids:
             props = tiled_map.get_tile_properties_by_gid(gid)
             if not props:
@@ -198,6 +200,17 @@ class Map:
                 bv_str = props.get("brick_variant") or "full"
                 key = BrickVariant(bv_str)
                 self._cache_sprite(self._brick_variant_sprites, key, tiled_map, gid)
+            if tt == "BASE_DESTROYED":
+                base_destroyed_gids.append(gid)
+
+        # Atlas GIDs are assigned left-to-right top-to-bottom, so sorting
+        # yields row-major order [TL, TR, BL, BR] for the 2x2 base.
+        for gid in sorted(base_destroyed_gids):
+            raw_img = tiled_map.get_tile_image_by_gid(gid)
+            if raw_img:
+                self._base_destroyed_sprites.append(
+                    pygame.transform.scale(raw_img, (SUB_TILE_SIZE, SUB_TILE_SIZE))
+                )
 
     def _cache_sprite(self, cache: dict, key, tiled_map, gid: int) -> None:
         """Store a scaled tile sprite in cache if not already present."""
@@ -474,9 +487,17 @@ class Map:
             self._add_to_render_list(tile)
 
     def destroy_base(self) -> None:
-        """Destroy all BASE tiles on the map."""
-        for t in self.get_tiles_by_type([TileType.BASE]):
+        """Destroy all BASE tiles, assigning each sub-tile its matching
+        quadrant of the 2x2 destroyed-base artwork."""
+        base_tiles = self.get_tiles_by_type([TileType.BASE])
+        if not base_tiles:
+            return
+        min_x = min(t.x for t in base_tiles)
+        min_y = min(t.y for t in base_tiles)
+        for t in base_tiles:
             self.set_tile_type(t, TileType.BASE_DESTROYED)
+            quadrant = (t.y - min_y) * 2 + (t.x - min_x)
+            t.tmx_sprite = self._base_destroyed_sprites[quadrant]
 
     def place_tile(self, x: int, y: int, tile: Tile) -> None:
         """Place a tile at grid coordinates and invalidate caches."""

@@ -100,6 +100,22 @@ class TestMapLoading:
         for sx, sy in [(4, 8), (5, 8), (4, 9), (5, 9)]:
             assert game_map.get_tile_at(sx, sy).type == TileType.BASE_DESTROYED
 
+    def test_base_destruction_uses_distinct_quadrant_sprites(self, game_map):
+        """Each destroyed-base sub-tile gets its matching quadrant sprite."""
+        game_map.destroy_base()
+
+        tl = game_map.get_tile_at(4, 8).tmx_sprite
+        tr = game_map.get_tile_at(5, 8).tmx_sprite
+        bl = game_map.get_tile_at(4, 9).tmx_sprite
+        br = game_map.get_tile_at(5, 9).tmx_sprite
+
+        # All four sub-tiles must carry a sprite and none may share identity
+        # with another — that was the original bug (all four rendered the
+        # top-left sub-sprite).
+        sprites = [tl, tr, bl, br]
+        assert all(s is not None for s in sprites)
+        assert len({id(s) for s in sprites}) == 4
+
 
 class TestTileCollisionFromTMX:
     """Verify tiles loaded from TMX have correct collision properties."""
