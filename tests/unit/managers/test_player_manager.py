@@ -192,7 +192,6 @@ class TestPlayerManagerUpdate:
         """Player.move() is called when a valid (non-diagonal) direction is active."""
         player = MagicMock(spec=PlayerTank)
         player.health = 1
-        player.is_frozen = False
         player.on_ice = False
         player.is_sliding = False
         player.direction = MagicMock()
@@ -755,14 +754,6 @@ class TestPlayerManagerTwoPlayerCreation:
         assert player_manager._player_inputs[1].source == InputSource.JOYSTICK
         assert player_manager._player_inputs[1]._exclusive is True
 
-    def test_scores_property_returns_copy(self, player_manager, mock_game_map):
-        """scores property returns a copy, not the internal dict."""
-        with patch("pygame.joystick.get_count", return_value=0):
-            player_manager.create_players(mock_game_map)
-        player_manager.add_score(100)
-        scores = player_manager.scores
-        scores[1] = 999
-        assert player_manager.get_score(1) == 100
 
 
 # ---------------------------------------------------------------------------

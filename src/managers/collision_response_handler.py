@@ -162,8 +162,10 @@ class CollisionResponseHandler:
         if destroyed:
             logger.info(f"Enemy tank (type: {enemy.tank_type}) destroyed.")
             enemies_to_remove.append(enemy)
-            player_id = getattr(bullet.owner, "player_id", 1)
-            self._add_score(ENEMY_POINTS.get(enemy.tank_type, 0), player_id=player_id)
+            self._add_score(
+                ENEMY_POINTS.get(enemy.tank_type, 0),
+                player_id=bullet.owner.player_id,
+            )
             self._effect_manager.spawn(
                 EffectType.LARGE_EXPLOSION,
                 float(enemy.rect.centerx),
@@ -181,11 +183,9 @@ class CollisionResponseHandler:
         if not bullet.active:
             return False
 
-        # A tank's own bullet cannot hit itself
         if getattr(bullet, "owner", None) is player:
             return False
 
-        # Friendly fire: player bullet hits a player -> freeze
         if bullet.owner_type == OwnerType.PLAYER:
             bullet.active = False
             if not player.is_invincible:
@@ -277,8 +277,9 @@ class CollisionResponseHandler:
             return False
         power_up_type = self._power_up_manager.collect_power_up(power_up)
         if power_up_type is not None:
-            player_id = getattr(player, "player_id", 1)
-            self._add_score(POWERUP_COLLECT_POINTS, player_id=player_id)
+            self._add_score(
+                POWERUP_COLLECT_POINTS, player_id=player.player_id
+            )
             self._play_powerup()
             logger.info(f"Player collected power-up: {power_up_type.value}")
             self._collected_power_up_type = power_up_type

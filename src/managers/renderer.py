@@ -1,5 +1,5 @@
 import pygame
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import Dict, List, Optional, Sequence, Tuple
 from src.states.game_state import GameState
 from src.utils.constants import (
     WHITE,
@@ -66,6 +66,8 @@ class Renderer:
         self._cached_lives_text: Optional[pygame.Surface] = None
         self._cached_score: Optional[int] = None
         self._cached_score_text: Optional[pygame.Surface] = None
+        # Per-player HUD cache for 2P mode
+        self._cached_player_hud: Dict[int, tuple] = {}
 
         # Reusable overlay surfaces for pause/game-over screens
         self._pause_overlay: pygame.Surface = pygame.Surface(
@@ -85,7 +87,7 @@ class Renderer:
         bullets: List,
         effect_manager,
         state: GameState,
-        scores: Union[Dict[int, int], int] = 0,
+        scores: Optional[Dict[int, int]] = None,
         power_ups: Sequence = (),
         game_over_rise_progress: Optional[float] = None,
     ) -> None:
@@ -97,7 +99,7 @@ class Renderer:
             enemy_tanks: List of enemy tanks.
             bullets: List of bullets.
             state: Current game state.
-            scores: Per-player scores dict {player_id: score} or int for 1P total.
+            scores: Per-player scores dict {player_id: score}.
             power_ups: Active power-ups to draw.
         """
         self.game_surface.fill(GRAY)
@@ -155,46 +157,19 @@ class Renderer:
         self.game_surface.blit(surface, rect)
 
     def _draw_hud(
-        self, player_tanks: List, scores: Union[Dict[int, int], int] = 0
+        self, player_tanks: List, scores: Optional[Dict[int, int]] = None
     ) -> None:
         """Draw the heads-up display.
 
         Args:
             player_tanks: List of player tanks.
-            scores: Per-player scores dict {player_id: score} or int for 1P total.
+            scores: Per-player scores dict {player_id: score}.
         """
-        if isinstance(scores, int):
-            scores = {1: scores}
+        if scores is None:
+            scores = {}
 
-        is_two_player = len(player_tanks) > 1
-
-        if is_two_player:
-            for i, player in enumerate(player_tanks):
-                pid = player.player_id
-                player_score = scores.get(pid, 0)
-
-                if player.health <= 0 and player.lives <= 0:
-                    label = f"P{pid}: OUT"
-                    label_surface = self.small_font.render(label, True, GRAY)
-                else:
-                    label = f"P{pid}: {player.lives}"
-                    label_surface = self.small_font.render(label, True, WHITE)
-
-                score_text = f"{player_score:>6}"
-                score_surface = self.small_font.render(score_text, True, WHITE)
-
-                if i == 0:  # P1 on the left
-                    self.game_surface.blit(label_surface, (10, 10))
-                    self.game_surface.blit(score_surface, (10, 24))
-                else:  # P2 on the right
-                    label_rect = label_surface.get_rect(
-                        topright=(self.logical_width - 10, 10)
-                    )
-                    self.game_surface.blit(label_surface, label_rect)
-                    score_rect = score_surface.get_rect(
-                        topright=(self.logical_width - 10, 24)
-                    )
-                    self.game_surface.blit(score_surface, score_rect)
+        if len(player_tanks) > 1:
+            self._draw_hud_2p(player_tanks, scores)
         else:
             # 1P HUD (unchanged appearance)
             lives = player_tanks[0].lives if player_tanks else 0
@@ -215,6 +190,51 @@ class Renderer:
                 topright=(self.logical_width - 10, 10)
             )
             self.game_surface.blit(self._cached_score_text, score_rect)
+
+    def _draw_hud_2p(
+        self, player_tanks: List, scores: Dict[int, int]
+    ) -> None:
+        """Draw 2-player HUD with P1 on left, P2 on right (cached)."""
+        for i, player in enumerate(player_tanks):
+            pid = player.player_id
+            player_score = scores.get(pid, 0)
+            eliminated = player.health <= 0 and player.lives <= 0
+
+            cache_key = (player.lives, player_score, eliminated)
+            cached = self._cached_player_hud.get(pid)
+            if cached is None or cached[:3] != cache_key:
+                if eliminated:
+                    label_surf = self.small_font.render(
+                        f"P{pid}: OUT", True, GRAY
+                    )
+                else:
+                    label_surf = self.small_font.render(
+                        f"P{pid}: {player.lives}", True, WHITE
+                    )
+                score_surf = self.small_font.render(
+                    f"{player_score:>6}", True, WHITE
+                )
+                self._cached_player_hud[pid] = (
+                    *cache_key,
+                    label_surf,
+                    score_surf,
+                )
+            else:
+                label_surf = cached[3]
+                score_surf = cached[4]
+
+            if i == 0:
+                self.game_surface.blit(label_surf, (10, 10))
+                self.game_surface.blit(score_surf, (10, 24))
+            else:
+                label_rect = label_surf.get_rect(
+                    topright=(self.logical_width - 10, 10)
+                )
+                self.game_surface.blit(label_surf, label_rect)
+                score_rect = score_surf.get_rect(
+                    topright=(self.logical_width - 10, 24)
+                )
+                self.game_surface.blit(score_surf, score_rect)
 
     def _draw_game_over_rising(self, progress: float) -> None:
         """Draw 'GAME OVER' text rising from bottom to center.

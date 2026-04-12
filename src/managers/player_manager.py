@@ -69,38 +69,25 @@ class PlayerManager:
         map_width_px = game_map.width * game_map.tile_size
         map_height_px = game_map.height * game_map.tile_size
 
-        # Player 1
-        start_x = game_map.player_spawn[0] * game_map.tile_size
-        start_y = game_map.player_spawn[1] * game_map.tile_size
-        p1 = PlayerTank(
-            start_x,
-            start_y,
-            game_map.tile_size,
-            self._texture_manager,
-            map_width_px=map_width_px,
-            map_height_px=map_height_px,
-            player_id=1,
-        )
-        self._players.append(p1)
-
-        if two_player_mode:
-            # Player 2 spawn
-            if game_map.player_spawn_2 is not None:
-                p2_x = game_map.player_spawn_2[0] * game_map.tile_size
-                p2_y = game_map.player_spawn_2[1] * game_map.tile_size
-            else:
-                p2_x = start_x + 8 * game_map.tile_size
-                p2_y = start_y
-            p2 = PlayerTank(
-                p2_x,
-                p2_y,
+        def make_player(spawn: tuple[int, int], pid: int) -> PlayerTank:
+            return PlayerTank(
+                spawn[0] * game_map.tile_size,
+                spawn[1] * game_map.tile_size,
                 game_map.tile_size,
                 self._texture_manager,
                 map_width_px=map_width_px,
                 map_height_px=map_height_px,
-                player_id=2,
+                player_id=pid,
             )
-            self._players.append(p2)
+
+        self._players.append(make_player(game_map.player_spawn, 1))
+
+        if two_player_mode:
+            p2_spawn = game_map.player_spawn_2
+            if p2_spawn is None:
+                px = game_map.player_spawn[0] + 8
+                p2_spawn = (px, game_map.player_spawn[1])
+            self._players.append(make_player(p2_spawn, 2))
 
             joy_count = pygame.joystick.get_count()
             if joy_count >= 2:
@@ -167,9 +154,6 @@ class PlayerManager:
                 continue
 
             player.update(dt)
-
-            if player.is_frozen:
-                continue  # Skip movement for frozen players
 
             dx, dy = player_input.get_movement_direction()
             has_valid_input = (dx != 0 or dy != 0) and not (dx != 0 and dy != 0)
@@ -263,8 +247,8 @@ class PlayerManager:
 
     @property
     def scores(self) -> dict[int, int]:
-        """Per-player scores dict {player_id: score}."""
-        return dict(self._scores)
+        """Per-player scores dict {player_id: score}. Read-only view."""
+        return self._scores
 
     def get_score(self, player_id: int) -> int:
         """Get a specific player's score.

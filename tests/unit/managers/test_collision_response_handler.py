@@ -628,7 +628,9 @@ class TestPlayerVsPowerUp:
 
     @pytest.fixture
     def mock_player(self):
-        return MagicMock(spec=PlayerTank)
+        player = MagicMock(spec=PlayerTank)
+        player.player_id = 1
+        return player
 
     @pytest.fixture
     def mock_power_up(self):
