@@ -88,6 +88,7 @@ class GameManager:
         self._options_from_pause: bool = False
         self._state_timer: float = 0.0
         self._two_player_mode: bool = False
+        self._post_curtain_state: GameState = GameState.RUNNING
 
         # Renderer for title screen (recreated with map dims in _load_stage)
         self.renderer: Renderer = Renderer(
@@ -251,10 +252,7 @@ class GameManager:
                 self._handle_pause_input(action)
             elif self.state == GameState.OPTIONS_MENU:
                 self._handle_options_input(action)
-            elif action == MenuAction.CONFIRM and self.state in (
-                GameState.GAME_OVER,
-                GameState.GAME_COMPLETE,
-            ):
+            elif action == MenuAction.CONFIRM and self.state == GameState.GAME_COMPLETE:
                 logger.info("Returning to title screen.")
                 self.state = GameState.TITLE_SCREEN
                 self._title_selection = 0
@@ -415,14 +413,20 @@ class GameManager:
         if self.state == GameState.STAGE_CURTAIN_OPEN:
             self._state_timer += dt
             if self._state_timer >= CURTAIN_OPEN_DURATION:
-                self.state = GameState.RUNNING
+                self.state = self._post_curtain_state
+                self._post_curtain_state = GameState.RUNNING
+                if self.state == GameState.TITLE_SCREEN:
+                    self._title_selection = 0
             return
 
         if self.state == GameState.GAME_OVER_ANIMATION:
             self._state_timer += dt
             total = GAME_OVER_RISE_DURATION + GAME_OVER_HOLD_DURATION
             if self._state_timer >= total:
-                self.state = GameState.GAME_OVER
+                logger.info("Wiping to title screen.")
+                self._post_curtain_state = GameState.TITLE_SCREEN
+                self.state = GameState.STAGE_CURTAIN_CLOSE
+                self._state_timer = 0.0
             return
 
         if self.state != GameState.RUNNING:
@@ -677,7 +681,12 @@ class GameManager:
             GameState.STAGE_CURTAIN_CLOSE,
             GameState.STAGE_CURTAIN_OPEN,
         ):
-            self.renderer.render_curtain(self._curtain_progress, self.current_stage)
+            stage = (
+                self.current_stage
+                if self._post_curtain_state == GameState.RUNNING
+                else None
+            )
+            self.renderer.render_curtain(self._curtain_progress, stage)
             return
 
         if self.state == GameState.OPTIONS_MENU:

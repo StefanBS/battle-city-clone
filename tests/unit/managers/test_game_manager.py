@@ -147,13 +147,6 @@ class TestGameManager:
         assert game_manager.state == GameState.PAUSED
         game_manager.sound_manager.stop_loops.assert_called_once()
 
-    def test_handle_events_restart(self, game_manager, key_down_event):
-        """Test pressing R on game over returns to title screen."""
-        game_manager.state = GameState.GAME_OVER
-        pygame.event.post(key_down_event(pygame.K_r))
-        game_manager.handle_events()
-        assert game_manager.state == GameState.TITLE_SCREEN
-
     def test_handle_events_restart_not_game_over(self, game_manager, key_down_event):
         """Test that restart key does nothing when game is running."""
         initial_state = game_manager.state
@@ -256,9 +249,9 @@ class TestGameManager:
             game_manager._handle_options_input(MenuAction.CONFIRM)
             assert game_manager.state == GameState.TITLE_SCREEN
 
-        def test_game_over_confirm(self, game_manager):
-            """MenuAction.CONFIRM in GAME_OVER returns to title."""
-            game_manager.state = GameState.GAME_OVER
+        def test_game_complete_confirm(self, game_manager):
+            """MenuAction.CONFIRM in GAME_COMPLETE returns to title."""
+            game_manager.state = GameState.GAME_COMPLETE
             game_manager.input_handler._menu_actions = [MenuAction.CONFIRM]
             game_manager._process_menu_actions()
             assert game_manager.state == GameState.TITLE_SCREEN

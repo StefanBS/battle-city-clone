@@ -88,26 +88,6 @@ class TestRendererRender:
         mock_bullet1.draw.assert_called_once_with(renderer.map_surface)
         mock_bullet2.draw.assert_not_called()
 
-    def test_render_game_over_overlay(self, renderer):
-        """Game over overlay is drawn when state is GAME_OVER."""
-        mock_map = MagicMock()
-        mock_player = MagicMock()
-        mock_player.lives = 3
-        mock_player.is_invincible = False
-
-        with (
-            patch.object(renderer, "_draw_game_over") as mock_draw_go,
-            patch.object(renderer, "_draw_victory") as mock_draw_v,
-            patch("pygame.transform.scale") as mock_scale,
-            patch("pygame.display.flip"),
-        ):
-            mock_scale.return_value = MagicMock()
-            mock_em = MagicMock()
-            renderer.render(mock_map, mock_player, [], [], mock_em, GameState.GAME_OVER)
-
-        mock_draw_go.assert_called_once()
-        mock_draw_v.assert_not_called()
-
     def test_render_victory_overlay(self, renderer):
         """Victory overlay is drawn when state is VICTORY."""
         mock_map = MagicMock()
@@ -116,7 +96,6 @@ class TestRendererRender:
         mock_player.is_invincible = False
 
         with (
-            patch.object(renderer, "_draw_game_over") as mock_draw_go,
             patch.object(renderer, "_draw_victory") as mock_draw_v,
             patch("pygame.transform.scale") as mock_scale,
             patch("pygame.display.flip"),
@@ -126,7 +105,6 @@ class TestRendererRender:
             renderer.render(mock_map, mock_player, [], [], mock_em, GameState.VICTORY)
 
         mock_draw_v.assert_called_once()
-        mock_draw_go.assert_not_called()
 
     def test_render_running_no_overlay(self, renderer):
         """No overlay is drawn when state is RUNNING."""
@@ -136,7 +114,6 @@ class TestRendererRender:
         mock_player.is_invincible = False
 
         with (
-            patch.object(renderer, "_draw_game_over") as mock_draw_go,
             patch.object(renderer, "_draw_victory") as mock_draw_v,
             patch("pygame.transform.scale") as mock_scale,
             patch("pygame.display.flip"),
@@ -145,7 +122,6 @@ class TestRendererRender:
             mock_em = MagicMock()
             renderer.render(mock_map, mock_player, [], [], mock_em, GameState.RUNNING)
 
-        mock_draw_go.assert_not_called()
         mock_draw_v.assert_not_called()
 
     def test_render_scales_and_flips(self, renderer):

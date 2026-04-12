@@ -9,6 +9,7 @@ from src.utils.constants import (
     VICTORY_PAUSE_DURATION,
     GAME_OVER_RISE_DURATION,
     GAME_OVER_HOLD_DURATION,
+    FPS,
 )
 
 
@@ -153,14 +154,16 @@ class TestGameOverAnimation:
         game._set_game_state(GameState.GAME_OVER)
         assert game.state == GameState.GAME_OVER_ANIMATION
 
-    def test_animation_transitions_to_game_over(self, game):
-        """After rise + hold duration, state becomes GAME_OVER."""
+    def test_animation_hands_off_to_title_wipe(self, game):
+        """After rise + hold duration, the animation hands off to a curtain
+        wipe targeted at TITLE_SCREEN."""
         game.state = GameState.GAME_OVER_ANIMATION
         game._state_timer = 0.0
         total = GAME_OVER_RISE_DURATION + GAME_OVER_HOLD_DURATION
         for _ in range(int(total * game.fps) + 1):
             game.update()
-        assert game.state == GameState.GAME_OVER
+        assert game.state == GameState.STAGE_CURTAIN_CLOSE
+        assert game._post_curtain_state == GameState.TITLE_SCREEN
 
     def test_animation_freezes_gameplay(self, game):
         """During animation, game subsystems should not update."""
@@ -180,3 +183,21 @@ class TestGameOverAnimation:
         pygame.event.post(event)
         game.handle_events()
         assert game.state == GameState.GAME_OVER_ANIMATION
+
+    def test_game_over_wipes_to_title(self, game):
+        """The full game-over animation → curtain close → open sequence
+        lands on the title screen."""
+        game.state = GameState.GAME_OVER_ANIMATION
+        game._state_timer = 0.0
+        total = (
+            GAME_OVER_RISE_DURATION
+            + GAME_OVER_HOLD_DURATION
+            + CURTAIN_CLOSE_DURATION
+            + CURTAIN_STAGE_DISPLAY
+            + CURTAIN_OPEN_DURATION
+        )
+        for _ in range(int(total * FPS) + 2):
+            game.update()
+        assert game.state == GameState.TITLE_SCREEN
+        assert game._title_selection == 0
+        assert game._post_curtain_state == GameState.RUNNING

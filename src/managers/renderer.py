@@ -119,9 +119,7 @@ class Renderer:
 
         self._draw_hud(player_tanks, scores)
 
-        if state == GameState.GAME_OVER:
-            self._draw_game_over()
-        elif state == GameState.VICTORY:
+        if state == GameState.VICTORY:
             self._draw_victory()
         elif state == GameState.GAME_COMPLETE:
             self._draw_overlay_screen("GAME COMPLETE!", GREEN, "Press R for Title")
@@ -245,20 +243,17 @@ class Renderer:
         text_rect = text.get_rect(center=(self._center_x, int(y)))
         self.game_surface.blit(text, text_rect)
 
-    def _draw_game_over(self) -> None:
-        """Draw the game over screen."""
-        self._draw_overlay_screen("GAME OVER", RED, "Press R for Title")
-
     def _draw_victory(self) -> None:
         """Draw the victory screen."""
         self._draw_overlay_screen("VICTORY!", GREEN, "Next Stage...")
 
-    def render_curtain(self, progress: float, stage: int) -> None:
+    def render_curtain(self, progress: float, stage: Optional[int]) -> None:
         """Render the stage curtain animation.
 
         Args:
             progress: 0.0 (open) to 1.0 (fully closed).
-            stage: Current stage number to display when closed.
+            stage: Stage number to display when fully closed, or None to
+                draw the wipe without any label (e.g. game-over → title).
         """
         self.game_surface.fill(BLACK)
 
@@ -276,7 +271,7 @@ class Renderer:
             )
             pygame.draw.rect(self.game_surface, GRAY, bottom_rect)
 
-        if progress >= 1.0:
+        if progress >= 1.0 and stage is not None:
             self._draw_centered_text(f"STAGE {stage}", self.font, WHITE, self._center_y)
 
         self._present_surface()

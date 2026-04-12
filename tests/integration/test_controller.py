@@ -114,14 +114,3 @@ class TestControllerMenuNavigation:
         gm.handle_events()
 
         assert gm.state != GameState.TITLE_SCREEN
-
-    def test_keyboard_r_returns_from_game_over(self) -> None:
-        """Keyboard R returns to title from Game Over."""
-        gm = GameManager()
-        gm._reset_game()
-        gm.state = GameState.GAME_OVER
-
-        pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_r))
-        gm.handle_events()
-
-        assert gm.state == GameState.TITLE_SCREEN
