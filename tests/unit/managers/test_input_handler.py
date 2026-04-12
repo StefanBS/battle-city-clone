@@ -196,10 +196,10 @@ class TestMenuActionsController:
         handler.handle_event(ctrl_button_down_event(pygame.CONTROLLER_BUTTON_A))
         assert MenuAction.CONFIRM in handler.consume_menu_actions()
 
-    def test_b_button_produces_confirm(self, handler, ctrl_button_down_event) -> None:
-        """Controller B button produces MenuAction.CONFIRM."""
+    def test_b_button_produces_back(self, handler, ctrl_button_down_event) -> None:
+        """Controller B button produces MenuAction.BACK (Xbox convention)."""
         handler.handle_event(ctrl_button_down_event(pygame.CONTROLLER_BUTTON_B))
-        assert MenuAction.CONFIRM in handler.consume_menu_actions()
+        assert MenuAction.BACK in handler.consume_menu_actions()
 
     def test_joy_hat_up_produces_menu_up(self, handler, joy_hat_event) -> None:
         """Raw joystick hat UP produces MenuAction.UP."""
@@ -228,12 +228,12 @@ class TestMenuActionsController:
         handler.handle_event(joy_button_down_event(button=0))
         assert MenuAction.CONFIRM in handler.consume_menu_actions()
 
-    def test_joy_button_1_produces_confirm(
+    def test_joy_button_1_produces_back(
         self, handler, joy_button_down_event
     ) -> None:
-        """Raw joystick button 1 produces MenuAction.CONFIRM."""
+        """Raw joystick button 1 produces MenuAction.BACK (Xbox convention)."""
         handler.handle_event(joy_button_down_event(button=1))
-        assert MenuAction.CONFIRM in handler.consume_menu_actions()
+        assert MenuAction.BACK in handler.consume_menu_actions()
 
 
 class TestMenuActionsAxisEdgeDetection:

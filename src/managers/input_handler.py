@@ -5,10 +5,8 @@ from src.utils.constants import Direction, MenuAction
 from src.managers.player_input import (
     AXIS_DEADZONE,
     CTRL_DPAD_BUTTONS,
-    CTRL_SHOOT_BUTTONS,
     JOY_AXIS_X,
     JOY_AXIS_Y,
-    JOY_SHOOT_BUTTONS,
 )
 
 _DIRECTION_TO_MENU_ACTION: dict[Direction, MenuAction] = {
@@ -108,8 +106,10 @@ class InputHandler:
             if event.button in CTRL_DPAD_BUTTONS:
                 direction = CTRL_DPAD_BUTTONS[event.button]
                 self._menu_actions.append(_DIRECTION_TO_MENU_ACTION[direction])
-            elif event.button in CTRL_SHOOT_BUTTONS:
+            elif event.button == pygame.CONTROLLER_BUTTON_A:
                 self._menu_actions.append(MenuAction.CONFIRM)
+            elif event.button == pygame.CONTROLLER_BUTTON_B:
+                self._menu_actions.append(MenuAction.BACK)
 
         # --- Axis motion (shared: CONTROLLER_AXIS_LEFTX == 0, LEFTY == 1) ---
         elif event.type in (
@@ -140,8 +140,10 @@ class InputHandler:
             if hat_dir is not None:
                 self._menu_actions.append(_DIRECTION_TO_MENU_ACTION[hat_dir])
         elif event.type == pygame.JOYBUTTONDOWN:
-            if event.button in JOY_SHOOT_BUTTONS:
+            if event.button == 0:
                 self._menu_actions.append(MenuAction.CONFIRM)
+            elif event.button == 1:
+                self._menu_actions.append(MenuAction.BACK)
 
     def reset(self) -> None:
         """Reset all input state. Called between stages."""

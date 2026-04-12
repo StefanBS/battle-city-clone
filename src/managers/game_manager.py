@@ -302,11 +302,24 @@ class GameManager:
             self.sound_manager.stop_loops()
             self._pause_selection = 0
             self.state = GameState.PAUSED
+            # Drop any menu actions queued while RUNNING (e.g. a held UP key
+            # that emitted a KEYDOWN before START was pressed), otherwise they
+            # would jump the pause selector on the first frame.
+            self.input_handler.reset()
         elif self.state == GameState.PAUSED:
-            logger.info("Game resumed.")
-            self.state = GameState.RUNNING
+            self._resume_game()
         elif self.state == GameState.OPTIONS_MENU:
             self._exit_options()
+
+    def _resume_game(self) -> None:
+        """Transition from PAUSED back to RUNNING.
+
+        Clears any buffered shoot input so the button press that confirmed
+        the menu (e.g. controller A) does not leak into gameplay as a bullet.
+        """
+        logger.info("Game resumed.")
+        self.state = GameState.RUNNING
+        self.player_manager.clear_pending_shoot()
 
     def _exit_options(self) -> None:
         """Save settings and return to the screen that opened options."""
@@ -355,22 +368,20 @@ class GameManager:
             else:
                 self._pause_selection = (self._pause_selection + 1) % 4
             self.sound_manager.play_menu_select()
+        elif action == MenuAction.BACK:
+            self._resume_game()
         elif action == MenuAction.CONFIRM:
             if self._pause_selection == 0:
-                # RESUME
-                self.state = GameState.RUNNING
+                self._resume_game()
             elif self._pause_selection == 1:
-                # OPTIONS
                 self._options_from_pause = True
                 self._options_selection = 0
                 self.state = GameState.OPTIONS_MENU
             elif self._pause_selection == 2:
-                # TITLE SCREEN
                 self.sound_manager.stop_loops()
                 self._title_selection = 0
                 self.state = GameState.TITLE_SCREEN
             elif self._pause_selection == 3:
-                # QUIT
                 self._quit_game()
 
     def _handle_options_input(self, action: MenuAction) -> None:
@@ -400,6 +411,8 @@ class GameManager:
                     self.settings_manager.master_volume
                 )
                 self.sound_manager.play_menu_select()
+        elif action == MenuAction.BACK:
+            self._exit_options()
         elif action == MenuAction.CONFIRM:
             if self._options_selection == 2:
                 self._exit_options()
