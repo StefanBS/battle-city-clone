@@ -2,7 +2,7 @@ import pytest
 import pygame
 from unittest.mock import patch, MagicMock
 from src.managers.input_handler import InputHandler
-from src.managers.player_input import InputSource, PlayerInput
+from src.managers.player_input import ControllerInput
 from src.utils.constants import MenuAction
 
 
@@ -179,7 +179,7 @@ class TestControllerHotPlug:
             handler.handle_event(ctrl_device_added_event(device_index=0))
         assert handler.controller_instance_ids == [42]
 
-        pi = PlayerInput(InputSource.CONTROLLER, instance_id=42, exclusive=True)
+        pi = ControllerInput(instance_id=42)
         pi.handle_event(
             ctrl_button_down_event(pygame.CONTROLLER_BUTTON_A, instance_id=42)
         )
@@ -190,8 +190,8 @@ class TestControllerButtonUp:
     """Tests for CONTROLLERBUTTONUP handling (direction release)."""
 
     def test_dpad_up_release_clears_direction(self) -> None:
-        """Releasing a held D-pad direction clears it in PlayerInput."""
-        pi = PlayerInput(InputSource.CONTROLLER, instance_id=0)
+        """Releasing a held D-pad direction clears it in ControllerInput."""
+        pi = ControllerInput(instance_id=0)
         pi.handle_event(
             pygame.event.Event(
                 pygame.CONTROLLERBUTTONDOWN,
