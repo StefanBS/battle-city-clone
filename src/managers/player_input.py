@@ -19,6 +19,7 @@ def normalize_axis(raw_value: int) -> float:
     """Normalize an SDL GameController axis int16 value to ``[-1.0, 1.0]``."""
     return raw_value / AXIS_MAX
 
+
 KEY_TO_DIRECTION: dict[int, Direction] = {
     pygame.K_UP: Direction.UP,
     pygame.K_DOWN: Direction.DOWN,
@@ -46,20 +47,11 @@ _CONTROLLER_EVENT_TYPES: tuple[int, ...] = (
 
 
 class InputSource(Enum):
-    """Input source type for a player."""
-
     KEYBOARD = auto()
     CONTROLLER = auto()
 
 
 class PlayerInput:
-    """Encapsulates per-player gameplay input from a keyboard or controller.
-
-    For KEYBOARD source, handles arrow keys for direction and SPACE to shoot.
-    For CONTROLLER source, handles SDL GameController events filtered by the
-    device's SDL instance_id.
-    """
-
     def __init__(
         self,
         source: InputSource,
@@ -67,18 +59,6 @@ class PlayerInput:
         *,
         exclusive: bool = False,
     ) -> None:
-        """Initialize PlayerInput.
-
-        Args:
-            source: Whether this player uses KEYBOARD or CONTROLLER input.
-            instance_id: SDL instance_id of the controller this player is
-                bound to. Required when source is CONTROLLER. Ignored for
-                KEYBOARD source (still stored so exclusive-mode keyboard
-                players can be constructed without one).
-            exclusive: When True, only events matching the assigned source
-                type are processed and controller events are filtered by
-                instance_id. Used in 2-player mode to prevent input crosstalk.
-        """
         if source == InputSource.CONTROLLER and instance_id is None:
             raise ValueError("instance_id is required when source is CONTROLLER")
         self.source = source
@@ -94,15 +74,6 @@ class PlayerInput:
         self._shoot_pressed: bool = False
 
     def handle_event(self, event: pygame.event.Event) -> None:
-        """Process a pygame event and update internal input state.
-
-        In non-exclusive (1P) mode both keyboard and controller events drive
-        the single player. In exclusive (2P) mode only the assigned source
-        type is processed to prevent input crosstalk between players.
-
-        Args:
-            event: The pygame event to handle.
-        """
         if self._exclusive:
             if self.source == InputSource.KEYBOARD:
                 self._handle_keyboard_event(event)
@@ -113,11 +84,6 @@ class PlayerInput:
             self._handle_controller_event(event)
 
     def get_movement_direction(self) -> tuple[int, int]:
-        """Return the current movement direction as a (dx, dy) vector.
-
-        Returns:
-            A tuple (dx, dy) where each component is -1, 0, or 1.
-        """
         dx = 0
         dy = 0
         for direction, pressed in self._directions.items():
@@ -128,23 +94,14 @@ class PlayerInput:
         return (dx, dy)
 
     def consume_shoot(self) -> bool:
-        """Return and clear the shoot flag.
-
-        Returns:
-            True if shoot was pressed since the last call, False otherwise.
-        """
         if self._shoot_pressed:
             self._shoot_pressed = False
             return True
         return False
 
     def clear_pending_shoot(self) -> None:
-        """Clear any pending shoot input without consuming it as a shot."""
+        """Drop any buffered shoot press without firing a bullet."""
         self._shoot_pressed = False
-
-    # ------------------------------------------------------------------
-    # Private helpers
-    # ------------------------------------------------------------------
 
     def _handle_keyboard_event(self, event: pygame.event.Event) -> None:
         if event.type == pygame.KEYDOWN:
@@ -157,13 +114,6 @@ class PlayerInput:
                 self._directions[KEY_TO_DIRECTION[event.key]] = False
 
     def _event_belongs_to_this_player(self, event: pygame.event.Event) -> bool:
-        """Return True if this controller event should drive this player.
-
-        Returns False for non-controller events so the caller can skip its
-        dispatch. In 1P (non-exclusive) mode any controller drives the single
-        player; in 2P (exclusive) mode the event's instance_id must match
-        this player's bound controller.
-        """
         if event.type not in _CONTROLLER_EVENT_TYPES:
             return False
         if not self._exclusive:
@@ -171,7 +121,6 @@ class PlayerInput:
         return getattr(event, "instance_id", None) == self.instance_id
 
     def _handle_controller_event(self, event: pygame.event.Event) -> None:
-        """Handle SDL GameController events for this player."""
         if not self._event_belongs_to_this_player(event):
             return
 
@@ -204,10 +153,7 @@ class PlayerInput:
             neg, pos = False, True
         else:
             neg, pos = False, False
-        if (
-            self._directions[neg_dir] == neg
-            and self._directions[pos_dir] == pos
-        ):
+        if self._directions[neg_dir] == neg and self._directions[pos_dir] == pos:
             return
         self._directions[neg_dir] = neg
         self._directions[pos_dir] = pos

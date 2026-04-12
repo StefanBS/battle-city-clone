@@ -45,32 +45,14 @@ class PlayerManager:
         self._scores: dict[int, int] = {}
         self._preserved_state: dict[int, dict] = {}
 
-    # ------------------------------------------------------------------
-    # Setup
-    # ------------------------------------------------------------------
-
     def create_players(
         self,
         game_map: "Map",
         controller_instance_ids: list[int],
         two_player_mode: bool = False,
     ) -> None:
-        """Create player tank(s) at map spawn points and assign input sources.
-
-        For 1P mode: creates one PlayerTank at game_map.player_spawn.
-        Assigns a controller input if one is detected, otherwise keyboard.
-        For 2P mode: creates two PlayerTanks and assigns inputs as follows:
-        - 2+ controllers: P1=controller 0, P2=controller 1 (both exclusive)
-        - 1 controller: P1=keyboard (exclusive), P2=controller 0 (exclusive)
-        Clears any previously stored players, inputs, and bullets.
-
-        Args:
-            game_map: The loaded Map object providing spawn position and dimensions.
-            controller_instance_ids: SDL instance_ids of currently-open game
-                controllers, supplied by InputHandler (the single source of
-                truth for the device registry).
-            two_player_mode: When True, creates a second player tank.
-        """
+        # controller_instance_ids must come from InputHandler — it's the single
+        # source of truth for which SDL game controllers are currently open.
         self._players.clear()
         self._player_inputs.clear()
         self._bullets.clear()
@@ -97,13 +79,9 @@ class PlayerManager:
                 px = game_map.player_spawn[0] + 8
                 p2_spawn = (px, game_map.player_spawn[1])
             self._players.append(make_player(p2_spawn, 2))
-            self._player_inputs.extend(
-                self._two_player_inputs(controller_instance_ids)
-            )
+            self._player_inputs.extend(self._two_player_inputs(controller_instance_ids))
         else:
-            self._player_inputs.extend(
-                self._one_player_inputs(controller_instance_ids)
-            )
+            self._player_inputs.extend(self._one_player_inputs(controller_instance_ids))
 
         for player in self._players:
             if player.player_id not in self._scores:
@@ -156,10 +134,6 @@ class PlayerManager:
             PlayerInput(InputSource.KEYBOARD, exclusive=True),
         ]
 
-    # ------------------------------------------------------------------
-    # Event forwarding
-    # ------------------------------------------------------------------
-
     def handle_event(self, event: pygame.event.Event) -> None:
         """Forward a pygame event to all PlayerInput instances.
 
@@ -177,10 +151,6 @@ class PlayerManager:
         """
         for pi in self._player_inputs:
             pi.clear_pending_shoot()
-
-    # ------------------------------------------------------------------
-    # Per-frame update
-    # ------------------------------------------------------------------
 
     def update(self, dt: float, game_map: "Map") -> None:
         """Process input, move players, and handle ice sliding.
@@ -223,10 +193,6 @@ class PlayerManager:
 
         self._bullets = [b for b in self._bullets if b.active]
 
-    # ------------------------------------------------------------------
-    # Shooting
-    # ------------------------------------------------------------------
-
     def try_shoot(self) -> None:
         """Check shoot input for each player and fire a bullet if possible.
 
@@ -245,10 +211,6 @@ class PlayerManager:
                     if bullet is not None:
                         self._bullets.append(bullet)
                         self._sound_manager.play_shoot()
-
-    # ------------------------------------------------------------------
-    # Accessors
-    # ------------------------------------------------------------------
 
     def get_all_bullets(self) -> list[Bullet]:
         """Return all player bullets (pruned to active-only by update()).
@@ -310,10 +272,6 @@ class PlayerManager:
         """
         return self._scores.get(player_id, 0)
 
-    # ------------------------------------------------------------------
-    # State preservation
-    # ------------------------------------------------------------------
-
     def preserve_state(self) -> None:
         """Save player state before stage transition."""
         self._preserved_state = {}
@@ -331,10 +289,6 @@ class PlayerManager:
                 player.lives = state["lives"]
                 if state["star_level"] > 0:
                     player.restore_star_level(state["star_level"])
-
-    # ------------------------------------------------------------------
-    # Death handling and game-over
-    # ------------------------------------------------------------------
 
     def handle_player_death(self, player: PlayerTank) -> bool:
         """Handle a player's destruction. Returns True if game should end.
@@ -368,10 +322,6 @@ class PlayerManager:
         """
         return all(p.lives <= 0 and p.health <= 0 for p in self._players)
 
-    # ------------------------------------------------------------------
-    # Full reset
-    # ------------------------------------------------------------------
-
     def reset(self) -> None:
         """Full reset for starting a new game."""
         self._players.clear()
@@ -379,10 +329,6 @@ class PlayerManager:
         self._bullets.clear()
         self._scores = {}
         self._preserved_state = {}
-
-    # ------------------------------------------------------------------
-    # Private helpers
-    # ------------------------------------------------------------------
 
     @staticmethod
     def _is_on_ice(tank: PlayerTank, game_map: "Map") -> bool:

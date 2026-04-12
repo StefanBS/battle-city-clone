@@ -35,27 +35,16 @@ _CONFIRM_KEYS: tuple[int, ...] = (pygame.K_RETURN, pygame.K_r)
 
 
 class InputHandler:
-    """Handles keyboard and controller input for menus and system actions.
-
-    Gameplay input (movement, shooting) is handled by PlayerInput via
-    PlayerManager. This class opens every connected SDL GameController,
-    tracks hot-plug, and produces MenuAction values for navigation.
-    """
+    """Menu and system input. Gameplay input lives in PlayerInput/PlayerManager."""
 
     def __init__(self) -> None:
-        """Initialize the input handler and open any present controllers."""
         self._controllers: dict[int, "sdl_controller.Controller"] = {}
         self._menu_actions: list[MenuAction] = []
         self._axis_menu_h: Optional[MenuAction] = None
         self._axis_menu_v: Optional[MenuAction] = None
         self._init_controllers()
 
-    # ------------------------------------------------------------------
-    # Controller registry
-    # ------------------------------------------------------------------
-
     def _init_controllers(self) -> None:
-        """Open every connected device recognized as a game controller."""
         if sdl_controller is None:
             logger.warning(
                 "pygame._sdl2.controller is unavailable; controller input disabled."
@@ -66,19 +55,12 @@ class InputHandler:
             self._open_controller(device_index)
 
     def _open_controller(self, device_index: int) -> None:
-        """Open a device as a game controller and register it by instance_id.
-
-        Skips devices SDL doesn't recognize as game controllers (e.g. flight
-        sticks, steering wheels) and is a no-op if the device's instance_id
-        is already registered, which prevents handle leaks if SDL emits
-        CONTROLLERDEVICEADDED more than once for the same device.
-        """
+        # instance_id dedupe prevents a handle leak when SDL emits
+        # CONTROLLERDEVICEADDED more than once for the same device.
         if sdl_controller is None:
             return
         if not sdl_controller.is_controller(device_index):
-            logger.debug(
-                f"Device {device_index} is not a game controller; skipping."
-            )
+            logger.debug(f"Device {device_index} is not a game controller; skipping.")
             return
         ctrl = sdl_controller.Controller(device_index)
         ctrl.init()
@@ -93,26 +75,17 @@ class InputHandler:
         )
 
     def _close_controller(self, instance_id: int) -> None:
-        """Close the SDL handle and drop the controller from the registry."""
         ctrl = self._controllers.pop(instance_id, None)
         if ctrl is None:
             return
-        logger.info(
-            f"Controller disconnected: {ctrl.name} (instance_id={instance_id})"
-        )
+        logger.info(f"Controller disconnected: {ctrl.name} (instance_id={instance_id})")
         ctrl.quit()
 
     @property
     def controller_instance_ids(self) -> list[int]:
-        """Return instance_ids of every currently-open controller."""
         return list(self._controllers.keys())
 
-    # ------------------------------------------------------------------
-    # Event dispatch
-    # ------------------------------------------------------------------
-
     def handle_event(self, event: pygame.event.Event) -> None:
-        """Route a pygame event to the appropriate input source handler."""
         if event.type == pygame.KEYDOWN:
             self._handle_keyboard_event(event)
         elif event.type in (
@@ -164,7 +137,6 @@ class InputHandler:
         neg_action: MenuAction,
         pos_action: MenuAction,
     ) -> None:
-        """Emit a menu action when an axis crosses the deadzone threshold."""
         if value < -AXIS_DEADZONE:
             new_state: Optional[MenuAction] = neg_action
         elif value > AXIS_DEADZONE:
@@ -180,18 +152,12 @@ class InputHandler:
             if new_state is not None:
                 self._menu_actions.append(new_state)
 
-    # ------------------------------------------------------------------
-    # Menu action queue
-    # ------------------------------------------------------------------
-
     def reset(self) -> None:
-        """Reset menu action queue and axis edge-detection state."""
         self._menu_actions.clear()
         self._axis_menu_h = None
         self._axis_menu_v = None
 
     def consume_menu_actions(self) -> list[MenuAction]:
-        """Return pending menu actions and clear the list."""
         if not self._menu_actions:
             return []
         actions = self._menu_actions
