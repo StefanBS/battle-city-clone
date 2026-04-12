@@ -34,6 +34,8 @@ def _move_player_to(game, px, py):
 def _set_input(game, direction):
     """Set player input to simulate holding a direction key."""
     player_input = game.player_manager._player_inputs[0]
+    # 1P wraps keyboard + controller in a CombinedInput; the KeyboardInput
+    # is always first (see PlayerManager._one_player_inputs).
     kb = (
         player_input._inputs[0]
         if isinstance(player_input, CombinedInput)
