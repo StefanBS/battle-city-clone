@@ -343,13 +343,6 @@ class Renderer:
 
         self._present_surface()
 
-    def _draw_lr_hints(self, rect: "pygame.Rect", y: int) -> None:
-        """Draw < > arrow hints around a menu item."""
-        left_hint = self.small_font.render("<", True, GRAY)
-        self.game_surface.blit(left_hint, (rect.left - 20, y - 6))
-        right_hint = self.small_font.render(">", True, GRAY)
-        self.game_surface.blit(right_hint, (rect.right + 8, y - 6))
-
     def render_options_menu(
         self, master_volume: float, difficulty: Difficulty, selection: int
     ) -> None:
@@ -360,24 +353,18 @@ class Renderer:
 
         self._draw_centered_text("OPTIONS", self.font, WHITE, self._center_y - 80)
 
-        diff_label = f"DIFFICULTY  {difficulty.value.upper()}"
+        diff_label = f"DIFFICULTY  < {difficulty.value.upper()} >"
         filled = round(master_volume * 10)
         bar = "#" * filled + "-" * (10 - filled)
         pct = f"{round(master_volume * 100)}%"
         vol_label = f"VOLUME  [{bar}] {pct}"
 
         options = [diff_label, vol_label, "BACK"]
-        rects = self._draw_menu(
+        self._draw_menu(
             options,
             selection,
             self._center_y - row_spacing,
             spacing=row_spacing,
         )
-
-        if selection < 2:
-            self._draw_lr_hints(
-                rects[selection],
-                self._center_y - row_spacing + selection * row_spacing,
-            )
 
         self._present_surface()

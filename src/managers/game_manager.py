@@ -359,10 +359,12 @@ class GameManager:
             self.sound_manager.play_menu_select()
         elif action in (MenuAction.LEFT, MenuAction.RIGHT):
             if self._options_selection == 0:
-                if action == MenuAction.LEFT:
-                    self.settings_manager.difficulty = Difficulty.EASY
-                else:
-                    self.settings_manager.difficulty = Difficulty.NORMAL
+                difficulties = list(Difficulty)
+                idx = difficulties.index(self.settings_manager.difficulty)
+                step = -1 if action == MenuAction.LEFT else 1
+                self.settings_manager.difficulty = difficulties[
+                    (idx + step) % len(difficulties)
+                ]
                 self.sound_manager.play_menu_select()
             elif self._options_selection == 1:
                 if action == MenuAction.LEFT:

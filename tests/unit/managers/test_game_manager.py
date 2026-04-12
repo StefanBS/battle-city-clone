@@ -225,21 +225,25 @@ class TestGameManager:
             game_manager._handle_options_input(MenuAction.RIGHT)
             assert game_manager.settings_manager.master_volume > initial_vol
 
-        def test_options_input_right_difficulty_sets_normal(self, game_manager):
-            """MenuAction.RIGHT on difficulty row sets NORMAL."""
+        def test_options_difficulty_cycles_forward(self, game_manager):
+            """MenuAction.RIGHT cycles difficulty forward with wrap-around."""
             game_manager.state = GameState.OPTIONS_MENU
             game_manager._options_selection = 0
             game_manager.settings_manager.difficulty = Difficulty.EASY
             game_manager._handle_options_input(MenuAction.RIGHT)
             assert game_manager.settings_manager.difficulty == Difficulty.NORMAL
+            game_manager._handle_options_input(MenuAction.RIGHT)
+            assert game_manager.settings_manager.difficulty == Difficulty.EASY
 
-        def test_options_input_left_difficulty_sets_easy(self, game_manager):
-            """MenuAction.LEFT on difficulty row sets EASY."""
+        def test_options_difficulty_cycles_backward(self, game_manager):
+            """MenuAction.LEFT cycles difficulty backward with wrap-around."""
             game_manager.state = GameState.OPTIONS_MENU
             game_manager._options_selection = 0
             game_manager.settings_manager.difficulty = Difficulty.NORMAL
             game_manager._handle_options_input(MenuAction.LEFT)
             assert game_manager.settings_manager.difficulty == Difficulty.EASY
+            game_manager._handle_options_input(MenuAction.LEFT)
+            assert game_manager.settings_manager.difficulty == Difficulty.NORMAL
 
         def test_options_input_confirm_back(self, game_manager):
             """MenuAction.CONFIRM on Back returns to previous screen."""
