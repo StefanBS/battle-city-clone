@@ -198,6 +198,55 @@ class TestControllerPlayerInput:
         )
         assert controller_input.consume_shoot() is True
 
+    def test_dpad_press_preserves_perpendicular_keyboard_state(
+        self, controller_input: PlayerInput
+    ) -> None:
+        """Pressing dpad on one axis must not clear held keyboard state on the
+        perpendicular axis in 1P non-exclusive mode.
+
+        Regression for #138: previously the dpad handler zeroed all four
+        directions before setting the new one, silently dropping a held
+        keyboard direction whenever the user tapped a perpendicular dpad button.
+        """
+        controller_input.handle_event(
+            pygame.event.Event(pygame.KEYDOWN, key=pygame.K_LEFT)
+        )
+        assert controller_input.get_movement_direction() == (-1, 0)
+
+        controller_input.handle_event(
+            pygame.event.Event(
+                pygame.CONTROLLERBUTTONDOWN,
+                button=pygame.CONTROLLER_BUTTON_DPAD_UP,
+                instance_id=0,
+            )
+        )
+
+        assert controller_input.get_movement_direction() == (-1, -1)
+
+    def test_dpad_press_clears_opposite_on_same_axis(
+        self, controller_input: PlayerInput
+    ) -> None:
+        """A dpad press on one axis must cancel the opposite direction on the
+        same axis (e.g. pressing LEFT cancels RIGHT) so the player doesn't
+        stay pinned when the user sweeps across the dpad."""
+        controller_input.handle_event(
+            pygame.event.Event(
+                pygame.CONTROLLERBUTTONDOWN,
+                button=pygame.CONTROLLER_BUTTON_DPAD_RIGHT,
+                instance_id=0,
+            )
+        )
+        assert controller_input.get_movement_direction() == (1, 0)
+
+        controller_input.handle_event(
+            pygame.event.Event(
+                pygame.CONTROLLERBUTTONDOWN,
+                button=pygame.CONTROLLER_BUTTON_DPAD_LEFT,
+                instance_id=0,
+            )
+        )
+        assert controller_input.get_movement_direction() == (-1, 0)
+
     def test_axis_with_deadzone(self, controller_input: PlayerInput) -> None:
         """Axis within deadzone sets no direction; beyond deadzone sets direction."""
         # Within deadzone — no direction

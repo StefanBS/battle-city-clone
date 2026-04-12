@@ -178,8 +178,7 @@ class PlayerInput:
         if event.type == pygame.CONTROLLERBUTTONDOWN:
             if event.button in CTRL_DPAD_BUTTONS:
                 direction = CTRL_DPAD_BUTTONS[event.button]
-                for d in self._directions:
-                    self._directions[d] = False
+                self._directions[direction.opposite] = False
                 self._directions[direction] = True
             elif event.button in CTRL_SHOOT_BUTTONS:
                 self._shoot_pressed = True
