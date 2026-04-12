@@ -61,13 +61,8 @@ class Renderer:
         # Cached text surface for game over animation (set on first use)
         self._game_over_text: Optional[pygame.Surface] = None
 
-        # HUD text cache (re-render only when values change)
-        self._cached_lives: Optional[int] = None
-        self._cached_lives_text: Optional[pygame.Surface] = None
-        self._cached_score: Optional[int] = None
-        self._cached_score_text: Optional[pygame.Surface] = None
-        # Per-player HUD cache for 2P mode
-        self._cached_player_hud: Dict[int, tuple] = {}
+        # HUD text cache: {slot -> (label_str, score_str, label_surf, score_surf)}
+        self._cached_hud: Dict[str, tuple] = {}
 
         # Reusable overlay surfaces for pause/game-over screens
         self._pause_overlay: pygame.Surface = pygame.Surface(
@@ -168,72 +163,72 @@ class Renderer:
         if scores is None:
             scores = {}
 
-        if len(player_tanks) > 1:
-            self._draw_hud_2p(player_tanks, scores)
+        is_2p = len(player_tanks) > 1
+
+        if is_2p:
+            for i, player in enumerate(player_tanks):
+                pid = player.player_id
+                player_score = scores.get(pid, 0)
+                eliminated = player.health <= 0 and player.lives <= 0
+                if eliminated:
+                    label = f"P{pid}: OUT"
+                    color = GRAY
+                else:
+                    label = f"P{pid}: {player.lives}"
+                    color = WHITE
+                align = "left" if i == 0 else "right"
+                self._draw_hud_slot(
+                    f"p{pid}", label, f"{player_score:>6}", color, align
+                )
         else:
-            # 1P HUD (unchanged appearance)
             lives = player_tanks[0].lives if player_tanks else 0
             total_score = sum(scores.values())
-            if self._cached_lives != lives:
-                self._cached_lives = lives
-                self._cached_lives_text = self.small_font.render(
-                    f"Lives: {lives}", True, WHITE
-                )
-            self.game_surface.blit(self._cached_lives_text, (10, 10))
+            self._draw_hud_slot(
+                "lives", f"Lives: {lives}", None, WHITE, "left"
+            )
+            self._draw_hud_slot(
+                "score", f"Score: {total_score:>6}", None, WHITE, "right"
+            )
 
-            if self._cached_score != total_score:
-                self._cached_score = total_score
-                self._cached_score_text = self.small_font.render(
-                    f"Score: {total_score:>6}", True, WHITE
-                )
-            score_rect = self._cached_score_text.get_rect(
+    def _draw_hud_slot(
+        self,
+        slot: str,
+        label: str,
+        score_text: Optional[str],
+        color: Tuple[int, int, int],
+        align: str,
+    ) -> None:
+        """Render and blit a cached HUD slot (label + optional score line).
+
+        Re-renders only when the text changes.
+        """
+        cached = self._cached_hud.get(slot)
+        if cached is None or cached[0] != label or cached[1] != score_text:
+            label_surf = self.small_font.render(label, True, color)
+            score_surf = (
+                self.small_font.render(score_text, True, WHITE)
+                if score_text
+                else None
+            )
+            self._cached_hud[slot] = (label, score_text, label_surf, score_surf)
+        else:
+            label_surf = cached[2]
+            score_surf = cached[3]
+
+        if align == "left":
+            self.game_surface.blit(label_surf, (10, 10))
+            if score_surf:
+                self.game_surface.blit(score_surf, (10, 24))
+        else:
+            label_rect = label_surf.get_rect(
                 topright=(self.logical_width - 10, 10)
             )
-            self.game_surface.blit(self._cached_score_text, score_rect)
-
-    def _draw_hud_2p(
-        self, player_tanks: List, scores: Dict[int, int]
-    ) -> None:
-        """Draw 2-player HUD with P1 on left, P2 on right (cached)."""
-        for i, player in enumerate(player_tanks):
-            pid = player.player_id
-            player_score = scores.get(pid, 0)
-            eliminated = player.health <= 0 and player.lives <= 0
-
-            cache_key = (player.lives, player_score, eliminated)
-            cached = self._cached_player_hud.get(pid)
-            if cached is None or cached[:3] != cache_key:
-                if eliminated:
-                    label_surf = self.small_font.render(
-                        f"P{pid}: OUT", True, GRAY
-                    )
-                else:
-                    label_surf = self.small_font.render(
-                        f"P{pid}: {player.lives}", True, WHITE
-                    )
-                score_surf = self.small_font.render(
-                    f"{player_score:>6}", True, WHITE
-                )
-                self._cached_player_hud[pid] = (
-                    *cache_key,
-                    label_surf,
-                    score_surf,
-                )
-            else:
-                label_surf = cached[3]
-                score_surf = cached[4]
-
-            if i == 0:
-                self.game_surface.blit(label_surf, (10, 10))
-                self.game_surface.blit(score_surf, (10, 24))
-            else:
-                label_rect = label_surf.get_rect(
-                    topright=(self.logical_width - 10, 10)
-                )
-                self.game_surface.blit(label_surf, label_rect)
+            self.game_surface.blit(label_surf, label_rect)
+            if score_surf:
                 score_rect = score_surf.get_rect(
                     topright=(self.logical_width - 10, 24)
                 )
+                self.game_surface.blit(score_surf, score_rect)
                 self.game_surface.blit(score_surf, score_rect)
 
     def _draw_game_over_rising(self, progress: float) -> None:
