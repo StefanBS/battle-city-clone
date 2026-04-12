@@ -519,6 +519,73 @@ class TestKeyboardInput:
         assert ki.consume_shoot() is False
 
 
+class TestCombinedInput:
+    @pytest.fixture
+    def combined(self):
+        from src.managers.player_input import (
+            CombinedInput,
+            ControllerInput,
+            KeyboardInput,
+        )
+        return CombinedInput([KeyboardInput(), ControllerInput(instance_id=None)])
+
+    def test_keyboard_event_drives_direction(
+        self, combined, key_down_event
+    ) -> None:
+        combined.handle_event(key_down_event(pygame.K_UP))
+        assert combined.get_movement_direction() == (0, -1)
+
+    def test_controller_event_drives_direction(
+        self, combined, ctrl_button_down_event
+    ) -> None:
+        combined.handle_event(
+            ctrl_button_down_event(pygame.CONTROLLER_BUTTON_DPAD_LEFT)
+        )
+        assert combined.get_movement_direction() == (-1, 0)
+
+    def test_merge_keyboard_and_controller_directions(
+        self, combined, key_down_event, ctrl_button_down_event
+    ) -> None:
+        """Regression for #138: held keyboard LEFT + dpad UP → (-1, -1)."""
+        combined.handle_event(key_down_event(pygame.K_LEFT))
+        combined.handle_event(
+            ctrl_button_down_event(pygame.CONTROLLER_BUTTON_DPAD_UP)
+        )
+        assert combined.get_movement_direction() == (-1, -1)
+
+    def test_keyboard_shoot(self, combined, key_down_event) -> None:
+        combined.handle_event(key_down_event(pygame.K_SPACE))
+        assert combined.consume_shoot() is True
+
+    def test_controller_shoot(self, combined, ctrl_button_down_event) -> None:
+        combined.handle_event(
+            ctrl_button_down_event(pygame.CONTROLLER_BUTTON_A)
+        )
+        assert combined.consume_shoot() is True
+
+    def test_consume_shoot_drains_all_children(
+        self, combined, key_down_event, ctrl_button_down_event
+    ) -> None:
+        """Both children have a pending shoot — a single consume_shoot must
+        drain BOTH flags or a spurious bullet fires next frame."""
+        combined.handle_event(key_down_event(pygame.K_SPACE))
+        combined.handle_event(
+            ctrl_button_down_event(pygame.CONTROLLER_BUTTON_A)
+        )
+        assert combined.consume_shoot() is True
+        assert combined.consume_shoot() is False
+
+    def test_clear_pending_shoot_forwards_to_all(
+        self, combined, key_down_event, ctrl_button_down_event
+    ) -> None:
+        combined.handle_event(key_down_event(pygame.K_SPACE))
+        combined.handle_event(
+            ctrl_button_down_event(pygame.CONTROLLER_BUTTON_A)
+        )
+        combined.clear_pending_shoot()
+        assert combined.consume_shoot() is False
+
+
 class TestClassifyAxis:
     def test_neutral_at_zero(self) -> None:
         assert classify_axis(0) is AxisState.NEUTRAL

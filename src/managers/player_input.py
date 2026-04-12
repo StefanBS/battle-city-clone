@@ -279,3 +279,32 @@ class ControllerInput:
             return
         self._directions[neg_dir] = neg
         self._directions[pos_dir] = pos
+
+
+class CombinedInput:
+    def __init__(self, inputs: list["PlayerInput"]) -> None:
+        self._inputs = inputs
+
+    def handle_event(self, event: pygame.event.Event) -> None:
+        for inp in self._inputs:
+            inp.handle_event(event)
+
+    def get_movement_direction(self) -> tuple[int, int]:
+        dx = 0
+        dy = 0
+        for inp in self._inputs:
+            ddx, ddy = inp.get_movement_direction()
+            dx += ddx
+            dy += ddy
+        return (dx, dy)
+
+    def consume_shoot(self) -> bool:
+        fired = False
+        for inp in self._inputs:
+            if inp.consume_shoot():
+                fired = True
+        return fired
+
+    def clear_pending_shoot(self) -> None:
+        for inp in self._inputs:
+            inp.clear_pending_shoot()
