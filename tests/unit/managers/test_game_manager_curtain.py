@@ -123,7 +123,7 @@ class TestCurtainTransitions:
 
     def test_title_start_triggers_curtain(self, game):
         game.state = GameState.TITLE_SCREEN
-        game._title_selection = 0
+        game._title_menu.selection = 0
         event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RETURN)
         pygame.event.post(event)
         game.handle_events()
@@ -199,5 +199,5 @@ class TestGameOverAnimation:
         for _ in range(int(total * FPS) + 2):
             game.update()
         assert game.state == GameState.TITLE_SCREEN
-        assert game._title_selection == 0
+        assert game._title_menu.selection == 0
         assert game._post_curtain_state == GameState.RUNNING
