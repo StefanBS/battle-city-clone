@@ -11,6 +11,7 @@ from src.utils.constants import (
 )
 from src.core.tile import Tile, TileType
 from src.core.enemy_tank import EnemyTank
+from tests.integration.conftest import first_player
 import random
 
 
@@ -145,7 +146,7 @@ def test_enemy_spawning_rules(game_manager_fixture):
     # Attempt to spawn one more enemy beyond the limit
     logger.info("Attempting to spawn beyond max limit...")
     spawn_success = game_manager.spawn_manager.spawn_enemy(
-        game_manager.player_tank, game_manager.map
+        first_player(game_manager), game_manager.map
     )
 
     # Assert counts did NOT change and spawn failed
@@ -164,7 +165,7 @@ def test_enemy_spawning_rules(game_manager_fixture):
 def test_enemy_spawn_blocked(game_manager_fixture):
     """Test that enemies do not spawn on a blocked spawn point."""
     game_manager = game_manager_fixture
-    player_tank = game_manager.player_tank
+    player_tank = first_player(game_manager)
 
     spawn_points_grid = game_manager.spawn_manager.spawn_points
     spawn_points_pixels = [

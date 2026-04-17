@@ -24,6 +24,15 @@ def game_manager_fixture():
     return manager
 
 
+def first_player(game):
+    """Return the first active player tank, assuming one exists.
+
+    Most integration tests are single-player and just want \"the\" player;
+    this centralises the get_active_players()[0] lookup.
+    """
+    return game.player_manager.get_active_players()[0]
+
+
 def flush_pending_spawns(game, max_ticks=120):
     """Tick effect updates until all pending spawn animations finish.
 

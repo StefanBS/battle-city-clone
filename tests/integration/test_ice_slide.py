@@ -12,6 +12,7 @@ from src.utils.constants import (
     ICE_SLIDE_DISTANCE,
     SUB_TILE_SIZE,
 )
+from tests.integration.conftest import first_player
 
 _DIRECTION_TO_KEY = {direction: key for key, direction in KEY_TO_DIRECTION.items()}
 
@@ -27,11 +28,11 @@ def _place_ice_patch(game, grid_x, grid_y, width=4, height=4):
 
 def _move_player_to(game, px, py):
     """Teleport the player tank to a pixel position."""
-    game.player_tank.x = float(px)
-    game.player_tank.y = float(py)
-    game.player_tank.prev_x = float(px)
-    game.player_tank.prev_y = float(py)
-    game.player_tank.rect.topleft = (round(px), round(py))
+    first_player(game).x = float(px)
+    first_player(game).y = float(py)
+    first_player(game).prev_x = float(px)
+    first_player(game).prev_y = float(py)
+    first_player(game).rect.topleft = (round(px), round(py))
 
 
 def _set_input(game, direction):
@@ -75,7 +76,7 @@ class TestPlayerIceSlide:
         _place_ice_patch(game, 4, 4, width=8, height=8)
         # Move player to center of ice patch (pixel coords)
         _move_player_to(game, 6 * SUB_TILE_SIZE, 6 * SUB_TILE_SIZE)
-        game.player_tank.direction = Direction.UP
+        first_player(game).direction = Direction.UP
         return game
 
     def test_slide_on_key_release(self, ice_game):
@@ -85,17 +86,17 @@ class TestPlayerIceSlide:
         # Move UP for a few frames
         _set_input(game, Direction.UP)
         _tick(game, 5)
-        assert game.player_tank.direction == Direction.UP
+        assert first_player(game).direction == Direction.UP
 
         # Release keys — should start sliding UP
         _clear_input(game)
         _tick(game, 1)  # triggers slide
-        assert game.player_tank.is_sliding is True
-        assert game.player_tank._slide_direction == Direction.UP
+        assert first_player(game).is_sliding is True
+        assert first_player(game)._slide_direction == Direction.UP
 
-        pos_before = game.player_tank.y
+        pos_before = first_player(game).y
         _tick(game, 1)  # first frame of slide movement
-        assert game.player_tank.y < pos_before, "Tank should slide UP (decreasing y)"
+        assert first_player(game).y < pos_before, "Tank should slide UP (decreasing y)"
 
     def test_slide_on_perpendicular_direction_change(self, ice_game):
         """Player slides in old direction when changing to perpendicular."""
@@ -108,16 +109,16 @@ class TestPlayerIceSlide:
         # Now press LEFT (perpendicular) — should slide UP first
         _set_input(game, Direction.LEFT)
         _tick(game, 1)  # triggers slide
-        assert game.player_tank.is_sliding is True, (
+        assert first_player(game).is_sliding is True, (
             "Tank should start sliding on perpendicular direction change"
         )
-        assert game.player_tank._slide_direction == Direction.UP, (
+        assert first_player(game)._slide_direction == Direction.UP, (
             "Slide should be in the OLD direction (UP)"
         )
 
-        pos_before_y = game.player_tank.y
+        pos_before_y = first_player(game).y
         _tick(game, 1)  # first frame of slide movement
-        assert game.player_tank.y < pos_before_y, (
+        assert first_player(game).y < pos_before_y, (
             "Tank should continue moving UP during slide"
         )
 
@@ -126,22 +127,22 @@ class TestPlayerIceSlide:
         game = ice_game
 
         # Move RIGHT for a few frames
-        game.player_tank.direction = Direction.RIGHT
+        first_player(game).direction = Direction.RIGHT
         _set_input(game, Direction.RIGHT)
         _tick(game, 5)
 
         # Release — trigger slide, then capture position
         _clear_input(game)
         _tick(game, 1)  # triggers slide
-        pos_before = game.player_tank.x
+        pos_before = first_player(game).x
 
         # Let slide complete
         for _ in range(120):
             _tick(game, 1)
-            if not game.player_tank.is_sliding:
+            if not first_player(game).is_sliding:
                 break
 
-        distance = game.player_tank.x - pos_before
+        distance = first_player(game).x - pos_before
         assert abs(distance - ICE_SLIDE_DISTANCE) < 2.0, (
             f"Slide distance {distance:.1f} should be ~{ICE_SLIDE_DISTANCE}"
         )
@@ -154,15 +155,15 @@ class TestPlayerIceSlide:
         _clear_input(game)
         _tick(game, 1)
 
-        assert game.player_tank.is_sliding is False
+        assert first_player(game).is_sliding is False
 
     def test_slide_cancelled_by_wall(self, ice_game):
         """Slide stops when tank hits a wall/obstacle."""
         game = ice_game
 
         # Place a brick wall 1 tile to the right of player
-        px = game.player_tank.x
-        py = game.player_tank.y
+        px = first_player(game).x
+        py = first_player(game).y
         wall_grid_x = int(px // SUB_TILE_SIZE) + 2
         wall_grid_y = int(py // SUB_TILE_SIZE)
         for dy in range(2):
@@ -171,7 +172,7 @@ class TestPlayerIceSlide:
                 game.map.set_tile_type(tile, TileType.BRICK)
 
         # Move RIGHT then release to slide into wall
-        game.player_tank.direction = Direction.RIGHT
+        first_player(game).direction = Direction.RIGHT
         _set_input(game, Direction.RIGHT)
         _tick(game, 3)
         _clear_input(game)
@@ -179,10 +180,12 @@ class TestPlayerIceSlide:
         # Tick until slide ends
         for _ in range(60):
             _tick(game, 1)
-            if not game.player_tank.is_sliding:
+            if not first_player(game).is_sliding:
                 break
 
-        assert game.player_tank.is_sliding is False, "Slide should have been cancelled"
+        assert first_player(game).is_sliding is False, (
+            "Slide should have been cancelled"
+        )
 
     def test_slide_on_opposite_direction(self, ice_game):
         """Player slides when pressing opposite direction on ice."""
@@ -195,10 +198,10 @@ class TestPlayerIceSlide:
         # Press DOWN (opposite) — direction change triggers slide
         _set_input(game, Direction.DOWN)
         _tick(game, 1)  # triggers slide
-        assert game.player_tank.is_sliding is True, (
+        assert first_player(game).is_sliding is True, (
             "Tank should slide when pressing opposite direction"
         )
 
-        pos_before = game.player_tank.y
+        pos_before = first_player(game).y
         _tick(game, 1)  # first frame of slide movement
-        assert game.player_tank.y < pos_before, "Tank should continue sliding UP"
+        assert first_player(game).y < pos_before, "Tank should continue sliding UP"

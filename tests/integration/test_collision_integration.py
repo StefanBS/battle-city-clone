@@ -4,6 +4,7 @@ from src.utils.constants import Direction, FPS, TILE_SIZE, SUB_TILE_SIZE, TankTy
 from src.states.game_state import GameState
 from src.core.tile import BrickVariant, Tile, TileDefaults, TileType
 from src.core.enemy_tank import EnemyTank
+from tests.integration.conftest import first_player
 
 # Tests related to collision interactions between different game objects
 
@@ -25,7 +26,7 @@ def test_player_bullet_vs_tile(
 ):
     """Test player bullet interaction with various tile types."""
     game_manager = game_manager_fixture
-    player_tank = game_manager.player_tank
+    player_tank = first_player(game_manager)
     game_map = game_manager.map
 
     # Define target tile location (sub-tile grid coords)
@@ -81,7 +82,7 @@ def test_player_bullet_vs_tile(
     player_tank.direction = Direction.UP
     bullet_obj = player_tank.shoot()
     assert bullet_obj is not None, "Bullet failed to spawn."
-    game_manager.player_manager.add_bullet(bullet_obj)
+    game_manager.player_manager._bullets.append(bullet_obj)
     bullet = bullet_obj
 
     # Simulate game time until bullet should have hit (or passed)
@@ -132,7 +133,7 @@ def test_player_bullet_destroys_enemy_tank(game_manager_fixture, mocker):
     """Test player bullet hitting and destroying a basic enemy tank."""
     mocker.patch("src.core.enemy_tank.random.uniform", return_value=0.0)
     game_manager = game_manager_fixture
-    player_tank = game_manager.player_tank
+    player_tank = first_player(game_manager)
 
     # --- Spawn Enemy Tank --- #
     enemy_type = TankType.BASIC
@@ -182,7 +183,7 @@ def test_player_bullet_destroys_enemy_tank(game_manager_fixture, mocker):
     player_tank.direction = Direction.UP
     bullet_obj = player_tank.shoot()
     assert bullet_obj is not None, "Bullet failed to spawn."
-    game_manager.player_manager.add_bullet(bullet_obj)
+    game_manager.player_manager._bullets.append(bullet_obj)
     bullet = bullet_obj
 
     # Simulate game time until bullet should have hit
@@ -260,7 +261,7 @@ def test_enemy_bullet_hits_player_tank(
     """Test enemy bullet hitting the player tank under different conditions."""
     mocker.patch("src.core.enemy_tank.random.uniform", return_value=0.0)
     game_manager = game_manager_fixture
-    player_tank = game_manager.player_tank
+    player_tank = first_player(game_manager)
     initial_spawn_pos = player_tank.initial_position
 
     # --- Configure Player State ---
@@ -538,7 +539,7 @@ def test_player_tank_vs_enemy_tank_no_overlap(game_manager_fixture, mocker):
     """Test that a player tank driving into an enemy tank does not overlap."""
     mocker.patch("src.core.enemy_tank.random.uniform", return_value=0.0)
     game_manager = game_manager_fixture
-    player_tank = game_manager.player_tank
+    player_tank = first_player(game_manager)
 
     # --- Spawn an enemy tank directly above the player --- #
     enemy_type = TankType.BASIC

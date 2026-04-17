@@ -10,6 +10,7 @@ from src.utils.constants import (
     BULLET_HEIGHT,
 )
 from src.core.tile import Tile, TileType
+from tests.integration.conftest import first_player
 
 # Tests related to player actions: movement, shooting, respawn
 
@@ -28,7 +29,7 @@ def test_player_movement(key, axis, direction_sign, expected_direction):
     # Use fresh instance to avoid side effects from other tests
     game_manager = GameManager()
     game_manager._reset_game()
-    player_tank = game_manager.player_tank
+    player_tank = first_player(game_manager)
     game_map = game_manager.map
 
     # Manually set position to an open space (sub-tile grid 16, 16)
@@ -120,7 +121,7 @@ def test_player_movement_blocked_by_tile(
 ):
     """Test player tank movement is blocked by specific tile types."""
     game_manager = game_manager_fixture
-    player_tank = game_manager.player_tank
+    player_tank = first_player(game_manager)
     game_map = game_manager.map
 
     # Define target tile location (sub-tile grid coords)
@@ -274,7 +275,7 @@ def test_player_shooting():
     # Use fresh instance
     game_manager = GameManager()
     game_manager._reset_game()
-    player_tank = game_manager.player_tank
+    player_tank = first_player(game_manager)
 
     # 1. Initial state: No bullets
     assert len(game_manager.bullets) == 0, "No bullets should exist initially."
@@ -325,7 +326,7 @@ def test_player_bullet_movement(direction_str, axis_index, direction_sign):
     # Use fresh instance
     game_manager = GameManager()
     game_manager._reset_game()
-    player_tank = game_manager.player_tank
+    player_tank = first_player(game_manager)
 
     # Set tank direction and fire
     player_tank.direction = direction_str
@@ -376,7 +377,7 @@ def test_player_respawn():
     # Use fresh instance
     game_manager = GameManager()
     game_manager._reset_game()
-    player_tank = game_manager.player_tank
+    player_tank = first_player(game_manager)
 
     initial_lives = player_tank.lives
     initial_health = player_tank.health
