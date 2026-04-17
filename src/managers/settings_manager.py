@@ -34,6 +34,16 @@ class SettingsManager:
                 f"Could not load settings from {self._path}; using defaults."
             )
 
+    def cycle_difficulty(self, step: int) -> None:
+        """Advance the difficulty by ``step`` positions, wrapping around."""
+        difficulties = list(Difficulty)
+        idx = difficulties.index(self.difficulty)
+        self.difficulty = difficulties[(idx + step) % len(difficulties)]
+
+    def adjust_volume(self, delta: float) -> None:
+        """Add ``delta`` to master volume, clamped to [0.0, 1.0]."""
+        self.master_volume = max(0.0, min(1.0, self.master_volume + delta))
+
     def save(self) -> None:
         """Save current settings to file."""
         data = {

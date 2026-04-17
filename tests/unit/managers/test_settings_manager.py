@@ -1,5 +1,6 @@
 import json
 from src.managers.settings_manager import SettingsManager
+from src.utils.constants import Difficulty
 
 
 class TestSettingsManager:
@@ -51,3 +52,35 @@ class TestSettingsManager:
             json.dump({}, f)
         sm = SettingsManager(path=path)
         assert sm.master_volume == 1.0
+
+    def test_adjust_volume_applies_delta(self, tmp_path):
+        sm = SettingsManager(path=str(tmp_path / "settings.json"))
+        sm.master_volume = 0.5
+        sm.adjust_volume(0.1)
+        assert sm.master_volume == 0.6
+
+    def test_adjust_volume_clamps_at_zero(self, tmp_path):
+        sm = SettingsManager(path=str(tmp_path / "settings.json"))
+        sm.master_volume = 0.0
+        sm.adjust_volume(-0.1)
+        assert sm.master_volume == 0.0
+
+    def test_adjust_volume_clamps_at_one(self, tmp_path):
+        sm = SettingsManager(path=str(tmp_path / "settings.json"))
+        sm.master_volume = 1.0
+        sm.adjust_volume(0.1)
+        assert sm.master_volume == 1.0
+
+    def test_cycle_difficulty_forward_wraps(self, tmp_path):
+        sm = SettingsManager(path=str(tmp_path / "settings.json"))
+        difficulties = list(Difficulty)
+        sm.difficulty = difficulties[-1]
+        sm.cycle_difficulty(1)
+        assert sm.difficulty == difficulties[0]
+
+    def test_cycle_difficulty_backward_wraps(self, tmp_path):
+        sm = SettingsManager(path=str(tmp_path / "settings.json"))
+        difficulties = list(Difficulty)
+        sm.difficulty = difficulties[0]
+        sm.cycle_difficulty(-1)
+        assert sm.difficulty == difficulties[-1]

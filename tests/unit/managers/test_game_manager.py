@@ -9,6 +9,7 @@ from src.utils.constants import (
     MAX_STAGE,
     MenuAction,
     VICTORY_PAUSE_DURATION,
+    VOLUME_ADJUSTMENT_STEP,
 )
 
 
@@ -217,33 +218,27 @@ class TestGameManager:
             assert game_manager.state == GameState.RUNNING
 
         def test_options_input_right_volume(self, game_manager):
-            """MenuAction.RIGHT on volume row increases volume."""
+            """MenuAction.RIGHT on volume row delegates to settings_manager."""
             game_manager.state = GameState.OPTIONS_MENU
             game_manager._options_menu.selection = 1  # volume is now index 1
-            game_manager.settings_manager.master_volume = 0.5
-            initial_vol = game_manager.settings_manager.master_volume
             game_manager._options_menu.handle_action(MenuAction.RIGHT)
-            assert game_manager.settings_manager.master_volume > initial_vol
+            game_manager.settings_manager.adjust_volume.assert_called_once_with(
+                VOLUME_ADJUSTMENT_STEP
+            )
 
         def test_options_difficulty_cycles_forward(self, game_manager):
-            """MenuAction.RIGHT cycles difficulty forward with wrap-around."""
+            """MenuAction.RIGHT on difficulty row delegates with step=+1."""
             game_manager.state = GameState.OPTIONS_MENU
             game_manager._options_menu.selection = 0
-            game_manager.settings_manager.difficulty = Difficulty.EASY
             game_manager._options_menu.handle_action(MenuAction.RIGHT)
-            assert game_manager.settings_manager.difficulty == Difficulty.NORMAL
-            game_manager._options_menu.handle_action(MenuAction.RIGHT)
-            assert game_manager.settings_manager.difficulty == Difficulty.EASY
+            game_manager.settings_manager.cycle_difficulty.assert_called_once_with(1)
 
         def test_options_difficulty_cycles_backward(self, game_manager):
-            """MenuAction.LEFT cycles difficulty backward with wrap-around."""
+            """MenuAction.LEFT on difficulty row delegates with step=-1."""
             game_manager.state = GameState.OPTIONS_MENU
             game_manager._options_menu.selection = 0
-            game_manager.settings_manager.difficulty = Difficulty.NORMAL
             game_manager._options_menu.handle_action(MenuAction.LEFT)
-            assert game_manager.settings_manager.difficulty == Difficulty.EASY
-            game_manager._options_menu.handle_action(MenuAction.LEFT)
-            assert game_manager.settings_manager.difficulty == Difficulty.NORMAL
+            game_manager.settings_manager.cycle_difficulty.assert_called_once_with(-1)
 
         def test_options_input_confirm_back(self, game_manager):
             """MenuAction.CONFIRM on Back returns to previous screen."""
@@ -755,58 +750,34 @@ class TestPauseAndOptionsStateMachine:
     # --- Options menu ---
 
     def test_options_volume_left_decreases(self, game_manager, key_down_event):
-        """LEFT on VOLUME (1) in options decreases master volume."""
+        """LEFT on VOLUME (1) delegates to settings_manager.adjust_volume."""
         gm = game_manager
         gm.state = GameState.OPTIONS_MENU
         gm._options_menu.selection = 1
         gm.settings_manager = MagicMock()
-        gm.settings_manager.master_volume = 0.5
+        gm.settings_manager.master_volume = 0.4  # value adjust_volume would land on
         gm.sound_manager = MagicMock()
         pygame.event.post(key_down_event(pygame.K_LEFT))
         gm.handle_events()
-        assert gm.settings_manager.master_volume == pytest.approx(0.4, abs=0.01)
-        gm.sound_manager.set_master_volume.assert_called_once_with(
-            pytest.approx(0.4, abs=0.01)
+        gm.settings_manager.adjust_volume.assert_called_once_with(
+            -VOLUME_ADJUSTMENT_STEP
         )
+        gm.sound_manager.set_master_volume.assert_called_once_with(0.4)
 
     def test_options_volume_right_increases(self, game_manager, key_down_event):
-        """RIGHT on VOLUME (1) in options increases master volume."""
+        """RIGHT on VOLUME (1) delegates to settings_manager.adjust_volume."""
         gm = game_manager
         gm.state = GameState.OPTIONS_MENU
         gm._options_menu.selection = 1
         gm.settings_manager = MagicMock()
-        gm.settings_manager.master_volume = 0.5
+        gm.settings_manager.master_volume = 0.6  # value adjust_volume would land on
         gm.sound_manager = MagicMock()
         pygame.event.post(key_down_event(pygame.K_RIGHT))
         gm.handle_events()
-        assert gm.settings_manager.master_volume == pytest.approx(0.6, abs=0.01)
-        gm.sound_manager.set_master_volume.assert_called_once_with(
-            pytest.approx(0.6, abs=0.01)
+        gm.settings_manager.adjust_volume.assert_called_once_with(
+            VOLUME_ADJUSTMENT_STEP
         )
-
-    def test_options_volume_clamps_at_zero(self, game_manager, key_down_event):
-        """Volume does not go below 0.0."""
-        gm = game_manager
-        gm.state = GameState.OPTIONS_MENU
-        gm._options_menu.selection = 1
-        gm.settings_manager = MagicMock()
-        gm.settings_manager.master_volume = 0.0
-        gm.sound_manager = MagicMock()
-        pygame.event.post(key_down_event(pygame.K_LEFT))
-        gm.handle_events()
-        assert gm.settings_manager.master_volume == 0.0
-
-    def test_options_volume_clamps_at_one(self, game_manager, key_down_event):
-        """Volume does not go above 1.0."""
-        gm = game_manager
-        gm.state = GameState.OPTIONS_MENU
-        gm._options_menu.selection = 1
-        gm.settings_manager = MagicMock()
-        gm.settings_manager.master_volume = 1.0
-        gm.sound_manager = MagicMock()
-        pygame.event.post(key_down_event(pygame.K_RIGHT))
-        gm.handle_events()
-        assert gm.settings_manager.master_volume == 1.0
+        gm.sound_manager.set_master_volume.assert_called_once_with(0.6)
 
     def test_options_back_saves_and_returns_to_title(
         self, game_manager, key_down_event
