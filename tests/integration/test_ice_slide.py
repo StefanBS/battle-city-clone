@@ -6,18 +6,14 @@ Uses real objects (no mocks) with SDL_VIDEODRIVER=dummy for headless execution.
 import pygame
 import pytest
 from src.core.tile import TileType
+from src.managers.player_input import KEY_TO_DIRECTION
 from src.utils.constants import (
     Direction,
     ICE_SLIDE_DISTANCE,
     SUB_TILE_SIZE,
 )
 
-_DIRECTION_TO_KEY = {
-    Direction.UP: pygame.K_UP,
-    Direction.DOWN: pygame.K_DOWN,
-    Direction.LEFT: pygame.K_LEFT,
-    Direction.RIGHT: pygame.K_RIGHT,
-}
+_DIRECTION_TO_KEY = {direction: key for key, direction in KEY_TO_DIRECTION.items()}
 
 
 def _place_ice_patch(game, grid_x, grid_y, width=4, height=4):

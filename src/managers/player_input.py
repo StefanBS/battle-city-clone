@@ -170,6 +170,8 @@ class CombinedInput:
         return (dx, dy)
 
     def consume_shoot(self) -> bool:
+        # Drain every child unconditionally — `any(...)` would short-circuit
+        # and leave a buffered shoot on the next input to fire next frame.
         fired = False
         for inp in self._inputs:
             if inp.consume_shoot():

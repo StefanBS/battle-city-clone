@@ -227,7 +227,6 @@ class Renderer:
                     topright=(self.logical_width - 10, 24)
                 )
                 self.game_surface.blit(score_surf, score_rect)
-                self.game_surface.blit(score_surf, score_rect)
 
     def _draw_game_over_rising(self, progress: float) -> None:
         """Draw 'GAME OVER' text rising from bottom to center.

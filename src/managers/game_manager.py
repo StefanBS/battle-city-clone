@@ -9,7 +9,6 @@ from src.core.bullet import Bullet
 from src.states.game_state import GameState
 from src.utils.constants import (
     Difficulty,
-    OwnerType,
     VOLUME_ADJUSTMENT_STEP,
     WINDOW_TITLE,
     FPS,
@@ -53,8 +52,6 @@ from src.utils.paths import resource_path
 
 class GameManager:
     """Manages the core game loop and window."""
-
-    _SELECTABLE_MENU_INDICES = (0, 1, 2, 3)
 
     def __init__(self) -> None:
         """Initialize the game window and persistent resources."""
@@ -298,16 +295,8 @@ class GameManager:
     def _handle_title_input(self, action: MenuAction) -> None:
         """Handle menu action on the title screen."""
         if action in (MenuAction.UP, MenuAction.DOWN):
-            indices = self._SELECTABLE_MENU_INDICES
-            if self._title_selection in indices:
-                pos = indices.index(self._title_selection)
-            else:
-                pos = 0
-            if action == MenuAction.UP:
-                pos = (pos - 1) % len(indices)
-            else:
-                pos = (pos + 1) % len(indices)
-            self._title_selection = indices[pos]
+            step = -1 if action == MenuAction.UP else 1
+            self._title_selection = (self._title_selection + step) % 4
             self.sound_manager.play_menu_select()
         elif action == MenuAction.CONFIRM:
             if self._title_selection in (0, 1):
@@ -480,7 +469,6 @@ class GameManager:
         player_base: Optional[Tile] = self.map.get_base()
 
         player_bullets = self.player_manager.get_all_bullets()
-        enemy_bullets = [b for b in self.bullets if b.owner_type == OwnerType.ENEMY]
 
         active_power_ups = self.power_up_manager.get_power_ups()
 
@@ -488,7 +476,7 @@ class GameManager:
             player_tanks=active_players,
             player_bullets=player_bullets,
             enemy_tanks=self.spawn_manager.enemy_tanks,
-            enemy_bullets=enemy_bullets,
+            enemy_bullets=self.bullets,
             tank_blocking_tiles=tank_blocking_tiles,
             bullet_blocking_tiles=bullet_blocking_tiles,
             player_base=player_base,

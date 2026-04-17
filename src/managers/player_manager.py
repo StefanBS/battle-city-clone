@@ -98,7 +98,6 @@ class PlayerManager:
 
     @staticmethod
     def _two_player_inputs(instance_ids: list[int]) -> list[PlayerInput]:
-        """Build the PlayerInput list for 2P mode (always exclusive)."""
         if len(instance_ids) >= 2:
             return [
                 ControllerInput(instance_ids[0]),
@@ -113,20 +112,12 @@ class PlayerManager:
         return [KeyboardInput(), KeyboardInput()]
 
     def handle_event(self, event: pygame.event.Event) -> None:
-        """Forward a pygame event to all PlayerInput instances.
-
-        Args:
-            event: The pygame event to process.
-        """
         for pi in self._player_inputs:
             pi.handle_event(event)
 
     def clear_pending_shoot(self) -> None:
-        """Clear any buffered shoot input on all players.
-
-        Used when exiting a menu so the button press that confirmed the menu
-        (e.g. controller A) does not leak into gameplay as a fired bullet.
-        """
+        # Called when leaving a menu so the confirm-button press (e.g.
+        # controller A) doesn't leak into gameplay as a fired bullet.
         for pi in self._player_inputs:
             pi.clear_pending_shoot()
 
