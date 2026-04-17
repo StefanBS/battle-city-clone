@@ -13,6 +13,7 @@ from src.utils.constants import (
 from src.states.game_state import GameState
 from src.core.bullet import Bullet
 from src.core.tile import Tile, TileType
+from tests.integration.conftest import first_player
 from src.core.enemy_tank import EnemyTank
 
 # Tests related to game state transitions and initial state verification
@@ -29,9 +30,9 @@ def test_initial_game_state(game_manager_fixture):
 
     # 2. Verify initial player lives
     expected_initial_lives = 3  # Assuming PlayerTank defaults to 3
-    assert game_manager.player_tank.lives == expected_initial_lives, (
+    assert first_player(game_manager).lives == expected_initial_lives, (
         f"Expected initial player lives {expected_initial_lives}, "
-        f"got {game_manager.player_tank.lives}"
+        f"got {first_player(game_manager).lives}"
     )
 
     # 3. Verify initial number of enemies (may be pending spawn animation)
@@ -74,7 +75,7 @@ def test_player_game_over_on_zero_lives():
     # Use a fresh instance as we are mocking methods
     game_manager = GameManager()
     game_manager._reset_game()
-    player_tank = game_manager.player_tank
+    player_tank = first_player(game_manager)
     # collision_manager variable removed as it wasn't used
 
     # Ensure the player starts with at least 1 life for the test
@@ -134,7 +135,7 @@ def test_player_game_over_on_zero_lives():
 def test_player_bullet_hits_base(game_manager_fixture):
     """Test that a player bullet hitting the base destroys it and causes game over."""
     game_manager = game_manager_fixture
-    player_tank = game_manager.player_tank
+    player_tank = first_player(game_manager)
     game_map = game_manager.map
 
     # Find the base tile
@@ -174,7 +175,7 @@ def test_player_bullet_hits_base(game_manager_fixture):
     player_tank.direction = Direction.DOWN  # Aim down towards base
     bullet = player_tank.shoot()
     assert bullet is not None, "Player bullet failed to spawn."
-    game_manager.player_manager.add_bullet(bullet)
+    game_manager.player_manager._bullets.append(bullet)
     assert bullet.active, "Player bullet spawned inactive."
 
     # Assert initial game state is RUNNING
@@ -279,8 +280,8 @@ def test_enemy_bullet_destroys_base_game_over(game_manager_fixture):
     enemy_tank.direction = Direction.DOWN  # Aim at base
     game_manager.spawn_manager.enemy_tanks = [enemy_tank]  # Replace default enemies
     # Move player out of the bullet path
-    game_manager.player_tank.set_position(0, 0)
-    game_manager.player_tank.rect.topleft = (0, 0)
+    first_player(game_manager).set_position(0, 0)
+    first_player(game_manager).rect.topleft = (0, 0)
     logger.debug(
         f"Manually added {enemy_type} enemy at ({enemy_x_grid}, {enemy_y_grid}) "
         f"aiming {enemy_tank.direction}"
@@ -379,7 +380,7 @@ def test_victory_condition(game_manager_fixture):
 def test_score_accumulates_on_enemy_kill(game_manager_fixture):
     """Test that score increases when the player destroys an enemy."""
     gm = game_manager_fixture
-    assert gm.score == 0
+    assert gm.player_manager.score == 0
 
     # Wait for initial spawn animation to complete
     for _ in range(60):
@@ -392,7 +393,7 @@ def test_score_accumulates_on_enemy_kill(game_manager_fixture):
     expected_points = ENEMY_POINTS.get(tank_type, 0)
 
     # Position player near the enemy and shoot at it
-    player = gm.player_tank
+    player = first_player(gm)
     player.x = float(enemy.x)
     player.y = float(enemy.y + TILE_SIZE + 10)
     player.rect.topleft = (round(player.x), round(player.y))
@@ -401,7 +402,7 @@ def test_score_accumulates_on_enemy_kill(game_manager_fixture):
     # Fire a bullet via PlayerManager
     bullet = player.shoot()
     assert bullet is not None
-    gm.player_manager.add_bullet(bullet)
+    gm.player_manager._bullets.append(bullet)
 
     # Clear other enemies to avoid interference
     gm.spawn_manager.enemy_tanks = [enemy]
@@ -418,7 +419,7 @@ def test_score_accumulates_on_enemy_kill(game_manager_fixture):
         if enemy not in gm.spawn_manager.enemy_tanks:
             break
 
-    assert gm.score == expected_points, (
+    assert gm.player_manager.score == expected_points, (
         f"Expected score {expected_points} after killing {tank_type} enemy, "
-        f"got {gm.score}"
+        f"got {gm.player_manager.score}"
     )

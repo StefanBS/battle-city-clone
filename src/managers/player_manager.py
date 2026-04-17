@@ -189,17 +189,6 @@ class PlayerManager:
         """
         return list(self._bullets)
 
-    def add_bullet(self, bullet: Bullet) -> None:
-        """Add a bullet to the player bullet list.
-
-        Useful for tests that need to inject bullets outside the normal
-        input → try_shoot flow.
-
-        Args:
-            bullet: The bullet to add.
-        """
-        self._bullets.append(bullet)
-
     def get_active_players(self) -> list[PlayerTank]:
         """Return players that are still alive (health > 0).
 

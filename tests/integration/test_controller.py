@@ -4,6 +4,7 @@ import pygame
 from src.managers.game_manager import GameManager
 from src.managers.player_input import AXIS_MAX
 from src.states.game_state import GameState
+from tests.integration.conftest import first_player
 
 
 def _send_event(gm, event):
@@ -20,7 +21,7 @@ class TestControllerGameplay:
         gm = GameManager()
         gm._reset_game()
         gm.state = GameState.RUNNING
-        initial_y = gm.player_tank.y
+        initial_y = first_player(gm).y
 
         event = pygame.event.Event(
             pygame.CONTROLLERBUTTONDOWN,
@@ -30,14 +31,14 @@ class TestControllerGameplay:
         _send_event(gm, event)
         gm.update()
 
-        assert gm.player_tank.y < initial_y
+        assert first_player(gm).y < initial_y
 
     def test_ctrl_stick_moves_player(self) -> None:
         """Controller left stick UP moves the player tank up."""
         gm = GameManager()
         gm._reset_game()
         gm.state = GameState.RUNNING
-        initial_y = gm.player_tank.y
+        initial_y = first_player(gm).y
 
         event = pygame.event.Event(
             pygame.CONTROLLERAXISMOTION,
@@ -48,7 +49,7 @@ class TestControllerGameplay:
         _send_event(gm, event)
         gm.update()
 
-        assert gm.player_tank.y < initial_y
+        assert first_player(gm).y < initial_y
 
     def test_ctrl_a_button_fires_bullet(self) -> None:
         """Controller A button fires a bullet."""
@@ -71,13 +72,13 @@ class TestControllerGameplay:
         gm = GameManager()
         gm._reset_game()
         gm.state = GameState.RUNNING
-        initial_y = gm.player_tank.y
+        initial_y = first_player(gm).y
 
         key_event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_UP)
         _send_event(gm, key_event)
         gm.update()
 
-        assert gm.player_tank.y < initial_y
+        assert first_player(gm).y < initial_y
 
 
 class TestControllerMenuNavigation:

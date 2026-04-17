@@ -11,7 +11,7 @@ from src.utils.constants import (
     PowerUpType,
 )
 from src.core.tile import TileType
-from tests.integration.conftest import flush_pending_spawns, spawn_carrier
+from tests.integration.conftest import first_player, flush_pending_spawns, spawn_carrier
 
 
 class TestPowerUpEffectsIntegration:
@@ -25,27 +25,29 @@ class TestPowerUpEffectsIntegration:
         carrier.health = 0
         game.spawn_manager.remove_enemy(carrier)
         game.power_up_manager.spawn_power_up(
-            game.player_tank,
+            first_player(game),
             game.spawn_manager.enemy_tanks,
             power_up_type=power_up_type,
         )
         assert len(game.power_up_manager.active_power_ups) == 1
         # Move player to power-up location to trigger collision
         pu = game.power_up_manager.active_power_ups[0]
-        game.player_tank.set_position(pu.x, pu.y)
-        game.player_tank.rect.topleft = (round(pu.x), round(pu.y))
+        first_player(game).set_position(pu.x, pu.y)
+        first_player(game).rect.topleft = (round(pu.x), round(pu.y))
 
     def test_helmet_effect(self, game):
         self._collect_power_up(game, PowerUpType.HELMET)
         game.update()
-        assert game.player_tank.is_invincible is True
-        assert game.player_tank.invincibility_duration == HELMET_INVINCIBILITY_DURATION
+        assert first_player(game).is_invincible is True
+        assert (
+            first_player(game).invincibility_duration == HELMET_INVINCIBILITY_DURATION
+        )
 
     def test_extra_life_effect(self, game):
-        lives_before = game.player_tank.lives
+        lives_before = first_player(game).lives
         self._collect_power_up(game, PowerUpType.EXTRA_LIFE)
         game.update()
-        assert game.player_tank.lives == lives_before + 1
+        assert first_player(game).lives == lives_before + 1
 
     def test_bomb_effect(self, game):
         flush_pending_spawns(game)
@@ -74,6 +76,6 @@ class TestRemainingPowerUpEffects:
 
     def test_star_effect(self, game):
         game._apply_power_up(PowerUpType.STAR)
-        assert game.player_tank.star_level == 1
+        assert first_player(game).star_level == 1
         expected_speed = BULLET_SPEED * STAR_BULLET_SPEED_MULTIPLIER
-        assert game.player_tank.bullet_speed == expected_speed
+        assert first_player(game).bullet_speed == expected_speed

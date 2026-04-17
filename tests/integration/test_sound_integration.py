@@ -2,6 +2,7 @@
 
 from src.states.game_state import GameState
 from src.utils.constants import FPS
+from tests.integration.conftest import first_player
 
 
 class TestEngineSoundWiring:
@@ -19,17 +20,17 @@ class TestEngineSoundWiring:
         """Verify player tank reports is_moving after move()."""
         gm = game_manager_fixture
         dt = 1.0 / FPS
-        gm.player_tank.move(1, 0, dt)
-        assert gm.player_tank.is_moving is True
+        first_player(gm).move(1, 0, dt)
+        assert first_player(gm).is_moving is True
 
     def test_player_is_moving_resets_after_update(self, game_manager_fixture):
         """Verify is_moving resets to False after tank.update()."""
         gm = game_manager_fixture
         dt = 1.0 / FPS
-        gm.player_tank.move(1, 0, dt)
-        assert gm.player_tank.is_moving is True
-        gm.player_tank.update(dt)
-        assert gm.player_tank.is_moving is False
+        first_player(gm).move(1, 0, dt)
+        assert first_player(gm).is_moving is True
+        first_player(gm).update(dt)
+        assert first_player(gm).is_moving is False
 
 
 class TestVictoryTransition:
@@ -71,7 +72,9 @@ class TestPowerupBlinkWiring:
         """Verify update() doesn't error when powerups are active."""
         gm = game_manager_fixture
         # Spawn a powerup directly
-        gm.power_up_manager.spawn_power_up(gm.player_tank, gm.spawn_manager.enemy_tanks)
+        gm.power_up_manager.spawn_power_up(
+            first_player(gm), gm.spawn_manager.enemy_tanks
+        )
         assert len(gm.power_up_manager.get_power_ups()) > 0
         # Run a frame — should not raise
         gm.update()

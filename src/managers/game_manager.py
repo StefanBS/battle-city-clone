@@ -151,21 +151,6 @@ class GameManager:
         )
         return title, pause, options
 
-    @property
-    def player_tank(self) -> Optional[PlayerTank]:
-        """Convenience property returning the first active player tank.
-
-        Used by integration tests that need a single player reference.
-        Returns None if no active players exist.
-        """
-        active = self.player_manager.get_active_players()
-        return active[0] if active else None
-
-    @property
-    def score(self) -> int:
-        """Convenience property delegating to player_manager.score."""
-        return self.player_manager.score
-
     def _reset_game(self) -> None:
         """Start a new game and immediately enter RUNNING state (used by tests)."""
         self._new_game()

@@ -6,6 +6,7 @@ plays through frames over multiple updates, and is cleaned up.
 
 from src.core.tile import TileType
 from src.utils.constants import EffectType, FPS
+from tests.integration.conftest import first_player
 
 
 class TestEffectLifecycle:
@@ -27,7 +28,7 @@ class TestEffectLifecycle:
         target = steel_tiles[0]
 
         # Position player near the target and shoot toward it
-        player = gm.player_tank
+        player = first_player(gm)
         player.x = float(target.rect.centerx)
         player.y = float(target.rect.bottom + 10)
         player.rect.topleft = (round(player.x), round(player.y))
