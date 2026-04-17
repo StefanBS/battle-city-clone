@@ -68,7 +68,7 @@ class TestRemainingPowerUpEffects:
 
     def test_shovel_effect(self, game):
         game._apply_power_up(PowerUpType.SHOVEL)
-        assert game.shovel_timer > 0
+        assert game.power_up_manager.shovel_timer > 0
         tiles = game.map.get_base_surrounding_tiles()
         steel_tiles = [t for t in tiles if t.type == TileType.STEEL]
         assert len(steel_tiles) > 0
