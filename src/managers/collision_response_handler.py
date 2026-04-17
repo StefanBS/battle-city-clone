@@ -60,21 +60,9 @@ class CollisionResponseHandler:
             (EnemyTank, Tile): self._handle_tank_vs_tile,
         }
 
-    def _play_explosion(self) -> None:
+    def _play(self, name: str) -> None:
         if self._sound_manager is not None:
-            self._sound_manager.play_explosion()
-
-    def _play_brick_hit(self) -> None:
-        if self._sound_manager is not None:
-            self._sound_manager.play_brick_hit()
-
-    def _play_bullet_hit_bullet(self) -> None:
-        if self._sound_manager is not None:
-            self._sound_manager.play_bullet_hit_bullet()
-
-    def _play_powerup(self) -> None:
-        if self._sound_manager is not None:
-            self._sound_manager.play_powerup()
+            self._sound_manager.play(name)
 
     def process_collisions(self, events: List[Tuple[Any, Any]]) -> List[EnemyTank]:
         """Process collision events and return list of enemies to remove."""
@@ -178,7 +166,7 @@ class CollisionResponseHandler:
                 float(enemy.rect.centerx),
                 float(enemy.rect.centery),
             )
-            self._play_explosion()
+            self._play("explosion")
         return True
 
     def _handle_bullet_vs_player(
@@ -213,7 +201,7 @@ class CollisionResponseHandler:
                     float(player.rect.centerx),
                     float(player.rect.centery),
                 )
-                self._play_explosion()
+                self._play("explosion")
                 if self._on_player_death is not None:
                     if self._on_player_death(player):
                         self._set_game_state(GameState.GAME_OVER)
@@ -242,9 +230,9 @@ class CollisionResponseHandler:
             float(bullet.rect.centery),
         )
         if tile.type == TileType.BASE:
-            self._play_explosion()
+            self._play("explosion")
         else:
-            self._play_brick_hit()
+            self._play("brick_hit")
 
         if tile.type == TileType.STEEL:
             if bullet.power_bullet:
@@ -271,7 +259,7 @@ class CollisionResponseHandler:
         logger.debug("Bullet hit bullet. Both deactivated.")
         bullet_a.active = False
         bullet_b.active = False
-        self._play_bullet_hit_bullet()
+        self._play("bullet_hit_bullet")
         return True
 
     def _handle_player_vs_powerup(
@@ -285,7 +273,7 @@ class CollisionResponseHandler:
         power_up_type = self._power_up_manager.collect_power_up(power_up)
         if power_up_type is not None:
             self._add_score(POWERUP_COLLECT_POINTS, player_id=player.player_id)
-            self._play_powerup()
+            self._play("powerup")
             logger.info(f"Player collected power-up: {power_up_type.value}")
             self._collected_power_up_type = power_up_type
             self._collected_power_up_player = player

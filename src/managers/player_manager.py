@@ -147,11 +147,13 @@ class PlayerManager:
             has_valid_input = (dx != 0 or dy != 0) and not (dx != 0 and dy != 0)
 
             # Ice slide: trigger BEFORE move() so start_slide() captures old direction
-            player.on_ice = self._is_on_ice(player, game_map)
+            player.on_ice = game_map.is_tile_slidable(
+                player.x, player.y, player.width, player.height
+            )
             if player.on_ice and not player.is_sliding:
                 if not has_valid_input or (dx, dy) != player.direction.delta:
                     if player.start_slide():
-                        self._sound_manager.play_ice_slide()
+                        self._sound_manager.play("ice_slide")
 
             if has_valid_input and not player.is_sliding:
                 player.move(dx, dy, dt)
@@ -179,7 +181,7 @@ class PlayerManager:
                     bullet: Optional[Bullet] = player.shoot()
                     if bullet is not None:
                         self._bullets.append(bullet)
-                        self._sound_manager.play_shoot()
+                        self._sound_manager.play("shoot")
 
     def get_all_bullets(self) -> list[Bullet]:
         """Return all player bullets (pruned to active-only by update()).
@@ -289,8 +291,3 @@ class PlayerManager:
         self._bullets.clear()
         self._scores = {}
         self._preserved_state = {}
-
-    @staticmethod
-    def _is_on_ice(tank: PlayerTank, game_map: "Map") -> bool:
-        """Return True if the tank's centre is over a slidable (ice) tile."""
-        return game_map.is_tile_slidable(tank.x, tank.y, tank.width, tank.height)

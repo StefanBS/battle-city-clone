@@ -1,4 +1,3 @@
-import pytest
 from unittest.mock import patch, MagicMock
 from src.managers.sound_manager import SoundManager
 
@@ -17,24 +16,26 @@ class TestSoundManager:
             sm = SoundManager()
             assert sm._enabled is False
 
-    def test_play_methods_noop_when_disabled(self):
+    def test_play_noop_when_disabled(self):
         with patch("src.managers.sound_manager.pygame") as mock_pg:
             mock_pg.error = type("error", (Exception,), {})
             mock_pg.mixer.init.side_effect = mock_pg.error("no audio")
             sm = SoundManager()
-            sm.play_shoot()
-            sm.play_brick_hit()
-            sm.play_explosion()
-            sm.play_powerup()
-            sm.play_game_over()
+            sm.play("shoot")  # should not raise
 
-    def test_play_shoot_calls_sound_play(self):
+    def test_play_calls_sound_play(self):
         with patch("src.managers.sound_manager.pygame") as mock_pg:
             mock_sound = MagicMock()
             mock_pg.mixer.Sound.return_value = mock_sound
             sm = SoundManager()
-            sm.play_shoot()
+            sm.play("shoot")
             mock_sound.play.assert_called()
+
+    def test_play_unknown_name_is_noop(self):
+        with patch("src.managers.sound_manager.pygame") as mock_pg:
+            mock_pg.mixer.Sound.return_value = MagicMock()
+            sm = SoundManager()
+            sm.play("nonexistent")  # should not raise
 
 
 class TestLoopManagement:
@@ -114,43 +115,6 @@ class TestLoopManagement:
             channel_a.fadeout.assert_called_once_with(50)
             channel_b.fadeout.assert_called_once_with(50)
             assert len(sm._looping_channels) == 0
-
-
-class TestNewPlayMethods:
-    @pytest.mark.parametrize(
-        "method",
-        [
-            "play_bullet_hit_bullet",
-            "play_stage_start",
-            "play_victory",
-            "play_menu_select",
-            "play_ice_slide",
-        ],
-    )
-    def test_oneshot_methods_call_sound_play(self, method):
-        with patch("src.managers.sound_manager.pygame") as mock_pg:
-            mock_sound = MagicMock()
-            mock_pg.mixer.Sound.return_value = mock_sound
-            sm = SoundManager()
-            getattr(sm, method)()
-            mock_sound.play.assert_called()
-
-    @pytest.mark.parametrize(
-        "method",
-        [
-            "play_bullet_hit_bullet",
-            "play_stage_start",
-            "play_victory",
-            "play_menu_select",
-            "play_ice_slide",
-        ],
-    )
-    def test_oneshot_methods_noop_when_disabled(self, method):
-        with patch("src.managers.sound_manager.pygame") as mock_pg:
-            mock_pg.error = type("error", (Exception,), {})
-            mock_pg.mixer.init.side_effect = mock_pg.error("no audio")
-            sm = SoundManager()
-            getattr(sm, method)()  # should not raise
 
 
 class TestUpdateEngine:

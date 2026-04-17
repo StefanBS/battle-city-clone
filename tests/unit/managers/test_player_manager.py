@@ -288,7 +288,7 @@ class TestPlayerManagerUpdate:
         self.pm.update(0.016, self.game_map)
 
         player.start_slide.assert_called_once()
-        self.pm._sound_manager.play_ice_slide.assert_called_once()
+        self.pm._sound_manager.play.assert_called_once_with("ice_slide")
 
     def test_bullets_updated_during_update(self):
         """Active bullets have update(dt) called."""
@@ -343,7 +343,7 @@ class TestPlayerManagerShooting:
 
         player.shoot.assert_called_once()
         assert bullet in self.pm._bullets
-        self.pm._sound_manager.play_shoot.assert_called_once()
+        self.pm._sound_manager.play.assert_called_once_with("shoot")
 
     def test_try_shoot_no_bullet_without_input(self, mock_sound_manager):
         """try_shoot() does nothing when shoot was not pressed."""
@@ -357,7 +357,7 @@ class TestPlayerManagerShooting:
         self.pm.try_shoot()
 
         player.shoot.assert_not_called()
-        self.pm._sound_manager.play_shoot.assert_not_called()
+        self.pm._sound_manager.play.assert_not_called()
 
     def test_try_shoot_respects_max_bullets(self):
         """No new bullet is created when max_bullets are already active."""
@@ -452,40 +452,6 @@ class TestPlayerManagerScore:
         player_manager.add_score(200)
         player_manager.add_score(300)
         assert player_manager.score == 500
-
-
-# ---------------------------------------------------------------------------
-# TestPlayerManagerIsOnIce
-# ---------------------------------------------------------------------------
-
-
-class TestPlayerManagerIsOnIce:
-    def test_not_on_ice_delegates_to_map(self, player_manager, mock_game_map):
-        """Returns False when map.is_tile_slidable returns False."""
-        mock_game_map.is_tile_slidable.return_value = False
-
-        player = MagicMock(spec=PlayerTank)
-        player.x = 0
-        player.y = 0
-        player.width = TILE_SIZE
-        player.height = TILE_SIZE
-
-        assert player_manager._is_on_ice(player, mock_game_map) is False
-        mock_game_map.is_tile_slidable.assert_called_once_with(
-            player.x, player.y, player.width, player.height
-        )
-
-    def test_on_ice_delegates_to_map(self, player_manager, mock_game_map):
-        """Returns True when map.is_tile_slidable returns True."""
-        mock_game_map.is_tile_slidable.return_value = True
-
-        player = MagicMock(spec=PlayerTank)
-        player.x = 0
-        player.y = 0
-        player.width = TILE_SIZE
-        player.height = TILE_SIZE
-
-        assert player_manager._is_on_ice(player, mock_game_map) is True
 
 
 # ---------------------------------------------------------------------------
