@@ -122,16 +122,23 @@ class CollisionResponseHandler:
         return enemies_to_remove
 
     def _lookup(self, obj_a: Any, obj_b: Any) -> Tuple[Any, Any, Any]:
-        """Look up handler for type pair, trying both orderings."""
-        for (type_a, type_b), handler in self._handlers.items():
-            if isinstance(obj_a, type_a) and isinstance(obj_b, type_b):
-                return handler, obj_a, obj_b
-            if isinstance(obj_b, type_a) and isinstance(obj_a, type_b):
-                return handler, obj_b, obj_a
+        """Look up handler for type pair, trying both orderings.
 
-        logger.warning(
-            f"No collision handler for ({type(obj_a).__name__}, {type(obj_b).__name__})"
-        )
+        All participating types are concrete leaves (PlayerTank, EnemyTank,
+        Bullet, Tile, PowerUp), so exact-class dispatch via ``__class__`` is
+        correct and avoids scanning the handler table with ``isinstance`` on
+        the per-event hot path. ``__class__`` is used rather than ``type()``
+        so MagicMock(spec=X) test doubles resolve to the spec class.
+        """
+        cls_a, cls_b = obj_a.__class__, obj_b.__class__
+        handler = self._handlers.get((cls_a, cls_b))
+        if handler is not None:
+            return handler, obj_a, obj_b
+        handler = self._handlers.get((cls_b, cls_a))
+        if handler is not None:
+            return handler, obj_b, obj_a
+
+        logger.warning(f"No collision handler for ({cls_a.__name__}, {cls_b.__name__})")
         return None, obj_a, obj_b
 
     def _handle_bullet_vs_enemy(
