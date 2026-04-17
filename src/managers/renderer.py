@@ -61,9 +61,6 @@ class Renderer:
         # Cached text surface for game over animation (set on first use)
         self._game_over_text: Optional[pygame.Surface] = None
 
-        # HUD text cache: {slot -> (label_str, score_str, label_surf, score_surf)}
-        self._cached_hud: Dict[str, tuple] = {}
-
         # Reusable overlay surfaces for pause/game-over screens
         self._pause_overlay: pygame.Surface = pygame.Surface(
             (logical_width, logical_height), pygame.SRCALPHA
@@ -175,57 +172,34 @@ class Renderer:
                     label = f"P{pid}: {player.lives}"
                     color = WHITE
                 align = "left" if i == 0 else "right"
-                self._draw_hud_slot(
-                    f"p{pid}", label, f"{player_score:>6}", color, align
-                )
+                self._draw_hud_slot(label, f"{player_score:>6}", color, align)
         else:
             lives = player_tanks[0].lives if player_tanks else 0
             total_score = sum(scores.values())
-            self._draw_hud_slot(
-                "lives", f"Lives: {lives}", None, WHITE, "left"
-            )
-            self._draw_hud_slot(
-                "score", f"Score: {total_score:>6}", None, WHITE, "right"
-            )
+            self._draw_hud_slot(f"Lives: {lives}", None, WHITE, "left")
+            self._draw_hud_slot(f"Score: {total_score:>6}", None, WHITE, "right")
 
     def _draw_hud_slot(
         self,
-        slot: str,
         label: str,
         score_text: Optional[str],
         color: Tuple[int, int, int],
         align: str,
     ) -> None:
-        """Render and blit a cached HUD slot (label + optional score line).
-
-        Re-renders only when the text changes.
-        """
-        cached = self._cached_hud.get(slot)
-        if cached is None or cached[0] != label or cached[1] != score_text:
-            label_surf = self.small_font.render(label, True, color)
-            score_surf = (
-                self.small_font.render(score_text, True, WHITE)
-                if score_text
-                else None
-            )
-            self._cached_hud[slot] = (label, score_text, label_surf, score_surf)
-        else:
-            label_surf = cached[2]
-            score_surf = cached[3]
-
+        """Render a HUD label and optional score line at the given edge."""
+        label_surf = self.small_font.render(label, True, color)
+        score_surf = (
+            self.small_font.render(score_text, True, WHITE) if score_text else None
+        )
         if align == "left":
             self.game_surface.blit(label_surf, (10, 10))
             if score_surf:
                 self.game_surface.blit(score_surf, (10, 24))
         else:
-            label_rect = label_surf.get_rect(
-                topright=(self.logical_width - 10, 10)
-            )
+            label_rect = label_surf.get_rect(topright=(self.logical_width - 10, 10))
             self.game_surface.blit(label_surf, label_rect)
             if score_surf:
-                score_rect = score_surf.get_rect(
-                    topright=(self.logical_width - 10, 24)
-                )
+                score_rect = score_surf.get_rect(topright=(self.logical_width - 10, 24))
                 self.game_surface.blit(score_surf, score_rect)
 
     def _draw_game_over_rising(self, progress: float) -> None:
