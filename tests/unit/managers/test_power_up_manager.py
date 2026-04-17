@@ -20,6 +20,7 @@ class TestPowerUpManager:
         game_map.width = 32
         game_map.height = 32
         game_map.tile_size = 16
+        game_map.grid_to_pixels.side_effect = lambda gx, gy: (gx * 16, gy * 16)
         # All tiles are EMPTY (None mimics "no blocking tile")
         game_map.tiles = [[None for _ in range(32)] for _ in range(32)]
         return game_map

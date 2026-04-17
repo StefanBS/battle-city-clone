@@ -195,7 +195,6 @@ class PowerUpManager:
         """Find a random walkable tile position not occupied by any tank."""
         walkable = []
         grid = self._game_map.tiles
-        tile_size = self._game_map.tile_size  # sub-tile size (16px)
 
         # Iterate in steps of 2 sub-tiles (= 1 TILE_SIZE = 32px)
         for row in range(0, len(grid), 2):
@@ -214,9 +213,7 @@ class PowerUpManager:
                     if not all_empty:
                         break
                 if all_empty:
-                    px = col * tile_size
-                    py = row * tile_size
-                    walkable.append((px, py))
+                    walkable.append(self._game_map.grid_to_pixels(col, row))
 
         if not walkable:
             return None
