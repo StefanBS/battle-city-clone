@@ -104,21 +104,22 @@ class PowerUpManager:
             spawn_manager: Used by BOMB and CLOCK to affect enemies.
             effect_manager: Used by BOMB to spawn explosion effects.
         """
-        if power_up_type == PowerUpType.HELMET:
-            player.activate_invincibility(HELMET_INVINCIBILITY_DURATION)
-        elif power_up_type == PowerUpType.EXTRA_LIFE:
-            player.lives += 1
-        elif power_up_type == PowerUpType.BOMB:
-            self._detonate_bomb(spawn_manager, effect_manager)
-        elif power_up_type == PowerUpType.CLOCK:
-            spawn_manager.freeze(CLOCK_FREEZE_DURATION)
-        elif power_up_type == PowerUpType.SHOVEL:
-            self.apply_shovel()
-        elif power_up_type == PowerUpType.STAR:
-            player.apply_star()
-        else:
-            logger.warning(f"Unhandled power-up type: {power_up_type}")
-            return
+        match power_up_type:
+            case PowerUpType.HELMET:
+                player.activate_invincibility(HELMET_INVINCIBILITY_DURATION)
+            case PowerUpType.EXTRA_LIFE:
+                player.lives += 1
+            case PowerUpType.BOMB:
+                self._detonate_bomb(spawn_manager, effect_manager)
+            case PowerUpType.CLOCK:
+                spawn_manager.freeze(CLOCK_FREEZE_DURATION)
+            case PowerUpType.SHOVEL:
+                self.apply_shovel()
+            case PowerUpType.STAR:
+                player.apply_star()
+            case _:
+                logger.warning(f"Unhandled power-up type: {power_up_type}")
+                return
         logger.info(f"Power-up applied: {power_up_type.value}")
 
     @staticmethod
