@@ -36,6 +36,7 @@ from src.managers.collision_response_handler import CollisionResponseHandler
 from src.managers.effect_manager import EffectManager
 from src.managers.texture_manager import TextureManager
 from src.managers.input_handler import InputHandler
+from src.managers.menu_controller import MenuController, MenuItem
 from src.managers.player_input import CTRL_START_BUTTON
 from src.managers.spawn_manager import SpawnManager
 from src.managers.renderer import Renderer
@@ -75,13 +76,12 @@ class GameManager:
         )
 
         self.state: GameState = GameState.TITLE_SCREEN
-        self._title_selection: int = 0
-        self._pause_selection: int = 0
-        self._options_selection: int = 0
         self._options_from_pause: bool = False
         self._state_timer: float = 0.0
         self._two_player_mode: bool = False
         self._post_curtain_state: GameState = GameState.RUNNING
+
+        self._title_menu, self._pause_menu, self._options_menu = self._build_menus()
 
         # Renderer for title screen (recreated with map dims in _load_stage)
         self.renderer: Renderer = Renderer(
@@ -91,6 +91,49 @@ class GameManager:
             LOGICAL_WIDTH,
             LOGICAL_HEIGHT,
         )
+
+    def _build_menus(self) -> tuple[MenuController, MenuController, MenuController]:
+        # Late-bound so tests can swap sound_manager after construction.
+        def play_select() -> None:
+            self.sound_manager.play_menu_select()
+
+        title = MenuController(
+            items=[
+                MenuItem("1 Player", on_confirm=lambda: self._start_game(False)),
+                MenuItem("2 Players", on_confirm=lambda: self._start_game(True)),
+                MenuItem("Options", on_confirm=lambda: self._open_options(False)),
+                MenuItem("Quit", on_confirm=self._quit_game),
+            ],
+            on_select=play_select,
+        )
+        pause = MenuController(
+            items=[
+                MenuItem("Resume", on_confirm=self._resume_game),
+                MenuItem("Options", on_confirm=lambda: self._open_options(True)),
+                MenuItem("Title", on_confirm=self._return_to_title),
+                MenuItem("Quit", on_confirm=self._quit_game),
+            ],
+            on_select=play_select,
+            on_back=self._resume_game,
+        )
+        options = MenuController(
+            items=[
+                MenuItem(
+                    "Difficulty",
+                    on_left=lambda: self._cycle_difficulty(-1),
+                    on_right=lambda: self._cycle_difficulty(1),
+                ),
+                MenuItem(
+                    "Volume",
+                    on_left=lambda: self._adjust_volume(-VOLUME_ADJUSTMENT_STEP),
+                    on_right=lambda: self._adjust_volume(VOLUME_ADJUSTMENT_STEP),
+                ),
+                MenuItem("Back", on_confirm=self._exit_options),
+            ],
+            on_select=play_select,
+            on_back=self._exit_options,
+        )
+        return title, pause, options
 
     @property
     def player_tank(self) -> Optional[PlayerTank]:
@@ -234,17 +277,22 @@ class GameManager:
 
     def _process_menu_actions(self) -> None:
         """Poll and route menu actions from InputHandler."""
+        menu = self._active_menu()
         for action in self.input_handler.consume_menu_actions():
-            if self.state == GameState.TITLE_SCREEN:
-                self._handle_title_input(action)
-            elif self.state == GameState.PAUSED:
-                self._handle_pause_input(action)
-            elif self.state == GameState.OPTIONS_MENU:
-                self._handle_options_input(action)
+            if menu is not None:
+                menu.handle_action(action)
             elif action == MenuAction.CONFIRM and self.state == GameState.GAME_COMPLETE:
                 logger.info("Returning to title screen.")
-                self.state = GameState.TITLE_SCREEN
-                self._title_selection = 0
+                self._return_to_title()
+
+    def _active_menu(self) -> Optional[MenuController]:
+        if self.state == GameState.TITLE_SCREEN:
+            return self._title_menu
+        if self.state == GameState.PAUSED:
+            return self._pause_menu
+        if self.state == GameState.OPTIONS_MENU:
+            return self._options_menu
+        return None
 
     def _handle_escape(self) -> None:
         """Handle ESC key based on current state.
@@ -255,7 +303,7 @@ class GameManager:
         if self.state == GameState.RUNNING:
             logger.info("Game paused.")
             self.sound_manager.stop_loops()
-            self._pause_selection = 0
+            self._pause_menu.reset()
             self.state = GameState.PAUSED
             # Drop any menu actions queued while RUNNING (e.g. a held UP key
             # that emitted a KEYDOWN before START was pressed), otherwise they
@@ -284,86 +332,40 @@ class GameManager:
         else:
             self.state = GameState.TITLE_SCREEN
 
-    def _handle_title_input(self, action: MenuAction) -> None:
-        """Handle menu action on the title screen."""
-        if action in (MenuAction.UP, MenuAction.DOWN):
-            step = -1 if action == MenuAction.UP else 1
-            self._title_selection = (self._title_selection + step) % 4
-            self.sound_manager.play_menu_select()
-        elif action == MenuAction.CONFIRM:
-            if self._title_selection in (0, 1):
-                self._two_player_mode = self._title_selection == 1
-                labels = {0: "1 Player", 1: "2 Players"}
-                logger.info(f"{labels[self._title_selection]} selected, starting game.")
-                self._new_game()
-                self.state = GameState.STAGE_CURTAIN_CLOSE
-                self._state_timer = 0.0
-                self.sound_manager.play_stage_start()
-            elif self._title_selection == 2:
-                self._options_from_pause = False
-                self._options_selection = 0
-                self.state = GameState.OPTIONS_MENU
-            elif self._title_selection == 3:
-                self._quit_game()
+    def _start_game(self, two_player: bool) -> None:
+        self._two_player_mode = two_player
+        logger.info(
+            f"{'2 Players' if two_player else '1 Player'} selected, starting game."
+        )
+        self._new_game()
+        self.state = GameState.STAGE_CURTAIN_CLOSE
+        self._state_timer = 0.0
+        self.sound_manager.play_stage_start()
 
-    def _handle_pause_input(self, action: MenuAction) -> None:
-        """Handle menu action on the pause menu."""
-        if action in (MenuAction.UP, MenuAction.DOWN):
-            if action == MenuAction.UP:
-                self._pause_selection = (self._pause_selection - 1) % 4
-            else:
-                self._pause_selection = (self._pause_selection + 1) % 4
-            self.sound_manager.play_menu_select()
-        elif action == MenuAction.BACK:
-            self._resume_game()
-        elif action == MenuAction.CONFIRM:
-            if self._pause_selection == 0:
-                self._resume_game()
-            elif self._pause_selection == 1:
-                self._options_from_pause = True
-                self._options_selection = 0
-                self.state = GameState.OPTIONS_MENU
-            elif self._pause_selection == 2:
-                self.sound_manager.stop_loops()
-                self._title_selection = 0
-                self.state = GameState.TITLE_SCREEN
-            elif self._pause_selection == 3:
-                self._quit_game()
+    def _open_options(self, from_pause: bool) -> None:
+        self._options_from_pause = from_pause
+        self._options_menu.reset()
+        self.state = GameState.OPTIONS_MENU
 
-    def _handle_options_input(self, action: MenuAction) -> None:
-        """Handle menu action on the options menu."""
-        if action in (MenuAction.UP, MenuAction.DOWN):
-            if action == MenuAction.UP:
-                self._options_selection = (self._options_selection - 1) % 3
-            else:
-                self._options_selection = (self._options_selection + 1) % 3
-            self.sound_manager.play_menu_select()
-        elif action in (MenuAction.LEFT, MenuAction.RIGHT):
-            if self._options_selection == 0:
-                difficulties = list(Difficulty)
-                idx = difficulties.index(self.settings_manager.difficulty)
-                step = -1 if action == MenuAction.LEFT else 1
-                self.settings_manager.difficulty = difficulties[
-                    (idx + step) % len(difficulties)
-                ]
-                self.sound_manager.play_menu_select()
-            elif self._options_selection == 1:
-                if action == MenuAction.LEFT:
-                    delta = -VOLUME_ADJUSTMENT_STEP
-                else:
-                    delta = VOLUME_ADJUSTMENT_STEP
-                self.settings_manager.master_volume = max(
-                    0.0, min(1.0, self.settings_manager.master_volume + delta)
-                )
-                self.sound_manager.set_master_volume(
-                    self.settings_manager.master_volume
-                )
-                self.sound_manager.play_menu_select()
-        elif action == MenuAction.BACK:
-            self._exit_options()
-        elif action == MenuAction.CONFIRM:
-            if self._options_selection == 2:
-                self._exit_options()
+    def _return_to_title(self) -> None:
+        self.sound_manager.stop_loops()
+        self._title_menu.reset()
+        self.state = GameState.TITLE_SCREEN
+
+    def _cycle_difficulty(self, step: int) -> None:
+        difficulties = list(Difficulty)
+        idx = difficulties.index(self.settings_manager.difficulty)
+        self.settings_manager.difficulty = difficulties[
+            (idx + step) % len(difficulties)
+        ]
+        self.sound_manager.play_menu_select()
+
+    def _adjust_volume(self, delta: float) -> None:
+        self.settings_manager.master_volume = max(
+            0.0, min(1.0, self.settings_manager.master_volume + delta)
+        )
+        self.sound_manager.set_master_volume(self.settings_manager.master_volume)
+        self.sound_manager.play_menu_select()
 
     def update(self) -> None:
         """Update game state."""
@@ -399,7 +401,7 @@ class GameManager:
                 self.state = self._post_curtain_state
                 self._post_curtain_state = GameState.RUNNING
                 if self.state == GameState.TITLE_SCREEN:
-                    self._title_selection = 0
+                    self._title_menu.reset()
             return
 
         if self.state == GameState.GAME_OVER_ANIMATION:
@@ -609,7 +611,7 @@ class GameManager:
     def render(self) -> None:
         """Render the game state."""
         if self.state == GameState.TITLE_SCREEN:
-            self.renderer.render_title_screen(self._title_selection)
+            self.renderer.render_title_screen(self._title_menu.selection)
             return
 
         if self.state in (
@@ -628,12 +630,12 @@ class GameManager:
             self.renderer.render_options_menu(
                 self.settings_manager.master_volume,
                 self.settings_manager.difficulty,
-                self._options_selection,
+                self._options_menu.selection,
             )
             return
 
         if self.state == GameState.PAUSED:
-            self.renderer.render_pause_menu(self._pause_selection)
+            self.renderer.render_pause_menu(self._pause_menu.selection)
             return
 
         if self.state == GameState.EXIT:

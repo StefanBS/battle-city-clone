@@ -86,7 +86,7 @@ class TestControllerMenuNavigation:
     def test_ctrl_dpad_navigates_title_screen(self) -> None:
         """Controller D-pad navigates title screen menu items."""
         gm = GameManager()
-        initial_selection = gm._title_selection
+        initial_selection = gm._title_menu.selection
 
         pygame.event.post(
             pygame.event.Event(
@@ -97,12 +97,12 @@ class TestControllerMenuNavigation:
         )
         gm.handle_events()
 
-        assert gm._title_selection != initial_selection
+        assert gm._title_menu.selection != initial_selection
 
     def test_ctrl_a_confirms_title_selection(self) -> None:
         """Controller A button confirms the selected title screen option."""
         gm = GameManager()
-        gm._title_selection = 0  # 1 Player
+        gm._title_menu.selection = 0  # 1 Player
 
         pygame.event.post(
             pygame.event.Event(
