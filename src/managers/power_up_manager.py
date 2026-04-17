@@ -106,34 +106,32 @@ class PowerUpManager:
         """
         if power_up_type == PowerUpType.HELMET:
             player.activate_invincibility(HELMET_INVINCIBILITY_DURATION)
-            logger.info(
-                f"Helmet power-up applied: player invincible "
-                f"for {HELMET_INVINCIBILITY_DURATION}s"
-            )
         elif power_up_type == PowerUpType.EXTRA_LIFE:
             player.lives += 1
-            logger.info(f"Extra Life power-up applied: lives now {player.lives}")
         elif power_up_type == PowerUpType.BOMB:
-            for enemy in list(spawn_manager.enemy_tanks):
-                effect_manager.spawn(
-                    EffectType.LARGE_EXPLOSION,
-                    float(enemy.rect.centerx),
-                    float(enemy.rect.centery),
-                )
-                spawn_manager.remove_enemy(enemy)
-            logger.info("Bomb power-up applied: all enemies destroyed")
+            self._detonate_bomb(spawn_manager, effect_manager)
         elif power_up_type == PowerUpType.CLOCK:
             spawn_manager.freeze(CLOCK_FREEZE_DURATION)
-            logger.info(
-                f"Clock power-up applied: enemies frozen for {CLOCK_FREEZE_DURATION}s"
-            )
         elif power_up_type == PowerUpType.SHOVEL:
             self.apply_shovel()
         elif power_up_type == PowerUpType.STAR:
             player.apply_star()
-            logger.info(f"Star power-up applied: player at tier {player.star_level}")
         else:
             logger.warning(f"Unhandled power-up type: {power_up_type}")
+            return
+        logger.info(f"Power-up applied: {power_up_type.value}")
+
+    @staticmethod
+    def _detonate_bomb(
+        spawn_manager: "SpawnManager", effect_manager: "EffectManager"
+    ) -> None:
+        for enemy in list(spawn_manager.enemy_tanks):
+            effect_manager.spawn(
+                EffectType.LARGE_EXPLOSION,
+                float(enemy.rect.centerx),
+                float(enemy.rect.centery),
+            )
+            spawn_manager.remove_enemy(enemy)
 
     def apply_shovel(self) -> None:
         """Fortify base walls with steel, restoring destroyed bricks first."""

@@ -40,6 +40,7 @@ class TestPowerUpManagerApply:
         # which is tested separately; a plain MagicMock-backed method is fine.
         m = MagicMock(spec=PowerUpManager)
         m.apply = PowerUpManager.apply.__get__(m)
+        m._detonate_bomb = PowerUpManager._detonate_bomb
         m.apply_shovel = MagicMock()
         return m
 
