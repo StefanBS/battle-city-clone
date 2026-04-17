@@ -41,6 +41,7 @@ from src.managers.power_up_manager import PowerUpManager
 from src.managers.player_manager import PlayerManager
 from src.managers.sound_manager import SoundManager
 from src.managers.settings_manager import SettingsManager
+from src.utils.collections import update_and_prune
 from src.utils.paths import resource_path
 
 
@@ -443,10 +444,7 @@ class GameManager:
         self.sound_manager.update_engine(any_moving)
 
         # Update enemy bullets (player bullets managed by PlayerManager)
-        for bullet in self.bullets:
-            bullet.update(dt)
-        # Remove inactive bullets
-        self.bullets = [b for b in self.bullets if b.active]
+        self.bullets = update_and_prune(self.bullets, dt)
 
         self.spawn_manager.update(dt, active_players, self.map)
         self.power_up_manager.update(dt)
