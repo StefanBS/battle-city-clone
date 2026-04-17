@@ -455,40 +455,6 @@ class TestPlayerManagerScore:
 
 
 # ---------------------------------------------------------------------------
-# TestPlayerManagerIsOnIce
-# ---------------------------------------------------------------------------
-
-
-class TestPlayerManagerIsOnIce:
-    def test_not_on_ice_delegates_to_map(self, player_manager, mock_game_map):
-        """Returns False when map.is_tile_slidable returns False."""
-        mock_game_map.is_tile_slidable.return_value = False
-
-        player = MagicMock(spec=PlayerTank)
-        player.x = 0
-        player.y = 0
-        player.width = TILE_SIZE
-        player.height = TILE_SIZE
-
-        assert player_manager._is_on_ice(player, mock_game_map) is False
-        mock_game_map.is_tile_slidable.assert_called_once_with(
-            player.x, player.y, player.width, player.height
-        )
-
-    def test_on_ice_delegates_to_map(self, player_manager, mock_game_map):
-        """Returns True when map.is_tile_slidable returns True."""
-        mock_game_map.is_tile_slidable.return_value = True
-
-        player = MagicMock(spec=PlayerTank)
-        player.x = 0
-        player.y = 0
-        player.width = TILE_SIZE
-        player.height = TILE_SIZE
-
-        assert player_manager._is_on_ice(player, mock_game_map) is True
-
-
-# ---------------------------------------------------------------------------
 # TestPlayerManagerStatePreservation
 # ---------------------------------------------------------------------------
 

@@ -436,7 +436,9 @@ class GameManager:
                     )
                     closest_pos = (closest.x, closest.y)
                 enemy.update(dt, player_position=closest_pos)
-                enemy.on_ice = self._is_on_ice(enemy)
+                enemy.on_ice = self.map.is_tile_slidable(
+                    enemy.x, enemy.y, enemy.width, enemy.height
+                )
                 if enemy.consume_shoot():
                     self._try_shoot(enemy)
 
@@ -534,10 +536,6 @@ class GameManager:
             self.state = GameState.GAME_COMPLETE
             return
         self.state = state
-
-    def _is_on_ice(self, tank) -> bool:
-        """Check if the tank's center is over an ice tile."""
-        return self.map.is_tile_slidable(tank.x, tank.y, tank.width, tank.height)
 
     def _apply_power_up(
         self, power_up_type: PowerUpType, player: Optional[PlayerTank] = None
