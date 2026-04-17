@@ -71,6 +71,7 @@ class SpawnManager:
         self.enemy_tanks: List[EnemyTank] = []
         self.total_enemy_spawns: int = 0
         self.spawn_timer: float = 0.0
+        self._freeze_timer: float = 0.0
         self._effect_manager = effect_manager
         self._powerup_carrier_indices: tuple[int, ...] = (
             powerup_carrier_indices
@@ -204,6 +205,15 @@ class SpawnManager:
             f"{' [CARRIER]' if is_carrier else ''}"
         )
 
+    def freeze(self, duration: float) -> None:
+        """Freeze enemy AI updates for the given duration (clock power-up)."""
+        self._freeze_timer = duration
+
+    @property
+    def enemies_frozen(self) -> bool:
+        """Whether enemy AI updates are currently suppressed."""
+        return self._freeze_timer > 0
+
     def update(self, dt: float, player_tanks: List[PlayerTank], game_map: Map) -> None:
         """Update spawn timer and attempt to spawn enemies.
 
@@ -215,6 +225,9 @@ class SpawnManager:
             player_tanks: List of player tanks (for collision checking).
             game_map: The game map (for collision checking).
         """
+        if self._freeze_timer > 0:
+            self._freeze_timer -= dt
+
         # Materialize tanks whose spawn animation is done
         still_pending = []
         for pending in self._pending_spawns:

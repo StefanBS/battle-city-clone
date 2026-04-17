@@ -19,9 +19,6 @@ from src.utils.constants import (
     LOGICAL_HEIGHT,
     PowerUpType,
     SPAWN_INVINCIBILITY_DURATION,
-    HELMET_INVINCIBILITY_DURATION,
-    CLOCK_FREEZE_DURATION,
-    EffectType,
     CURTAIN_CLOSE_DURATION,
     CURTAIN_OPEN_DURATION,
     CURTAIN_STAGE_DISPLAY,
@@ -245,7 +242,6 @@ class GameManager:
         )
 
         self.bullets: List[Bullet] = []
-        self.freeze_timer: float = 0.0
 
         # Restore player progress
         self.player_manager.restore_state()
@@ -424,9 +420,7 @@ class GameManager:
 
         active_players = self.player_manager.get_active_players()
 
-        if self.freeze_timer > 0:
-            self.freeze_timer -= dt
-        else:
+        if not self.spawn_manager.enemies_frozen:
             for enemy in self.spawn_manager.enemy_tanks:
                 closest_pos = None
                 if active_players:
@@ -540,12 +534,7 @@ class GameManager:
     def _apply_power_up(
         self, power_up_type: PowerUpType, player: Optional[PlayerTank] = None
     ) -> None:
-        """Dispatch power-up effect by type.
-
-        Args:
-            power_up_type: The type of power-up to apply.
-            player: The player tank that collected the power-up.
-        """
+        """Resolve the recipient and forward to PowerUpManager.apply."""
         if self.state != GameState.RUNNING:
             return
         if player is None:
@@ -553,58 +542,9 @@ class GameManager:
             player = active[0] if active else None
         if player is None:
             return
-        handlers = {
-            PowerUpType.HELMET: self._apply_helmet,
-            PowerUpType.EXTRA_LIFE: self._apply_extra_life,
-            PowerUpType.BOMB: self._apply_bomb,
-            PowerUpType.CLOCK: self._apply_clock,
-            PowerUpType.SHOVEL: self._apply_shovel,
-            PowerUpType.STAR: self._apply_star,
-        }
-        handler = handlers.get(power_up_type)
-        if handler:
-            handler(player)
-        else:
-            logger.warning(f"Unhandled power-up type: {power_up_type}")
-
-    def _apply_helmet(self, player: PlayerTank) -> None:
-        """Grant temporary invincibility to the player."""
-        player.activate_invincibility(HELMET_INVINCIBILITY_DURATION)
-        logger.info(
-            f"Helmet power-up applied: player invincible "
-            f"for {HELMET_INVINCIBILITY_DURATION}s"
+        self.power_up_manager.apply(
+            power_up_type, player, self.spawn_manager, self.effect_manager
         )
-
-    def _apply_extra_life(self, player: PlayerTank) -> None:
-        """Award the player one extra life."""
-        player.lives += 1
-        logger.info(f"Extra Life power-up applied: lives now {player.lives}")
-
-    def _apply_bomb(self, player: PlayerTank) -> None:
-        """Destroy all active enemies on the map without awarding points."""
-        for enemy in list(self.spawn_manager.enemy_tanks):
-            self.effect_manager.spawn(
-                EffectType.LARGE_EXPLOSION,
-                float(enemy.rect.centerx),
-                float(enemy.rect.centery),
-            )
-            self.spawn_manager.remove_enemy(enemy)
-        logger.info("Bomb power-up applied: all enemies destroyed")
-
-    def _apply_clock(self, player: PlayerTank) -> None:
-        """Freeze all enemies for the clock duration."""
-        self.freeze_timer = CLOCK_FREEZE_DURATION
-        logger.info(
-            f"Clock power-up applied: enemies frozen for {CLOCK_FREEZE_DURATION}s"
-        )
-
-    def _apply_shovel(self, player: PlayerTank) -> None:
-        self.power_up_manager.apply_shovel()
-
-    def _apply_star(self, player: PlayerTank) -> None:
-        """Apply star upgrade to the player tank."""
-        player.apply_star()
-        logger.info(f"Star power-up applied: player at tier {player.star_level}")
 
     def render(self) -> None:
         """Render the game state."""

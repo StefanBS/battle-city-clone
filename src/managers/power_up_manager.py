@@ -1,7 +1,9 @@
 """Manages power-up spawning, lifecycle, and collection."""
 
+from __future__ import annotations
+
 import random
-from typing import List, Optional, Tuple
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
 import pygame
 from loguru import logger
@@ -12,6 +14,9 @@ from src.core.power_up import PowerUp
 from src.core.map import Map
 from src.managers.texture_manager import TextureManager
 from src.utils.constants import (
+    CLOCK_FREEZE_DURATION,
+    EffectType,
+    HELMET_INVINCIBILITY_DURATION,
     PowerUpType,
     SHOVEL_DURATION,
     SHOVEL_FLASH_CYCLE,
@@ -20,6 +25,10 @@ from src.utils.constants import (
     TILE_SIZE,
 )
 from src.core.tile import BrickVariant, Tile, TileType
+
+if TYPE_CHECKING:
+    from src.managers.effect_manager import EffectManager
+    from src.managers.spawn_manager import SpawnManager
 
 
 class PowerUpManager:
@@ -79,6 +88,51 @@ class PowerUpManager:
             self.active_power_ups = [pu for pu in self.active_power_ups if pu.active]
 
         self._tick_shovel(dt)
+
+    def apply(
+        self,
+        power_up_type: PowerUpType,
+        player: PlayerTank,
+        spawn_manager: "SpawnManager",
+        effect_manager: "EffectManager",
+    ) -> None:
+        """Dispatch a power-up effect.
+
+        Args:
+            power_up_type: The collected power-up type.
+            player: The collecting player (recipient for player-targeted effects).
+            spawn_manager: Used by BOMB and CLOCK to affect enemies.
+            effect_manager: Used by BOMB to spawn explosion effects.
+        """
+        match power_up_type:
+            case PowerUpType.HELMET:
+                player.activate_invincibility(HELMET_INVINCIBILITY_DURATION)
+            case PowerUpType.EXTRA_LIFE:
+                player.lives += 1
+            case PowerUpType.BOMB:
+                self._detonate_bomb(spawn_manager, effect_manager)
+            case PowerUpType.CLOCK:
+                spawn_manager.freeze(CLOCK_FREEZE_DURATION)
+            case PowerUpType.SHOVEL:
+                self.apply_shovel()
+            case PowerUpType.STAR:
+                player.apply_star()
+            case _:
+                logger.warning(f"Unhandled power-up type: {power_up_type}")
+                return
+        logger.info(f"Power-up applied: {power_up_type.value}")
+
+    @staticmethod
+    def _detonate_bomb(
+        spawn_manager: "SpawnManager", effect_manager: "EffectManager"
+    ) -> None:
+        for enemy in list(spawn_manager.enemy_tanks):
+            effect_manager.spawn(
+                EffectType.LARGE_EXPLOSION,
+                float(enemy.rect.centerx),
+                float(enemy.rect.centery),
+            )
+            spawn_manager.remove_enemy(enemy)
 
     def apply_shovel(self) -> None:
         """Fortify base walls with steel, restoring destroyed bricks first."""
