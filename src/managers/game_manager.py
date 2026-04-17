@@ -4,7 +4,7 @@ from typing import List, Optional
 from loguru import logger
 from src.core.map import Map
 from src.core.player_tank import PlayerTank
-from src.core.tile import BrickVariant, Tile, TileType
+from src.core.tile import Tile
 from src.core.bullet import Bullet
 from src.states.game_state import GameState
 from src.utils.constants import (
@@ -21,10 +21,6 @@ from src.utils.constants import (
     SPAWN_INVINCIBILITY_DURATION,
     HELMET_INVINCIBILITY_DURATION,
     CLOCK_FREEZE_DURATION,
-    SHOVEL_DURATION,
-    SHOVEL_WARNING_DURATION,
-    SHOVEL_FLASH_CYCLE,
-    SHOVEL_FLASH_INTERVAL,
     EffectType,
     CURTAIN_CLOSE_DURATION,
     CURTAIN_OPEN_DURATION,
@@ -207,10 +203,6 @@ class GameManager:
 
         self.bullets: List[Bullet] = []
         self.freeze_timer: float = 0.0
-        self.shovel_timer: float = 0.0
-        self._shovel_original_tiles: List[tuple] = []
-        self._shovel_flash_timer: float = 0.0
-        self._shovel_flash_showing_steel: bool = True
 
         # Restore player progress
         self.player_manager.restore_state()
@@ -460,7 +452,6 @@ class GameManager:
 
         self.spawn_manager.update(dt, active_players, self.map)
         self.power_up_manager.update(dt)
-        self._tick_shovel(dt)
 
         # --- Prepare data for Collision Manager ---
         # Built AFTER updates so newly fired bullets are included
@@ -608,53 +599,7 @@ class GameManager:
         )
 
     def _apply_shovel(self, player: PlayerTank) -> None:
-        """Fortify base walls with steel, restoring destroyed bricks first."""
-        if not self._shovel_original_tiles:
-            tiles = self.map.get_base_surrounding_tiles(include_empty=True)
-            # Restore destroyed and damaged tiles to full BRICK before fortifying
-            for tile in tiles:
-                damaged = (
-                    tile.type == TileType.EMPTY
-                    or tile.brick_variant != BrickVariant.FULL
-                )
-                if damaged:
-                    self.map.set_tile_type(tile, TileType.BRICK)
-                    tile.brick_variant = BrickVariant.FULL
-                    tile.reset_rect()
-            # Save original types AFTER restoration (so BRICK, not EMPTY)
-            self._shovel_original_tiles = [(t, t.type) for t in tiles]
-            for tile in tiles:
-                self.map.set_tile_type(tile, TileType.STEEL)
-            logger.info(
-                f"Shovel power-up applied: base fortified for {SHOVEL_DURATION}s"
-            )
-        self.shovel_timer = SHOVEL_DURATION
-        self._shovel_flash_timer = 0.0
-        self._shovel_flash_showing_steel = True
-
-    def _tick_shovel(self, dt: float) -> None:
-        """Update shovel timer and flash logic."""
-        if self.shovel_timer <= 0:
-            return
-        self.shovel_timer -= dt
-        if self.shovel_timer <= 0:
-            for tile, orig_type in self._shovel_original_tiles:
-                if tile.type != TileType.EMPTY:
-                    self.map.set_tile_type(tile, orig_type)
-            self._shovel_original_tiles = []
-            logger.info("Shovel expired: base walls reverted")
-            return
-        if self.shovel_timer <= SHOVEL_WARNING_DURATION:
-            self._shovel_flash_timer += dt
-            should_show_steel = (
-                self._shovel_flash_timer % SHOVEL_FLASH_CYCLE < SHOVEL_FLASH_INTERVAL
-            )
-            if should_show_steel != self._shovel_flash_showing_steel:
-                self._shovel_flash_showing_steel = should_show_steel
-                for tile, orig_type in self._shovel_original_tiles:
-                    if tile.type != TileType.EMPTY:
-                        target = TileType.STEEL if should_show_steel else orig_type
-                        self.map.set_tile_type(tile, target)
+        self.power_up_manager.apply_shovel()
 
     def _apply_star(self, player: PlayerTank) -> None:
         """Apply star upgrade to the player tank."""

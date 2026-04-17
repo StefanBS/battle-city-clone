@@ -1,7 +1,7 @@
 """Manages power-up spawning, lifecycle, and collection."""
 
 import random
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import pygame
 from loguru import logger
@@ -11,8 +11,15 @@ from src.core.player_tank import PlayerTank
 from src.core.power_up import PowerUp
 from src.core.map import Map
 from src.managers.texture_manager import TextureManager
-from src.utils.constants import PowerUpType, TILE_SIZE
-from src.core.tile import TileType
+from src.utils.constants import (
+    PowerUpType,
+    SHOVEL_DURATION,
+    SHOVEL_FLASH_CYCLE,
+    SHOVEL_FLASH_INTERVAL,
+    SHOVEL_WARNING_DURATION,
+    TILE_SIZE,
+)
+from src.core.tile import BrickVariant, Tile, TileType
 
 
 class PowerUpManager:
@@ -26,6 +33,10 @@ class PowerUpManager:
         self._texture_manager = texture_manager
         self._game_map = game_map
         self.active_power_ups: List[PowerUp] = []
+        self.shovel_timer: float = 0.0
+        self._shovel_original_tiles: List[Tuple[Tile, TileType]] = []
+        self._shovel_flash_timer: float = 0.0
+        self._shovel_flash_showing_steel: bool = True
 
     def spawn_power_up(
         self,
@@ -66,6 +77,55 @@ class PowerUpManager:
                 any_expired = True
         if any_expired:
             self.active_power_ups = [pu for pu in self.active_power_ups if pu.active]
+
+        self._tick_shovel(dt)
+
+    def apply_shovel(self) -> None:
+        """Fortify base walls with steel, restoring destroyed bricks first."""
+        if not self._shovel_original_tiles:
+            tiles = self._game_map.get_base_surrounding_tiles(include_empty=True)
+            for tile in tiles:
+                damaged = (
+                    tile.type == TileType.EMPTY
+                    or tile.brick_variant != BrickVariant.FULL
+                )
+                if damaged:
+                    self._game_map.set_tile_type(tile, TileType.BRICK)
+                    tile.brick_variant = BrickVariant.FULL
+                    tile.reset_rect()
+            # Save originals AFTER restoration so reverted tiles are BRICK, not EMPTY.
+            self._shovel_original_tiles = [(t, t.type) for t in tiles]
+            for tile in tiles:
+                self._game_map.set_tile_type(tile, TileType.STEEL)
+            logger.info(
+                f"Shovel power-up applied: base fortified for {SHOVEL_DURATION}s"
+            )
+        self.shovel_timer = SHOVEL_DURATION
+        self._shovel_flash_timer = 0.0
+        self._shovel_flash_showing_steel = True
+
+    def _tick_shovel(self, dt: float) -> None:
+        if self.shovel_timer <= 0:
+            return
+        self.shovel_timer -= dt
+        if self.shovel_timer <= 0:
+            for tile, orig_type in self._shovel_original_tiles:
+                if tile.type != TileType.EMPTY:
+                    self._game_map.set_tile_type(tile, orig_type)
+            self._shovel_original_tiles = []
+            logger.info("Shovel expired: base walls reverted")
+            return
+        if self.shovel_timer <= SHOVEL_WARNING_DURATION:
+            self._shovel_flash_timer += dt
+            should_show_steel = (
+                self._shovel_flash_timer % SHOVEL_FLASH_CYCLE < SHOVEL_FLASH_INTERVAL
+            )
+            if should_show_steel != self._shovel_flash_showing_steel:
+                self._shovel_flash_showing_steel = should_show_steel
+                for tile, orig_type in self._shovel_original_tiles:
+                    if tile.type != TileType.EMPTY:
+                        target = TileType.STEEL if should_show_steel else orig_type
+                        self._game_map.set_tile_type(tile, target)
 
     def get_power_ups(self) -> List[PowerUp]:
         """Return the list of active power-ups for collision checking and rendering."""
