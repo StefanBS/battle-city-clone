@@ -285,23 +285,19 @@ class Renderer:
         self.game_surface.blit(cursor_text, cursor_rect)
         return rects
 
-    def render_title_screen(self, menu_selection: int) -> None:
-        """Render the title screen with menu options.
-
-        Args:
-            menu_selection: Currently selected menu item (0-3).
-        """
+    def render_title_screen(self, labels: Sequence[str], menu_selection: int) -> None:
+        """Render the title screen with menu options."""
         self.game_surface.fill(BLACK)
 
         self._draw_centered_text("BATTLE CITY", self.font, WHITE, self._center_y - 80)
 
-        options = ["1 PLAYER", "2 PLAYERS", "OPTIONS", "QUIT"]
-        colors = [WHITE, WHITE, WHITE, WHITE]
-        self._draw_menu(options, menu_selection, self._center_y, colors=colors)
+        self._draw_menu(
+            [label.upper() for label in labels], menu_selection, self._center_y
+        )
 
         self._present_surface()
 
-    def render_pause_menu(self, menu_selection: int) -> None:
+    def render_pause_menu(self, labels: Sequence[str], menu_selection: int) -> None:
         """Render pause menu overlay on top of frozen game frame.
 
         Does NOT clear the game surface — draws on top of the
@@ -311,8 +307,9 @@ class Renderer:
 
         self._draw_centered_text("PAUSED", self.font, WHITE, self._center_y - 60)
 
-        options = ["RESUME", "OPTIONS", "TITLE SCREEN", "QUIT"]
-        self._draw_menu(options, menu_selection, self._center_y)
+        self._draw_menu(
+            [label.upper() for label in labels], menu_selection, self._center_y
+        )
 
         self._present_surface()
 
