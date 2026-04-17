@@ -1,6 +1,6 @@
 import os
 import pygame
-from typing import List, Optional
+from typing import Callable, List, Optional
 from loguru import logger
 from src.core.map import Map
 from src.core.player_tank import PlayerTank
@@ -79,6 +79,25 @@ class GameManager:
         self._post_curtain_state: GameState = GameState.RUNNING
 
         self._title_menu, self._pause_menu, self._options_menu = self._build_menus()
+
+        self._timed_transitions: dict[GameState, tuple[float, Callable[[], None]]] = {
+            GameState.VICTORY: (
+                VICTORY_PAUSE_DURATION,
+                self._on_victory_finished,
+            ),
+            GameState.STAGE_CURTAIN_CLOSE: (
+                CURTAIN_CLOSE_DURATION + CURTAIN_STAGE_DISPLAY,
+                self._on_curtain_close_finished,
+            ),
+            GameState.STAGE_CURTAIN_OPEN: (
+                CURTAIN_OPEN_DURATION,
+                self._on_curtain_open_finished,
+            ),
+            GameState.GAME_OVER_ANIMATION: (
+                GAME_OVER_RISE_DURATION + GAME_OVER_HOLD_DURATION,
+                self._on_game_over_animation_finished,
+            ),
+        }
 
         # Renderer for title screen (recreated with map dims in _load_stage)
         self.renderer: Renderer = Renderer(
@@ -364,43 +383,12 @@ class GameManager:
         if self.state in (GameState.PAUSED, GameState.OPTIONS_MENU):
             return
 
-        if self.state == GameState.VICTORY:
+        transition = self._timed_transitions.get(self.state)
+        if transition is not None:
+            threshold, on_finished = transition
             self._state_timer += dt
-            if self._state_timer >= VICTORY_PAUSE_DURATION:
-                if self.current_stage >= MAX_STAGE:
-                    self._set_game_state(GameState.GAME_COMPLETE)
-                else:
-                    self.current_stage += 1
-                    self._load_stage()
-                    self.state = GameState.STAGE_CURTAIN_CLOSE
-                    self._state_timer = 0.0
-                    self.sound_manager.play("stage_start")
-            return
-
-        if self.state == GameState.STAGE_CURTAIN_CLOSE:
-            self._state_timer += dt
-            total = CURTAIN_CLOSE_DURATION + CURTAIN_STAGE_DISPLAY
-            if self._state_timer >= total:
-                self.state = GameState.STAGE_CURTAIN_OPEN
-                self._state_timer = 0.0
-            return
-
-        if self.state == GameState.STAGE_CURTAIN_OPEN:
-            self._state_timer += dt
-            if self._state_timer >= CURTAIN_OPEN_DURATION:
-                self.state = self._post_curtain_state
-                self._post_curtain_state = GameState.RUNNING
-                if self.state == GameState.TITLE_SCREEN:
-                    self._title_menu.reset()
-            return
-
-        if self.state == GameState.GAME_OVER_ANIMATION:
-            self._state_timer += dt
-            total = GAME_OVER_RISE_DURATION + GAME_OVER_HOLD_DURATION
-            if self._state_timer >= total:
-                logger.info("Wiping to title screen.")
-                self._post_curtain_state = GameState.TITLE_SCREEN
-                self.state = GameState.STAGE_CURTAIN_CLOSE
+            if self._state_timer >= threshold:
+                on_finished()
                 self._state_timer = 0.0
             return
 
@@ -498,6 +486,29 @@ class GameManager:
             if bullet is not None:
                 self.bullets.append(bullet)
                 self.sound_manager.play("shoot")
+
+    def _on_victory_finished(self) -> None:
+        if self.current_stage >= MAX_STAGE:
+            self._set_game_state(GameState.GAME_COMPLETE)
+            return
+        self.current_stage += 1
+        self._load_stage()
+        self.state = GameState.STAGE_CURTAIN_CLOSE
+        self.sound_manager.play("stage_start")
+
+    def _on_curtain_close_finished(self) -> None:
+        self.state = GameState.STAGE_CURTAIN_OPEN
+
+    def _on_curtain_open_finished(self) -> None:
+        self.state = self._post_curtain_state
+        self._post_curtain_state = GameState.RUNNING
+        if self.state == GameState.TITLE_SCREEN:
+            self._title_menu.reset()
+
+    def _on_game_over_animation_finished(self) -> None:
+        logger.info("Wiping to title screen.")
+        self._post_curtain_state = GameState.TITLE_SCREEN
+        self.state = GameState.STAGE_CURTAIN_CLOSE
 
     def _set_game_state(self, state: GameState) -> None:
         """Set the game state with sound management."""
