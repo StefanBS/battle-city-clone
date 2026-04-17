@@ -30,6 +30,11 @@ class MenuController:
         self._on_back = on_back
         self.selection: int = 0
 
+    @property
+    def labels(self) -> List[str]:
+        """Return the ordered labels of this menu's items."""
+        return [item.label for item in self._items]
+
     def reset(self) -> None:
         self.selection = 0
 

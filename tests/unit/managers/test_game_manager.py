@@ -849,7 +849,9 @@ class TestPauseAndOptionsStateMachine:
         gm.state = GameState.PAUSED
         gm.renderer = MagicMock()
         gm.render()
-        gm.renderer.render_pause_menu.assert_called_once_with(gm._pause_menu.selection)
+        gm.renderer.render_pause_menu.assert_called_once_with(
+            gm._pause_menu.labels, gm._pause_menu.selection
+        )
 
     def test_render_options_calls_render_options_menu(self, game_manager):
         """OPTIONS_MENU state renders options menu."""
@@ -870,4 +872,6 @@ class TestPauseAndOptionsStateMachine:
         gm.renderer = MagicMock()
         gm._title_menu.selection = 2
         gm.render()
-        gm.renderer.render_title_screen.assert_called_once_with(2)
+        gm.renderer.render_title_screen.assert_called_once_with(
+            gm._title_menu.labels, 2
+        )

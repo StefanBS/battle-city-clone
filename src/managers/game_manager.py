@@ -126,7 +126,7 @@ class GameManager:
             items=[
                 MenuItem("Resume", on_confirm=self._resume_game),
                 MenuItem("Options", on_confirm=lambda: self._open_options(True)),
-                MenuItem("Title", on_confirm=self._return_to_title),
+                MenuItem("Title Screen", on_confirm=self._return_to_title),
                 MenuItem("Quit", on_confirm=self._quit_game),
             ],
             on_select=play_select,
@@ -551,7 +551,9 @@ class GameManager:
     def render(self) -> None:
         """Render the game state."""
         if self.state == GameState.TITLE_SCREEN:
-            self.renderer.render_title_screen(self._title_menu.selection)
+            self.renderer.render_title_screen(
+                self._title_menu.labels, self._title_menu.selection
+            )
             return
 
         if self.state in (
@@ -575,7 +577,9 @@ class GameManager:
             return
 
         if self.state == GameState.PAUSED:
-            self.renderer.render_pause_menu(self._pause_menu.selection)
+            self.renderer.render_pause_menu(
+                self._pause_menu.labels, self._pause_menu.selection
+            )
             return
 
         if self.state == GameState.EXIT:

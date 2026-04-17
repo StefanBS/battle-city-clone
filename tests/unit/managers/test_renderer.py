@@ -226,13 +226,15 @@ class TestRenderCurtain:
 class TestRenderPauseMenu:
     """Tests for render_pause_menu."""
 
+    PAUSE_LABELS = ["Resume", "Options", "Title Screen", "Quit"]
+
     def test_overlay_is_blitted(self, renderer):
         """Pause menu blits the pre-created overlay onto the game surface."""
         with (
             patch("pygame.transform.scale"),
             patch("pygame.display.flip"),
         ):
-            renderer.render_pause_menu(0)
+            renderer.render_pause_menu(self.PAUSE_LABELS, 0)
 
         # The cached overlay should be blitted onto the game surface
         blit_calls = renderer.game_surface.blit.call_args_list
@@ -247,7 +249,7 @@ class TestRenderPauseMenu:
             patch("pygame.transform.scale"),
             patch("pygame.display.flip"),
         ):
-            renderer.render_pause_menu(0)
+            renderer.render_pause_menu(self.PAUSE_LABELS, 0)
 
         render_calls = [call.args[0] for call in renderer.font.render.call_args_list]
         assert "PAUSED" in render_calls
@@ -259,7 +261,7 @@ class TestRenderPauseMenu:
             patch("pygame.transform.scale"),
             patch("pygame.display.flip"),
         ):
-            renderer.render_pause_menu(0)
+            renderer.render_pause_menu(self.PAUSE_LABELS, 0)
 
         render_calls = [
             call.args[0] for call in renderer.small_font.render.call_args_list
@@ -276,7 +278,7 @@ class TestRenderPauseMenu:
             patch("pygame.transform.scale"),
             patch("pygame.display.flip"),
         ):
-            renderer.render_pause_menu(0)
+            renderer.render_pause_menu(self.PAUSE_LABELS, 0)
 
         render_calls = [
             call.args[0] for call in renderer.small_font.render.call_args_list
@@ -391,12 +393,14 @@ class TestRenderTitleScreenUpdated:
     """Tests for updated title screen with OPTIONS and QUIT."""
 
     def test_menu_items_rendered(self, renderer):
-        """Title screen renders 1 PLAYER, 2 PLAYERS, OPTIONS, QUIT."""
+        """Title screen uppercases and renders the given labels."""
         with (
             patch("pygame.transform.scale"),
             patch("pygame.display.flip"),
         ):
-            renderer.render_title_screen(0)
+            renderer.render_title_screen(
+                ["1 Player", "2 Players", "Options", "Quit"], 0
+            )
 
         render_calls = [
             call.args[0] for call in renderer.small_font.render.call_args_list

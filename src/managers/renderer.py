@@ -181,9 +181,7 @@ class Renderer:
         else:
             lives = player_tanks[0].lives if player_tanks else 0
             total_score = sum(scores.values())
-            self._draw_hud_slot(
-                "lives", f"Lives: {lives}", None, WHITE, "left"
-            )
+            self._draw_hud_slot("lives", f"Lives: {lives}", None, WHITE, "left")
             self._draw_hud_slot(
                 "score", f"Score: {total_score:>6}", None, WHITE, "right"
             )
@@ -204,9 +202,7 @@ class Renderer:
         if cached is None or cached[0] != label or cached[1] != score_text:
             label_surf = self.small_font.render(label, True, color)
             score_surf = (
-                self.small_font.render(score_text, True, WHITE)
-                if score_text
-                else None
+                self.small_font.render(score_text, True, WHITE) if score_text else None
             )
             self._cached_hud[slot] = (label, score_text, label_surf, score_surf)
         else:
@@ -218,14 +214,10 @@ class Renderer:
             if score_surf:
                 self.game_surface.blit(score_surf, (10, 24))
         else:
-            label_rect = label_surf.get_rect(
-                topright=(self.logical_width - 10, 10)
-            )
+            label_rect = label_surf.get_rect(topright=(self.logical_width - 10, 10))
             self.game_surface.blit(label_surf, label_rect)
             if score_surf:
-                score_rect = score_surf.get_rect(
-                    topright=(self.logical_width - 10, 24)
-                )
+                score_rect = score_surf.get_rect(topright=(self.logical_width - 10, 24))
                 self.game_surface.blit(score_surf, score_rect)
 
     def _draw_game_over_rising(self, progress: float) -> None:
@@ -311,23 +303,19 @@ class Renderer:
         self.game_surface.blit(cursor_text, cursor_rect)
         return rects
 
-    def render_title_screen(self, menu_selection: int) -> None:
-        """Render the title screen with menu options.
-
-        Args:
-            menu_selection: Currently selected menu item (0-3).
-        """
+    def render_title_screen(self, labels: Sequence[str], menu_selection: int) -> None:
+        """Render the title screen with menu options."""
         self.game_surface.fill(BLACK)
 
         self._draw_centered_text("BATTLE CITY", self.font, WHITE, self._center_y - 80)
 
-        options = ["1 PLAYER", "2 PLAYERS", "OPTIONS", "QUIT"]
-        colors = [WHITE, WHITE, WHITE, WHITE]
-        self._draw_menu(options, menu_selection, self._center_y, colors=colors)
+        self._draw_menu(
+            [label.upper() for label in labels], menu_selection, self._center_y
+        )
 
         self._present_surface()
 
-    def render_pause_menu(self, menu_selection: int) -> None:
+    def render_pause_menu(self, labels: Sequence[str], menu_selection: int) -> None:
         """Render pause menu overlay on top of frozen game frame.
 
         Does NOT clear the game surface — draws on top of the
@@ -337,8 +325,9 @@ class Renderer:
 
         self._draw_centered_text("PAUSED", self.font, WHITE, self._center_y - 60)
 
-        options = ["RESUME", "OPTIONS", "TITLE SCREEN", "QUIT"]
-        self._draw_menu(options, menu_selection, self._center_y)
+        self._draw_menu(
+            [label.upper() for label in labels], menu_selection, self._center_y
+        )
 
         self._present_surface()
 
