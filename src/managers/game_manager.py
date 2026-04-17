@@ -8,7 +8,6 @@ from src.core.tile import Tile
 from src.core.bullet import Bullet
 from src.states.game_state import GameState
 from src.utils.constants import (
-    Difficulty,
     VOLUME_ADJUSTMENT_STEP,
     WINDOW_TITLE,
     FPS,
@@ -350,17 +349,11 @@ class GameManager:
         self.state = GameState.TITLE_SCREEN
 
     def _cycle_difficulty(self, step: int) -> None:
-        difficulties = list(Difficulty)
-        idx = difficulties.index(self.settings_manager.difficulty)
-        self.settings_manager.difficulty = difficulties[
-            (idx + step) % len(difficulties)
-        ]
+        self.settings_manager.cycle_difficulty(step)
         self.sound_manager.play("menu_select")
 
     def _adjust_volume(self, delta: float) -> None:
-        self.settings_manager.master_volume = max(
-            0.0, min(1.0, self.settings_manager.master_volume + delta)
-        )
+        self.settings_manager.adjust_volume(delta)
         self.sound_manager.set_master_volume(self.settings_manager.master_volume)
         self.sound_manager.play("menu_select")
 
