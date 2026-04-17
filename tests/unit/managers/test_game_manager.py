@@ -337,14 +337,14 @@ class TestGameManagerSoundWiring:
         gm = gm_with_mock_sound
         gm._set_game_state(GameState.VICTORY)
         gm.sound_manager.stop_loops.assert_called_once()
-        gm.sound_manager.play_victory.assert_called_once()
+        gm.sound_manager.play.assert_called_once_with("victory")
         assert gm.state == GameState.VICTORY
 
     def test_set_game_state_game_over_stops_loops(self, gm_with_mock_sound):
         gm = gm_with_mock_sound
         gm._set_game_state(GameState.GAME_OVER)
         gm.sound_manager.stop_loops.assert_called_once()
-        gm.sound_manager.play_game_over.assert_called_once()
+        gm.sound_manager.play.assert_called_once_with("game_over")
         assert gm.state == GameState.GAME_OVER_ANIMATION
 
     def test_quit_game_stops_loops(self, gm_with_mock_sound):
@@ -357,7 +357,7 @@ class TestGameManagerSoundWiring:
         gm = game_manager_at_title
         gm.sound_manager = MagicMock()
         gm._title_menu.handle_action(MenuAction.DOWN)
-        gm.sound_manager.play_menu_select.assert_called()
+        gm.sound_manager.play.assert_any_call("menu_select")
 
 
 class TestStageProgression:
@@ -750,7 +750,7 @@ class TestPauseAndOptionsStateMachine:
         gm.sound_manager = MagicMock()
         pygame.event.post(key_down_event(pygame.K_DOWN))
         gm.handle_events()
-        gm.sound_manager.play_menu_select.assert_called()
+        gm.sound_manager.play.assert_any_call("menu_select")
 
     # --- Options menu ---
 

@@ -288,7 +288,7 @@ class TestPlayerManagerUpdate:
         self.pm.update(0.016, self.game_map)
 
         player.start_slide.assert_called_once()
-        self.pm._sound_manager.play_ice_slide.assert_called_once()
+        self.pm._sound_manager.play.assert_called_once_with("ice_slide")
 
     def test_bullets_updated_during_update(self):
         """Active bullets have update(dt) called."""
@@ -343,7 +343,7 @@ class TestPlayerManagerShooting:
 
         player.shoot.assert_called_once()
         assert bullet in self.pm._bullets
-        self.pm._sound_manager.play_shoot.assert_called_once()
+        self.pm._sound_manager.play.assert_called_once_with("shoot")
 
     def test_try_shoot_no_bullet_without_input(self, mock_sound_manager):
         """try_shoot() does nothing when shoot was not pressed."""
@@ -357,7 +357,7 @@ class TestPlayerManagerShooting:
         self.pm.try_shoot()
 
         player.shoot.assert_not_called()
-        self.pm._sound_manager.play_shoot.assert_not_called()
+        self.pm._sound_manager.play.assert_not_called()
 
     def test_try_shoot_respects_max_bullets(self):
         """No new bullet is created when max_bullets are already active."""

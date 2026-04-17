@@ -151,7 +151,7 @@ class PlayerManager:
             if player.on_ice and not player.is_sliding:
                 if not has_valid_input or (dx, dy) != player.direction.delta:
                     if player.start_slide():
-                        self._sound_manager.play_ice_slide()
+                        self._sound_manager.play("ice_slide")
 
             if has_valid_input and not player.is_sliding:
                 player.move(dx, dy, dt)
@@ -179,7 +179,7 @@ class PlayerManager:
                     bullet: Optional[Bullet] = player.shoot()
                     if bullet is not None:
                         self._bullets.append(bullet)
-                        self._sound_manager.play_shoot()
+                        self._sound_manager.play("shoot")
 
     def get_all_bullets(self) -> list[Bullet]:
         """Return all player bullets (pruned to active-only by update()).
