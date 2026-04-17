@@ -67,9 +67,10 @@ class PlayerManager:
         map_height_px = game_map.height * game_map.tile_size
 
         def make_player(spawn: tuple[int, int], pid: int) -> PlayerTank:
+            x, y = game_map.grid_to_pixels(spawn[0], spawn[1])
             return PlayerTank(
-                spawn[0] * game_map.tile_size,
-                spawn[1] * game_map.tile_size,
+                x,
+                y,
                 game_map.tile_size,
                 self._texture_manager,
                 map_width_px=map_width_px,

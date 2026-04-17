@@ -29,6 +29,7 @@ class _PendingSpawn:
     y: int
     tank_type: TankType
     effect: Effect
+    rect: pygame.Rect
     is_carrier: bool = False
 
 
@@ -127,10 +128,7 @@ class SpawnManager:
             if rect.colliderect(enemy.rect):
                 return True
         for pending in self._pending_spawns:
-            pending_rect = pygame.Rect(
-                pending.x, pending.y, self.tile_size, self.tile_size
-            )
-            if rect.colliderect(pending_rect):
+            if rect.colliderect(pending.rect):
                 return True
         return False
 
@@ -171,7 +169,12 @@ class SpawnManager:
             effect = self._effect_manager.spawn(EffectType.SPAWN, center_x, center_y)
             self._pending_spawns.append(
                 _PendingSpawn(
-                    x=x, y=y, tank_type=tank_type, effect=effect, is_carrier=is_carrier
+                    x=x,
+                    y=y,
+                    tank_type=tank_type,
+                    effect=effect,
+                    rect=pygame.Rect(x, y, self.tile_size, self.tile_size),
+                    is_carrier=is_carrier,
                 )
             )
             logger.debug(
