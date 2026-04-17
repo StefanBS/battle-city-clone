@@ -60,43 +60,13 @@ class SoundManager:
         for channel in self._looping_channels.values():
             channel.set_volume(self._master_volume)
 
-    def _play(self, name: str) -> None:
+    def play(self, name: str) -> None:
         """Play a named sound if enabled and loaded."""
         if not self._enabled:
             return
         sound = self._sounds.get(name)
         if sound is not None:
             sound.play()
-
-    def play_shoot(self) -> None:
-        self._play("shoot")
-
-    def play_brick_hit(self) -> None:
-        self._play("brick_hit")
-
-    def play_explosion(self) -> None:
-        self._play("explosion")
-
-    def play_powerup(self) -> None:
-        self._play("powerup")
-
-    def play_game_over(self) -> None:
-        self._play("game_over")
-
-    def play_bullet_hit_bullet(self) -> None:
-        self._play("bullet_hit_bullet")
-
-    def play_stage_start(self) -> None:
-        self._play("stage_start")
-
-    def play_victory(self) -> None:
-        self._play("victory")
-
-    def play_menu_select(self) -> None:
-        self._play("menu_select")
-
-    def play_ice_slide(self) -> None:
-        self._play("ice_slide")
 
     def update_engine(self, any_moving: bool) -> None:
         """Start or stop engine loop based on whether any tank is moving."""

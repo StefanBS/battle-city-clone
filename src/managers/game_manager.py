@@ -95,7 +95,7 @@ class GameManager:
     def _build_menus(self) -> tuple[MenuController, MenuController, MenuController]:
         # Late-bound so tests can swap sound_manager after construction.
         def play_select() -> None:
-            self.sound_manager.play_menu_select()
+            self.sound_manager.play("menu_select")
 
         title = MenuController(
             items=[
@@ -340,7 +340,7 @@ class GameManager:
         self._new_game()
         self.state = GameState.STAGE_CURTAIN_CLOSE
         self._state_timer = 0.0
-        self.sound_manager.play_stage_start()
+        self.sound_manager.play("stage_start")
 
     def _open_options(self, from_pause: bool) -> None:
         self._options_from_pause = from_pause
@@ -358,14 +358,14 @@ class GameManager:
         self.settings_manager.difficulty = difficulties[
             (idx + step) % len(difficulties)
         ]
-        self.sound_manager.play_menu_select()
+        self.sound_manager.play("menu_select")
 
     def _adjust_volume(self, delta: float) -> None:
         self.settings_manager.master_volume = max(
             0.0, min(1.0, self.settings_manager.master_volume + delta)
         )
         self.sound_manager.set_master_volume(self.settings_manager.master_volume)
-        self.sound_manager.play_menu_select()
+        self.sound_manager.play("menu_select")
 
     def update(self) -> None:
         """Update game state."""
@@ -384,7 +384,7 @@ class GameManager:
                     self._load_stage()
                     self.state = GameState.STAGE_CURTAIN_CLOSE
                     self._state_timer = 0.0
-                    self.sound_manager.play_stage_start()
+                    self.sound_manager.play("stage_start")
             return
 
         if self.state == GameState.STAGE_CURTAIN_CLOSE:
@@ -512,7 +512,7 @@ class GameManager:
             bullet = tank.shoot()
             if bullet is not None:
                 self.bullets.append(bullet)
-                self.sound_manager.play_shoot()
+                self.sound_manager.play("shoot")
 
     def _set_game_state(self, state: GameState) -> None:
         """Set the game state with sound management."""
@@ -525,12 +525,12 @@ class GameManager:
         if state == GameState.GAME_OVER:
             self.state = GameState.GAME_OVER_ANIMATION
             self._state_timer = 0.0
-            self.sound_manager.play_game_over()
+            self.sound_manager.play("game_over")
             return
         if state == GameState.VICTORY:
             self.state = GameState.VICTORY
             self._state_timer = 0.0
-            self.sound_manager.play_victory()
+            self.sound_manager.play("victory")
             return
         if state == GameState.GAME_COMPLETE:
             self.state = GameState.GAME_COMPLETE
