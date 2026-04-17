@@ -46,6 +46,10 @@ def mock_game_map():
     game_map.width = 26
     game_map.height = 26
     game_map.tile_size = TILE_SIZE
+    game_map.grid_to_pixels.side_effect = lambda gx, gy: (
+        gx * TILE_SIZE,
+        gy * TILE_SIZE,
+    )
     # Default: no ice tile under any tank
     game_map.get_tile_at.return_value = None
     return game_map

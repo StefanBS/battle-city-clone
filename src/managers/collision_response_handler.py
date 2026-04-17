@@ -254,8 +254,6 @@ class CollisionResponseHandler:
     ) -> bool:
         if not bullet_a.active or not bullet_b.active:
             return False
-        if bullet_a == bullet_b:
-            return False
         logger.debug("Bullet hit bullet. Both deactivated.")
         bullet_a.active = False
         bullet_b.active = False
