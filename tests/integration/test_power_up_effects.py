@@ -6,7 +6,6 @@ Uses real objects (no mocks) with SDL_VIDEODRIVER=dummy for headless execution.
 import pytest
 from src.utils.constants import (
     BULLET_SPEED,
-    CLOCK_FREEZE_DURATION,
     HELMET_INVINCIBILITY_DURATION,
     STAR_BULLET_SPEED_MULTIPLIER,
     PowerUpType,
@@ -64,7 +63,7 @@ class TestRemainingPowerUpEffects:
 
     def test_clock_effect(self, game):
         game._apply_power_up(PowerUpType.CLOCK)
-        assert game.freeze_timer == CLOCK_FREEZE_DURATION
+        assert game.spawn_manager.enemies_frozen is True
 
     def test_shovel_effect(self, game):
         game._apply_power_up(PowerUpType.SHOVEL)
