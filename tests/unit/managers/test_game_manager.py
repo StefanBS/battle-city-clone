@@ -7,6 +7,7 @@ from src.utils.constants import (
     Difficulty,
     MAX_STAGE,
     MenuAction,
+    TankType,
     VICTORY_PAUSE_DURATION,
     VOLUME_ADJUSTMENT_STEP,
 )
@@ -119,7 +120,7 @@ class TestGameManager:
         game_manager.player_manager = MagicMock()
         # Use a real list for enemy_tanks for the update loop check
         mock_enemy = MagicMock(spec=EnemyTank)
-        mock_enemy.tank_type = "basic"
+        mock_enemy.tank_type = TankType.BASIC
         game_manager.spawn_manager.enemy_tanks = [mock_enemy]
         game_manager.spawn_manager = MagicMock()
         game_manager.collision_response_handler = MagicMock()
