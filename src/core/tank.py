@@ -333,13 +333,14 @@ class Tank(GameObject):
             # Start with current (collided) position as a basis for snapping
             snapped_x, snapped_y = self.x, self.y
 
-            if self.direction == Direction.RIGHT:
+            dx, dy = self.direction.delta
+            if dx > 0:
                 snapped_x = float(obstacle_rect.left - self.width)
-            elif self.direction == Direction.LEFT:
+            elif dx < 0:
                 snapped_x = float(obstacle_rect.right)
-            elif self.direction == Direction.DOWN:
+            elif dy > 0:
                 snapped_y = float(obstacle_rect.top - self.height)
-            elif self.direction == Direction.UP:
+            elif dy < 0:
                 snapped_y = float(obstacle_rect.bottom)
 
             self.x = snapped_x
