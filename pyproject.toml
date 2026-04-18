@@ -8,6 +8,7 @@ dependencies = [
     "pygame",
     "loguru",
     "pytmx",
+    "platformdirs",
 ]
 
 [project.optional-dependencies]

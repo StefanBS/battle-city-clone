@@ -18,7 +18,7 @@ modules:
   #   uv run --python 3.13 --with requirements-parser --with packaging \
   #     tools/flatpak-pip-generator --runtime org.freedesktop.Sdk//25.08 \
   #     --prefer-wheels pygame,pyinstaller \
-  #     --yaml --output python-deps pyinstaller pygame loguru pytmx
+  #     --yaml --output python-deps pyinstaller pygame loguru pytmx platformdirs
   - python-deps.yaml
 
   - name: battle-city
