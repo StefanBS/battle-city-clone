@@ -76,7 +76,8 @@ class Renderer:
         game_map,
         player_tanks: list,
         enemy_tanks: list,
-        bullets: list,
+        player_bullets: Sequence,
+        enemy_bullets: Sequence,
         effect_manager,
         state: GameState,
         scores: dict[int, int] | None = None,
@@ -89,7 +90,8 @@ class Renderer:
             game_map: The game map to draw.
             player_tanks: List of player tanks.
             enemy_tanks: List of enemy tanks.
-            bullets: List of bullets.
+            player_bullets: Player-fired bullets.
+            enemy_bullets: Enemy-fired bullets.
             state: Current game state.
             scores: Per-player scores dict {player_id: score}.
             power_ups: Active power-ups to draw.
@@ -105,7 +107,10 @@ class Renderer:
             enemy.draw(self.map_surface)
         for power_up in power_ups:
             power_up.draw(self.map_surface)
-        for bullet in bullets:
+        for bullet in player_bullets:
+            if bullet.active:
+                bullet.draw(self.map_surface)
+        for bullet in enemy_bullets:
             if bullet.active:
                 bullet.draw(self.map_surface)
 
