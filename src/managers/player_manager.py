@@ -185,10 +185,9 @@ class PlayerManager:
     def get_all_bullets(self) -> list[Bullet]:
         """Return all player bullets (pruned to active-only by update()).
 
-        Returns:
-            Shallow copy of the internal bullet list.
+        Read-only: callers must not mutate the returned list.
         """
-        return list(self._bullets)
+        return self._bullets
 
     def get_active_players(self) -> list[PlayerTank]:
         """Return players that are still alive (health > 0).

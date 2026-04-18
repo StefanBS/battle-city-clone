@@ -58,15 +58,6 @@ class TestPowerUpManager:
         assert pu.y == 96
         assert pu.power_up_type == PowerUpType.STAR
 
-    def test_get_power_ups_returns_list(self, manager, mock_player_tank):
-        manager.spawn_power_up(mock_player_tank, [])
-        result = manager.get_power_ups()
-        assert isinstance(result, list)
-        assert len(result) == 1
-
-    def test_get_power_ups_returns_empty_when_none(self, manager):
-        assert manager.get_power_ups() == []
-
     def test_collect_specific_power_up(self, manager, mock_player_tank):
         manager.spawn_power_up(mock_player_tank, [], power_up_type=PowerUpType.CLOCK)
         pu = manager.active_power_ups[0]

@@ -387,14 +387,24 @@ class GameManager:
         active_players = self.player_manager.get_active_players()
 
         if not self.spawn_manager.enemies_frozen:
+            # When 0 or 1 active players, the AI target is the same for every
+            # enemy and can be hoisted out of the per-enemy loop. Only 2P mode
+            # needs the per-enemy min() to pick the nearest player.
+            num_players = len(active_players)
+            shared_pos: tuple[float, float] | None = None
+            if num_players == 1:
+                p = active_players[0]
+                shared_pos = (p.x, p.y)
+
             for enemy in self.spawn_manager.enemy_tanks:
-                closest_pos = None
-                if active_players:
+                if num_players >= 2:
                     closest = min(
                         active_players,
                         key=lambda p: abs(p.x - enemy.x) + abs(p.y - enemy.y),
                     )
-                    closest_pos = (closest.x, closest.y)
+                    closest_pos: tuple[float, float] | None = (closest.x, closest.y)
+                else:
+                    closest_pos = shared_pos
                 enemy.update(dt, player_position=closest_pos)
                 enemy.on_ice = self.map.is_tile_slidable(
                     enemy.x, enemy.y, enemy.width, enemy.height
@@ -424,7 +434,7 @@ class GameManager:
 
         player_bullets = self.player_manager.get_all_bullets()
 
-        active_power_ups = self.power_up_manager.get_power_ups()
+        active_power_ups = self.power_up_manager.active_power_ups
 
         self.collision_manager.check_collisions(
             player_tanks=active_players,
@@ -567,16 +577,16 @@ class GameManager:
                 1.0, self._state_timer / GAME_OVER_RISE_DURATION
             )
 
-        all_bullets = self.player_manager.get_all_bullets() + self.bullets
         self.renderer.render(
             self.map,
             self.player_manager.get_active_players(),
             self.spawn_manager.enemy_tanks,
-            all_bullets,
+            self.player_manager.get_all_bullets(),
+            self.bullets,
             self.effect_manager,
             self.state,
             self.player_manager.scores,
-            power_ups=self.power_up_manager.get_power_ups(),
+            power_ups=self.power_up_manager.active_power_ups,
             game_over_rise_progress=game_over_rise_progress,
         )
 
