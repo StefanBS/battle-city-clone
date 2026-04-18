@@ -98,7 +98,7 @@ battle-city-clone/
 
 ## Setup
 
-Requires Python 3.12+.
+Requires Python 3.13+.
 
 1. Install [uv](https://docs.astral.sh/uv/) (if not already installed):
 ```bash

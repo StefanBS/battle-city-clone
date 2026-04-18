@@ -1,6 +1,6 @@
 app-id: com.battlecity.BattleCity
 runtime: org.freedesktop.Platform
-runtime-version: '24.08'
+runtime-version: '25.08'
 sdk: org.freedesktop.Sdk
 command: battle-city
 
@@ -15,8 +15,9 @@ finish-args:
 modules:
   # Pinned Python wheels (pyinstaller + runtime deps).
   # Regenerate with:
-  #   uv run --python 3.12 --with requirements-parser --with packaging \
-  #     tools/flatpak-pip-generator --runtime org.freedesktop.Sdk//24.08 \
+  #   uv run --python 3.13 --with requirements-parser --with packaging \
+  #     tools/flatpak-pip-generator --runtime org.freedesktop.Sdk//25.08 \
+  #     --prefer-wheels pygame,pyinstaller \
   #     --yaml --output python-deps pyinstaller pygame loguru pytmx
   - python-deps.yaml
 
@@ -24,7 +25,7 @@ modules:
     buildsystem: simple
     build-options:
       env:
-        PYTHONPATH: /app/lib/python3.12/site-packages
+        PYTHONPATH: /app/lib/python3.13/site-packages
     build-commands:
       # Freeze the game with PyInstaller inside the SDK so bundled shared libs
       # are ABI-matched to the runtime (fixes host glibc vs runtime glibc drift).

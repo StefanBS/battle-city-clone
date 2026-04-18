@@ -1,4 +1,4 @@
-# Generated with flatpak-pip-generator --runtime org.freedesktop.Sdk//24.08 --prefer-wheels pygame,pyinstaller --yaml --output python-deps pyinstaller pygame loguru pytmx
+# Generated with flatpak-pip-generator --runtime org.freedesktop.Sdk//25.08 --prefer-wheels pygame,pyinstaller --yaml --output python-deps pyinstaller pygame loguru pytmx
 name: python-deps
 buildsystem: simple
 build-commands: []
@@ -32,13 +32,13 @@ modules:
         --prefix=${FLATPAK_DEST} "pygame" --no-build-isolation
     sources:
       - type: file
-        url: https://files.pythonhosted.org/packages/b9/f2/d31e6ad42d657af07be2ffd779190353f759a07b51232b9e1d724f2cda46/pygame-2.6.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-        sha256: 1206125f14cae22c44565c9d333607f1d9f59487b1f1432945dfc809aeaa3e88
+        url: https://files.pythonhosted.org/packages/85/b5/aa23aa2e70bcba42c989c02e7228273c30f3b44b9b264abb93eaeff43ad7/pygame-2.6.1-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+        sha256: ef07c0103d79492c21fced9ad68c11c32efa6801ca1920ebfd0f15fb46c78b1c
         only-arches:
           - x86_64
       - type: file
-        url: https://files.pythonhosted.org/packages/06/be/3ed337583f010696c3b3435e89a74fb29d0c74d0931e8f33c0a4246307a9/pygame-2.6.1-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl
-        sha256: c47a6938de93fa610accd4969e638c2aebcb29b2fca518a84c3a39d91ab47116
+        url: https://files.pythonhosted.org/packages/9f/8f/617a1196e31ae3b46be6949fbaa95b8c93ce15e0544266198c2266cc1b4d/pygame-2.6.1-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl
+        sha256: 27eb17e3dc9640e4b4683074f1890e2e879827447770470c2aba9f125f74510b
         only-arches:
           - aarch64
   - name: python3-loguru
