@@ -81,10 +81,8 @@ class TestPowerUpManagerApply:
         enemy.rect = pygame.Rect(100, 100, TILE_SIZE, TILE_SIZE)
         spawn_manager.enemy_tanks = [enemy]
         manager.apply(PowerUpType.BOMB, player, spawn_manager, effect_manager)
-        effect_manager.spawn.assert_called_once_with(
-            EffectType.LARGE_EXPLOSION,
-            float(enemy.rect.centerx),
-            float(enemy.rect.centery),
+        effect_manager.spawn_at_rect.assert_called_once_with(
+            EffectType.LARGE_EXPLOSION, enemy.rect
         )
 
     def test_bomb_does_not_trigger_carrier_powerup(

@@ -98,6 +98,10 @@ class EffectManager:
         logger.trace(f"Spawned {effect_type.name} at ({x:.1f}, {y:.1f})")
         return effect
 
+    def spawn_at_rect(self, effect_type: EffectType, rect: pygame.Rect) -> Effect:
+        """Spawn an effect centered on a rect."""
+        return self.spawn(effect_type, float(rect.centerx), float(rect.centery))
+
     def update(self, dt: float) -> None:
         """Update all effects and remove inactive ones.
 

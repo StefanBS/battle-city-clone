@@ -121,11 +121,7 @@ class PowerUpManager:
         spawn_manager: SpawnManager, effect_manager: EffectManager
     ) -> None:
         for enemy in list(spawn_manager.enemy_tanks):
-            effect_manager.spawn(
-                EffectType.LARGE_EXPLOSION,
-                float(enemy.rect.centerx),
-                float(enemy.rect.centery),
-            )
+            effect_manager.spawn_at_rect(EffectType.LARGE_EXPLOSION, enemy.rect)
             spawn_manager.remove_enemy(enemy)
 
     def apply_shovel(self) -> None:
