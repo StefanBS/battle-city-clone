@@ -1,6 +1,6 @@
 app-id: com.battlecity.BattleCity
 runtime: org.freedesktop.Platform
-runtime-version: '23.08'
+runtime-version: '24.08'
 sdk: org.freedesktop.Sdk
 command: battle-city
 
@@ -8,7 +8,8 @@ finish-args:
   - --socket=x11
   - --socket=wayland
   - --socket=pulseaudio
-  - --device=all
+  - --device=dri
+  - --device=input
   - --filesystem=xdg-data/BattleCity:create
 
 modules:
