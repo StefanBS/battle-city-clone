@@ -349,6 +349,43 @@ class TestRenderOptionsMenu:
         assert ">" in render_calls
 
 
+class TestTextCache:
+    """Tests for the text render cache."""
+
+    def test_hud_redraw_with_unchanged_labels_hits_cache(self, renderer):
+        """Re-rendering the HUD with identical labels does not re-render text."""
+        p1 = MagicMock()
+        p1.lives = 3
+        p1.health = 1
+        p1.player_id = 1
+
+        renderer._draw_hud([p1], {1: 100})
+        first_call_count = renderer.small_font.render.call_count
+
+        renderer._draw_hud([p1], {1: 100})
+        second_call_count = renderer.small_font.render.call_count
+
+        # Second call hits cache for both "Lives: 3" and "Score:    100"
+        assert second_call_count == first_call_count
+
+    def test_hud_redraw_with_changed_label_renders_new_surface(self, renderer):
+        """Rendering a label with a new value adds a new render call."""
+        p1 = MagicMock()
+        p1.lives = 3
+        p1.health = 1
+        p1.player_id = 1
+
+        renderer._draw_hud([p1], {1: 100})
+        first_call_count = renderer.small_font.render.call_count
+
+        p1.lives = 2
+        renderer._draw_hud([p1], {1: 100})
+        second_call_count = renderer.small_font.render.call_count
+
+        # "Lives: 2" is new; "Score:    100" is cached
+        assert second_call_count == first_call_count + 1
+
+
 class TestTwoPlayerHUD:
     def test_two_player_hud_shows_both_players(self, renderer):
         """2P HUD renders info for both players."""
