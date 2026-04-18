@@ -183,8 +183,6 @@ class TestRendererHUD:
 class TestRenderCurtain:
     @pytest.fixture
     def renderer(self):
-        pygame.init()
-        pygame.display.set_mode((1, 1), pygame.NOFRAME)
         screen = pygame.Surface((1024, 1024))
         return Renderer(screen, 512, 512, 416, 416)
 

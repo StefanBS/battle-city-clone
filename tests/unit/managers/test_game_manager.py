@@ -1,7 +1,6 @@
 import pytest
 import pygame
 from unittest.mock import patch, MagicMock
-from src.managers.game_manager import GameManager
 from src.states.game_state import GameState
 from src.core.enemy_tank import EnemyTank
 from src.utils.constants import (
@@ -15,58 +14,6 @@ from src.utils.constants import (
 
 class TestGameManager:
     """Unit test cases for the GameManager class."""
-
-    @pytest.fixture
-    def _mock_game_deps(self):
-        """Shared mock setup for GameManager fixtures."""
-        with (
-            patch("pygame.display.set_mode"),
-            patch("pygame.font.SysFont"),
-            patch("src.managers.game_manager.TextureManager") as MockTM,
-            patch("src.managers.game_manager.EffectManager"),
-            patch("src.managers.game_manager.Renderer"),
-            patch("src.managers.game_manager.SpawnManager"),
-            patch("src.managers.game_manager.Map") as MockMap,
-            patch("src.managers.game_manager.SettingsManager") as MockSM,
-            patch("src.managers.game_manager.PlayerManager") as MockPM,
-        ):
-            mock_tm_instance = MockTM.return_value
-            mock_tm_instance.get_sprite.return_value = MagicMock(spec=pygame.Surface)
-            mock_sm_instance = MockSM.return_value
-            mock_sm_instance.master_volume = 1.0
-            mock_map_instance = MockMap.return_value
-            mock_map_instance.width = 16
-            mock_map_instance.height = 16
-            mock_map_instance.player_spawn = (4, 12)
-            mock_map_instance.spawn_points = [(3, 1), (8, 1), (12, 1)]
-            mock_pm_instance = MockPM.return_value
-            mock_player = MagicMock()
-            mock_player.lives = 3
-            mock_player.health = 1
-            mock_player.x = 128
-            mock_player.y = 384
-            mock_player.is_moving = False
-            mock_pm_instance.get_active_players.return_value = [mock_player]
-            mock_pm_instance.score = 0
-            mock_pm_instance.get_all_bullets.return_value = []
-            yield
-
-    @pytest.fixture
-    def game_manager(self, _mock_game_deps):
-        """Create a GameManager with game started (past title screen)."""
-        pygame.init()
-        manager = GameManager()
-        manager._reset_game()
-        yield manager
-        pygame.quit()
-
-    @pytest.fixture
-    def game_manager_at_title(self, _mock_game_deps):
-        """Create a GameManager at the title screen (no _reset_game)."""
-        pygame.init()
-        manager = GameManager()
-        yield manager
-        pygame.quit()
 
     def test_initialization_starts_at_title_screen(self, game_manager_at_title):
         """Test that GameManager starts at the title screen."""
@@ -269,58 +216,6 @@ class TestGameManager:
 
 class TestGameManagerSoundWiring:
     @pytest.fixture
-    def _mock_game_deps(self):
-        """Shared mock setup for GameManager fixtures."""
-        with (
-            patch("pygame.display.set_mode"),
-            patch("pygame.font.SysFont"),
-            patch("src.managers.game_manager.TextureManager") as MockTM,
-            patch("src.managers.game_manager.EffectManager"),
-            patch("src.managers.game_manager.Renderer"),
-            patch("src.managers.game_manager.SpawnManager"),
-            patch("src.managers.game_manager.Map") as MockMap,
-            patch("src.managers.game_manager.SettingsManager") as MockSM,
-            patch("src.managers.game_manager.PlayerManager") as MockPM,
-        ):
-            mock_tm_instance = MockTM.return_value
-            mock_tm_instance.get_sprite.return_value = MagicMock(spec=pygame.Surface)
-            mock_sm_instance = MockSM.return_value
-            mock_sm_instance.master_volume = 1.0
-            mock_map_instance = MockMap.return_value
-            mock_map_instance.width = 16
-            mock_map_instance.height = 16
-            mock_map_instance.player_spawn = (4, 12)
-            mock_map_instance.spawn_points = [(3, 1), (8, 1), (12, 1)]
-            mock_pm_instance = MockPM.return_value
-            mock_player = MagicMock()
-            mock_player.lives = 3
-            mock_player.health = 1
-            mock_player.x = 128
-            mock_player.y = 384
-            mock_player.is_moving = False
-            mock_pm_instance.get_active_players.return_value = [mock_player]
-            mock_pm_instance.score = 0
-            mock_pm_instance.get_all_bullets.return_value = []
-            yield
-
-    @pytest.fixture
-    def game_manager(self, _mock_game_deps):
-        """Create a GameManager with game started (past title screen)."""
-        pygame.init()
-        manager = GameManager()
-        manager._reset_game()
-        yield manager
-        pygame.quit()
-
-    @pytest.fixture
-    def game_manager_at_title(self, _mock_game_deps):
-        """Create a GameManager at the title screen (no _reset_game)."""
-        pygame.init()
-        manager = GameManager()
-        yield manager
-        pygame.quit()
-
-    @pytest.fixture
     def gm_with_mock_sound(self, game_manager):
         """GameManager with SoundManager replaced by a mock."""
         game_manager.sound_manager = MagicMock()
@@ -356,50 +251,6 @@ class TestGameManagerSoundWiring:
 
 
 class TestStageProgression:
-    @pytest.fixture
-    def _mock_game_deps(self):
-        """Shared mock setup for GameManager fixtures."""
-        with (
-            patch("pygame.display.set_mode"),
-            patch("pygame.font.SysFont"),
-            patch("src.managers.game_manager.TextureManager") as MockTM,
-            patch("src.managers.game_manager.EffectManager"),
-            patch("src.managers.game_manager.Renderer"),
-            patch("src.managers.game_manager.SpawnManager"),
-            patch("src.managers.game_manager.Map") as MockMap,
-            patch("src.managers.game_manager.SettingsManager") as MockSM,
-            patch("src.managers.game_manager.PlayerManager") as MockPM,
-        ):
-            mock_tm_instance = MockTM.return_value
-            mock_tm_instance.get_sprite.return_value = MagicMock(spec=pygame.Surface)
-            mock_sm_instance = MockSM.return_value
-            mock_sm_instance.master_volume = 1.0
-            mock_map_instance = MockMap.return_value
-            mock_map_instance.width = 16
-            mock_map_instance.height = 16
-            mock_map_instance.player_spawn = (4, 12)
-            mock_map_instance.spawn_points = [(3, 1), (8, 1), (12, 1)]
-            mock_pm_instance = MockPM.return_value
-            mock_player = MagicMock()
-            mock_player.lives = 3
-            mock_player.health = 1
-            mock_player.x = 128
-            mock_player.y = 384
-            mock_player.is_moving = False
-            mock_pm_instance.get_active_players.return_value = [mock_player]
-            mock_pm_instance.score = 0
-            mock_pm_instance.get_all_bullets.return_value = []
-            yield
-
-    @pytest.fixture
-    def game_manager(self, _mock_game_deps):
-        """Create a GameManager with game started (past title screen)."""
-        pygame.init()
-        manager = GameManager()
-        manager._reset_game()
-        yield manager
-        pygame.quit()
-
     def test_load_stage_uses_current_stage_for_map_name(self, game_manager):
         game_manager.current_stage = 5
         with patch("src.managers.game_manager.os.path.exists", return_value=True):
@@ -452,55 +303,6 @@ class TestStageProgression:
 
 class TestPauseAndOptionsStateMachine:
     """Tests for PAUSED and OPTIONS_MENU state transitions."""
-
-    @pytest.fixture
-    def _mock_game_deps(self):
-        with (
-            patch("pygame.display.set_mode"),
-            patch("pygame.font.SysFont"),
-            patch("src.managers.game_manager.TextureManager") as MockTM,
-            patch("src.managers.game_manager.EffectManager"),
-            patch("src.managers.game_manager.Renderer"),
-            patch("src.managers.game_manager.SpawnManager"),
-            patch("src.managers.game_manager.Map") as MockMap,
-            patch("src.managers.game_manager.SettingsManager") as MockSM,
-            patch("src.managers.game_manager.PlayerManager") as MockPM,
-        ):
-            mock_tm_instance = MockTM.return_value
-            mock_tm_instance.get_sprite.return_value = MagicMock(spec=pygame.Surface)
-            mock_sm_instance = MockSM.return_value
-            mock_sm_instance.master_volume = 1.0
-            mock_map_instance = MockMap.return_value
-            mock_map_instance.width = 16
-            mock_map_instance.height = 16
-            mock_map_instance.player_spawn = (4, 12)
-            mock_map_instance.spawn_points = [(3, 1), (8, 1), (12, 1)]
-            mock_pm_instance = MockPM.return_value
-            mock_player = MagicMock()
-            mock_player.lives = 3
-            mock_player.health = 1
-            mock_player.x = 128
-            mock_player.y = 384
-            mock_player.is_moving = False
-            mock_pm_instance.get_active_players.return_value = [mock_player]
-            mock_pm_instance.score = 0
-            mock_pm_instance.get_all_bullets.return_value = []
-            yield
-
-    @pytest.fixture
-    def game_manager(self, _mock_game_deps):
-        pygame.init()
-        manager = GameManager()
-        manager._reset_game()
-        yield manager
-        pygame.quit()
-
-    @pytest.fixture
-    def game_manager_at_title(self, _mock_game_deps):
-        pygame.init()
-        manager = GameManager()
-        yield manager
-        pygame.quit()
 
     # --- ESC state transitions ---
 

@@ -16,8 +16,6 @@ from src.utils.constants import (
 class TestNewGameAndLoadStage:
     @pytest.fixture
     def game(self):
-        pygame.init()
-        pygame.display.set_mode((1, 1), pygame.NOFRAME)
         gm = GameManager()
         gm._new_game()
         return gm
@@ -50,8 +48,6 @@ class TestNewGameAndLoadStage:
 class TestCurtainTransitions:
     @pytest.fixture
     def game(self):
-        pygame.init()
-        pygame.display.set_mode((1, 1), pygame.NOFRAME)
         gm = GameManager()
         gm._new_game()
         gm.state = GameState.RUNNING
@@ -142,8 +138,6 @@ class TestCurtainTransitions:
 class TestGameOverAnimation:
     @pytest.fixture
     def game(self):
-        pygame.init()
-        pygame.display.set_mode((1, 1), pygame.NOFRAME)
         gm = GameManager()
         gm._new_game()
         gm.state = GameState.RUNNING
