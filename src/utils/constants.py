@@ -130,11 +130,6 @@ VICTORY_PAUSE_DURATION: float = 1.0
 GAME_OVER_RISE_DURATION: float = 2.0
 GAME_OVER_HOLD_DURATION: float = 1.0
 
-# Pre-computed blink/flash cycles (2x the interval)
-POWERUP_BLINK_CYCLE: float = POWERUP_BLINK_INTERVAL * 2
-CARRIER_BLINK_CYCLE: float = CARRIER_BLINK_INTERVAL * 2
-SHOVEL_FLASH_CYCLE: float = SHOVEL_FLASH_INTERVAL * 2
-
 
 # Window settings
 WINDOW_WIDTH: int = 1024  # Logical width (16*32) * 2
@@ -158,12 +153,9 @@ GRAY: Tuple[int, int, int] = (128, 128, 128)
 WHITE: Tuple[int, int, int] = (255, 255, 255)
 RED: Tuple[int, int, int] = (255, 0, 0)
 GREEN: Tuple[int, int, int] = (0, 255, 0)
-YELLOW: Tuple[int, int, int] = (255, 255, 0)
 
 # Tank settings
 TANK_SPEED: float = 80  # pixels per second (was 12 px/step)
-TANK_WIDTH: int = TILE_SIZE
-TANK_HEIGHT: int = TILE_SIZE
 TANK_ANIMATION_DISTANCE: float = 4  # pixels traveled between animation frame toggles
 TANK_ALIGN_THRESHOLD: float = 4.0  # max px offset for steering assist
 TANK_BLINK_INTERVAL: float = 0.2  # blink interval during invincibility
@@ -177,8 +169,6 @@ ATLAS_BG_COLOR: tuple[int, int, int] = (0, 0, 1)
 # Bullet settings
 BULLET_SPEED: float = 180  # pixels per second (was 3, multiplied by FPS internally)
 BULLET_SIZE: int = 4  # Visual size of bullet sprites after extraction
-BULLET_WIDTH: int = BULLET_SIZE
-BULLET_HEIGHT: int = BULLET_SIZE
 
 # Enemy AI settings
 ENEMY_SPAWN_INTERVAL: float = 5.0

@@ -4,7 +4,7 @@ from loguru import logger
 from .tank import Tank
 from typing import TypedDict
 from src.utils.constants import (
-    CARRIER_BLINK_CYCLE,
+    CARRIER_BLINK_INTERVAL,
     Difficulty,
     Direction,
     DIRECTION_CHANGE_RANDOM_OFFSET,
@@ -139,8 +139,8 @@ class EnemyTank(Tank):
         """Update sprite using type-specific prefix and carrier red variant."""
         if (
             self.is_carrier
-            and self.carrier_blink_timer % CARRIER_BLINK_CYCLE
-            >= CARRIER_BLINK_CYCLE / 2
+            and self.carrier_blink_timer % (CARRIER_BLINK_INTERVAL * 2)
+            >= CARRIER_BLINK_INTERVAL
         ):
             sprite_name = (
                 f"{self._sprite_prefix}_red_{self.direction}_{self.animation_frame}"

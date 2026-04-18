@@ -10,13 +10,10 @@ from src.utils.constants import (
     TILE_SIZE,
     SUB_TILE_SIZE,
     TANK_SPEED,
-    TANK_WIDTH,
-    TANK_HEIGHT,
     TANK_ANIMATION_DISTANCE,
     TANK_ALIGN_THRESHOLD,
     TANK_BLINK_INTERVAL,
-    BULLET_WIDTH,
-    BULLET_HEIGHT,
+    BULLET_SIZE,
     BULLET_SPEED,
     ICE_SLIDE_DISTANCE,
 )
@@ -62,7 +59,7 @@ class Tank(GameObject):
         x = round(x / tile_size) * tile_size
         y = round(y / tile_size) * tile_size
         logger.debug(f"Creating Tank at ({x}, {y})")
-        super().__init__(x, y, TANK_WIDTH, TANK_HEIGHT, sprite)
+        super().__init__(x, y, TILE_SIZE, TILE_SIZE, sprite)
         self.texture_manager = texture_manager
         self.speed = speed
         self.bullet_speed = bullet_speed
@@ -156,8 +153,8 @@ class Tank(GameObject):
                 f"in direction {self.direction}."
             )
         )
-        bullet_x = self.x + self.width // 2 - BULLET_WIDTH // 2
-        bullet_y = self.y + self.height // 2 - BULLET_HEIGHT // 2
+        bullet_x = self.x + self.width // 2 - BULLET_SIZE // 2
+        bullet_y = self.y + self.height // 2 - BULLET_SIZE // 2
         try:
             bullet_sprite = self.texture_manager.get_sprite(f"bullet_{self.direction}")
         except KeyError:

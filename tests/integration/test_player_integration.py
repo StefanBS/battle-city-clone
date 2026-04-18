@@ -6,8 +6,7 @@ from src.utils.constants import (
     FPS,
     OwnerType,
     SUB_TILE_SIZE,
-    BULLET_WIDTH,
-    BULLET_HEIGHT,
+    BULLET_SIZE,
 )
 from src.core.tile import Tile, TileType
 from tests.integration.conftest import first_player, send_event, tick_for
@@ -227,8 +226,8 @@ def test_player_shooting(game_manager_fixture):
     assert bullet.owner_type == OwnerType.PLAYER, "Bullet owner type is incorrect."
     assert bullet.owner is player_tank, "Bullet owner should be the player tank."
 
-    expected_x = player_tank.x + player_tank.width // 2 - BULLET_WIDTH // 2
-    expected_y = player_tank.y + player_tank.height // 2 - BULLET_HEIGHT // 2
+    expected_x = player_tank.x + player_tank.width // 2 - BULLET_SIZE // 2
+    expected_y = player_tank.y + player_tank.height // 2 - BULLET_SIZE // 2
     actual_pos = bullet.get_position()
     assert actual_pos == (expected_x, expected_y), (
         f"Bullet spawn position incorrect. Expected ({expected_x}, {expected_y}), "

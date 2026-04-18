@@ -5,9 +5,8 @@ from .game_object import GameObject
 from src.utils.constants import (
     Direction,
     OwnerType,
+    BULLET_SIZE,
     BULLET_SPEED,
-    BULLET_WIDTH,
-    BULLET_HEIGHT,
     WHITE,
 )
 
@@ -36,7 +35,7 @@ class Bullet(GameObject):
             sprite: Optional sprite surface
             speed: Speed of the bullet in pixels per second
         """
-        super().__init__(x, y, BULLET_WIDTH, BULLET_HEIGHT, sprite)
+        super().__init__(x, y, BULLET_SIZE, BULLET_SIZE, sprite)
         self.direction: Direction = direction
         self.speed: float = speed
         self.active: bool = True
