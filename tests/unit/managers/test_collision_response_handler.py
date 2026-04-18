@@ -158,6 +158,49 @@ class TestBulletVsPlayer:
         assert not bullet.active
         mock_player.take_damage.assert_not_called()
 
+    def test_on_player_death_callback_decides_game_over(
+        self, mock_map, mock_effect_manager, mock_add_score, make_bullet, mock_player
+    ):
+        """When on_player_death is wired, it gates the GAME_OVER transition."""
+        on_death = MagicMock(return_value=True)
+        set_state = MagicMock()
+        h = CollisionResponseHandler(
+            game_map=mock_map,
+            set_game_state=set_state,
+            effect_manager=mock_effect_manager,
+            add_score=mock_add_score,
+            on_player_death=on_death,
+        )
+        bullet = make_bullet(owner_type=OwnerType.ENEMY)
+        mock_player.take_damage.return_value = True
+
+        h.process_collisions([(bullet, mock_player)])
+
+        on_death.assert_called_once_with(mock_player)
+        set_state.assert_called_with(GameState.GAME_OVER)
+        mock_player.respawn.assert_not_called()
+
+    def test_on_player_death_callback_false_keeps_game_running(
+        self, mock_map, mock_effect_manager, mock_add_score, make_bullet, mock_player
+    ):
+        """If on_player_death returns False (lives remain), no GAME_OVER fires."""
+        on_death = MagicMock(return_value=False)
+        set_state = MagicMock()
+        h = CollisionResponseHandler(
+            game_map=mock_map,
+            set_game_state=set_state,
+            effect_manager=mock_effect_manager,
+            add_score=mock_add_score,
+            on_player_death=on_death,
+        )
+        bullet = make_bullet(owner_type=OwnerType.ENEMY)
+        mock_player.take_damage.return_value = True
+
+        h.process_collisions([(bullet, mock_player)])
+
+        on_death.assert_called_once_with(mock_player)
+        set_state.assert_not_called()
+
 
 class TestBulletVsTile:
     """Bullet-vs-tile collision tests.

@@ -1,18 +1,14 @@
 import pytest
-from unittest.mock import MagicMock
 from loguru import logger
-from src.managers.game_manager import GameManager
 from src.utils.constants import (
     Direction,
     ENEMY_POINTS,
     FPS,
-    OwnerType,
     TILE_SIZE,
     SUB_TILE_SIZE,
     TankType,
 )
 from src.states.game_state import GameState
-from src.core.bullet import Bullet
 from src.core.tile import Tile, TileType
 from tests.integration.conftest import first_player
 from src.core.enemy_tank import EnemyTank
@@ -69,68 +65,6 @@ def test_initial_game_state(game_manager_fixture):
     )
 
     logger.info("Initial game state verified.")
-
-
-def test_player_game_over_on_zero_lives():
-    """Test game state changes to GAME_OVER when player takes fatal damage."""
-    # Use a fresh instance as we are mocking methods
-    game_manager = GameManager()
-    game_manager._reset_game()
-    player_tank = first_player(game_manager)
-    # collision_manager variable removed as it wasn't used
-
-    # Ensure the player starts with at least 1 life for the test
-    assert player_tank.lives >= 1
-
-    # Set lives to 0 to guarantee game over on next death
-    # (handle_player_death checks lives > 0 to decide respawn vs game over)
-    player_tank.lives = 0
-
-    # Disable spawn invincibility so damage can land
-    player_tank.is_invincible = False
-
-    # Assert initial game state is RUNNING
-    assert game_manager.state == GameState.RUNNING, (
-        "Game should start in RUNNING state."
-    )
-
-    # --- Setup Mocks for Collision --- #
-    # 1. Mock an enemy bullet involved in the collision
-    mock_enemy_bullet = MagicMock(spec=Bullet)
-    mock_enemy_bullet.owner_type = OwnerType.ENEMY
-    mock_enemy_bullet.active = True  # Needs to be active to be processed
-
-    # 2. Mock the player tank's take_damage to return True (fatal hit)
-    #    Also set health to 0 since handle_player_death checks it for game over.
-    def _mock_take_damage(amount=1):
-        player_tank.health = 0
-        return True
-
-    player_tank.take_damage = MagicMock(side_effect=_mock_take_damage)
-
-    # 3. Mock CollisionManager to report a collision between the mock bullet and player
-    # Need to mock the instance within game_manager
-    game_manager.collision_manager.get_collision_events = MagicMock(
-        return_value=[(mock_enemy_bullet, player_tank)]
-    )
-    # --- End Mocks --- #
-
-    # Execute the collision processing logic via the new handler
-    events = game_manager.collision_manager.get_collision_events()
-    game_manager.collision_response_handler.process_collisions(events)
-
-    # --- Assertions --- #
-    # 1. Verify take_damage was called
-    player_tank.take_damage.assert_called_once()
-
-    # 2. Verify game state changed to GAME_OVER
-    assert game_manager.state in (
-        GameState.GAME_OVER,
-        GameState.GAME_OVER_ANIMATION,
-    ), (
-        "Game state did not change to GAME_OVER/GAME_OVER_ANIMATION after "
-        "player's final death was processed."
-    )
 
 
 def test_player_bullet_hits_base(game_manager_fixture):
