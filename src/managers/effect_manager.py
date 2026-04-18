@@ -1,5 +1,4 @@
 import pygame
-from typing import Dict, List, Tuple
 from loguru import logger
 from src.core.effect import Effect
 from src.managers.texture_manager import TextureManager
@@ -22,8 +21,8 @@ class EffectManager:
         Args:
             texture_manager: TextureManager for loading sprites.
         """
-        self.effects: List[Effect] = []
-        self._effect_data: Dict[EffectType, Tuple[List[pygame.Surface], float]] = {}
+        self.effects: list[Effect] = []
+        self._effect_data: dict[EffectType, tuple[list[pygame.Surface], float]] = {}
         self._build_frame_cache(texture_manager)
 
     @staticmethod

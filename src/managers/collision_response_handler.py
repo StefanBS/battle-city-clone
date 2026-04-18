@@ -1,5 +1,6 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Type
+from typing import TYPE_CHECKING, Any
+from collections.abc import Callable
 
 if TYPE_CHECKING:
     from src.managers.power_up_manager import PowerUpManager
@@ -33,9 +34,9 @@ class CollisionResponseHandler:
         set_game_state: Callable[[GameState], None],
         effect_manager: EffectManager,
         add_score: Callable[..., None] = lambda *args, **kwargs: None,
-        power_up_manager: Optional[PowerUpManager] = None,
-        sound_manager: Optional[SoundManager] = None,
-        on_player_death: Optional[Callable[[PlayerTank], bool]] = None,
+        power_up_manager: PowerUpManager | None = None,
+        sound_manager: SoundManager | None = None,
+        on_player_death: Callable[[PlayerTank], bool] | None = None,
     ) -> None:
         self._map = game_map
         self._set_game_state = set_game_state
@@ -44,10 +45,10 @@ class CollisionResponseHandler:
         self._power_up_manager = power_up_manager
         self._sound_manager = sound_manager
         self._on_player_death = on_player_death
-        self._collected_power_up_type: Optional[PowerUpType] = None
-        self._collected_power_up_player: Optional[PlayerTank] = None
+        self._collected_power_up_type: PowerUpType | None = None
+        self._collected_power_up_player: PlayerTank | None = None
 
-        self._handlers: Dict[Tuple[Type, Type], Callable[[Any, Any, List], bool]] = {
+        self._handlers: dict[tuple[type, type], Callable[[Any, Any, list], bool]] = {
             (Bullet, EnemyTank): self._handle_bullet_vs_enemy,
             (Bullet, PlayerTank): self._handle_bullet_vs_player,
             (Bullet, Tile): self._handle_bullet_vs_tile,
@@ -64,14 +65,14 @@ class CollisionResponseHandler:
         if self._sound_manager is not None:
             self._sound_manager.play(name)
 
-    def process_collisions(self, events: List[Tuple[Any, Any]]) -> List[EnemyTank]:
+    def process_collisions(self, events: list[tuple[Any, Any]]) -> list[EnemyTank]:
         """Process collision events and return list of enemies to remove."""
         if not events:
             return []
 
         processed_bullets: set = set()
         reverted_tanks: set = set()
-        enemies_to_remove: List[EnemyTank] = []
+        enemies_to_remove: list[EnemyTank] = []
 
         for obj_a, obj_b in events:
             handler, a, b = self._lookup(obj_a, obj_b)
@@ -121,7 +122,7 @@ class CollisionResponseHandler:
 
         return enemies_to_remove
 
-    def _lookup(self, obj_a: Any, obj_b: Any) -> Tuple[Any, Any, Any]:
+    def _lookup(self, obj_a: Any, obj_b: Any) -> tuple[Any, Any, Any]:
         """Look up handler for type pair, trying both orderings.
 
         All participating types are concrete leaves (PlayerTank, EnemyTank,
@@ -145,7 +146,7 @@ class CollisionResponseHandler:
         self,
         bullet: Bullet,
         enemy: EnemyTank,
-        enemies_to_remove: List[EnemyTank],
+        enemies_to_remove: list[EnemyTank],
     ) -> bool:
         if not bullet.active:
             return False
@@ -173,7 +174,7 @@ class CollisionResponseHandler:
         self,
         bullet: Bullet,
         player: PlayerTank,
-        enemies_to_remove: List[EnemyTank],
+        enemies_to_remove: list[EnemyTank],
     ) -> bool:
         if not bullet.active:
             return False
@@ -215,7 +216,7 @@ class CollisionResponseHandler:
         self,
         bullet: Bullet,
         tile: Tile,
-        enemies_to_remove: List[EnemyTank],
+        enemies_to_remove: list[EnemyTank],
     ) -> bool:
         if not bullet.active:
             return False
@@ -250,7 +251,7 @@ class CollisionResponseHandler:
         self,
         bullet_a: Bullet,
         bullet_b: Bullet,
-        enemies_to_remove: List[EnemyTank],
+        enemies_to_remove: list[EnemyTank],
     ) -> bool:
         if not bullet_a.active or not bullet_b.active:
             return False
@@ -264,7 +265,7 @@ class CollisionResponseHandler:
         self,
         player: PlayerTank,
         power_up: PowerUp,
-        enemies_to_remove: List[EnemyTank],
+        enemies_to_remove: list[EnemyTank],
     ) -> bool:
         if self._power_up_manager is None:
             return False
@@ -279,7 +280,7 @@ class CollisionResponseHandler:
 
     def consume_collected_power_up(
         self,
-    ) -> tuple[Optional[PowerUpType], Optional[PlayerTank]]:
+    ) -> tuple[PowerUpType | None, PlayerTank | None]:
         """Return and clear the collected power-up type and player (one-shot read).
 
         Returns:
@@ -306,7 +307,7 @@ class CollisionResponseHandler:
         self,
         tank_a: Tank,
         tank_b: Tank,
-        enemies_to_remove: List[EnemyTank],
+        enemies_to_remove: list[EnemyTank],
     ) -> bool:
         a_caused = self._caused_collision(tank_a, tank_b)
         b_caused = self._caused_collision(tank_b, tank_a)
@@ -329,7 +330,7 @@ class CollisionResponseHandler:
         self,
         tank: Tank,
         tile: Tile,
-        enemies_to_remove: List[EnemyTank],
+        enemies_to_remove: list[EnemyTank],
     ) -> bool:
         if tile.blocks_tanks:
             tank.revert_move(tile.rect)

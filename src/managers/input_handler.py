@@ -1,7 +1,5 @@
 """Menu and system input, backed by the SDL GameController API."""
 
-from typing import Optional
-
 import pygame
 from loguru import logger
 
@@ -38,10 +36,10 @@ class InputHandler:
     """Menu and system input. Gameplay input lives in PlayerInput/PlayerManager."""
 
     def __init__(self) -> None:
-        self._controllers: dict[int, "sdl_controller.Controller"] = {}
+        self._controllers: dict[int, sdl_controller.Controller] = {}
         self._menu_actions: list[MenuAction] = []
-        self._axis_menu_h: Optional[MenuAction] = None
-        self._axis_menu_v: Optional[MenuAction] = None
+        self._axis_menu_h: MenuAction | None = None
+        self._axis_menu_v: MenuAction | None = None
         self._init_controllers()
 
     def _init_controllers(self) -> None:
@@ -137,7 +135,7 @@ class InputHandler:
         pos_action: MenuAction,
     ) -> None:
         state = classify_axis(raw_value)
-        new_state: Optional[MenuAction]
+        new_state: MenuAction | None
         if state is AxisState.NEGATIVE:
             new_state = neg_action
         elif state is AxisState.POSITIVE:

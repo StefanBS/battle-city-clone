@@ -1,5 +1,3 @@
-from typing import Optional
-
 import pytest
 from unittest.mock import MagicMock
 from src.core.map import Map, load_spawn_points
@@ -557,7 +555,7 @@ class TestGetBaseSurroundingTiles:
             assert tile.type != TileType.EMPTY
 
 
-def _mock_spawn_obj(name: str, x: int, y: int, properties: Optional[dict] = None):
+def _mock_spawn_obj(name: str, x: int, y: int, properties: dict | None = None):
     """Build a minimal TMX-like spawn object for load_spawn_points tests."""
     obj = MagicMock()
     obj.name = name

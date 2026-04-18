@@ -1,5 +1,5 @@
 import pygame
-from typing import Dict, List, Optional, Sequence, Tuple
+from collections.abc import Sequence
 from src.states.game_state import GameState
 from src.utils.constants import (
     WHITE,
@@ -59,7 +59,7 @@ class Renderer:
         self.map_surface: pygame.Surface = pygame.Surface((map_width_px, map_height_px))
 
         # Cached text surface for game over animation (set on first use)
-        self._game_over_text: Optional[pygame.Surface] = None
+        self._game_over_text: pygame.Surface | None = None
 
         # Reusable overlay surfaces for pause/game-over screens
         self._pause_overlay: pygame.Surface = pygame.Surface(
@@ -74,14 +74,14 @@ class Renderer:
     def render(
         self,
         game_map,
-        player_tanks: List,
-        enemy_tanks: List,
-        bullets: List,
+        player_tanks: list,
+        enemy_tanks: list,
+        bullets: list,
         effect_manager,
         state: GameState,
-        scores: Optional[Dict[int, int]] = None,
+        scores: dict[int, int] | None = None,
         power_ups: Sequence = (),
-        game_over_rise_progress: Optional[float] = None,
+        game_over_rise_progress: float | None = None,
     ) -> None:
         """Render the complete game frame.
 
@@ -138,7 +138,7 @@ class Renderer:
         self,
         text: str,
         font: pygame.font.Font,
-        color: Tuple[int, int, int],
+        color: tuple[int, int, int],
         y: int,
     ) -> None:
         """Render text centered horizontally at the given y position."""
@@ -147,7 +147,7 @@ class Renderer:
         self.game_surface.blit(surface, rect)
 
     def _draw_hud(
-        self, player_tanks: List, scores: Optional[Dict[int, int]] = None
+        self, player_tanks: list, scores: dict[int, int] | None = None
     ) -> None:
         """Draw the heads-up display.
 
@@ -182,8 +182,8 @@ class Renderer:
     def _draw_hud_slot(
         self,
         label: str,
-        score_text: Optional[str],
-        color: Tuple[int, int, int],
+        score_text: str | None,
+        color: tuple[int, int, int],
         align: str,
     ) -> None:
         """Render a HUD label and optional score line at the given edge."""
@@ -220,7 +220,7 @@ class Renderer:
         """Draw the victory screen."""
         self._draw_overlay_screen("VICTORY!", GREEN, "Next Stage...")
 
-    def render_curtain(self, progress: float, stage: Optional[int]) -> None:
+    def render_curtain(self, progress: float, stage: int | None) -> None:
         """Render the stage curtain animation.
 
         Args:
@@ -252,7 +252,7 @@ class Renderer:
     def _draw_overlay_screen(
         self,
         title: str,
-        title_color: Tuple[int, int, int],
+        title_color: tuple[int, int, int],
         subtitle: str,
     ) -> None:
         """Draw a semi-transparent overlay with centered title and subtitle."""
@@ -262,12 +262,12 @@ class Renderer:
 
     def _draw_menu(
         self,
-        options: List[str],
+        options: list[str],
         selection: int,
         start_y: int,
         spacing: int = 30,
-        colors: Optional[List[Tuple[int, int, int]]] = None,
-    ) -> List[pygame.Rect]:
+        colors: list[tuple[int, int, int]] | None = None,
+    ) -> list[pygame.Rect]:
         """Draw a vertical list of options with a cursor. Returns option rects."""
         rects = []
         for i, label in enumerate(options):

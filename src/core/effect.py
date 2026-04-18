@@ -1,5 +1,4 @@
 import pygame
-from typing import List
 
 
 class Effect:
@@ -13,7 +12,7 @@ class Effect:
         self,
         x: float,
         y: float,
-        frames: List[pygame.Surface],
+        frames: list[pygame.Surface],
         frame_duration: float,
     ) -> None:
         """Initialize the effect.

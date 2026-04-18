@@ -1,7 +1,7 @@
 """Declarative menu navigation: items + callbacks, no per-screen handler boilerplate."""
 
 from dataclasses import dataclass
-from typing import Callable, List, Optional
+from collections.abc import Callable
 
 from src.utils.constants import MenuAction
 
@@ -9,9 +9,9 @@ from src.utils.constants import MenuAction
 @dataclass(frozen=True)
 class MenuItem:
     label: str
-    on_confirm: Optional[Callable[[], None]] = None
-    on_left: Optional[Callable[[], None]] = None
-    on_right: Optional[Callable[[], None]] = None
+    on_confirm: Callable[[], None] | None = None
+    on_left: Callable[[], None] | None = None
+    on_right: Callable[[], None] | None = None
 
 
 class MenuController:
@@ -19,9 +19,9 @@ class MenuController:
 
     def __init__(
         self,
-        items: List[MenuItem],
-        on_select: Optional[Callable[[], None]] = None,
-        on_back: Optional[Callable[[], None]] = None,
+        items: list[MenuItem],
+        on_select: Callable[[], None] | None = None,
+        on_back: Callable[[], None] | None = None,
     ) -> None:
         if not items:
             raise ValueError("MenuController requires at least one MenuItem")
@@ -31,7 +31,7 @@ class MenuController:
         self.selection: int = 0
 
     @property
-    def labels(self) -> List[str]:
+    def labels(self) -> list[str]:
         """Return the ordered labels of this menu's items."""
         return [item.label for item in self._items]
 

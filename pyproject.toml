@@ -29,7 +29,7 @@ build = [
 line-length = 88
 
 [tool.ruff.lint]
-select = ["E", "F"]
+select = ["E", "F", "UP"]
 ignore = []
 
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"

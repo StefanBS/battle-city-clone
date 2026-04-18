@@ -1,5 +1,5 @@
-from enum import Enum, auto
-from typing import List, NamedTuple, Optional, Tuple
+from enum import Enum, StrEnum, auto
+from typing import NamedTuple
 import pygame
 from loguru import logger
 from src.managers.texture_manager import TextureManager
@@ -19,7 +19,7 @@ class TileType(Enum):
     BASE_DESTROYED = auto()
 
 
-class BrickVariant(str, Enum):
+class BrickVariant(StrEnum):
     """Brick tile variants matching Tiled BrickVariant property type."""
 
     FULL = "full"
@@ -27,9 +27,6 @@ class BrickVariant(str, Enum):
     BOTTOM = "bottom"
     LEFT = "left"
     TOP = "top"
-
-    def __str__(self) -> str:
-        return self.value
 
 
 class TileDefaults(NamedTuple):
@@ -62,7 +59,7 @@ class Tile:
         x: int,
         y: int,
         size: int = SUB_TILE_SIZE,
-        tmx_sprite: Optional[pygame.Surface] = None,
+        tmx_sprite: pygame.Surface | None = None,
         brick_variant: "BrickVariant" = BrickVariant.FULL,
         blocks_tanks: bool = False,
         blocks_bullets: bool = False,
@@ -83,18 +80,18 @@ class Tile:
         self.is_slidable = is_slidable
 
         # TMX sprite: the actual tile image from the map editor
-        self.tmx_sprite: Optional[pygame.Surface] = tmx_sprite
+        self.tmx_sprite: pygame.Surface | None = tmx_sprite
 
         self.brick_variant: BrickVariant = brick_variant
 
         # Animation attributes
         self.is_animated: bool = False
-        self.animation_sprites: List[pygame.Surface] = []
-        self._frame_durations: List[float] = []
+        self.animation_sprites: list[pygame.Surface] = []
+        self._frame_durations: list[float] = []
         self.current_frame_index: int = 0
         self.animation_timer: float = 0.0
 
-    def set_animation_frames(self, frames: List[Tuple[pygame.Surface, float]]) -> None:
+    def set_animation_frames(self, frames: list[tuple[pygame.Surface, float]]) -> None:
         """Set animation frames with per-frame durations.
 
         Args:

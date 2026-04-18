@@ -1,6 +1,5 @@
 import random
 from dataclasses import dataclass
-from typing import List, Optional
 
 import pygame
 from loguru import logger
@@ -42,10 +41,10 @@ class SpawnManager:
         game_map: Map,
         enemy_composition: dict[TankType, int],
         spawn_interval: float,
-        player_tanks: List[PlayerTank],
-        effect_manager: Optional[EffectManager] = None,
+        player_tanks: list[PlayerTank],
+        effect_manager: EffectManager | None = None,
         difficulty: Difficulty = Difficulty.NORMAL,
-        powerup_carrier_indices: Optional[tuple[int, ...]] = None,
+        powerup_carrier_indices: tuple[int, ...] | None = None,
     ) -> None:
         """Initialize the SpawnManager.
 
@@ -64,12 +63,12 @@ class SpawnManager:
         self._difficulty = difficulty
         self.texture_manager = texture_manager
         self.spawn_points = game_map.spawn_points
-        self._spawn_queue: List[TankType] = self._build_spawn_queue(enemy_composition)
+        self._spawn_queue: list[TankType] = self._build_spawn_queue(enemy_composition)
         self.max_enemy_spawns: int = len(self._spawn_queue)
         self.spawn_interval = spawn_interval
         self.map_width_px = game_map.width_px
         self.map_height_px = game_map.height_px
-        self.enemy_tanks: List[EnemyTank] = []
+        self.enemy_tanks: list[EnemyTank] = []
         self.total_enemy_spawns: int = 0
         self.spawn_timer: float = 0.0
         self._freeze_timer: float = 0.0
@@ -79,7 +78,7 @@ class SpawnManager:
             if powerup_carrier_indices is not None
             else POWERUP_CARRIER_INDICES
         )
-        self._pending_spawns: List[_PendingSpawn] = []
+        self._pending_spawns: list[_PendingSpawn] = []
 
         # Set class-level base position for AI targeting
         base_tile = game_map.get_base()
@@ -94,7 +93,7 @@ class SpawnManager:
 
     def _build_spawn_queue(
         self, enemy_composition: dict[TankType, int]
-    ) -> List[TankType]:
+    ) -> list[TankType]:
         """Build a shuffled list of enemy types from the composition dict.
 
         Args:
@@ -103,7 +102,7 @@ class SpawnManager:
         Returns:
             Shuffled list of TankType enum members.
         """
-        queue: List[TankType] = [
+        queue: list[TankType] = [
             tank_type
             for tank_type, count in enemy_composition.items()
             for _ in range(count)
@@ -114,7 +113,7 @@ class SpawnManager:
     def _is_spawn_blocked(
         self,
         rect: pygame.Rect,
-        player_tanks: List[PlayerTank],
+        player_tanks: list[PlayerTank],
         game_map: Map,
     ) -> bool:
         """Check if a spawn rect overlaps any obstacle."""
@@ -132,7 +131,7 @@ class SpawnManager:
                 return True
         return False
 
-    def spawn_enemy(self, player_tanks: List[PlayerTank], game_map: Map) -> bool:
+    def spawn_enemy(self, player_tanks: list[PlayerTank], game_map: Map) -> bool:
         """Spawn a new enemy tank at a random spawn point if under the spawn limit.
 
         If an EffectManager is available, plays a spawn animation first and
@@ -217,7 +216,7 @@ class SpawnManager:
         """Whether enemy AI updates are currently suppressed."""
         return self._freeze_timer > 0
 
-    def update(self, dt: float, player_tanks: List[PlayerTank], game_map: Map) -> None:
+    def update(self, dt: float, player_tanks: list[PlayerTank], game_map: Map) -> None:
         """Update spawn timer and attempt to spawn enemies.
 
         Also checks pending spawns and materializes tanks whose
