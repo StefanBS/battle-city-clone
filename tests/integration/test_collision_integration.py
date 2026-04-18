@@ -511,6 +511,8 @@ def test_enemy_bullet_hits_other_enemy(game_manager_fixture, mocker):
 
     for _ in range(num_updates):
         game_manager.update()
+        if not bullet.active:
+            break
 
     # --- Assertions --- #
     # Bullet should remain active as enemy bullets don't hit other enemies
@@ -681,20 +683,11 @@ def test_enemy_bullets_collide(game_manager_fixture, mocker):
     update_duration = 0.4  # Should be sufficient time
     num_updates = int(update_duration / dt)
 
-    # Record initial active states
-    initial_bullet1_active = bullet1.active
-    initial_bullet2_active = bullet2.active
-
     logger.info(f"Simulating {num_updates} updates to check bullet pass-through.")
-    for i in range(num_updates):
+    for _ in range(num_updates):
         game_manager.update()
-        # Check if bullets became inactive unexpectedly
-        if not bullet1.active and initial_bullet1_active:
-            logger.warning(f"Bullet 1 became inactive unexpectedly on update {i + 1}")
-            # Allow simulation to continue to check bullet 2
-        if not bullet2.active and initial_bullet2_active:
-            logger.warning(f"Bullet 2 became inactive unexpectedly on update {i + 1}")
-            # Allow simulation to continue to check bullet 1
+        if not (bullet1.active and bullet2.active):
+            break
 
     # --- Assertions --- #
     # Bullets should still be active after passing each other's paths
