@@ -32,6 +32,11 @@ modules:
       - pyinstaller battle-city.spec --noconfirm --workpath build --distpath dist
       - install -d /app/lib/battle-city /app/bin
       - cp -r dist/BattleCity/. /app/lib/battle-city/
+      # Drop the build-time Python deps: the frozen dist vendors its own
+      # ABI-matched pygame and libpython, so site-packages, pygame headers,
+      # and PyInstaller entry points are dead weight at runtime (~10MB in
+      # the bundle).
+      - rm -rf /app/lib/python3.13 /app/include/python3.13 /app/bin/pyinstaller /app/bin/pyi-*
       - ln -s /app/lib/battle-city/BattleCity /app/bin/battle-city
       - install -Dm644 com.battlecity.BattleCity.desktop /app/share/applications/com.battlecity.BattleCity.desktop
       - install -Dm644 assets/icons/battle-city-64.png /app/share/icons/hicolor/64x64/apps/com.battlecity.BattleCity.png
