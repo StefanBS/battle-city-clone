@@ -1,9 +1,13 @@
 import pytest
 import pygame
-from unittest.mock import MagicMock
+from contextlib import nullcontext
+from unittest.mock import MagicMock, patch
+from src.core.bullet import Bullet
+from src.core.enemy_tank import EnemyTank
+from src.core.player_tank import PlayerTank
 from src.core.tank import Tank
 from src.managers.texture_manager import TextureManager
-from src.utils.constants import OwnerType, TILE_SIZE
+from src.utils.constants import Direction, OwnerType, TankType, TILE_SIZE
 
 
 @pytest.fixture
@@ -27,6 +31,77 @@ def create_tank(mock_texture_manager):
         )
         defaults.update(kwargs)
         return Tank(x, y, mock_texture_manager, **defaults)
+
+    return _create
+
+
+@pytest.fixture
+def create_enemy_tank(mock_texture_manager):
+    """Factory fixture to create EnemyTank instances with sensible defaults.
+
+    By default the EnemyTank __init__ call is wrapped in a patch that pins
+    random.choice to Direction.DOWN so test setup is deterministic. Pass
+    ``patch_random=False`` to opt out (e.g. for tests that exercise the
+    initial direction choice themselves).
+    """
+
+    def _create(x=0, y=0, tank_type=TankType.BASIC, patch_random=True, **kwargs):
+        defaults = dict(
+            tile_size=TILE_SIZE,
+            map_width_px=16 * TILE_SIZE,
+            map_height_px=16 * TILE_SIZE,
+        )
+        defaults.update(kwargs)
+        tile_size = defaults.pop("tile_size")
+        ctx = (
+            patch("src.core.enemy_tank.random.choice", return_value=Direction.DOWN)
+            if patch_random
+            else nullcontext()
+        )
+        with ctx:
+            return EnemyTank(
+                x, y, tile_size, mock_texture_manager, tank_type, **defaults
+            )
+
+    return _create
+
+
+@pytest.fixture
+def create_player_tank(mock_texture_manager):
+    """Factory fixture to create PlayerTank instances with sensible defaults."""
+
+    def _create(x=0, y=0, **kwargs):
+        defaults = dict(
+            tile_size=TILE_SIZE,
+            map_width_px=16 * TILE_SIZE,
+            map_height_px=16 * TILE_SIZE,
+        )
+        defaults.update(kwargs)
+        tile_size = defaults.pop("tile_size")
+        return PlayerTank(x, y, tile_size, mock_texture_manager, **defaults)
+
+    return _create
+
+
+@pytest.fixture
+def make_bullet():
+    """Factory fixture to build MagicMock(spec=Bullet) with sensible defaults.
+
+    Keyword overrides set attributes on the mock, so callers can do e.g.
+    ``make_bullet(owner_type=OwnerType.ENEMY, power_bullet=True, rect=...)``.
+    """
+
+    def _create(owner_type=OwnerType.PLAYER, **overrides):
+        b = MagicMock(spec=Bullet)
+        b.active = True
+        b.owner_type = owner_type
+        b.owner = MagicMock()
+        b.rect = pygame.Rect(0, 0, 2, 2)
+        b.direction = Direction.UP
+        b.power_bullet = False
+        for key, value in overrides.items():
+            setattr(b, key, value)
+        return b
 
     return _create
 
@@ -69,9 +144,7 @@ def ctrl_button_down_event():
 def ctrl_button_up_event():
     """Factory fixture to create CONTROLLERBUTTONUP events."""
 
-    def _ctrl_button_up_event(
-        button: int, instance_id: int = 0
-    ) -> pygame.event.Event:
+    def _ctrl_button_up_event(button: int, instance_id: int = 0) -> pygame.event.Event:
         return pygame.event.Event(
             pygame.CONTROLLERBUTTONUP, button=button, instance_id=instance_id
         )
