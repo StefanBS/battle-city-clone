@@ -12,7 +12,7 @@ from src.utils.constants import (
     ICE_SLIDE_DISTANCE,
     SUB_TILE_SIZE,
 )
-from tests.integration.conftest import first_player
+from tests.integration.conftest import first_player, place_player_at, tick
 
 _DIRECTION_TO_KEY = {direction: key for key, direction in KEY_TO_DIRECTION.items()}
 
@@ -24,15 +24,6 @@ def _place_ice_patch(game, grid_x, grid_y, width=4, height=4):
             tile = game.map.get_tile_at(grid_x + dx, grid_y + dy)
             if tile is not None:
                 game.map.set_tile_type(tile, TileType.ICE)
-
-
-def _move_player_to(game, px, py):
-    """Teleport the player tank to a pixel position."""
-    first_player(game).x = float(px)
-    first_player(game).y = float(py)
-    first_player(game).prev_x = float(px)
-    first_player(game).prev_y = float(py)
-    first_player(game).rect.topleft = (round(px), round(py))
 
 
 def _set_input(game, direction):
@@ -51,12 +42,6 @@ def _clear_input(game):
     _set_input(game, None)
 
 
-def _tick(game, n=1):
-    """Run n update frames."""
-    for _ in range(n):
-        game.update()
-
-
 class TestPlayerIceSlide:
     """Integration tests for player ice sliding."""
 
@@ -72,7 +57,7 @@ class TestPlayerIceSlide:
     def ice_game(self, game):
         """Game with player on a large ice patch."""
         _place_ice_patch(game, 4, 4, width=8, height=8)
-        _move_player_to(game, 6 * SUB_TILE_SIZE, 6 * SUB_TILE_SIZE)
+        place_player_at(game, 6 * SUB_TILE_SIZE, 6 * SUB_TILE_SIZE)
         first_player(game).direction = Direction.UP
         return game
 
@@ -81,16 +66,16 @@ class TestPlayerIceSlide:
         game = ice_game
 
         _set_input(game, Direction.UP)
-        _tick(game, 5)
+        tick(game, 5)
         assert first_player(game).direction == Direction.UP
 
         _clear_input(game)
-        _tick(game, 1)
+        tick(game)
         assert first_player(game).is_sliding is True
         assert first_player(game)._slide_direction == Direction.UP
 
         pos_before = first_player(game).y
-        _tick(game, 1)
+        tick(game)
         assert first_player(game).y < pos_before, "Tank should slide UP (decreasing y)"
 
     def test_slide_on_perpendicular_direction_change(self, ice_game):
@@ -98,10 +83,10 @@ class TestPlayerIceSlide:
         game = ice_game
 
         _set_input(game, Direction.UP)
-        _tick(game, 5)
+        tick(game, 5)
 
         _set_input(game, Direction.LEFT)
-        _tick(game, 1)
+        tick(game)
         assert first_player(game).is_sliding is True, (
             "Tank should start sliding on perpendicular direction change"
         )
@@ -110,7 +95,7 @@ class TestPlayerIceSlide:
         )
 
         pos_before_y = first_player(game).y
-        _tick(game, 1)
+        tick(game)
         assert first_player(game).y < pos_before_y, (
             "Tank should continue moving UP during slide"
         )
@@ -121,14 +106,14 @@ class TestPlayerIceSlide:
 
         first_player(game).direction = Direction.RIGHT
         _set_input(game, Direction.RIGHT)
-        _tick(game, 5)
+        tick(game, 5)
 
         _clear_input(game)
-        _tick(game, 1)
+        tick(game)
         pos_before = first_player(game).x
 
         for _ in range(120):
-            _tick(game, 1)
+            tick(game)
             if not first_player(game).is_sliding:
                 break
 
@@ -140,9 +125,9 @@ class TestPlayerIceSlide:
     def test_no_slide_when_not_on_ice(self, game):
         """Player does NOT slide on normal tiles."""
         _set_input(game, Direction.RIGHT)
-        _tick(game, 5)
+        tick(game, 5)
         _clear_input(game)
-        _tick(game, 1)
+        tick(game)
 
         assert first_player(game).is_sliding is False
 
@@ -161,11 +146,11 @@ class TestPlayerIceSlide:
 
         first_player(game).direction = Direction.RIGHT
         _set_input(game, Direction.RIGHT)
-        _tick(game, 3)
+        tick(game, 3)
         _clear_input(game)
 
         for _ in range(60):
-            _tick(game, 1)
+            tick(game)
             if not first_player(game).is_sliding:
                 break
 
@@ -178,14 +163,14 @@ class TestPlayerIceSlide:
         game = ice_game
 
         _set_input(game, Direction.UP)
-        _tick(game, 5)
+        tick(game, 5)
 
         _set_input(game, Direction.DOWN)
-        _tick(game, 1)
+        tick(game)
         assert first_player(game).is_sliding is True, (
             "Tank should slide when pressing opposite direction"
         )
 
         pos_before = first_player(game).y
-        _tick(game, 1)
+        tick(game)
         assert first_player(game).y < pos_before, "Tank should continue sliding UP"

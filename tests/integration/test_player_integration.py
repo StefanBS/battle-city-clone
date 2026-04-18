@@ -11,7 +11,7 @@ from src.utils.constants import (
     BULLET_HEIGHT,
 )
 from src.core.tile import Tile, TileType
-from tests.integration.conftest import first_player
+from tests.integration.conftest import first_player, send_event, tick_for
 
 
 @pytest.mark.parametrize(
@@ -49,20 +49,10 @@ def test_player_movement(key, axis, direction_sign, expected_direction):
     player_tank.prev_x, player_tank.prev_y = new_x, new_y
 
     initial_pos = player_tank.get_position()
-    dt = 1.0 / FPS
-    update_duration = 0.2
-    num_updates = int(update_duration / dt)
 
-    key_down_event = pygame.event.Event(pygame.KEYDOWN, key=key)
-    game_manager.input_handler.handle_event(key_down_event)
-    game_manager.player_manager.handle_event(key_down_event)
-
-    for _ in range(num_updates):
-        game_manager.update()
-
-    key_up_event = pygame.event.Event(pygame.KEYUP, key=key)
-    game_manager.input_handler.handle_event(key_up_event)
-    game_manager.player_manager.handle_event(key_up_event)
+    send_event(game_manager, pygame.event.Event(pygame.KEYDOWN, key=key))
+    tick_for(game_manager, 0.2)
+    send_event(game_manager, pygame.event.Event(pygame.KEYUP, key=key))
 
     final_pos = player_tank.get_position()
 
@@ -160,20 +150,9 @@ def test_player_movement_blocked_by_tile(
         round(start_x), round(start_y), player_tank.width, player_tank.height
     )
 
-    dt = 1.0 / FPS
-    update_duration = 0.2
-    num_updates = int(update_duration / dt)
-
-    key_down_event = pygame.event.Event(pygame.KEYDOWN, key=key)
-    game_manager.input_handler.handle_event(key_down_event)
-    game_manager.player_manager.handle_event(key_down_event)
-
-    for _ in range(num_updates):
-        game_manager.update()
-
-    key_up_event = pygame.event.Event(pygame.KEYUP, key=key)
-    game_manager.input_handler.handle_event(key_up_event)
-    game_manager.player_manager.handle_event(key_up_event)
+    send_event(game_manager, pygame.event.Event(pygame.KEYDOWN, key=key))
+    tick_for(game_manager, 0.2)
+    send_event(game_manager, pygame.event.Event(pygame.KEYUP, key=key))
 
     final_player_rect = player_tank.rect
     colliding_tile_rect = pygame.Rect(
@@ -292,12 +271,7 @@ def test_player_bullet_movement(direction_str, axis_index, direction_sign):
 
     initial_pos = bullet.get_position()
 
-    dt = 1.0 / FPS
-    update_duration = 0.1
-    num_updates = int(update_duration / dt)
-
-    for _ in range(num_updates):
-        game_manager.update()
+    tick_for(game_manager, 0.1)
 
     final_pos = bullet.get_position()
 

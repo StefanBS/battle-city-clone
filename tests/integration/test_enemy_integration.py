@@ -5,13 +5,15 @@ from src.utils.constants import (
     Difficulty,
     FPS,
     OwnerType,
-    TILE_SIZE,
     SUB_TILE_SIZE,
-    TankType,
 )
 from src.core.tile import Tile, TileType
-from src.core.enemy_tank import EnemyTank
-from tests.integration.conftest import first_player, flush_pending_spawns
+from tests.integration.conftest import (
+    clear_enemies,
+    first_player,
+    flush_pending_spawns,
+    spawn_enemy_at,
+)
 import random
 
 
@@ -45,8 +47,7 @@ def test_enemy_spawning_rules(game_manager_fixture):
 
     # Rebuild the spawn queue directly: reset() performs an initial spawn which
     # we don't want here.
-    game_manager.spawn_manager.enemy_tanks = []
-    game_manager.spawn_manager.total_enemy_spawns = 0
+    clear_enemies(game_manager)
     game_manager.spawn_manager._spawn_queue = (
         game_manager.spawn_manager._build_spawn_queue(
             game_manager.map.enemy_composition
@@ -137,9 +138,7 @@ def test_enemy_spawn_blocked(game_manager_fixture):
     )
     player_tank.prev_x, player_tank.prev_y = blocked_spawn_point_pixels
 
-    game_manager.spawn_manager.enemy_tanks = []
-    game_manager.spawn_manager._pending_spawns = []
-    game_manager.spawn_manager.total_enemy_spawns = 0
+    clear_enemies(game_manager)
     max_spawns = game_manager.spawn_manager.max_enemy_spawns
 
     # Attempt more times than there are spawn points so the selection cycles.
@@ -194,12 +193,8 @@ def test_enemy_movement_and_direction_change(
     """Test that enemies move and change direction over time."""
     game_manager = game_manager_fixture
 
-    game_manager.spawn_manager.enemy_tanks = []
-    game_manager.spawn_manager.total_enemy_spawns = 0
-    enemy_type = TankType.BASIC
+    clear_enemies(game_manager)
     start_x_grid, start_y_grid = 16, 16
-    start_x = start_x_grid * SUB_TILE_SIZE
-    start_y = start_y_grid * SUB_TILE_SIZE
 
     game_map = game_manager.map
     for dy in range(-4, 6):
@@ -215,17 +210,8 @@ def test_enemy_movement_and_direction_change(
     # Use the unmocked random.choice during __init__, then force the direction
     # change later.
     mock_choice.side_effect = lambda x: original_random_choice(x)
-    map_w_px = game_manager.map.width * SUB_TILE_SIZE
-    map_h_px = game_manager.map.height * SUB_TILE_SIZE
-    enemy_tank = EnemyTank(
-        start_x,
-        start_y,
-        TILE_SIZE,
-        game_manager.texture_manager,
-        enemy_type,
-        map_width_px=map_w_px,
-        map_height_px=map_h_px,
-        difficulty=Difficulty.EASY,
+    enemy_tank = spawn_enemy_at(
+        game_manager, start_x_grid, start_y_grid, difficulty=Difficulty.EASY
     )
     initial_direction = enemy_tank.direction
 
@@ -239,8 +225,6 @@ def test_enemy_movement_and_direction_change(
     # Prevent enemy from shooting: otherwise a bullet can hit the base and trigger
     # GAME_OVER before the direction-change timer fires.
     enemy_tank.shoot = lambda: None
-
-    game_manager.spawn_manager.enemy_tanks.append(enemy_tank)
     game_manager.spawn_manager.total_enemy_spawns = 1
 
     initial_pos = enemy_tank.get_position()
@@ -334,14 +318,11 @@ def test_enemy_movement_blocked_by_tile(
             f"are out of bounds."
         )
 
-    game_manager.spawn_manager.enemy_tanks = []
-    game_manager.spawn_manager.total_enemy_spawns = 0
+    clear_enemies(game_manager)
     # start_pos_offset is in tank-size units (2 sub-tiles), so the tank sits flush
     # against the 2x2 blocking tile.
     start_grid_x = target_x_grid + start_pos_offset[0] * 2
     start_grid_y = target_y_grid + start_pos_offset[1] * 2
-    start_x = start_grid_x * SUB_TILE_SIZE
-    start_y = start_grid_y * SUB_TILE_SIZE
 
     if not (0 <= start_grid_y < game_map.height and 0 <= start_grid_x < game_map.width):
         pytest.skip(
@@ -360,20 +341,10 @@ def test_enemy_movement_blocked_by_tile(
                         Tile(TileType.EMPTY, sx, sy, SUB_TILE_SIZE),
                     )
 
-    map_w_px = game_manager.map.width * SUB_TILE_SIZE
-    map_h_px = game_manager.map.height * SUB_TILE_SIZE
-    enemy_tank = EnemyTank(
-        start_x,
-        start_y,
-        TILE_SIZE,
-        game_manager.texture_manager,
-        tank_type=TankType.BASIC,
-        map_width_px=map_w_px,
-        map_height_px=map_h_px,
+    enemy_tank = spawn_enemy_at(
+        game_manager, start_grid_x, start_grid_y, direction=move_direction
     )
-    enemy_tank.direction = move_direction
     enemy_tank.direction_timer = 0
-    game_manager.spawn_manager.enemy_tanks.append(enemy_tank)
     game_manager.spawn_manager.total_enemy_spawns = 1
 
     initial_pos = enemy_tank.get_position()
@@ -395,28 +366,9 @@ def test_enemy_shooting(game_manager_fixture):
     """Test that enemies shoot periodically and their bullets travel correctly."""
     game_manager = game_manager_fixture
 
-    game_manager.spawn_manager.enemy_tanks = []
-    game_manager.spawn_manager.total_enemy_spawns = 0
-    enemy_type = TankType.BASIC
-    start_x_grid, start_y_grid = 16, 16
-    start_x = start_x_grid * SUB_TILE_SIZE
-    start_y = start_y_grid * SUB_TILE_SIZE
-
-    map_w_px = game_manager.map.width * SUB_TILE_SIZE
-    map_h_px = game_manager.map.height * SUB_TILE_SIZE
-    enemy_tank = EnemyTank(
-        start_x,
-        start_y,
-        TILE_SIZE,
-        game_manager.texture_manager,
-        enemy_type,
-        map_width_px=map_w_px,
-        map_height_px=map_h_px,
-    )
-    initial_enemy_direction = Direction.RIGHT
-    enemy_tank.direction = initial_enemy_direction
+    clear_enemies(game_manager)
+    enemy_tank = spawn_enemy_at(game_manager, 16, 16, direction=Direction.RIGHT)
     enemy_tank.shoot_timer = 0
-    game_manager.spawn_manager.enemy_tanks.append(enemy_tank)
     game_manager.spawn_manager.total_enemy_spawns = 1
 
     # Run longer than shoot_interval so we're guaranteed to see a shot.

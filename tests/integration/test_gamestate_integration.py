@@ -5,12 +5,16 @@ from src.utils.constants import (
     FPS,
     TILE_SIZE,
     SUB_TILE_SIZE,
-    TankType,
 )
 from src.states.game_state import GameState
 from src.core.tile import Tile, TileType
-from tests.integration.conftest import first_player
-from src.core.enemy_tank import EnemyTank
+from tests.integration.conftest import (
+    clear_enemies,
+    fire_bullet_from,
+    first_player,
+    place_player_at,
+    spawn_enemy_at,
+)
 
 
 def test_initial_game_state(game_manager_fixture):
@@ -142,13 +146,9 @@ def test_enemy_bullet_destroys_base_game_over(game_manager_fixture):
     base_x_grid = base_tile.x
     base_y_grid = base_tile.y
 
-    enemy_type = TankType.BASIC
     enemy_x_grid = base_x_grid
     # Place enemy well above the base perimeter bricks so the bullet path is clear.
     enemy_y_grid = base_y_grid - 6
-
-    enemy_start_x = enemy_x_grid * SUB_TILE_SIZE
-    enemy_start_y = enemy_y_grid * SUB_TILE_SIZE
 
     if not (
         0 <= enemy_y_grid < game_manager.map.height
@@ -170,27 +170,13 @@ def test_enemy_bullet_destroys_base_game_over(game_manager_fixture):
                     Tile(TileType.EMPTY, enemy_x_grid + dx, y, SUB_TILE_SIZE),
                 )
 
-    map_w_px = game_manager.map.width * SUB_TILE_SIZE
-    map_h_px = game_manager.map.height * SUB_TILE_SIZE
-    enemy_tank = EnemyTank(
-        enemy_start_x,
-        enemy_start_y,
-        TILE_SIZE,
-        game_manager.texture_manager,
-        enemy_type,
-        map_width_px=map_w_px,
-        map_height_px=map_h_px,
+    enemy_tank = spawn_enemy_at(
+        game_manager, enemy_x_grid, enemy_y_grid, direction=Direction.DOWN
     )
-    enemy_tank.direction = Direction.DOWN
-    game_manager.spawn_manager.enemy_tanks = [enemy_tank]
     # Move player out of the bullet path.
-    first_player(game_manager).set_position(0, 0)
-    first_player(game_manager).rect.topleft = (0, 0)
+    place_player_at(game_manager, 0, 0)
 
-    game_manager._try_shoot(enemy_tank)
-    enemy_bullets = [b for b in game_manager.bullets if b.owner is enemy_tank]
-    assert len(enemy_bullets) == 1, "Enemy bullet failed to spawn."
-    bullet = enemy_bullets[0]
+    bullet = fire_bullet_from(game_manager, enemy_tank)
     assert bullet.active, "Enemy bullet spawned inactive."
 
     assert game_manager.state == GameState.RUNNING, (
@@ -232,11 +218,10 @@ def test_victory_condition(game_manager_fixture):
     and the total spawn count has reached the maximum."""
     game_manager = game_manager_fixture
 
+    clear_enemies(game_manager, reset_total=False)
     game_manager.spawn_manager.total_enemy_spawns = (
         game_manager.spawn_manager.max_enemy_spawns
     )
-    game_manager.spawn_manager.enemy_tanks = []
-    game_manager.spawn_manager._pending_spawns = []
 
     assert game_manager.state == GameState.RUNNING, (
         "Test setup assumes starting in RUNNING state."
@@ -264,9 +249,7 @@ def test_score_accumulates_on_enemy_kill(game_manager_fixture):
     expected_points = ENEMY_POINTS.get(tank_type, 0)
 
     player = first_player(gm)
-    player.x = float(enemy.x)
-    player.y = float(enemy.y + TILE_SIZE + 10)
-    player.rect.topleft = (round(player.x), round(player.y))
+    place_player_at(gm, float(enemy.x), float(enemy.y + TILE_SIZE + 10), player=player)
     player.direction = Direction.UP
 
     bullet = player.shoot()
