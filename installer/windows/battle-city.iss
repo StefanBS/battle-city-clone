@@ -1,8 +1,7 @@
-; Battle City Clone - Inno Setup Script
 ; Requires Inno Setup 6+
 
 #define MyAppName "Battle City"
-#define MyAppVersion "0.11.0"
+#define MyAppVersion "1.0.0"
 #define MyAppPublisher "Battle City Clone"
 #define MyAppExeName "BattleCity.exe"
 
