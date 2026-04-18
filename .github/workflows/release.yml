@@ -42,7 +42,7 @@ jobs:
           name: windows-installer
           path: dist/BattleCitySetup-*.exe
 
-  build-linux:
+  test-linux:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -62,26 +62,29 @@ jobs:
       - name: Run tests
         run: pytest
 
-      - name: Install Flatpak tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y flatpak flatpak-builder
-          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-          flatpak install --user -y flathub org.freedesktop.Platform//25.08 org.freedesktop.Sdk//25.08
+  build-linux:
+    needs: test-linux
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:freedesktop-25.08
+      options: --privileged
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Build Flatpak
-        run: |
-          mkdir -p dist
-          cd installer/linux
-          flatpak-builder --user --force-clean --repo=repo build com.battlecity.BattleCity.yml
-          flatpak build-bundle repo BattleCity-${GITHUB_REF_NAME}.flatpak com.battlecity.BattleCity
-          mv BattleCity-${GITHUB_REF_NAME}.flatpak ../../dist/
+        uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          bundle: BattleCity-${{ github.ref_name }}.flatpak
+          manifest-path: installer/linux/com.battlecity.BattleCity.yml
+          cache-key: flatpak-builder-${{ github.sha }}
+          upload-artifact: false
 
       - name: Upload Flatpak bundle
         uses: actions/upload-artifact@v4
         with:
           name: linux-flatpak
-          path: dist/BattleCity-*.flatpak
+          path: BattleCity-*.flatpak
 
   release:
     needs: [build-windows, build-linux]
