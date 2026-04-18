@@ -56,17 +56,6 @@ def mock_game_map():
 
 
 # ---------------------------------------------------------------------------
-# Helper: create a real PlayerTank backed by the mock texture manager
-# ---------------------------------------------------------------------------
-
-
-def _make_player(mock_tm, x=0, y=0, tile_size=TILE_SIZE, map_size_tiles=26):
-    """Return a real PlayerTank for use in tests."""
-    px = map_size_tiles * tile_size
-    return PlayerTank(x, y, tile_size, mock_tm, map_width_px=px, map_height_px=px)
-
-
-# ---------------------------------------------------------------------------
 # TestPlayerManagerCreation
 # ---------------------------------------------------------------------------
 

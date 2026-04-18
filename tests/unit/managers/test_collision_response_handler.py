@@ -4,7 +4,6 @@ from unittest.mock import MagicMock
 from src.managers.collision_response_handler import CollisionResponseHandler
 from src.managers.effect_manager import EffectManager
 from src.managers.power_up_manager import PowerUpManager
-from src.core.bullet import Bullet
 from src.core.player_tank import PlayerTank
 from src.core.enemy_tank import EnemyTank
 from src.core.tile import Tile, TileType
@@ -52,13 +51,8 @@ def handler(mock_map, mock_effect_manager, mock_add_score):
 
 
 @pytest.fixture
-def mock_bullet():
-    b = MagicMock(spec=Bullet)
-    b.active = True
-    b.owner_type = "player"
-    b.owner = MagicMock()
-    b.rect = pygame.Rect(0, 0, 2, 2)
-    return b
+def mock_bullet(make_bullet):
+    return make_bullet()
 
 
 @pytest.fixture
@@ -134,49 +128,35 @@ class TestBulletVsEnemy:
         enemies = handler.process_collisions([(mock_bullet, mock_enemy)])
         assert mock_enemy in enemies
 
-    def test_enemy_bullet_does_not_damage_enemy(self, handler, mock_enemy):
+    def test_enemy_bullet_does_not_damage_enemy(self, handler, make_bullet, mock_enemy):
         """Friendly fire — enemy bullet should not damage enemy."""
-        bullet = MagicMock(spec=Bullet)
-        bullet.active = True
-        bullet.owner_type = "enemy"
-        bullet.owner = MagicMock()
+        bullet = make_bullet(owner_type="enemy")
         handler.process_collisions([(bullet, mock_enemy)])
         mock_enemy.take_damage.assert_not_called()
         assert bullet.active  # Bullet not consumed
 
 
 class TestBulletVsPlayer:
-    def test_enemy_bullet_damages_player(self, handler, mock_player):
-        bullet = MagicMock(spec=Bullet)
-        bullet.active = True
-        bullet.owner_type = "enemy"
-        bullet.owner = MagicMock()
+    def test_enemy_bullet_damages_player(self, handler, make_bullet, mock_player):
+        bullet = make_bullet(owner_type="enemy")
         handler.process_collisions([(bullet, mock_player)])
         assert not bullet.active
         mock_player.take_damage.assert_called_once()
         mock_player.respawn.assert_called_once()
 
-    def test_enemy_bullet_kills_player(self, handler, mock_player):
-        bullet = MagicMock(spec=Bullet)
-        bullet.active = True
-        bullet.owner_type = "enemy"
-        bullet.owner = MagicMock()
-        bullet.rect = pygame.Rect(0, 0, 2, 2)
+    def test_enemy_bullet_kills_player(self, handler, make_bullet, mock_player):
+        bullet = make_bullet(owner_type="enemy")
         mock_player.take_damage.return_value = True
         handler.process_collisions([(bullet, mock_player)])
         handler._set_game_state.assert_called_with(GameState.GAME_OVER)
         mock_player.respawn.assert_not_called()
 
-    def test_bullet_vs_invincible_player(self, handler, mock_player):
-        bullet = MagicMock(spec=Bullet)
-        bullet.active = True
-        bullet.owner_type = "enemy"
-        bullet.owner = MagicMock()
+    def test_bullet_vs_invincible_player(self, handler, make_bullet, mock_player):
+        bullet = make_bullet(owner_type="enemy")
         mock_player.is_invincible = True
         handler.process_collisions([(bullet, mock_player)])
         assert not bullet.active
         mock_player.take_damage.assert_not_called()
-
 
 
 class TestBulletVsTile:
@@ -186,14 +166,9 @@ class TestBulletVsTile:
     Full bricks become half-bricks on first hit, then destroyed on second.
     """
 
-    def test_bullet_damages_brick(self, handler, mock_map):
+    def test_bullet_damages_brick(self, handler, make_bullet, mock_map):
         """Bullet hitting a brick tile calls damage_brick with direction."""
-        bullet = MagicMock(spec=Bullet)
-        bullet.active = True
-        bullet.owner = MagicMock()
-        bullet.power_bullet = False
-        bullet.rect = pygame.Rect(64, 64, 4, 4)
-        bullet.direction = Direction.RIGHT
+        bullet = make_bullet(rect=pygame.Rect(64, 64, 4, 4), direction=Direction.RIGHT)
         tile = Tile(
             TileType.BRICK,
             4,
@@ -206,14 +181,9 @@ class TestBulletVsTile:
         assert not bullet.active
         mock_map.damage_brick.assert_called_once_with(tile, "right", bullet.rect)
 
-    def test_bullet_destroys_base(self, handler, mock_map):
+    def test_bullet_destroys_base(self, handler, make_bullet, mock_map):
         """Bullet hitting base triggers destroy_base and GAME_OVER."""
-        bullet = MagicMock(spec=Bullet)
-        bullet.active = True
-        bullet.owner = MagicMock()
-        bullet.power_bullet = False
-        bullet.rect = pygame.Rect(0, 0, 4, 4)
-        bullet.direction = Direction.DOWN
+        bullet = make_bullet(rect=pygame.Rect(0, 0, 4, 4), direction=Direction.DOWN)
         tile = MagicMock(spec=Tile)
         tile.type = TileType.BASE
         tile.blocks_bullets = True
@@ -226,12 +196,8 @@ class TestBulletVsTile:
 
     # -- Non-brick tiles --
 
-    def test_bullet_stops_at_steel(self, handler, mock_map):
-        bullet = MagicMock(spec=Bullet)
-        bullet.active = True
-        bullet.owner = MagicMock()
-        bullet.power_bullet = False
-        bullet.rect = pygame.Rect(0, 0, 2, 2)
+    def test_bullet_stops_at_steel(self, handler, make_bullet, mock_map):
+        bullet = make_bullet()
         tile = MagicMock(spec=Tile)
         tile.type = TileType.STEEL
         tile.blocks_bullets = True
@@ -242,15 +208,9 @@ class TestBulletVsTile:
 
 
 class TestBulletVsBullet:
-    def test_both_deactivated(self, handler):
-        b1 = MagicMock(spec=Bullet)
-        b2 = MagicMock(spec=Bullet)
-        b1.active = True
-        b1.owner = MagicMock()
-        b1.rect = pygame.Rect(0, 0, 2, 2)
-        b2.active = True
-        b2.owner = MagicMock()
-        b2.rect = pygame.Rect(2, 0, 2, 2)
+    def test_both_deactivated(self, handler, make_bullet):
+        b1 = make_bullet()
+        b2 = make_bullet(rect=pygame.Rect(2, 0, 2, 2))
         handler.process_collisions([(b1, b2)])
         assert not b1.active
         assert not b2.active
@@ -259,43 +219,18 @@ class TestBulletVsBullet:
 class TestTankVsTank:
     """Tank-vs-tank collision tests using real tank objects."""
 
-    MAP_PX = 16 * TILE_SIZE
-
-    def _make_player(self, mock_texture_manager, x, y):
-        """Create a real PlayerTank at the given position."""
-        tank = PlayerTank(
-            x,
-            y,
-            TILE_SIZE,
-            mock_texture_manager,
-            map_width_px=self.MAP_PX,
-            map_height_px=self.MAP_PX,
-        )
-        return tank
-
-    def _make_enemy(self, mock_texture_manager, x, y):
-        """Create a real EnemyTank at the given position."""
-        tank = EnemyTank(
-            x,
-            y,
-            TILE_SIZE,
-            mock_texture_manager,
-            tank_type=TankType.BASIC,
-            map_width_px=self.MAP_PX,
-            map_height_px=self.MAP_PX,
-        )
-        return tank
-
     @staticmethod
     def _simulate_move(tank, dx, dy, dt=1.0 / 60):
         """Move tank and set up prev position as Tank.update() would."""
         tank.prev_x, tank.prev_y = tank.x, tank.y
         tank._move(dx, dy, dt)
 
-    def test_both_moving_toward_each_other(self, handler, mock_texture_manager):
+    def test_both_moving_toward_each_other(
+        self, handler, create_player_tank, create_enemy_tank
+    ):
         """Both tanks moving toward each other: both reverted."""
-        player = self._make_player(mock_texture_manager, 96, 128)
-        enemy = self._make_enemy(mock_texture_manager, 96, 96)
+        player = create_player_tank(x=96, y=128)
+        enemy = create_enemy_tank(x=96, y=96)
         enemy.direction = Direction.DOWN
         self._simulate_move(player, 0, -1)
         self._simulate_move(enemy, 0, 1)
@@ -304,10 +239,12 @@ class TestTankVsTank:
         assert player.x == player.prev_x and player.y == player.prev_y
         assert enemy.x == enemy.prev_x and enemy.y == enemy.prev_y
 
-    def test_only_aggressor_reverted(self, handler, mock_texture_manager):
+    def test_only_aggressor_reverted(
+        self, handler, create_player_tank, create_enemy_tank
+    ):
         """Stationary enemy is not reverted when player moves into it."""
-        player = self._make_player(mock_texture_manager, 96, 128)
-        enemy = self._make_enemy(mock_texture_manager, 96, 96)
+        player = create_player_tank(x=96, y=128)
+        enemy = create_enemy_tank(x=96, y=96)
         enemy_pos_before = (enemy.x, enemy.y)
         self._simulate_move(player, 0, -1)
         # Enemy didn't move (prev == current)
@@ -316,10 +253,12 @@ class TestTankVsTank:
         assert player.x == player.prev_x and player.y == player.prev_y
         assert (enemy.x, enemy.y) == enemy_pos_before
 
-    def test_perpendicular_tank_not_reverted(self, handler, mock_texture_manager):
+    def test_perpendicular_tank_not_reverted(
+        self, handler, create_player_tank, create_enemy_tank
+    ):
         """Enemy moving perpendicular to collision axis keeps its move."""
-        player = self._make_player(mock_texture_manager, 96, 128)
-        enemy = self._make_enemy(mock_texture_manager, 96, 96)
+        player = create_player_tank(x=96, y=128)
+        enemy = create_enemy_tank(x=96, y=96)
         enemy.direction = Direction.RIGHT
         self._simulate_move(player, 0, -1)
         self._simulate_move(enemy, 1, 0)
@@ -329,10 +268,10 @@ class TestTankVsTank:
         assert player.x == player.prev_x and player.y == player.prev_y
         assert (enemy.x, enemy.y) == enemy_pos_after_move
 
-    def test_enemy_vs_enemy_both_moving_toward(self, handler, mock_texture_manager):
+    def test_enemy_vs_enemy_both_moving_toward(self, handler, create_enemy_tank):
         """Two enemies moving toward each other: both reverted."""
-        e1 = self._make_enemy(mock_texture_manager, 96, 96)
-        e2 = self._make_enemy(mock_texture_manager, 128, 96)
+        e1 = create_enemy_tank(x=96, y=96)
+        e2 = create_enemy_tank(x=128, y=96)
         e1.direction = Direction.RIGHT
         e2.direction = Direction.LEFT
         self._simulate_move(e1, 1, 0)
@@ -341,11 +280,11 @@ class TestTankVsTank:
         assert e1.x == e1.prev_x and e1.y == e1.prev_y
         assert e2.x == e2.prev_x and e2.y == e2.prev_y
 
-    def test_pre_existing_overlap_allows_movement(self, handler, mock_texture_manager):
+    def test_pre_existing_overlap_allows_movement(self, handler, create_enemy_tank):
         """When tanks are already overlapping (e.g. from spawn), neither
         should be reverted — both must be free to move apart."""
-        e1 = self._make_enemy(mock_texture_manager, 100, 100)
-        e2 = self._make_enemy(mock_texture_manager, 100, 100)
+        e1 = create_enemy_tank(x=100, y=100)
+        e2 = create_enemy_tank(x=100, y=100)
         e1.direction = Direction.LEFT
         e2.direction = Direction.RIGHT
         self._simulate_move(e1, -1, 0)
@@ -358,12 +297,12 @@ class TestTankVsTank:
         assert (e2.x, e2.y) == e2_pos_after_move
 
     def test_pre_existing_overlap_no_blocked_directions(
-        self, handler, mock_texture_manager
+        self, handler, create_enemy_tank
     ):
         """Pre-existing overlap should not add blocked directions,
         so tanks don't get permanently stuck."""
-        e1 = self._make_enemy(mock_texture_manager, 100, 100)
-        e2 = self._make_enemy(mock_texture_manager, 100, 100)
+        e1 = create_enemy_tank(x=100, y=100)
+        e2 = create_enemy_tank(x=100, y=100)
         e1.prev_x, e1.prev_y = e1.x, e1.y
         e2.prev_x, e2.prev_y = e2.x, e2.y
         handler.process_collisions([(e1, e2)])
@@ -371,16 +310,16 @@ class TestTankVsTank:
         assert len(e2._blocked_directions) == 0
 
     def test_cornered_enemy_blocked_direction_recorded(
-        self, handler, mock_texture_manager, mock_tile
+        self, handler, create_player_tank, create_enemy_tank, mock_tile
     ):
         """When a cornered enemy gets tile + tank collisions, its
         blocked direction is recorded from the tile hit."""
         mock_tile.type = TileType.STEEL
         mock_tile.rect = pygame.Rect(68, 100, TILE_SIZE, TILE_SIZE)
-        enemy = self._make_enemy(mock_texture_manager, 100, 100)
+        enemy = create_enemy_tank(x=100, y=100)
         enemy.direction = Direction.LEFT
         enemy.prev_x, enemy.prev_y = enemy.x, enemy.y
-        pusher = self._make_player(mock_texture_manager, 130, 100)
+        pusher = create_player_tank(x=130, y=100)
         self._simulate_move(pusher, -1, 0)
         handler.process_collisions(
             [
@@ -414,12 +353,9 @@ class TestTankVsTile:
 
 
 class TestTracking:
-    def test_processed_bullet_not_reprocessed(self, handler, mock_enemy):
+    def test_processed_bullet_not_reprocessed(self, handler, make_bullet, mock_enemy):
         """Same bullet in two events should only be processed once."""
-        bullet = MagicMock(spec=Bullet)
-        bullet.active = True
-        bullet.owner_type = "player"
-        bullet.owner = MagicMock()
+        bullet = make_bullet()
         enemy2 = MagicMock(spec=EnemyTank)
         enemy2.take_damage = MagicMock(return_value=False)
         enemy2.owner_type = "enemy"
@@ -456,7 +392,7 @@ class TestTracking:
 
 class TestExplosionEffects:
     def test_bullet_vs_brick_spawns_small_explosion(
-        self, handler, mock_map, mock_effect_manager
+        self, handler, make_bullet, mock_map, mock_effect_manager
     ):
         tile = Tile(
             TileType.BRICK,
@@ -467,22 +403,16 @@ class TestExplosionEffects:
             is_destructible=True,
         )
         mock_map.get_tile_at.return_value = Tile(TileType.EMPTY, 4, 5)
-        bullet = MagicMock(spec=Bullet)
-        bullet.active = True
-        bullet.owner = MagicMock()
-        bullet.direction = Direction.RIGHT
-        bullet.rect = pygame.Rect(64, 66, 2, 2)
+        bullet = make_bullet(direction=Direction.RIGHT, rect=pygame.Rect(64, 66, 2, 2))
         handler.process_collisions([(bullet, tile)])
         mock_effect_manager.spawn.assert_called_once_with(
             EffectType.SMALL_EXPLOSION, 65.0, 67.0
         )
 
-    def test_bullet_vs_steel_spawns_small_explosion(self, handler, mock_effect_manager):
-        bullet = MagicMock(spec=Bullet)
-        bullet.active = True
-        bullet.owner = MagicMock()
-        bullet.power_bullet = False
-        bullet.rect = pygame.Rect(50, 50, 2, 2)
+    def test_bullet_vs_steel_spawns_small_explosion(
+        self, handler, make_bullet, mock_effect_manager
+    ):
+        bullet = make_bullet(rect=pygame.Rect(50, 50, 2, 2))
         tile = MagicMock(spec=Tile)
         tile.type = TileType.STEEL
         tile.blocks_bullets = True
@@ -494,12 +424,9 @@ class TestExplosionEffects:
         )
 
     def test_bullet_vs_base_spawns_small_explosion(
-        self, handler, mock_map, mock_effect_manager
+        self, handler, make_bullet, mock_map, mock_effect_manager
     ):
-        bullet = MagicMock(spec=Bullet)
-        bullet.active = True
-        bullet.owner = MagicMock()
-        bullet.rect = pygame.Rect(50, 50, 2, 2)
+        bullet = make_bullet(rect=pygame.Rect(50, 50, 2, 2))
         tile = MagicMock(spec=Tile)
         tile.type = TileType.BASE
         tile.blocks_bullets = True
@@ -510,12 +437,10 @@ class TestExplosionEffects:
             EffectType.SMALL_EXPLOSION, 51.0, 51.0
         )
 
-    def test_enemy_destroyed_spawns_large_explosion(self, handler, mock_effect_manager):
-        bullet = MagicMock(spec=Bullet)
-        bullet.active = True
-        bullet.owner_type = "player"
-        bullet.owner = MagicMock()
-        bullet.rect = pygame.Rect(50, 50, 2, 2)
+    def test_enemy_destroyed_spawns_large_explosion(
+        self, handler, make_bullet, mock_effect_manager
+    ):
+        bullet = make_bullet(rect=pygame.Rect(50, 50, 2, 2))
         enemy = MagicMock(spec=EnemyTank)
         enemy.owner_type = "enemy"
         enemy.tank_type = "basic"
@@ -526,26 +451,18 @@ class TestExplosionEffects:
             EffectType.LARGE_EXPLOSION, 116.0, 116.0
         )
 
-    def test_bullet_vs_bullet_no_explosion(self, handler, mock_effect_manager):
-        b1 = MagicMock(spec=Bullet)
-        b1.active = True
-        b1.owner = MagicMock()
-        b1.rect = pygame.Rect(50, 50, 2, 2)
-        b2 = MagicMock(spec=Bullet)
-        b2.active = True
-        b2.owner = MagicMock()
-        b2.rect = pygame.Rect(52, 50, 2, 2)
+    def test_bullet_vs_bullet_no_explosion(
+        self, handler, make_bullet, mock_effect_manager
+    ):
+        b1 = make_bullet(rect=pygame.Rect(50, 50, 2, 2))
+        b2 = make_bullet(rect=pygame.Rect(52, 50, 2, 2))
         handler.process_collisions([(b1, b2)])
         mock_effect_manager.spawn.assert_not_called()
 
     def test_player_destroyed_spawns_large_explosion(
-        self, handler, mock_player, mock_effect_manager
+        self, handler, make_bullet, mock_player, mock_effect_manager
     ):
-        bullet = MagicMock(spec=Bullet)
-        bullet.active = True
-        bullet.owner_type = "enemy"
-        bullet.owner = MagicMock()
-        bullet.rect = pygame.Rect(50, 50, 2, 2)
+        bullet = make_bullet(owner_type="enemy", rect=pygame.Rect(50, 50, 2, 2))
         mock_player.take_damage.return_value = True
         mock_player.rect = pygame.Rect(100, 100, 32, 32)
         handler.process_collisions([(bullet, mock_player)])
@@ -674,24 +591,19 @@ class TestPlayerVsPowerUp:
 
 class TestPowerBulletVsSteel:
     @pytest.fixture
-    def power_bullet(self):
-        b = MagicMock(spec=Bullet)
-        b.active = True
-        b.owner_type = "player"
-        b.power_bullet = True
-        b.rect = pygame.Rect(100, 100, 4, 4)
-        b.direction = Direction.RIGHT
-        return b
+    def power_bullet(self, make_bullet):
+        return make_bullet(
+            power_bullet=True,
+            rect=pygame.Rect(100, 100, 4, 4),
+            direction=Direction.RIGHT,
+        )
 
     @pytest.fixture
-    def normal_bullet(self):
-        b = MagicMock(spec=Bullet)
-        b.active = True
-        b.owner_type = "player"
-        b.power_bullet = False
-        b.rect = pygame.Rect(100, 100, 4, 4)
-        b.direction = Direction.RIGHT
-        return b
+    def normal_bullet(self, make_bullet):
+        return make_bullet(
+            rect=pygame.Rect(100, 100, 4, 4),
+            direction=Direction.RIGHT,
+        )
 
     @pytest.fixture
     def steel_tile(self):
@@ -732,12 +644,9 @@ class TestPowerBulletVsSteel:
 
 
 class TestFriendlyFire:
-    def test_player_bullet_freezes_other_player(self, handler):
+    def test_player_bullet_freezes_other_player(self, handler, make_bullet):
         """Player bullet hitting another player freezes instead of damaging."""
-        bullet = MagicMock(spec=Bullet)
-        bullet.active = True
-        bullet.owner_type = OwnerType.PLAYER
-        bullet.owner = MagicMock(spec=PlayerTank)
+        bullet = make_bullet(owner=MagicMock(spec=PlayerTank))
 
         target = MagicMock(spec=PlayerTank)
         target.is_invincible = False
@@ -749,11 +658,11 @@ class TestFriendlyFire:
         target.freeze.assert_called_once_with(FRIENDLY_FIRE_FREEZE_DURATION)
         target.take_damage.assert_not_called()
 
-    def test_player_bullet_does_not_freeze_invincible_player(self, handler):
+    def test_player_bullet_does_not_freeze_invincible_player(
+        self, handler, make_bullet
+    ):
         """Friendly fire on invincible player deactivates bullet but doesn't freeze."""
-        bullet = MagicMock(spec=Bullet)
-        bullet.active = True
-        bullet.owner_type = OwnerType.PLAYER
+        bullet = make_bullet()
 
         target = MagicMock(spec=PlayerTank)
         target.is_invincible = True
@@ -764,15 +673,12 @@ class TestFriendlyFire:
         assert bullet.active is False
         target.freeze.assert_not_called()
 
-    def test_player_bullet_does_not_hit_self(self, handler):
+    def test_player_bullet_does_not_hit_self(self, handler, make_bullet):
         """A player's own bullet cannot hit themselves (self-hit guard)."""
         player = MagicMock(spec=PlayerTank)
         player.is_invincible = False
 
-        bullet = MagicMock(spec=Bullet)
-        bullet.active = True
-        bullet.owner_type = OwnerType.PLAYER
-        bullet.owner = player
+        bullet = make_bullet(owner=player)
 
         result = handler._handle_bullet_vs_player(bullet, player, [])
 
@@ -780,14 +686,12 @@ class TestFriendlyFire:
         assert bullet.active is True
         player.freeze.assert_not_called()
 
-    def test_enemy_bullet_still_damages_player(self, handler):
+    def test_enemy_bullet_still_damages_player(self, handler, make_bullet):
         """Enemy bullets still damage the player (unchanged behavior)."""
-        bullet = MagicMock(spec=Bullet)
-        bullet.active = True
-        bullet.owner_type = OwnerType.ENEMY
-        bullet.rect = MagicMock()
-        bullet.rect.centerx = 100
-        bullet.rect.centery = 100
+        rect = MagicMock()
+        rect.centerx = 100
+        rect.centery = 100
+        bullet = make_bullet(owner_type=OwnerType.ENEMY, rect=rect)
 
         target = MagicMock(spec=PlayerTank)
         target.is_invincible = False
@@ -798,14 +702,12 @@ class TestFriendlyFire:
         assert result is True
         target.take_damage.assert_called_once()
 
-    def test_enemy_bullet_hits_frozen_player(self, handler):
+    def test_enemy_bullet_hits_frozen_player(self, handler, make_bullet):
         """A frozen player can still be hit by enemy bullets (real damage)."""
-        bullet = MagicMock(spec=Bullet)
-        bullet.active = True
-        bullet.owner_type = OwnerType.ENEMY
-        bullet.rect = MagicMock()
-        bullet.rect.centerx = 100
-        bullet.rect.centery = 100
+        rect = MagicMock()
+        rect.centerx = 100
+        rect.centery = 100
+        bullet = make_bullet(owner_type=OwnerType.ENEMY, rect=rect)
 
         target = MagicMock(spec=PlayerTank)
         target.is_invincible = False
@@ -819,7 +721,9 @@ class TestFriendlyFire:
 
 
 class TestPerPlayerScoring:
-    def test_enemy_kill_awards_score_to_owner(self, mock_map, mock_effect_manager):
+    def test_enemy_kill_awards_score_to_owner(
+        self, make_bullet, mock_map, mock_effect_manager
+    ):
         """Score is routed to the player who fired the killing bullet."""
         scores_received = []
 
@@ -833,11 +737,9 @@ class TestPerPlayerScoring:
             add_score=track_score,
         )
 
-        bullet = MagicMock(spec=Bullet)
-        bullet.active = True
-        bullet.owner_type = OwnerType.PLAYER
-        bullet.owner = MagicMock(spec=PlayerTank)
-        bullet.owner.player_id = 2
+        owner = MagicMock(spec=PlayerTank)
+        owner.player_id = 2
+        bullet = make_bullet(owner=owner)
 
         enemy = MagicMock(spec=EnemyTank)
         enemy.tank_type = TankType.BASIC

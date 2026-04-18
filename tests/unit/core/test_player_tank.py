@@ -1,10 +1,8 @@
 import pytest
 import pygame
 from unittest.mock import MagicMock
-from src.core.player_tank import PlayerTank
 from src.utils.constants import (
     Direction,
-    TILE_SIZE,
     FPS,
     HELMET_INVINCIBILITY_DURATION,
     SPAWN_INVINCIBILITY_DURATION,
@@ -20,16 +18,9 @@ class TestPlayerTank:
     """Test cases for the PlayerTank class."""
 
     @pytest.fixture
-    def player_tank(self, mock_texture_manager):
+    def player_tank(self, create_player_tank):
         """Fixture to create a PlayerTank instance."""
-        return PlayerTank(
-            5,
-            12,
-            TILE_SIZE,
-            mock_texture_manager,
-            map_width_px=16 * TILE_SIZE,
-            map_height_px=16 * TILE_SIZE,
-        )
+        return create_player_tank(x=5, y=12)
 
     def test_player_tank_initialization(self, player_tank):
         """Test PlayerTank initialization aligns to grid and sets correct defaults."""
@@ -180,15 +171,8 @@ class TestPlayerTank:
 
 class TestActivateInvincibility:
     @pytest.fixture
-    def player(self, mock_texture_manager):
-        return PlayerTank(
-            96,
-            96,
-            TILE_SIZE,
-            mock_texture_manager,
-            map_width_px=512,
-            map_height_px=512,
-        )
+    def player(self, create_player_tank):
+        return create_player_tank(x=96, y=96, map_width_px=512, map_height_px=512)
 
     def test_sets_invincible(self, player):
         player.activate_invincibility(5.0)
@@ -223,15 +207,8 @@ class TestActivateInvincibility:
 
 class TestStarUpgrade:
     @pytest.fixture
-    def player(self, mock_texture_manager):
-        return PlayerTank(
-            96,
-            96,
-            TILE_SIZE,
-            mock_texture_manager,
-            map_width_px=512,
-            map_height_px=512,
-        )
+    def player(self, create_player_tank):
+        return create_player_tank(x=96, y=96, map_width_px=512, map_height_px=512)
 
     def test_initial_star_level(self, player):
         assert player.star_level == 0
@@ -278,39 +255,28 @@ class TestStarUpgrade:
 
 
 class TestPlayerTankPlayerId:
-    def test_default_player_id_is_1(self, mock_texture_manager):
+    def test_default_player_id_is_1(self, create_player_tank):
         """PlayerTank defaults to player_id=1."""
-        tank = PlayerTank(
-            0, 0, TILE_SIZE, mock_texture_manager,
-            map_width_px=512, map_height_px=512,
-        )
+        tank = create_player_tank(map_width_px=512, map_height_px=512)
         assert tank.player_id == 1
 
-    def test_player_id_2_accepted(self, mock_texture_manager):
+    def test_player_id_2_accepted(self, create_player_tank):
         """PlayerTank accepts player_id=2."""
-        tank = PlayerTank(
-            0, 0, TILE_SIZE, mock_texture_manager,
-            map_width_px=512, map_height_px=512,
-            player_id=2,
-        )
+        tank = create_player_tank(map_width_px=512, map_height_px=512, player_id=2)
         assert tank.player_id == 2
 
-    def test_player2_uses_player2_sprite_prefix(self, mock_texture_manager):
+    def test_player2_uses_player2_sprite_prefix(
+        self, create_player_tank, mock_texture_manager
+    ):
         """Player 2 tank requests sprites with 'player2_tank_' prefix."""
-        PlayerTank(
-            0, 0, TILE_SIZE, mock_texture_manager,
-            map_width_px=512, map_height_px=512,
-            player_id=2,
-        )
+        create_player_tank(map_width_px=512, map_height_px=512, player_id=2)
         mock_texture_manager.get_sprite.assert_any_call("player2_tank_tier0_up_1")
 
-    def test_player1_uses_player_tank_sprite_prefix(self, mock_texture_manager):
+    def test_player1_uses_player_tank_sprite_prefix(
+        self, create_player_tank, mock_texture_manager
+    ):
         """Player 1 tank requests sprites with 'player_tank_' prefix (unchanged)."""
-        PlayerTank(
-            0, 0, TILE_SIZE, mock_texture_manager,
-            map_width_px=512, map_height_px=512,
-            player_id=1,
-        )
+        create_player_tank(map_width_px=512, map_height_px=512, player_id=1)
         mock_texture_manager.get_sprite.assert_any_call("player_tank_tier0_up_1")
 
 
@@ -332,15 +298,8 @@ class TestShieldAnimation:
         return mock_tm
 
     @pytest.fixture
-    def player_tank(self, mock_texture_manager):
-        return PlayerTank(
-            5,
-            12,
-            TILE_SIZE,
-            mock_texture_manager,
-            map_width_px=16 * TILE_SIZE,
-            map_height_px=16 * TILE_SIZE,
-        )
+    def player_tank(self, create_player_tank):
+        return create_player_tank(x=5, y=12)
 
     def test_is_invincible_false_when_not_invincible(self, player_tank):
         assert player_tank.is_invincible is False
@@ -412,11 +371,8 @@ class TestShieldAnimation:
 
 class TestPlayerTankFreeze:
     @pytest.fixture
-    def player(self, mock_texture_manager):
-        return PlayerTank(
-            0, 0, TILE_SIZE, mock_texture_manager,
-            map_width_px=512, map_height_px=512,
-        )
+    def player(self, create_player_tank):
+        return create_player_tank(map_width_px=512, map_height_px=512)
 
     def test_not_frozen_by_default(self, player):
         """PlayerTank is not frozen initially."""
