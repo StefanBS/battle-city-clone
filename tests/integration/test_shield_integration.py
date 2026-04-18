@@ -12,7 +12,6 @@ class TestShieldIntegration:
         """Player tank has shield active after game start (spawn invincibility)."""
         gm = game_manager_fixture
         assert first_player(gm).is_invincible
-        assert first_player(gm).is_invincible
 
     def test_shield_stays_active_during_warning_phase(self, game_manager_fixture):
         """Shield remains active in warning phase but flickers faster."""
@@ -34,5 +33,4 @@ class TestShieldIntegration:
         gm = game_manager_fixture
         first_player(gm).invincibility_timer = 4.0  # past 3s duration
         first_player(gm).update(1.0 / FPS)
-        assert not first_player(gm).is_invincible
         assert not first_player(gm).is_invincible

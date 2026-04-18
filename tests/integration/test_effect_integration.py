@@ -19,29 +19,24 @@ class TestEffectLifecycle:
         gm = game_manager_fixture
         dt = 1.0 / FPS
 
-        # Find a steel tile to shoot at
         steel_tiles = gm.map.get_tiles_by_type([TileType.STEEL])
         if not steel_tiles:
-            # If no steel, use brick
             steel_tiles = gm.map.get_tiles_by_type([TileType.BRICK])
         assert steel_tiles, "Need at least one destructible/steel tile"
         target = steel_tiles[0]
 
-        # Position player near the target and shoot toward it
         player = first_player(gm)
         player.x = float(target.rect.centerx)
         player.y = float(target.rect.bottom + 10)
         player.rect.topleft = (round(player.x), round(player.y))
 
-        # Clear enemies so they don't interfere (e.g., shooting the player)
+        # Clear enemies so they don't interfere (e.g., shoot the player instead).
         gm.spawn_manager.enemy_tanks.clear()
 
-        # Create a bullet aimed at the tile
         bullet = player.shoot()
         assert bullet is not None
         gm.bullets.append(bullet)
 
-        # Run updates until the bullet hits the tile (or max iterations)
         effect_spawned = False
         for _ in range(30):
             gm.update()
@@ -54,7 +49,6 @@ class TestEffectLifecycle:
         )
         assert len(gm.effect_manager.effects) >= 1
 
-        # Now keep updating until the effect expires
         for _ in range(60):
             gm.effect_manager.update(dt)
             if not gm.effect_manager.effects:
@@ -71,8 +65,6 @@ class TestEffectLifecycle:
         gm.effect_manager.spawn(EffectType.SMALL_EXPLOSION, 100.0, 100.0)
         old_effect_manager = gm.effect_manager
 
-        # Reset the game
         gm._reset_game()
 
-        # Should be a new EffectManager instance (old effects gone)
         assert gm.effect_manager is not old_effect_manager

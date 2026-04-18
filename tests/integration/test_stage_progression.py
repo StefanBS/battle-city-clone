@@ -11,7 +11,6 @@ class TestStageProgressionIntegration:
         assert gm.current_stage == 1
         gm._set_game_state(GameState.VICTORY)
         assert gm.state == GameState.VICTORY
-        # Advance past victory pause
         while gm.state == GameState.VICTORY:
             gm.update()
         assert gm.current_stage == 2
@@ -24,7 +23,7 @@ class TestStageProgressionIntegration:
         while gm.state == GameState.VICTORY:
             gm.update()
         assert gm.state == GameState.GAME_COMPLETE
-        assert gm.current_stage == MAX_STAGE  # not incremented
+        assert gm.current_stage == MAX_STAGE
 
     def test_game_complete_render_does_not_raise(self, game_manager_fixture):
         """Verify render() works in GAME_COMPLETE state."""
@@ -34,4 +33,4 @@ class TestStageProgressionIntegration:
         while gm.state == GameState.VICTORY:
             gm.update()
         assert gm.state == GameState.GAME_COMPLETE
-        gm.render()  # should not raise
+        gm.render()
