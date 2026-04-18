@@ -387,14 +387,24 @@ class GameManager:
         active_players = self.player_manager.get_active_players()
 
         if not self.spawn_manager.enemies_frozen:
+            # When 0 or 1 active players, the AI target is the same for every
+            # enemy and can be hoisted out of the per-enemy loop. Only 2P mode
+            # needs the per-enemy min() to pick the nearest player.
+            num_players = len(active_players)
+            shared_pos: tuple[float, float] | None = None
+            if num_players == 1:
+                p = active_players[0]
+                shared_pos = (p.x, p.y)
+
             for enemy in self.spawn_manager.enemy_tanks:
-                closest_pos = None
-                if active_players:
+                if num_players >= 2:
                     closest = min(
                         active_players,
                         key=lambda p: abs(p.x - enemy.x) + abs(p.y - enemy.y),
                     )
-                    closest_pos = (closest.x, closest.y)
+                    closest_pos: tuple[float, float] | None = (closest.x, closest.y)
+                else:
+                    closest_pos = shared_pos
                 enemy.update(dt, player_position=closest_pos)
                 enemy.on_ice = self.map.is_tile_slidable(
                     enemy.x, enemy.y, enemy.width, enemy.height
