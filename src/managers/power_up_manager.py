@@ -176,10 +176,6 @@ class PowerUpManager:
                         target = TileType.STEEL if should_show_steel else orig_type
                         self._game_map.set_tile_type(tile, target)
 
-    def get_power_ups(self) -> list[PowerUp]:
-        """Return the list of active power-ups for collision checking and rendering."""
-        return self.active_power_ups
-
     def collect_power_up(self, power_up: PowerUp) -> PowerUpType | None:
         """Collect a specific power-up. Returns its type, or None if not found."""
         if power_up not in self.active_power_ups:

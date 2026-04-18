@@ -73,5 +73,5 @@ class TestPowerupBlinkWiring:
         gm.power_up_manager.spawn_power_up(
             first_player(gm), gm.spawn_manager.enemy_tanks
         )
-        assert len(gm.power_up_manager.get_power_ups()) > 0
+        assert len(gm.power_up_manager.active_power_ups) > 0
         gm.update()

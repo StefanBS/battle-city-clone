@@ -424,7 +424,7 @@ class GameManager:
 
         player_bullets = self.player_manager.get_all_bullets()
 
-        active_power_ups = self.power_up_manager.get_power_ups()
+        active_power_ups = self.power_up_manager.active_power_ups
 
         self.collision_manager.check_collisions(
             player_tanks=active_players,
@@ -576,7 +576,7 @@ class GameManager:
             self.effect_manager,
             self.state,
             self.player_manager.scores,
-            power_ups=self.power_up_manager.get_power_ups(),
+            power_ups=self.power_up_manager.active_power_ups,
             game_over_rise_progress=game_over_rise_progress,
         )
 
