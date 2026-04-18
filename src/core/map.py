@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Iterable, List, Optional, Tuple
+from collections.abc import Iterable
 import pygame
 import pytmx
 from pytmx.util_pygame import load_pygame
@@ -20,9 +20,9 @@ from src.utils.constants import (
 class SpawnPoints:
     """Spawn-point layout parsed from a TMX map."""
 
-    player_spawn: Tuple[int, int]
-    player_spawn_2: Optional[Tuple[int, int]] = None
-    enemy_spawns: List[Tuple[int, int]] = field(default_factory=list)
+    player_spawn: tuple[int, int]
+    player_spawn_2: tuple[int, int] | None = None
+    enemy_spawns: list[tuple[int, int]] = field(default_factory=list)
 
 
 def load_spawn_points(
@@ -42,9 +42,9 @@ def load_spawn_points(
         logger.warning("No 'spawn_points' object layer found in TMX")
         return SpawnPoints(player_spawn=(map_width // 2 - 1, map_height - 2))
 
-    player_spawn: Optional[Tuple[int, int]] = None
-    player_spawn_2: Optional[Tuple[int, int]] = None
-    enemy_spawns: List[Tuple[int, int]] = []
+    player_spawn: tuple[int, int] | None = None
+    player_spawn_2: tuple[int, int] | None = None
+    enemy_spawns: list[tuple[int, int]] = []
     tmx_tw = tiled_map.tilewidth
     tmx_th = tiled_map.tileheight
     for obj in spawn_layer:
@@ -93,18 +93,18 @@ class Map:
     def __init__(self, map_file: str, texture_manager: TextureManager) -> None:
         self.tile_size = SUB_TILE_SIZE
         self.texture_manager = texture_manager
-        self.tiles: List[List[Optional[Tile]]] = []
-        self.spawn_points: List[Tuple[int, int]] = []
-        self.player_spawn: Tuple[int, int] = (0, 0)
-        self.player_spawn_2: Optional[tuple[int, int]] = None
-        self._animated_tiles: List[Tile] = []
-        self._drawable_tiles: List[Tile] = []
+        self.tiles: list[list[Tile | None]] = []
+        self.spawn_points: list[tuple[int, int]] = []
+        self.player_spawn: tuple[int, int] = (0, 0)
+        self.player_spawn_2: tuple[int, int] | None = None
+        self._animated_tiles: list[Tile] = []
+        self._drawable_tiles: list[Tile] = []
         self._tile_cache_dirty: bool = True
         self._cached_tiles_by_type: dict = {}
-        self._cached_collidable_rects: List[pygame.Rect] = []
-        self._cached_blocking_tiles: List[Tile] = []
-        self._cached_bullet_blocking_tiles: List[Tile] = []
-        self._cached_base: Optional[Tile] = None
+        self._cached_collidable_rects: list[pygame.Rect] = []
+        self._cached_blocking_tiles: list[Tile] = []
+        self._cached_bullet_blocking_tiles: list[Tile] = []
+        self._cached_base: Tile | None = None
 
         self._load_from_tmx(map_file)
         self._build_derived_tile_lists()
@@ -319,7 +319,7 @@ class Map:
         diff_str = props.get("difficulty")
         if diff_str is not None:
             try:
-                self.difficulty_override: Optional[Difficulty] = Difficulty(
+                self.difficulty_override: Difficulty | None = Difficulty(
                     str(diff_str).strip()
                 )
             except ValueError:
@@ -372,16 +372,16 @@ class Map:
         return self.height * self.tile_size
 
     @property
-    def drawable_tiles(self) -> List[Tile]:
+    def drawable_tiles(self) -> list[Tile]:
         """Tiles that are drawn below tanks and bullets."""
         return self._drawable_tiles
 
     @property
-    def overlay_tiles(self) -> List[Tile]:
+    def overlay_tiles(self) -> list[Tile]:
         """Tiles that are drawn above tanks and bullets (e.g. bushes)."""
         return self._overlay_tiles
 
-    def grid_to_pixels(self, grid_x: int, grid_y: int) -> Tuple[int, int]:
+    def grid_to_pixels(self, grid_x: int, grid_y: int) -> tuple[int, int]:
         """Convert grid coordinates to pixel coordinates."""
         return grid_x * self.tile_size, grid_y * self.tile_size
 
@@ -400,7 +400,7 @@ class Map:
         for tile in self._overlay_tiles:
             tile.draw(surface, self.texture_manager)
 
-    def get_tile_at(self, x: int, y: int) -> Optional[Tile]:
+    def get_tile_at(self, x: int, y: int) -> Tile | None:
         """Get the tile at the specified grid coordinates."""
         if 0 <= y < self.height and 0 <= x < self.width:
             return self.tiles[y][x]
@@ -533,8 +533,8 @@ class Map:
         """Rebuild all cached tile lists from the grid."""
         self._cached_tiles_by_type = {}
         collidable_rects = []
-        blocking_tiles: List[Tile] = []
-        bullet_blocking_tiles: List[Tile] = []
+        blocking_tiles: list[Tile] = []
+        bullet_blocking_tiles: list[Tile] = []
         base = None
 
         for row in self.tiles:
@@ -564,7 +564,7 @@ class Map:
         if self._tile_cache_dirty:
             self._rebuild_tile_caches()
 
-    def get_tiles_by_type(self, types: Iterable[TileType]) -> List[Tile]:
+    def get_tiles_by_type(self, types: Iterable[TileType]) -> list[Tile]:
         """Get a list of tiles matching the specified types."""
         self._ensure_cache()
         result = []
@@ -593,27 +593,27 @@ class Map:
         tile = self.get_tile_at(grid_x, grid_y)
         return tile is not None and tile.is_slidable
 
-    def get_base(self) -> Optional[Tile]:
+    def get_base(self) -> Tile | None:
         """Find and return a player base tile, if it exists."""
         self._ensure_cache()
         return self._cached_base
 
-    def get_collidable_tiles(self) -> List[pygame.Rect]:
+    def get_collidable_tiles(self) -> list[pygame.Rect]:
         """Get a list of rectangles for all collidable tiles."""
         self._ensure_cache()
         return self._cached_collidable_rects
 
-    def get_blocking_tiles(self) -> List[Tile]:
+    def get_blocking_tiles(self) -> list[Tile]:
         """Get all tiles that block tank movement."""
         self._ensure_cache()
         return self._cached_blocking_tiles
 
-    def get_bullet_blocking_tiles(self) -> List[Tile]:
+    def get_bullet_blocking_tiles(self) -> list[Tile]:
         """Get all tiles that block bullets."""
         self._ensure_cache()
         return self._cached_bullet_blocking_tiles
 
-    def get_base_surrounding_tiles(self, include_empty: bool = False) -> List[Tile]:
+    def get_base_surrounding_tiles(self, include_empty: bool = False) -> list[Tile]:
         """Return tiles in the ring around the base.
 
         Finds all BASE tiles to determine the base bounds, then returns

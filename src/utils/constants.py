@@ -3,7 +3,6 @@ Game constants and configuration values.
 """
 
 from enum import Enum, StrEnum, auto
-from typing import Tuple
 
 
 class Direction(StrEnum):
@@ -122,11 +121,11 @@ LOGICAL_WIDTH: int = 512
 LOGICAL_HEIGHT: int = 512
 
 # Colors
-BLACK: Tuple[int, int, int] = (0, 0, 0)
-GRAY: Tuple[int, int, int] = (128, 128, 128)
-WHITE: Tuple[int, int, int] = (255, 255, 255)
-RED: Tuple[int, int, int] = (255, 0, 0)
-GREEN: Tuple[int, int, int] = (0, 255, 0)
+BLACK: tuple[int, int, int] = (0, 0, 0)
+GRAY: tuple[int, int, int] = (128, 128, 128)
+WHITE: tuple[int, int, int] = (255, 255, 255)
+RED: tuple[int, int, int] = (255, 0, 0)
+GREEN: tuple[int, int, int] = (0, 255, 0)
 
 # Tank settings
 TANK_SPEED: float = 80  # pixels per second (was 12 px/step)

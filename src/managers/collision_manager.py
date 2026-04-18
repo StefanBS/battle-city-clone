@@ -1,5 +1,6 @@
 import pygame
-from typing import List, Tuple, Optional, Protocol, runtime_checkable, Sequence
+from typing import Protocol, runtime_checkable
+from collections.abc import Sequence
 
 
 # Define a protocol for objects that have a rect attribute
@@ -14,7 +15,7 @@ class CollisionManager:
     def __init__(self) -> None:
         """Initializes the CollisionManager."""
         # Stores pairs of objects that have collided
-        self._collision_events: List[Tuple[Collidable, Collidable]] = []
+        self._collision_events: list[tuple[Collidable, Collidable]] = []
         self._seen_pairs: set[tuple[int, int]] = set()
 
     def check_collisions(
@@ -25,7 +26,7 @@ class CollisionManager:
         enemy_bullets: Sequence[Collidable],
         tank_blocking_tiles: Sequence[Collidable],
         bullet_blocking_tiles: Sequence[Collidable],
-        player_base: Optional[Collidable],
+        player_base: Collidable | None,
         power_ups: Sequence[Collidable] = (),
     ) -> None:
         """
@@ -45,7 +46,7 @@ class CollisionManager:
         self._seen_pairs.clear()
 
         # Combine tanks
-        all_tanks: List[Collidable] = list(player_tanks)
+        all_tanks: list[Collidable] = list(player_tanks)
         all_tanks.extend(enemy_tanks)
 
         # Bullet collisions
@@ -135,6 +136,6 @@ class CollisionManager:
         self._seen_pairs.add(pair_key)
         self._collision_events.append((obj_a, obj_b))
 
-    def get_collision_events(self) -> List[Tuple[Collidable, Collidable]]:
+    def get_collision_events(self) -> list[tuple[Collidable, Collidable]]:
         """Returns the list of detected collision events for this frame."""
         return self._collision_events

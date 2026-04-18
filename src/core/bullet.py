@@ -1,5 +1,4 @@
 import pygame
-from typing import Optional, Tuple
 from loguru import logger
 from .game_object import GameObject
 from src.utils.constants import (
@@ -20,7 +19,7 @@ class Bullet(GameObject):
         y: float,
         direction: Direction,
         owner,
-        sprite: Optional[pygame.Surface] = None,
+        sprite: pygame.Surface | None = None,
         speed: float = BULLET_SPEED,
         power_bullet: bool = False,
     ) -> None:
@@ -39,7 +38,7 @@ class Bullet(GameObject):
         self.direction: Direction = direction
         self.speed: float = speed
         self.active: bool = True
-        self.color: Tuple[int, int, int] = WHITE
+        self.color: tuple[int, int, int] = WHITE
         self.prev_x: float = x
         self.prev_y: float = y
         self.owner = owner

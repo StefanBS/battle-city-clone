@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import pygame
 from loguru import logger
@@ -34,7 +34,7 @@ class PlayerManager:
     """
 
     def __init__(
-        self, texture_manager: "TextureManager", sound_manager: "SoundManager"
+        self, texture_manager: TextureManager, sound_manager: SoundManager
     ) -> None:
         """Initialize PlayerManager.
 
@@ -52,7 +52,7 @@ class PlayerManager:
 
     def create_players(
         self,
-        game_map: "Map",
+        game_map: Map,
         controller_instance_ids: list[int],
         two_player_mode: bool = False,
     ) -> None:
@@ -122,7 +122,7 @@ class PlayerManager:
         for pi in self._player_inputs:
             pi.clear_pending_shoot()
 
-    def update(self, dt: float, game_map: "Map") -> None:
+    def update(self, dt: float, game_map: Map) -> None:
         """Process input, move players, and handle ice sliding.
 
         For each live player:
@@ -177,7 +177,7 @@ class PlayerManager:
                     1 for b in self._bullets if b.owner is player and b.active
                 )
                 if active_count < player.max_bullets:
-                    bullet: Optional[Bullet] = player.shoot()
+                    bullet: Bullet | None = player.shoot()
                     if bullet is not None:
                         self._bullets.append(bullet)
                         self._sound_manager.play("shoot")

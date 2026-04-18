@@ -1,5 +1,4 @@
 import pygame
-from typing import Optional
 from loguru import logger
 from .game_object import GameObject
 from .bullet import Bullet
@@ -28,7 +27,7 @@ class Tank(GameObject):
         y: float,
         texture_manager: TextureManager,
         tile_size: int = TILE_SIZE,
-        sprite: Optional[pygame.Surface] = None,
+        sprite: pygame.Surface | None = None,
         health: int = 1,
         lives: int = 1,
         speed: float = TANK_SPEED,
@@ -141,17 +140,15 @@ class Tank(GameObject):
         logger.debug(f"Tank {self.owner_type} health now {self.health}.")
         return False
 
-    def shoot(self) -> Optional[Bullet]:
+    def shoot(self) -> Bullet | None:
         """Create and return a new bullet.
 
         Returns:
             A new Bullet instance, or None if creation fails.
         """
         logger.debug(
-            (
-                f"Tank {self.owner_type} at ({self.x}, {self.y}) shooting "
-                f"in direction {self.direction}."
-            )
+            f"Tank {self.owner_type} at ({self.x}, {self.y}) shooting "
+            f"in direction {self.direction}."
         )
         bullet_x = self.x + self.width // 2 - BULLET_SIZE // 2
         bullet_y = self.y + self.height // 2 - BULLET_SIZE // 2
@@ -323,7 +320,7 @@ class Tank(GameObject):
         self._moving_this_frame = True
         return True  # Movement was attempted
 
-    def revert_move(self, obstacle_rect: Optional[pygame.Rect] = None) -> None:
+    def revert_move(self, obstacle_rect: pygame.Rect | None = None) -> None:
         """
         Reverts the tank to its previous position or snaps it to an obstacle.
         If obstacle_rect is provided, snaps to it based on self.direction.

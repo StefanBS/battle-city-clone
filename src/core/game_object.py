@@ -2,7 +2,6 @@
 Base GameObject class for all game entities.
 """
 
-from typing import Tuple, Optional
 import pygame
 from loguru import logger
 
@@ -16,7 +15,7 @@ class GameObject:
         y: float,
         width: int,
         height: int,
-        sprite: Optional[pygame.Surface] = None,
+        sprite: pygame.Surface | None = None,
     ) -> None:
         """
         Initialize a game object.
@@ -58,7 +57,7 @@ class GameObject:
         else:
             pygame.draw.rect(surface, (255, 0, 0), self.rect)  # Debug red rectangle
 
-    def get_position(self) -> Tuple[float, float]:
+    def get_position(self) -> tuple[float, float]:
         """Get the current position of the object."""
         return (self.x, self.y)
 

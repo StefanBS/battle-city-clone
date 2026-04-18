@@ -1,6 +1,6 @@
 import os
 import pygame
-from typing import Callable, List, Optional
+from collections.abc import Callable
 from loguru import logger
 from src.core.map import Map
 from src.core.player_tank import PlayerTank
@@ -244,7 +244,7 @@ class GameManager:
             powerup_carrier_indices=self.map.powerup_carrier_indices,
         )
 
-        self.bullets: List[Bullet] = []
+        self.bullets: list[Bullet] = []
 
         # Restore player progress
         self.player_manager.restore_state()
@@ -284,7 +284,7 @@ class GameManager:
                 logger.info("Returning to title screen.")
                 self._return_to_title()
 
-    def _active_menu(self) -> Optional[MenuController]:
+    def _active_menu(self) -> MenuController | None:
         if self.state == GameState.TITLE_SCREEN:
             return self._title_menu
         if self.state == GameState.PAUSED:
@@ -418,9 +418,9 @@ class GameManager:
 
         # --- Prepare data for Collision Manager ---
         # Built AFTER updates so newly fired bullets are included
-        tank_blocking_tiles: List[Tile] = self.map.get_blocking_tiles()
-        bullet_blocking_tiles: List[Tile] = self.map.get_bullet_blocking_tiles()
-        player_base: Optional[Tile] = self.map.get_base()
+        tank_blocking_tiles: list[Tile] = self.map.get_blocking_tiles()
+        bullet_blocking_tiles: list[Tile] = self.map.get_bullet_blocking_tiles()
+        player_base: Tile | None = self.map.get_base()
 
         player_bullets = self.player_manager.get_all_bullets()
 
@@ -520,7 +520,7 @@ class GameManager:
         self.state = state
 
     def _apply_power_up(
-        self, power_up_type: PowerUpType, player: Optional[PlayerTank] = None
+        self, power_up_type: PowerUpType, player: PlayerTank | None = None
     ) -> None:
         """Resolve the recipient and forward to PowerUpManager.apply."""
         if self.state != GameState.RUNNING:

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import random
-from typing import TYPE_CHECKING, List, Optional, Tuple
+from typing import TYPE_CHECKING
 
 import pygame
 from loguru import logger
@@ -40,18 +40,18 @@ class PowerUpManager:
     ) -> None:
         self._texture_manager = texture_manager
         self._game_map = game_map
-        self.active_power_ups: List[PowerUp] = []
+        self.active_power_ups: list[PowerUp] = []
         self.shovel_timer: float = 0.0
-        self._shovel_original_tiles: List[Tuple[Tile, TileType]] = []
+        self._shovel_original_tiles: list[tuple[Tile, TileType]] = []
         self._shovel_flash_timer: float = 0.0
         self._shovel_flash_showing_steel: bool = True
 
     def spawn_power_up(
         self,
-        player_tank: Optional[PlayerTank] = None,
-        enemy_tanks: Optional[List[EnemyTank]] = None,
-        power_up_type: Optional[PowerUpType] = None,
-        position: Optional[tuple[int, int]] = None,
+        player_tank: PlayerTank | None = None,
+        enemy_tanks: list[EnemyTank] | None = None,
+        power_up_type: PowerUpType | None = None,
+        position: tuple[int, int] | None = None,
     ) -> None:
         """Spawn a power-up, appending it to the active list.
 
@@ -87,8 +87,8 @@ class PowerUpManager:
         self,
         power_up_type: PowerUpType,
         player: PlayerTank,
-        spawn_manager: "SpawnManager",
-        effect_manager: "EffectManager",
+        spawn_manager: SpawnManager,
+        effect_manager: EffectManager,
     ) -> None:
         """Dispatch a power-up effect.
 
@@ -118,7 +118,7 @@ class PowerUpManager:
 
     @staticmethod
     def _detonate_bomb(
-        spawn_manager: "SpawnManager", effect_manager: "EffectManager"
+        spawn_manager: SpawnManager, effect_manager: EffectManager
     ) -> None:
         for enemy in list(spawn_manager.enemy_tanks):
             effect_manager.spawn(
@@ -176,11 +176,11 @@ class PowerUpManager:
                         target = TileType.STEEL if should_show_steel else orig_type
                         self._game_map.set_tile_type(tile, target)
 
-    def get_power_ups(self) -> List[PowerUp]:
+    def get_power_ups(self) -> list[PowerUp]:
         """Return the list of active power-ups for collision checking and rendering."""
         return self.active_power_ups
 
-    def collect_power_up(self, power_up: PowerUp) -> Optional[PowerUpType]:
+    def collect_power_up(self, power_up: PowerUp) -> PowerUpType | None:
         """Collect a specific power-up. Returns its type, or None if not found."""
         if power_up not in self.active_power_ups:
             return None
@@ -190,9 +190,9 @@ class PowerUpManager:
 
     def _find_spawn_position(
         self,
-        player_tank: Optional[PlayerTank],
-        enemy_tanks: List[EnemyTank],
-    ) -> Optional[tuple[int, int]]:
+        player_tank: PlayerTank | None,
+        enemy_tanks: list[EnemyTank],
+    ) -> tuple[int, int] | None:
         """Find a random walkable tile position not occupied by any tank."""
         walkable = []
         grid = self._game_map.tiles
