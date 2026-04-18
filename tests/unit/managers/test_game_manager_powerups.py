@@ -1,7 +1,7 @@
 import pytest
 import pygame
 from unittest.mock import MagicMock
-from src.managers.game_manager import GameManager
+from src.core.map import Map
 from src.managers.power_up_manager import PowerUpManager
 from src.utils.constants import (
     PowerUpType,
@@ -35,12 +35,14 @@ class TestPowerUpManagerApply:
         return MagicMock()
 
     @pytest.fixture
-    def manager(self):
-        # apply() does not read any PowerUpManager state except apply_shovel(),
-        # which is tested separately; a plain MagicMock-backed method is fine.
-        m = MagicMock(spec=PowerUpManager)
-        m.apply = PowerUpManager.apply.__get__(m)
-        m._detonate_bomb = PowerUpManager._detonate_bomb
+    def manager(self, mock_texture_manager):
+        """Real PowerUpManager with mocked deps.
+
+        ``apply_shovel`` is stubbed because the SHOVEL test only verifies
+        that ``apply()`` delegates — the shovel side-effects on the map
+        are covered elsewhere.
+        """
+        m = PowerUpManager(mock_texture_manager, MagicMock(spec=Map))
         m.apply_shovel = MagicMock()
         return m
 
@@ -131,38 +133,39 @@ class TestGameManagerApplyPowerUpDelegation:
     """GameManager._apply_power_up resolves the recipient and delegates."""
 
     @pytest.fixture
-    def game(self):
-        gm = MagicMock(spec=GameManager)
-        gm._apply_power_up = GameManager._apply_power_up.__get__(gm)
-        gm.state = GameState.RUNNING
-        mock_player = MagicMock()
-        mock_player.lives = 3
-        gm._test_player = mock_player
-        gm.player_manager = MagicMock()
-        gm.player_manager.get_active_players.return_value = [mock_player]
-        gm.spawn_manager = MagicMock()
-        gm.effect_manager = MagicMock()
-        gm.power_up_manager = MagicMock()
-        return gm
+    def game(self, game_manager):
+        """Real GameManager from the shared fixture with power_up_manager
+        swapped for a mock we can assert on. State is forced to RUNNING
+        because `_reset_game` leaves the manager mid-transition."""
+        game_manager.state = GameState.RUNNING
+        game_manager.power_up_manager = MagicMock()
+        return game_manager
 
-    def test_delegates_to_power_up_manager(self, game):
+    @pytest.fixture
+    def player(self, game):
+        p = MagicMock()
+        p.lives = 3
+        game.player_manager.get_active_players.return_value = [p]
+        return p
+
+    def test_delegates_to_power_up_manager(self, game, player):
         game._apply_power_up(PowerUpType.EXTRA_LIFE)
         game.power_up_manager.apply.assert_called_once_with(
             PowerUpType.EXTRA_LIFE,
-            game._test_player,
+            player,
             game.spawn_manager,
             game.effect_manager,
         )
 
-    def test_skipped_when_not_running(self, game):
+    def test_skipped_when_not_running(self, game, player):
         game.state = GameState.GAME_OVER
         game._apply_power_up(PowerUpType.EXTRA_LIFE)
         game.power_up_manager.apply.assert_not_called()
 
-    def test_falls_back_to_first_active_player(self, game):
+    def test_falls_back_to_first_active_player(self, game, player):
         game._apply_power_up(PowerUpType.HELMET)
         args = game.power_up_manager.apply.call_args.args
-        assert args[1] is game._test_player
+        assert args[1] is player
 
     def test_noop_when_no_active_players(self, game):
         game.player_manager.get_active_players.return_value = []
