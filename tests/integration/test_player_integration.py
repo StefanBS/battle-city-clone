@@ -430,25 +430,20 @@ def test_player_respawn():
     # 5. Verify invincibility wears off after duration
     invincibility_duration = player_tank.invincibility_duration
     dt = 1.0 / FPS
-    # Calculate number of updates to *exceed* the duration slightly
-    num_updates_to_exceed_duration = int(invincibility_duration / dt) + 2
+    num_updates_during = int(invincibility_duration / dt)
 
-    # Update until invincibility should have worn off
-    for i in range(num_updates_to_exceed_duration):
-        # Check if invincibility wore off early (optional, but good for debugging)
-        if not player_tank.is_invincible and i * dt < invincibility_duration:
-            logger.warning(
-                f"Invincibility wore off early at frame {i + 1} ({i * dt:.2f}s)"
-            )
-            # We can continue or fail here depending on strictness
-            break
-        game_manager.update()  # Need to update game manager for timers
+    # While the elapsed game time is still within the invincibility window,
+    # invincibility MUST remain active. A regression that shortens the window
+    # should fail the test here rather than silently pass.
+    for i in range(num_updates_during):
+        assert player_tank.is_invincible, (
+            f"Invincibility wore off early at frame {i + 1} "
+            f"({i * dt:.2f}s of {invincibility_duration}s)"
+        )
+        game_manager.update()
 
-        # Exit loop once invincibility wears off
-        if not player_tank.is_invincible:
-            logger.info(
-                f"Invincibility wore off as expected at frame {i + 1} ({i * dt:.2f}s)"
-            )
-            break
+    # Tick past the threshold; invincibility should now have expired.
+    for _ in range(2):
+        game_manager.update()
 
     assert not player_tank.is_invincible, "Player invincibility did not wear off."
