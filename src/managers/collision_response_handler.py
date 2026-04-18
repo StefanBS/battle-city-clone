@@ -86,11 +86,13 @@ class CollisionResponseHandler:
             if is_bullet_pair:
                 # Identify the bullet(s)
                 bullet = a if isinstance(a, Bullet) else b
-                if bullet in processed_bullets:
+                if not bullet.active or bullet in processed_bullets:
                     continue
-                # Also check if the other is a bullet and processed
+                # Also check if the other is a bullet and processed/inactive
                 other = b if bullet is a else a
-                if isinstance(other, Bullet) and other in processed_bullets:
+                if isinstance(other, Bullet) and (
+                    not other.active or other in processed_bullets
+                ):
                     continue
 
                 result = handler(a, b, enemies_to_remove)
@@ -148,8 +150,6 @@ class CollisionResponseHandler:
         enemy: EnemyTank,
         enemies_to_remove: list[EnemyTank],
     ) -> bool:
-        if not bullet.active:
-            return False
         if bullet.owner_type != OwnerType.PLAYER:
             return False
         logger.debug(f"Player bullet hit enemy tank (type: {enemy.tank_type})")
@@ -176,9 +176,6 @@ class CollisionResponseHandler:
         player: PlayerTank,
         enemies_to_remove: list[EnemyTank],
     ) -> bool:
-        if not bullet.active:
-            return False
-
         if getattr(bullet, "owner", None) is player:
             return False
 
@@ -218,8 +215,6 @@ class CollisionResponseHandler:
         tile: Tile,
         enemies_to_remove: list[EnemyTank],
     ) -> bool:
-        if not bullet.active:
-            return False
         if not tile.blocks_bullets:
             return False
 
@@ -253,8 +248,6 @@ class CollisionResponseHandler:
         bullet_b: Bullet,
         enemies_to_remove: list[EnemyTank],
     ) -> bool:
-        if not bullet_a.active or not bullet_b.active:
-            return False
         logger.debug("Bullet hit bullet. Both deactivated.")
         bullet_a.active = False
         bullet_b.active = False
