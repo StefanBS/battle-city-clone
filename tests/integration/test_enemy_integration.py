@@ -12,27 +12,8 @@ from src.utils.constants import (
 )
 from src.core.tile import Tile, TileType
 from src.core.enemy_tank import EnemyTank
-from tests.integration.conftest import first_player
+from tests.integration.conftest import first_player, flush_pending_spawns
 import random
-
-
-def _complete_pending_spawns(game_manager, max_ticks=60):
-    """Tick effect updates until all pending spawn animations finish."""
-    dt = 1.0 / FPS
-    sm = game_manager.spawn_manager
-    em = game_manager.effect_manager
-    for _ in range(max_ticks):
-        if not sm._pending_spawns:
-            break
-        # Only tick effects and check pending spawns — don't advance spawn timer
-        em.update(dt)
-        still_pending = []
-        for pending in sm._pending_spawns:
-            if not pending.effect.active:
-                sm._materialize_enemy(pending.x, pending.y, pending.tank_type)
-            else:
-                still_pending.append(pending)
-        sm._pending_spawns = still_pending
 
 
 # Tests related to enemy behavior: spawning, movement, shooting
@@ -114,7 +95,7 @@ def test_enemy_spawning_rules(game_manager_fixture):
                 f"Before: {total_spawned_before}, "
                 f"After: {total_spawned_after}"
             )
-            _complete_pending_spawns(game_manager)
+            flush_pending_spawns(game_manager)
             # Verify the newly spawned enemy position
             assert game_manager.spawn_manager.enemy_tanks, (
                 "Enemy should have materialized after spawn animation"
@@ -213,7 +194,7 @@ def test_enemy_spawn_blocked(game_manager_fixture):
         spawned_count_after = len(game_manager.spawn_manager.enemy_tanks)
 
         if spawn_success:
-            _complete_pending_spawns(game_manager)
+            flush_pending_spawns(game_manager)
             spawned_count_after = len(game_manager.spawn_manager.enemy_tanks)
             assert spawned_count_after == spawned_count_before + 1
             new_enemy = game_manager.spawn_manager.enemy_tanks[-1]
