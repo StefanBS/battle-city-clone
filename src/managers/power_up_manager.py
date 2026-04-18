@@ -13,6 +13,7 @@ from src.core.player_tank import PlayerTank
 from src.core.power_up import PowerUp
 from src.core.map import Map
 from src.managers.texture_manager import TextureManager
+from src.utils.animation import is_blink_visible
 from src.utils.constants import (
     CLOCK_FREEZE_DURATION,
     EffectType,
@@ -165,9 +166,8 @@ class PowerUpManager:
             return
         if self.shovel_timer <= SHOVEL_WARNING_DURATION:
             self._shovel_flash_timer += dt
-            should_show_steel = (
-                self._shovel_flash_timer % (SHOVEL_FLASH_INTERVAL * 2)
-                < SHOVEL_FLASH_INTERVAL
+            should_show_steel = is_blink_visible(
+                self._shovel_flash_timer, SHOVEL_FLASH_INTERVAL
             )
             if should_show_steel != self._shovel_flash_showing_steel:
                 self._shovel_flash_showing_steel = should_show_steel
