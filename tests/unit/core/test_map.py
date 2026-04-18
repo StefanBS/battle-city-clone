@@ -1,6 +1,8 @@
+from typing import Optional
+
 import pytest
 from unittest.mock import MagicMock
-from src.core.map import Map
+from src.core.map import Map, load_spawn_points
 from src.core.tile import TileType
 from src.utils.constants import (
     Difficulty,
@@ -555,74 +557,85 @@ class TestGetBaseSurroundingTiles:
             assert tile.type != TileType.EMPTY
 
 
-class TestMapPlayerSpawn2:
+def _mock_spawn_obj(name: str, x: int, y: int, properties: Optional[dict] = None):
+    """Build a minimal TMX-like spawn object for load_spawn_points tests."""
+    obj = MagicMock()
+    obj.name = name
+    obj.x = x
+    obj.y = y
+    obj.properties = properties or {}
+    return obj
+
+
+def _mock_tiled_map(spawn_objects, tilewidth: int = 8, tileheight: int = 8):
+    """Build a minimal TMX-like map wrapping the given spawn objects."""
+    tiled = MagicMock()
+    tiled.tilewidth = tilewidth
+    tiled.tileheight = tileheight
+    layer = MagicMock()
+    layer.name = "spawn_points"
+    layer.__iter__ = lambda self: iter(spawn_objects)
+    tiled.objectgroups = [layer]
+    return tiled
+
+
+class TestLoadSpawnPoints:
+    """Unit tests for the pure load_spawn_points function."""
+
     def test_player_spawn_2_loaded_from_tmx(self):
         """player_spawn_2 is loaded from spawn_points object layer."""
-        map_obj = Map.__new__(Map)
-        map_obj.player_spawn = (0, 0)
-        map_obj.player_spawn_2 = None
-        map_obj.spawn_points = []
-        map_obj.width = 26
-        map_obj.height = 26
+        tiled = _mock_tiled_map(
+            [
+                _mock_spawn_obj("player_spawn", 64, 192),
+                _mock_spawn_obj("player_spawn_2", 128, 192),
+                _mock_spawn_obj("enemy_spawn", 0, 0),
+            ]
+        )
 
-        mock_tiled = MagicMock()
-        mock_tiled.tilewidth = 8
-        mock_tiled.tileheight = 8
+        result = load_spawn_points(tiled, map_width=26, map_height=26)
 
-        mock_obj_p1 = MagicMock()
-        mock_obj_p1.name = "player_spawn"
-        mock_obj_p1.x = 64
-        mock_obj_p1.y = 192
-        mock_obj_p1.properties = {}
-
-        mock_obj_p2 = MagicMock()
-        mock_obj_p2.name = "player_spawn_2"
-        mock_obj_p2.x = 128
-        mock_obj_p2.y = 192
-        mock_obj_p2.properties = {}
-
-        mock_obj_enemy = MagicMock()
-        mock_obj_enemy.name = "enemy_spawn"
-        mock_obj_enemy.x = 0
-        mock_obj_enemy.y = 0
-        mock_obj_enemy.properties = {}
-
-        mock_layer = MagicMock()
-        mock_layer.name = "spawn_points"
-        objs = [mock_obj_p1, mock_obj_p2, mock_obj_enemy]
-        mock_layer.__iter__ = lambda self: iter(objs)
-        mock_tiled.objectgroups = [mock_layer]
-
-        map_obj._load_spawn_points(mock_tiled)
-
-        assert map_obj.player_spawn == (8, 24)
-        assert map_obj.player_spawn_2 == (16, 24)
-        assert len(map_obj.spawn_points) == 1
+        assert result.player_spawn == (8, 24)
+        assert result.player_spawn_2 == (16, 24)
+        assert len(result.enemy_spawns) == 1
 
     def test_player_spawn_2_defaults_to_none(self):
         """player_spawn_2 is None when not present in TMX."""
-        map_obj = Map.__new__(Map)
-        map_obj.player_spawn = (0, 0)
-        map_obj.player_spawn_2 = None
-        map_obj.spawn_points = []
-        map_obj.width = 26
-        map_obj.height = 26
+        tiled = _mock_tiled_map([_mock_spawn_obj("player_spawn", 64, 192)])
 
-        mock_tiled = MagicMock()
-        mock_tiled.tilewidth = 8
-        mock_tiled.tileheight = 8
+        result = load_spawn_points(tiled, map_width=26, map_height=26)
 
-        mock_obj_p1 = MagicMock()
-        mock_obj_p1.name = "player_spawn"
-        mock_obj_p1.x = 64
-        mock_obj_p1.y = 192
-        mock_obj_p1.properties = {}
+        assert result.player_spawn_2 is None
 
-        mock_layer = MagicMock()
-        mock_layer.name = "spawn_points"
-        mock_layer.__iter__ = lambda self: iter([mock_obj_p1])
-        mock_tiled.objectgroups = [mock_layer]
+    def test_missing_spawn_layer_falls_back(self):
+        """A map with no spawn_points layer yields a centered-bottom default."""
+        tiled = MagicMock()
+        tiled.objectgroups = []
 
-        map_obj._load_spawn_points(mock_tiled)
+        result = load_spawn_points(tiled, map_width=26, map_height=26)
 
-        assert map_obj.player_spawn_2 is None
+        assert result.player_spawn == (26 // 2 - 1, 26 - 2)
+        assert result.player_spawn_2 is None
+        assert result.enemy_spawns == []
+
+    def test_missing_player_spawn_falls_back(self):
+        """Spawn layer with no player_spawn object uses bottom-center default."""
+        tiled = _mock_tiled_map([_mock_spawn_obj("enemy_spawn", 0, 0)])
+
+        result = load_spawn_points(tiled, map_width=26, map_height=26)
+
+        assert result.player_spawn == (26 // 2 - 2, 26 - 4)
+        assert result.enemy_spawns == [(0, 0)]
+
+    def test_spawn_point_type_property_wins_over_name(self):
+        """spawn_point_type property takes precedence over obj.name."""
+        tiled = _mock_tiled_map(
+            [
+                _mock_spawn_obj(
+                    "ignored", 64, 192, properties={"spawn_point_type": "player_spawn"}
+                ),
+            ]
+        )
+
+        result = load_spawn_points(tiled, map_width=26, map_height=26)
+
+        assert result.player_spawn == (8, 24)
