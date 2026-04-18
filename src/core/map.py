@@ -101,10 +101,8 @@ class Map:
         self._drawable_tiles: list[Tile] = []
         self._tile_cache_dirty: bool = True
         self._cached_tiles_by_type: dict = {}
-        self._cached_collidable_rects: list[pygame.Rect] = []
         self._cached_blocking_tiles: list[Tile] = []
         self._cached_bullet_blocking_tiles: list[Tile] = []
-        self._cached_base: Tile | None = None
 
         self._load_from_tmx(map_file)
         self._build_derived_tile_lists()
@@ -532,31 +530,21 @@ class Map:
     def _rebuild_tile_caches(self) -> None:
         """Rebuild all cached tile lists from the grid."""
         self._cached_tiles_by_type = {}
-        collidable_rects = []
         blocking_tiles: list[Tile] = []
         bullet_blocking_tiles: list[Tile] = []
-        base = None
 
         for row in self.tiles:
             for tile in row:
                 if not tile:
                     continue
-                tt = tile.type
-                if tt not in self._cached_tiles_by_type:
-                    self._cached_tiles_by_type[tt] = []
-                self._cached_tiles_by_type[tt].append(tile)
+                self._cached_tiles_by_type.setdefault(tile.type, []).append(tile)
                 if tile.blocks_tanks:
-                    collidable_rects.append(tile.rect)
                     blocking_tiles.append(tile)
                 if tile.blocks_bullets:
                     bullet_blocking_tiles.append(tile)
-                if tt == TileType.BASE and base is None:
-                    base = tile
 
-        self._cached_collidable_rects = collidable_rects
         self._cached_blocking_tiles = blocking_tiles
         self._cached_bullet_blocking_tiles = bullet_blocking_tiles
-        self._cached_base = base
         self._tile_cache_dirty = False
 
     def _ensure_cache(self) -> None:
@@ -596,12 +584,13 @@ class Map:
     def get_base(self) -> Tile | None:
         """Find and return a player base tile, if it exists."""
         self._ensure_cache()
-        return self._cached_base
+        base_tiles = self._cached_tiles_by_type.get(TileType.BASE)
+        return base_tiles[0] if base_tiles else None
 
     def get_collidable_tiles(self) -> list[pygame.Rect]:
         """Get a list of rectangles for all collidable tiles."""
         self._ensure_cache()
-        return self._cached_collidable_rects
+        return [t.rect for t in self._cached_blocking_tiles]
 
     def get_blocking_tiles(self) -> list[Tile]:
         """Get all tiles that block tank movement."""

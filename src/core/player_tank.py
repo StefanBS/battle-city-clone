@@ -49,7 +49,6 @@ class PlayerTank(Tank):
             y,
             texture_manager,
             tile_size,
-            None,
             health=1,
             lives=INITIAL_PLAYER_LIVES,
             owner_type=OwnerType.PLAYER,

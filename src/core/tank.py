@@ -27,7 +27,6 @@ class Tank(GameObject):
         y: float,
         texture_manager: TextureManager,
         tile_size: int = TILE_SIZE,
-        sprite: pygame.Surface | None = None,
         health: int = 1,
         lives: int = 1,
         speed: float = TANK_SPEED,
@@ -45,7 +44,6 @@ class Tank(GameObject):
             y: Initial y position
             texture_manager: TextureManager instance
             tile_size: Size of a tile in pixels
-            sprite: Optional sprite surface
             health: Initial health points
             lives: Number of lives
             speed: Movement speed in pixels per second
@@ -54,11 +52,10 @@ class Tank(GameObject):
             map_width_px: Map width in pixels (for boundary clamping)
             map_height_px: Map height in pixels (for boundary clamping)
         """
-        # Snap to grid
         x = round(x / tile_size) * tile_size
         y = round(y / tile_size) * tile_size
         logger.debug(f"Creating Tank at ({x}, {y})")
-        super().__init__(x, y, TILE_SIZE, TILE_SIZE, sprite)
+        super().__init__(x, y, TILE_SIZE, TILE_SIZE)
         self.texture_manager = texture_manager
         self.speed = speed
         self.bullet_speed = bullet_speed
@@ -91,17 +88,13 @@ class Tank(GameObject):
 
     def _update_sprite(self) -> None:
         """Updates the tank's sprite based on direction and animation frame."""
-
         sprite_name = f"{self.owner_type}_tank_{self.direction}_{self.animation_frame}"
         try:
             self.sprite = self.texture_manager.get_sprite(sprite_name)
-
         except KeyError:
             logger.error(
                 f"Sprite '{sprite_name}' not found for {self.owner_type} tank."
             )
-            # Optionally keep the old sprite or use a fallback
-            # self.sprite = self.texture_manager.get_sprite("fallback_sprite") # Example
 
     def take_damage(self, amount: int = 1) -> bool:
         """
@@ -248,15 +241,18 @@ class Tank(GameObject):
         self._slide_remaining = ICE_SLIDE_DISTANCE
         return True
 
+    def _clamped_xy(self, x: float, y: float) -> tuple[float, float]:
+        """Return (x, y) clamped to map bounds."""
+        max_x = float(self.map_width_px - self.width)
+        max_y = float(self.map_height_px - self.height)
+        return max(0.0, min(x, max_x)), max(0.0, min(y, max_y))
+
     def _apply_clamped_position(self, target_x: float, target_y: float) -> None:
         """Move to target position, clamping to map bounds.
 
         Calls on_movement_blocked() if the position was clamped.
         """
-        max_x = float(self.map_width_px - self.width)
-        max_y = float(self.map_height_px - self.height)
-        self.x = max(0.0, min(target_x, max_x))
-        self.y = max(0.0, min(target_y, max_y))
+        self.x, self.y = self._clamped_xy(target_x, target_y)
         if self.x != target_x or self.y != target_y:
             self.on_movement_blocked()
         self.rect.topleft = (round(self.x), round(self.y))
@@ -327,9 +323,7 @@ class Tank(GameObject):
         Otherwise, reverts to self.prev_x, self.prev_y.
         """
         if obstacle_rect:
-            # Start with current (collided) position as a basis for snapping
             snapped_x, snapped_y = self.x, self.y
-
             dx, dy = self.direction.delta
             if dx > 0:
                 snapped_x = float(obstacle_rect.left - self.width)
@@ -339,17 +333,8 @@ class Tank(GameObject):
                 snapped_y = float(obstacle_rect.top - self.height)
             elif dy < 0:
                 snapped_y = float(obstacle_rect.bottom)
-
-            self.x = snapped_x
-            self.y = snapped_y
-
-            # Clamp to map bounds
-            max_x = float(self.map_width_px - self.width)
-            max_y = float(self.map_height_px - self.height)
-            self.x = max(0.0, min(self.x, max_x))
-            self.y = max(0.0, min(self.y, max_y))
-
-        else:  # Fallback to previous position if no obstacle_rect is given
+            self.x, self.y = self._clamped_xy(snapped_x, snapped_y)
+        else:
             self.x = self.prev_x
             self.y = self.prev_y
 

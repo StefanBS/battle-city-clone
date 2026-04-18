@@ -87,7 +87,6 @@ class EnemyTank(Tank):
             y,
             texture_manager,
             tile_size,
-            None,
             health=props["health"],
             lives=1,
             speed=props["speed"],

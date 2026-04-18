@@ -90,8 +90,8 @@ class Bullet(GameObject):
         """
         x1 = min(self.prev_x, self.x)
         y1 = min(self.prev_y, self.y)
-        x2 = max(self.prev_x + self.width, self.x + self.width)
-        y2 = max(self.prev_y + self.height, self.y + self.height)
+        x2 = max(self.prev_x, self.x) + self.width
+        y2 = max(self.prev_y, self.y) + self.height
         return pygame.Rect(round(x1), round(y1), round(x2 - x1), round(y2 - y1))
 
     def draw(self, surface: pygame.Surface) -> None:
