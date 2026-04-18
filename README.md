@@ -76,7 +76,6 @@ battle-city-clone/
 │   │
 │   └── utils/
 │       ├── constants.py                   # Sizes, speeds, grid dimensions, enums, colors
-│       ├── collections.py                 # Shared collection helpers (update_and_prune)
 │       └── paths.py                       # Resource path resolution (dev and packaged)
 │
 ├── assets/

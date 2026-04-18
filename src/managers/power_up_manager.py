@@ -13,7 +13,6 @@ from src.core.player_tank import PlayerTank
 from src.core.power_up import PowerUp
 from src.core.map import Map
 from src.managers.texture_manager import TextureManager
-from src.utils.collections import update_and_prune
 from src.utils.constants import (
     CLOCK_FREEZE_DURATION,
     EffectType,
@@ -79,7 +78,9 @@ class PowerUpManager:
 
     def update(self, dt: float) -> None:
         """Update all active power-ups; remove any that have timed out."""
-        self.active_power_ups = update_and_prune(self.active_power_ups, dt)
+        for power_up in self.active_power_ups:
+            power_up.update(dt)
+        self.active_power_ups = [p for p in self.active_power_ups if p.active]
         self._tick_shovel(dt)
 
     def apply(
