@@ -12,7 +12,6 @@ class TestEngineSoundWiring:
         """Verify update() calls update_engine without error during RUNNING."""
         gm = game_manager_fixture
         assert gm.state == GameState.RUNNING
-        # Run a few frames — should not raise
         for _ in range(5):
             gm.update()
 
@@ -71,10 +70,8 @@ class TestPowerupBlinkWiring:
     def test_update_runs_with_active_powerups(self, game_manager_fixture):
         """Verify update() doesn't error when powerups are active."""
         gm = game_manager_fixture
-        # Spawn a powerup directly
         gm.power_up_manager.spawn_power_up(
             first_player(gm), gm.spawn_manager.enemy_tanks
         )
         assert len(gm.power_up_manager.get_power_ups()) > 0
-        # Run a frame — should not raise
         gm.update()
