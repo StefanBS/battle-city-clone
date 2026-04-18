@@ -6,7 +6,7 @@
 #define MyAppExeName "BattleCity.exe"
 
 [Setup]
-AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}
+AppId={{1EE01768-3762-4299-A5D0-BFCAF23FE9C5}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
@@ -16,7 +16,8 @@ AllowNoIcons=yes
 OutputDir=..\..\dist
 OutputBaseFilename=BattleCitySetup-{#MyAppVersion}
 SetupIconFile=..\..\assets\icons\battle-city.ico
-Compression=lzma
+Compression=lzma2/max
+LZMACompressionThreads=auto
 SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=lowest
@@ -28,7 +29,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "..\..\dist\BattleCity\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\..\dist\BattleCity\*"; DestDir: "{app}"; Excludes: "*.pdb,*.pyc,__pycache__\*"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\_internal\assets\icons\battle-city.ico"
