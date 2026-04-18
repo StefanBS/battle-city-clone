@@ -23,7 +23,7 @@ class PowerUp(GameObject):
         power_up_type: PowerUpType,
         texture_manager: TextureManager,
     ) -> None:
-        sprite = texture_manager.get_sprite(f"powerup_{power_up_type.value}")
+        sprite = texture_manager.get_sprite(f"powerup_{power_up_type}")
         super().__init__(x, y, TILE_SIZE, TILE_SIZE, sprite)
         self.power_up_type = power_up_type
         self.blink_timer: float = 0.0

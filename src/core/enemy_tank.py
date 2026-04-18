@@ -80,7 +80,7 @@ class EnemyTank(Tank):
             map_height_px: Map height in pixels (for boundary clamping)
         """
         config = _get_enemy_config()
-        props = config[tank_type.value]
+        props = config[tank_type]
 
         super().__init__(
             x,
@@ -112,7 +112,7 @@ class EnemyTank(Tank):
 
         # Compute effective AI biases from difficulty config + type multipliers
         difficulty_config = config.get("difficulty", {}).get(
-            difficulty.value,
+            difficulty,
             {"base_bias": 0.0, "player_bias": 0.0, "aligned_shoot_multiplier": 1.0},
         )
         self.effective_base_bias: float = difficulty_config["base_bias"] * props.get(

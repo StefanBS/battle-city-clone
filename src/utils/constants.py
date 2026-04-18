@@ -2,70 +2,47 @@
 Game constants and configuration values.
 """
 
-from enum import Enum, auto
+from enum import Enum, StrEnum, auto
 from typing import Tuple
 
 
-class Direction(str, Enum):
-    UP = "up"
-    DOWN = "down"
-    LEFT = "left"
-    RIGHT = "right"
+class Direction(StrEnum):
+    UP = ("up", 0, -1)
+    DOWN = ("down", 0, 1)
+    LEFT = ("left", -1, 0)
+    RIGHT = ("right", 1, 0)
 
-    def __str__(self) -> str:
-        return self.value
-
-    @property
-    def opposite(self) -> "Direction":
-        """Return the opposite direction."""
-        return _OPPOSITE_DIRECTIONS[self]
-
-    @property
-    def delta(self) -> Tuple[int, int]:
-        """Return the (dx, dy) unit vector for this direction."""
-        return _DIRECTION_DELTAS[self]
+    def __new__(cls, value: str, dx: int, dy: int) -> "Direction":
+        obj = str.__new__(cls, value)
+        obj._value_ = value
+        obj.delta = (dx, dy)
+        return obj
 
 
-# Lookup tables defined after the enum class
-_OPPOSITE_DIRECTIONS: dict["Direction", "Direction"] = {
-    Direction.UP: Direction.DOWN,
-    Direction.DOWN: Direction.UP,
-    Direction.LEFT: Direction.RIGHT,
-    Direction.RIGHT: Direction.LEFT,
-}
-
-_DIRECTION_DELTAS: dict["Direction", Tuple[int, int]] = {
-    Direction.UP: (0, -1),
-    Direction.DOWN: (0, 1),
-    Direction.LEFT: (-1, 0),
-    Direction.RIGHT: (1, 0),
-}
+# Wire up per-member opposites as plain attributes so `Direction.UP.opposite`
+# is an attribute lookup, not a dict lookup through a module-level table.
+_by_delta = {d.delta: d for d in Direction}
+for _d in Direction:
+    _dx, _dy = _d.delta
+    _d.opposite = _by_delta[(-_dx, -_dy)]
+del _by_delta, _d, _dx, _dy
 
 
-class OwnerType(str, Enum):
+class OwnerType(StrEnum):
     PLAYER = "player"
     ENEMY = "enemy"
 
-    def __str__(self) -> str:
-        return self.value
 
-
-class TankType(str, Enum):
+class TankType(StrEnum):
     BASIC = "basic"
     FAST = "fast"
     POWER = "power"
     ARMOR = "armor"
 
-    def __str__(self) -> str:
-        return self.value
 
-
-class Difficulty(str, Enum):
+class Difficulty(StrEnum):
     EASY = "easy"
     NORMAL = "normal"
-
-    def __str__(self) -> str:
-        return self.value
 
 
 # Points awarded per enemy tank type
@@ -92,16 +69,13 @@ class EffectType(Enum):
     SPAWN = auto()
 
 
-class PowerUpType(str, Enum):
+class PowerUpType(StrEnum):
     HELMET = "helmet"
     STAR = "star"
     BOMB = "bomb"
     CLOCK = "clock"
     SHOVEL = "shovel"
     EXTRA_LIFE = "extra_life"
-
-    def __str__(self) -> str:
-        return self.value
 
 
 # Power-up spawn settings

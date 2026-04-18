@@ -323,7 +323,7 @@ class Renderer:
 
         self._draw_centered_text("OPTIONS", self.font, WHITE, self._center_y - 80)
 
-        diff_label = f"DIFFICULTY  < {difficulty.value.upper()} >"
+        diff_label = f"DIFFICULTY  < {difficulty.upper()} >"
         filled = round(master_volume * 10)
         bar = "#" * filled + "-" * (10 - filled)
         pct = f"{round(master_volume * 100)}%"
