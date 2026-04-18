@@ -15,7 +15,6 @@ from src.managers.player_input import (
     KeyboardInput,
     PlayerInput,
 )
-from src.utils.collections import update_and_prune
 
 if TYPE_CHECKING:
     from src.core.map import Map
@@ -160,7 +159,9 @@ class PlayerManager:
             if has_valid_input and not player.is_sliding:
                 player.move(dx, dy, dt)
 
-        self._bullets = update_and_prune(self._bullets, dt)
+        for bullet in self._bullets:
+            bullet.update(dt)
+        self._bullets = [b for b in self._bullets if b.active]
 
     def try_shoot(self) -> None:
         """Check shoot input for each player and fire a bullet if possible.

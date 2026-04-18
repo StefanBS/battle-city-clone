@@ -3,7 +3,6 @@ from typing import Dict, List, Tuple
 from loguru import logger
 from src.core.effect import Effect
 from src.managers.texture_manager import TextureManager
-from src.utils.collections import update_and_prune
 from src.utils.constants import (
     ATLAS_BG_COLOR,
     EffectType,
@@ -106,7 +105,9 @@ class EffectManager:
         Args:
             dt: Time elapsed since last update in seconds.
         """
-        self.effects = update_and_prune(self.effects, dt)
+        for effect in self.effects:
+            effect.update(dt)
+        self.effects = [e for e in self.effects if e.active]
 
     def draw(self, surface: pygame.Surface) -> None:
         """Draw all active effects.
