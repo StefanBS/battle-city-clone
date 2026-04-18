@@ -26,7 +26,6 @@ modules:
         exec /app/lib/battle-city/BattleCity "$@"
         WRAPPER
       - chmod +x /app/bin/battle-city
-      # Desktop entry and icons
       - install -Dm644 com.battlecity.BattleCity.desktop /app/share/applications/com.battlecity.BattleCity.desktop
       - install -Dm644 icons/battle-city-64.png /app/share/icons/hicolor/64x64/apps/com.battlecity.BattleCity.png
       - install -Dm644 icons/battle-city-128.png /app/share/icons/hicolor/128x128/apps/com.battlecity.BattleCity.png
