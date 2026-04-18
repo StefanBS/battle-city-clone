@@ -1,7 +1,6 @@
 import pytest
 import pygame
 from loguru import logger
-from src.managers.game_manager import GameManager
 from src.utils.constants import (
     Direction,
     FPS,
@@ -23,10 +22,11 @@ from tests.integration.conftest import first_player
         (pygame.K_RIGHT, 0, 1, Direction.RIGHT),
     ],
 )
-def test_player_movement(key, axis, direction_sign, expected_direction):
+def test_player_movement(
+    game_manager_fixture, key, axis, direction_sign, expected_direction
+):
     """Test player tank movement and direction in all four directions."""
-    game_manager = GameManager()
-    game_manager._reset_game()
+    game_manager = game_manager_fixture
     player_tank = first_player(game_manager)
     game_map = game_manager.map
 
@@ -231,10 +231,9 @@ def test_player_movement_blocked_by_tile(
     )
 
 
-def test_player_shooting():
+def test_player_shooting(game_manager_fixture):
     """Test player shooting mechanics."""
-    game_manager = GameManager()
-    game_manager._reset_game()
+    game_manager = game_manager_fixture
     player_tank = first_player(game_manager)
 
     assert len(game_manager.bullets) == 0, "No bullets should exist initially."
@@ -268,7 +267,7 @@ def test_player_shooting():
 
 
 @pytest.mark.parametrize(
-    "direction_str, axis_index, direction_sign",
+    "direction, axis_index, direction_sign",
     [
         (Direction.UP, 1, -1),
         (Direction.DOWN, 1, 1),
@@ -276,19 +275,20 @@ def test_player_shooting():
         (Direction.RIGHT, 0, 1),
     ],
 )
-def test_player_bullet_movement(direction_str, axis_index, direction_sign):
+def test_player_bullet_movement(
+    game_manager_fixture, direction, axis_index, direction_sign
+):
     """Test that the player's bullet moves correctly after firing."""
-    game_manager = GameManager()
-    game_manager._reset_game()
+    game_manager = game_manager_fixture
     player_tank = first_player(game_manager)
 
-    player_tank.direction = direction_str
+    player_tank.direction = direction
     game_manager._try_shoot(player_tank)
 
     assert len(game_manager.bullets) == 1, "Bullet failed to spawn."
     bullet = next(b for b in game_manager.bullets if b.owner is player_tank)
     assert bullet.active, "Bullet spawned but is not active."
-    assert bullet.direction == direction_str, "Bullet has wrong direction."
+    assert bullet.direction == direction, "Bullet has wrong direction."
 
     initial_pos = bullet.get_position()
 
@@ -305,12 +305,12 @@ def test_player_bullet_movement(direction_str, axis_index, direction_sign):
 
     if direction_sign == -1:
         assert final_pos[axis_index] < initial_pos[axis_index], (
-            f"Bullet moved wrong way ({direction_str}). "
+            f"Bullet moved wrong way ({direction}). "
             f"Start: {initial_pos[axis_index]}, End: {final_pos[axis_index]}"
         )
     else:
         assert final_pos[axis_index] > initial_pos[axis_index], (
-            f"Bullet moved wrong way ({direction_str}). "
+            f"Bullet moved wrong way ({direction}). "
             f"Start: {initial_pos[axis_index]}, End: {final_pos[axis_index]}"
         )
 
@@ -321,10 +321,9 @@ def test_player_bullet_movement(direction_str, axis_index, direction_sign):
     )
 
 
-def test_player_respawn():
+def test_player_respawn(game_manager_fixture):
     """Test player respawn mechanics after taking lethal damage with lives remaining."""
-    game_manager = GameManager()
-    game_manager._reset_game()
+    game_manager = game_manager_fixture
     player_tank = first_player(game_manager)
 
     initial_lives = player_tank.lives
@@ -368,20 +367,20 @@ def test_player_respawn():
 
     invincibility_duration = player_tank.invincibility_duration
     dt = 1.0 / FPS
-    num_updates_to_exceed_duration = int(invincibility_duration / dt) + 2
+    num_updates_during = int(invincibility_duration / dt)
 
-    for i in range(num_updates_to_exceed_duration):
-        if not player_tank.is_invincible and i * dt < invincibility_duration:
-            logger.warning(
-                f"Invincibility wore off early at frame {i + 1} ({i * dt:.2f}s)"
-            )
-            break
+    # While the elapsed game time is still within the invincibility window,
+    # invincibility MUST remain active. A regression that shortens the window
+    # should fail the test here rather than silently pass.
+    for i in range(num_updates_during):
+        assert player_tank.is_invincible, (
+            f"Invincibility wore off early at frame {i + 1} "
+            f"({i * dt:.2f}s of {invincibility_duration}s)"
+        )
         game_manager.update()
 
-        if not player_tank.is_invincible:
-            logger.info(
-                f"Invincibility wore off as expected at frame {i + 1} ({i * dt:.2f}s)"
-            )
-            break
+    # Tick past the threshold; invincibility should now have expired.
+    for _ in range(2):
+        game_manager.update()
 
     assert not player_tank.is_invincible, "Player invincibility did not wear off."
