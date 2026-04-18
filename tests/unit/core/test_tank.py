@@ -7,8 +7,7 @@ from src.utils.constants import (
     SUB_TILE_SIZE,
     TANK_SPEED,
     TANK_ALIGN_THRESHOLD,
-    BULLET_WIDTH,
-    BULLET_HEIGHT,
+    BULLET_SIZE,
     FPS,
     ICE_SLIDE_DISTANCE,
 )
@@ -97,8 +96,8 @@ class TestTank:
         assert isinstance(bullet, Bullet)
         assert bullet.active
 
-        expected_x = tank.x + tank.width // 2 - BULLET_WIDTH // 2
-        expected_y = tank.y + tank.height // 2 - BULLET_HEIGHT // 2
+        expected_x = tank.x + tank.width // 2 - BULLET_SIZE // 2
+        expected_y = tank.y + tank.height // 2 - BULLET_SIZE // 2
         assert bullet.x == expected_x
         assert bullet.y == expected_y
 

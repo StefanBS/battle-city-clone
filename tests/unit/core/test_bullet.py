@@ -4,9 +4,8 @@ from unittest.mock import MagicMock, patch
 from src.core.bullet import Bullet
 from src.utils.constants import (
     Direction,
+    BULLET_SIZE,
     BULLET_SPEED,
-    BULLET_WIDTH,
-    BULLET_HEIGHT,
     TILE_SIZE,
 )
 
@@ -32,8 +31,8 @@ class TestBullet:
         assert bullet.active
         assert bullet.owner.owner_type == "test"
         assert bullet.owner_type == "test"
-        assert bullet.width == BULLET_WIDTH
-        assert bullet.height == BULLET_HEIGHT
+        assert bullet.width == BULLET_SIZE
+        assert bullet.height == BULLET_SIZE
 
     @pytest.mark.parametrize(
         "direction,expected_x,expected_y",

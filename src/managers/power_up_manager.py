@@ -20,7 +20,6 @@ from src.utils.constants import (
     HELMET_INVINCIBILITY_DURATION,
     PowerUpType,
     SHOVEL_DURATION,
-    SHOVEL_FLASH_CYCLE,
     SHOVEL_FLASH_INTERVAL,
     SHOVEL_WARNING_DURATION,
     TILE_SIZE,
@@ -166,7 +165,8 @@ class PowerUpManager:
         if self.shovel_timer <= SHOVEL_WARNING_DURATION:
             self._shovel_flash_timer += dt
             should_show_steel = (
-                self._shovel_flash_timer % SHOVEL_FLASH_CYCLE < SHOVEL_FLASH_INTERVAL
+                self._shovel_flash_timer % (SHOVEL_FLASH_INTERVAL * 2)
+                < SHOVEL_FLASH_INTERVAL
             )
             if should_show_steel != self._shovel_flash_showing_steel:
                 self._shovel_flash_showing_steel = should_show_steel
