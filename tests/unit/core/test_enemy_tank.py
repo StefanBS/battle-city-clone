@@ -42,7 +42,6 @@ EXPECTED_PROPERTIES = {
     },
 }
 
-# Test cases covering all tank types
 TEST_CASES = [(tank_type, props) for tank_type, props in EXPECTED_PROPERTIES.items()]
 
 
@@ -51,7 +50,6 @@ def test_enemy_tank_initialization_properties(
     mock_texture_manager, tank_type: TankType, expected: dict
 ):
     """Test that EnemyTank initializes with correct properties for each type."""
-    # Minimal required positional args for EnemyTank
     x, y = 0, 0
     tile_size = TILE_SIZE
 
@@ -65,23 +63,19 @@ def test_enemy_tank_initialization_properties(
         map_height_px=16 * TILE_SIZE,
     )
 
-    # Assert core properties set by the type
     assert tank.tank_type == tank_type
     assert tank.speed == pytest.approx(expected["speed"])
     assert tank.bullet_speed == pytest.approx(expected["bullet_speed"])
     assert tank.health == expected["health"]
-    assert tank.max_health == expected["health"]  # Should also be set
+    assert tank.max_health == expected["health"]
     assert tank.shoot_interval == pytest.approx(expected["shoot_interval"])
     assert tank.direction_change_interval == pytest.approx(
         expected["direction_change_interval"]
     )
 
-    # Assert other relevant properties
     assert tank.owner_type == "enemy"
-    assert tank.lives == 1  # Enemies should have 1 life
-    assert (
-        tank.x == x
-    )  # Check grid alignment effect is handled if needed (0 should be fine)
+    assert tank.lives == 1
+    assert tank.x == x
     assert tank.y == y
 
 
@@ -127,12 +121,9 @@ class TestEnemyConfigLoading:
 def test_enemy_tank_grid_alignment(mock_texture_manager):
     """Test that initial position is aligned to the grid."""
     tile_size = 32
-    # Non-aligned positions
     initial_x, initial_y = 15, 40
-    expected_x, expected_y = (
-        0 * tile_size,
-        1 * tile_size,
-    )  # round(15/32)*32=0, round(40/32)*32=32
+    # round(15/32)*32=0, round(40/32)*32=32
+    expected_x, expected_y = (0 * tile_size, 1 * tile_size)
 
     tank = EnemyTank(
         initial_x,
@@ -164,7 +155,6 @@ def test_on_movement_blocked(mock_random_choice, mock_texture_manager):
         map_height_px=16 * TILE_SIZE,
         difficulty=Difficulty.EASY,
     )
-    # Now set a known direction and mock the next choice
     tank.direction = Direction.UP
     tank.direction_timer = 1.5
 

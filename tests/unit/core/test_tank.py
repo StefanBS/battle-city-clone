@@ -77,20 +77,16 @@ class TestTank:
 
     def test_invincibility(self, tank):
         """Test invincibility mechanics."""
-        # Set invincibility
         tank.is_invincible = True
         tank.invincibility_duration = 3.0
 
-        # Try to take damage while invincible
         assert not tank.take_damage()
         assert tank.health == 1
         assert tank.lives == 1
 
-        # Update with time less than duration
         tank.update(1.0)
         assert tank.is_invincible
 
-        # Update with time more than duration
         tank.update(3.0)
         assert not tank.is_invincible
 
@@ -113,7 +109,6 @@ class TestTank:
         """Test continuous movement functionality."""
         dt = 1.0 / FPS
 
-        # Store previous position before moving
         tank.prev_x = tank.x
         tank.prev_y = tank.y
 
@@ -122,7 +117,6 @@ class TestTank:
         assert tank.x == pytest.approx(TANK_SPEED * dt)
         assert tank.y == 0
 
-        # Move again without any timer reset needed
         # Steering assist nudges x toward nearest grid line (0) when moving vertically
         tank.prev_x = tank.x
         tank.prev_y = tank.y
@@ -134,7 +128,6 @@ class TestTank:
         """Test edge cases for movement attempts."""
         dt = 1.0 / FPS
 
-        # Test moving with zero delta — should return False and not change state
         tank.prev_x = tank.x
         tank.prev_y = tank.y
         initial_frame = tank.animation_frame
@@ -143,11 +136,9 @@ class TestTank:
         assert tank.y == 0
         assert tank.animation_frame == initial_frame
 
-        # Test moving diagonally (should return False)
         tank.prev_x = tank.x
         tank.prev_y = tank.y
         assert not tank._move(1, 1, dt)
-        # Position should not change after failed diagonal attempt
         assert tank.x == 0
         assert tank.y == 0
 
@@ -218,10 +209,8 @@ class TestTank:
         tank = create_tank(x=max_x, y=max_y)
         tank.prev_x = tank.x
         tank.prev_y = tank.y
-        # Move right — should clamp at max_x
         tank._move(1, 0, 1.0 / FPS)
         assert tank.x <= max_x
-        # Move down — should clamp at max_y
         tank._move(0, 1, 1.0 / FPS)
         assert tank.y <= max_y
 
@@ -231,15 +220,12 @@ class TestTank:
         tank.prev_x = initial_x
         tank.prev_y = initial_y
 
-        # Simulate a move
         tank.x = initial_x + TILE_SIZE
         tank.y = initial_y
         tank.rect.topleft = (tank.x, tank.y)
 
-        # Revert the move
         tank.revert_move()
 
-        # Assert position is back to the stored previous position
         assert tank.x == initial_x
         assert tank.y == initial_y
         assert tank.rect.topleft == (initial_x, initial_y)

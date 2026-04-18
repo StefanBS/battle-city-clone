@@ -77,11 +77,9 @@ class TestGameManager:
 
     def test_handle_events_quit(self, game_manager):
         """Test handling quit event sets state to EXIT."""
-        # with pytest.raises(SystemExit): # Should not raise SystemExit anymore
         event = pygame.event.Event(pygame.QUIT)
         pygame.event.post(event)
         game_manager.handle_events()
-        # Check if state is set to EXIT
         assert game_manager.state == GameState.EXIT
 
     def test_handle_events_escape_during_running_pauses(
