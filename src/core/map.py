@@ -1,3 +1,4 @@
+from dataclasses import dataclass, field
 from typing import Iterable, List, Optional, Tuple
 import pygame
 import pytmx
@@ -13,6 +14,65 @@ from src.utils.constants import (
     SUB_TILE_SIZE,
     TankType,
 )
+
+
+@dataclass(frozen=True)
+class SpawnPoints:
+    """Spawn-point layout parsed from a TMX map."""
+
+    player_spawn: Tuple[int, int]
+    player_spawn_2: Optional[Tuple[int, int]] = None
+    enemy_spawns: List[Tuple[int, int]] = field(default_factory=list)
+
+
+def load_spawn_points(
+    tiled_map: pytmx.TiledMap, map_width: int, map_height: int
+) -> SpawnPoints:
+    """Parse spawn points and player spawn(s) from a TMX object layer.
+
+    Converts TMX pixel coordinates to grid coordinates. Missing spawn
+    layers or missing player_spawn objects fall back to sensible defaults
+    derived from the map dimensions.
+    """
+    spawn_layer = next(
+        (g for g in tiled_map.objectgroups if g.name == "spawn_points"),
+        None,
+    )
+    if spawn_layer is None:
+        logger.warning("No 'spawn_points' object layer found in TMX")
+        return SpawnPoints(player_spawn=(map_width // 2 - 1, map_height - 2))
+
+    player_spawn: Optional[Tuple[int, int]] = None
+    player_spawn_2: Optional[Tuple[int, int]] = None
+    enemy_spawns: List[Tuple[int, int]] = []
+    tmx_tw = tiled_map.tilewidth
+    tmx_th = tiled_map.tileheight
+    for obj in spawn_layer:
+        grid_x = int(obj.x // tmx_tw)
+        grid_y = int(obj.y // tmx_th)
+
+        # Prefer spawn_point_type property, fall back to object name
+        obj_props = obj.properties if hasattr(obj, "properties") else {}
+        spawn_type = obj_props.get("spawn_point_type") if obj_props else None
+        if spawn_type is None:
+            spawn_type = obj.name
+
+        if spawn_type == "player_spawn":
+            player_spawn = (grid_x, grid_y)
+        elif spawn_type == "player_spawn_2":
+            player_spawn_2 = (grid_x, grid_y)
+        else:
+            enemy_spawns.append((grid_x, grid_y))
+
+    if player_spawn is None:
+        logger.warning("No 'player_spawn' object found, defaulting to bottom-center")
+        player_spawn = (map_width // 2 - 2, map_height - 4)
+
+    return SpawnPoints(
+        player_spawn=player_spawn,
+        player_spawn_2=player_spawn_2,
+        enemy_spawns=enemy_spawns,
+    )
 
 
 class Map:
@@ -154,7 +214,10 @@ class Map:
                     self.tiles[y][x] = Tile(TileType.EMPTY, x, y, self.tile_size)
 
         # Read spawn points from object layer
-        self._load_spawn_points(tiled_map)
+        spawns = load_spawn_points(tiled_map, self.width, self.height)
+        self.player_spawn = spawns.player_spawn
+        self.player_spawn_2 = spawns.player_spawn_2
+        self.spawn_points = spawns.enemy_spawns
 
         # Read enemy composition from map-level properties
         self._read_level_properties(tiled_map)
@@ -219,48 +282,6 @@ class Map:
         raw_img = tiled_map.get_tile_image_by_gid(gid)
         if raw_img:
             cache[key] = pygame.transform.scale(raw_img, (SUB_TILE_SIZE, SUB_TILE_SIZE))
-
-    def _load_spawn_points(self, tiled_map: pytmx.TiledMap) -> None:
-        """Read spawn points and player spawn from TMX object layers.
-
-        Converts TMX pixel coordinates to grid coordinates.
-        """
-        spawn_layer = next(
-            (g for g in tiled_map.objectgroups if g.name == "spawn_points"),
-            None,
-        )
-        if spawn_layer is None:
-            logger.warning("No 'spawn_points' object layer found in TMX")
-            self.player_spawn = (self.width // 2 - 1, self.height - 2)
-            return
-
-        player_spawn_found = False
-        tmx_tw = tiled_map.tilewidth
-        tmx_th = tiled_map.tileheight
-        for obj in spawn_layer:
-            # Convert pixel coords to grid coords using TMX tile dimensions
-            grid_x = int(obj.x // tmx_tw)
-            grid_y = int(obj.y // tmx_th)
-
-            # Prefer spawn_point_type property, fall back to object name
-            obj_props = obj.properties if hasattr(obj, "properties") else {}
-            spawn_type = obj_props.get("spawn_point_type") if obj_props else None
-            if spawn_type is None:
-                spawn_type = obj.name
-
-            if spawn_type == "player_spawn":
-                self.player_spawn = (grid_x, grid_y)
-                player_spawn_found = True
-            elif spawn_type == "player_spawn_2":
-                self.player_spawn_2 = (grid_x, grid_y)
-            else:
-                self.spawn_points.append((grid_x, grid_y))
-
-        if not player_spawn_found:
-            self.player_spawn = (self.width // 2 - 2, self.height - 4)
-            logger.warning(
-                "No 'player_spawn' object found, defaulting to bottom-center"
-            )
 
     def _read_level_properties(self, tiled_map: pytmx.TiledMap) -> None:
         """Read per-level properties from TMX map-level custom properties.
