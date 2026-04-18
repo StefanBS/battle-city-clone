@@ -3,6 +3,7 @@ import random
 from loguru import logger
 from .tank import Tank
 from typing import TypedDict
+from src.utils.animation import is_blink_visible
 from src.utils.constants import (
     CARRIER_BLINK_INTERVAL,
     Difficulty,
@@ -136,10 +137,8 @@ class EnemyTank(Tank):
 
     def _update_sprite(self) -> None:
         """Update sprite using type-specific prefix and carrier red variant."""
-        if (
-            self.is_carrier
-            and self.carrier_blink_timer % (CARRIER_BLINK_INTERVAL * 2)
-            >= CARRIER_BLINK_INTERVAL
+        if self.is_carrier and not is_blink_visible(
+            self.carrier_blink_timer, CARRIER_BLINK_INTERVAL
         ):
             sprite_name = (
                 f"{self._sprite_prefix}_red_{self.direction}_{self.animation_frame}"

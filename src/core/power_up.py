@@ -4,6 +4,7 @@ import pygame
 
 from src.core.game_object import GameObject
 from src.managers.texture_manager import TextureManager
+from src.utils.animation import is_blink_visible
 from src.utils.constants import (
     POWERUP_BLINK_INTERVAL,
     POWERUP_TIMEOUT,
@@ -43,7 +44,7 @@ class PowerUp(GameObject):
         """Draw the power-up with blinking effect."""
         if not self.active:
             return
-        if self.blink_timer % (POWERUP_BLINK_INTERVAL * 2) < POWERUP_BLINK_INTERVAL:
+        if is_blink_visible(self.blink_timer, POWERUP_BLINK_INTERVAL):
             super().draw(surface)
 
     def collect(self) -> PowerUpType:

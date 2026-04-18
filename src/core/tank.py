@@ -3,6 +3,7 @@ from loguru import logger
 from .game_object import GameObject
 from .bullet import Bullet
 from src.managers.texture_manager import TextureManager
+from src.utils.animation import is_blink_visible
 from src.utils.constants import (
     Direction,
     OwnerType,
@@ -348,9 +349,8 @@ class Tank(GameObject):
             surface: Surface to draw on
         """
         # Only draw if not invincible or during visible phase of blinking
-        if (
-            not self.is_invincible
-            or self.blink_timer % (self.blink_interval * 2) < self.blink_interval
+        if not self.is_invincible or is_blink_visible(
+            self.blink_timer, self.blink_interval
         ):
             if self.sprite:
                 surface.blit(self.sprite, self.rect)

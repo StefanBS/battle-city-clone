@@ -2,6 +2,7 @@ import pygame
 from loguru import logger
 from .tank import Tank
 from src.managers.texture_manager import TextureManager
+from src.utils.animation import is_blink_visible
 from src.utils.constants import (
     Direction,
     INITIAL_PLAYER_LIVES,
@@ -190,7 +191,7 @@ class PlayerTank(Tank):
             if self.sprite:
                 surface.blit(self.sprite, self.rect)
             interval = self.shield_flicker_interval
-            frame_idx = int(self.invincibility_timer % (interval * 2) >= interval)
+            frame_idx = 0 if is_blink_visible(self.invincibility_timer, interval) else 1
             surface.blit(self._shield_frames[frame_idx], self.rect)
         else:
             super().draw(surface)
