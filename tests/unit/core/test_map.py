@@ -18,6 +18,25 @@ def game_map(mock_texture_manager):
     return Map(TEST_MAP_PATH, mock_texture_manager)
 
 
+@pytest.fixture
+def write_tmx(tmp_path):
+    """Write an ad-hoc TMX string to ``tmp_path`` and return its path.
+
+    The TMX body may use the placeholder ``{tsx}`` in the tileset ``source``
+    attribute; it will be substituted with the absolute path to the bundled
+    ``assets/sprites/sprites.tsx`` so the map loads from outside
+    ``tests/assets/``.
+    """
+    tsx_path = resource_path("assets/sprites/sprites.tsx")
+
+    def _write(content: str, filename: str = "map.tmx") -> str:
+        path = tmp_path / filename
+        path.write_text(content.format(tsx=tsx_path))
+        return str(path)
+
+    return _write
+
+
 class TestMapLoading:
     """Tests for TMX-based map loading.
 
@@ -299,17 +318,16 @@ class TestCollisionDefaultsFromTSX:
 class TestEnemyCompositionFallback:
     """Verify fallback when map has no enemy composition properties."""
 
-    def test_missing_properties_defaults_to_20_basic(self, mock_texture_manager):
+    def test_missing_properties_defaults_to_20_basic(
+        self, mock_texture_manager, write_tmx
+    ):
         """Map without enemy properties falls back to 20 basic enemies."""
-        import os
-
-        # Create a minimal TMX next to the test map so TSX path resolves
-        tmx_content = """\
+        tmx_path = write_tmx("""\
 <?xml version="1.0" encoding="UTF-8"?>
 <map version="1.10" tiledversion="1.11.2" orientation="orthogonal" \
 renderorder="right-down" width="2" height="2" tilewidth="8" tileheight="8" \
 infinite="0" nextlayerid="2" nextobjectid="1">
- <tileset firstgid="1" source="../../assets/sprites/sprites.tsx"/>
+ <tileset firstgid="1" source="{tsx}"/>
  <layer id="1" name="Tile Layer 1" width="2" height="2">
   <data encoding="csv">
 0,0,
@@ -317,20 +335,14 @@ infinite="0" nextlayerid="2" nextobjectid="1">
 </data>
  </layer>
 </map>
-"""
-        tmx_path = "tests/assets/no_enemies.tmx"
-        with open(tmx_path, "w") as f:
-            f.write(tmx_content)
-        try:
-            game_map = Map(tmx_path, mock_texture_manager)
-            assert game_map.enemy_composition == {
-                TankType.BASIC: 20,
-                TankType.FAST: 0,
-                TankType.POWER: 0,
-                TankType.ARMOR: 0,
-            }
-        finally:
-            os.remove(tmx_path)
+""")
+        game_map = Map(tmx_path, mock_texture_manager)
+        assert game_map.enemy_composition == {
+            TankType.BASIC: 20,
+            TankType.FAST: 0,
+            TankType.POWER: 0,
+            TankType.ARMOR: 0,
+        }
 
 
 class TestLevelPropertiesFromTMX:
@@ -353,16 +365,14 @@ class TestLevelPropertiesFromTMX:
 class TestLevelPropertiesFallback:
     """Verify fallback when map has no level properties."""
 
-    def test_missing_spawn_interval_defaults(self, mock_texture_manager):
+    def test_missing_spawn_interval_defaults(self, mock_texture_manager, write_tmx):
         """Map without spawn_interval falls back to ENEMY_SPAWN_INTERVAL."""
-        import os
-
-        tmx_content = """\
+        tmx_path = write_tmx("""\
 <?xml version="1.0" encoding="UTF-8"?>
 <map version="1.10" tiledversion="1.11.2" orientation="orthogonal" \
 renderorder="right-down" width="2" height="2" tilewidth="8" tileheight="8" \
 infinite="0" nextlayerid="2" nextobjectid="1">
- <tileset firstgid="1" source="../../assets/sprites/sprites.tsx"/>
+ <tileset firstgid="1" source="{tsx}"/>
  <layer id="1" name="Tile Layer 1" width="2" height="2">
   <data encoding="csv">
 0,0,
@@ -370,23 +380,15 @@ infinite="0" nextlayerid="2" nextobjectid="1">
 </data>
  </layer>
 </map>
-"""
-        tmx_path = "tests/assets/no_level_props.tmx"
-        with open(tmx_path, "w") as f:
-            f.write(tmx_content)
-        try:
-            game_map = Map(tmx_path, mock_texture_manager)
-            assert game_map.spawn_interval == ENEMY_SPAWN_INTERVAL
-            assert game_map.difficulty_override is None
-            assert game_map.powerup_carrier_indices == POWERUP_CARRIER_INDICES
-        finally:
-            os.remove(tmx_path)
+""")
+        game_map = Map(tmx_path, mock_texture_manager)
+        assert game_map.spawn_interval == ENEMY_SPAWN_INTERVAL
+        assert game_map.difficulty_override is None
+        assert game_map.powerup_carrier_indices == POWERUP_CARRIER_INDICES
 
-    def test_invalid_difficulty_falls_back(self, mock_texture_manager):
+    def test_invalid_difficulty_falls_back(self, mock_texture_manager, write_tmx):
         """Map with invalid difficulty string falls back to None."""
-        import os
-
-        tmx_content = """\
+        tmx_path = write_tmx("""\
 <?xml version="1.0" encoding="UTF-8"?>
 <map version="1.10" tiledversion="1.11.2" orientation="orthogonal" \
 renderorder="right-down" width="2" height="2" tilewidth="8" tileheight="8" \
@@ -394,7 +396,7 @@ infinite="0" nextlayerid="2" nextobjectid="1">
  <properties>
   <property name="difficulty" value="hard"/>
  </properties>
- <tileset firstgid="1" source="../../assets/sprites/sprites.tsx"/>
+ <tileset firstgid="1" source="{tsx}"/>
  <layer id="1" name="Tile Layer 1" width="2" height="2">
   <data encoding="csv">
 0,0,
@@ -402,21 +404,13 @@ infinite="0" nextlayerid="2" nextobjectid="1">
 </data>
  </layer>
 </map>
-"""
-        tmx_path = "tests/assets/bad_difficulty.tmx"
-        with open(tmx_path, "w") as f:
-            f.write(tmx_content)
-        try:
-            game_map = Map(tmx_path, mock_texture_manager)
-            assert game_map.difficulty_override is None
-        finally:
-            os.remove(tmx_path)
+""")
+        game_map = Map(tmx_path, mock_texture_manager)
+        assert game_map.difficulty_override is None
 
-    def test_invalid_powerup_carriers_falls_back(self, mock_texture_manager):
+    def test_invalid_powerup_carriers_falls_back(self, mock_texture_manager, write_tmx):
         """Map with invalid powerup_carriers string falls back to constant."""
-        import os
-
-        tmx_content = """\
+        tmx_path = write_tmx("""\
 <?xml version="1.0" encoding="UTF-8"?>
 <map version="1.10" tiledversion="1.11.2" orientation="orthogonal" \
 renderorder="right-down" width="2" height="2" tilewidth="8" tileheight="8" \
@@ -424,7 +418,7 @@ infinite="0" nextlayerid="2" nextobjectid="1">
  <properties>
   <property name="powerup_carriers" value="3,abc,17"/>
  </properties>
- <tileset firstgid="1" source="../../assets/sprites/sprites.tsx"/>
+ <tileset firstgid="1" source="{tsx}"/>
  <layer id="1" name="Tile Layer 1" width="2" height="2">
   <data encoding="csv">
 0,0,
@@ -432,15 +426,9 @@ infinite="0" nextlayerid="2" nextobjectid="1">
 </data>
  </layer>
 </map>
-"""
-        tmx_path = "tests/assets/bad_carriers.tmx"
-        with open(tmx_path, "w") as f:
-            f.write(tmx_content)
-        try:
-            game_map = Map(tmx_path, mock_texture_manager)
-            assert game_map.powerup_carrier_indices == POWERUP_CARRIER_INDICES
-        finally:
-            os.remove(tmx_path)
+""")
+        game_map = Map(tmx_path, mock_texture_manager)
+        assert game_map.powerup_carrier_indices == POWERUP_CARRIER_INDICES
 
 
 class TestSpawnPointTypeProperty:
@@ -452,16 +440,14 @@ class TestSpawnPointTypeProperty:
         assert game_map.player_spawn == (4, 6)
         assert len(game_map.spawn_points) >= 1
 
-    def test_spawn_point_type_property_used(self, mock_texture_manager):
+    def test_spawn_point_type_property_used(self, mock_texture_manager, write_tmx):
         """Spawn points with spawn_point_type property are correctly loaded."""
-        import os
-
-        tmx_content = """\
+        tmx_path = write_tmx("""\
 <?xml version="1.0" encoding="UTF-8"?>
 <map version="1.10" tiledversion="1.11.2" orientation="orthogonal" \
 renderorder="right-down" width="2" height="2" tilewidth="8" tileheight="8" \
 infinite="0" nextlayerid="3" nextobjectid="3">
- <tileset firstgid="1" source="../../assets/sprites/sprites.tsx"/>
+ <tileset firstgid="1" source="{tsx}"/>
  <layer id="1" name="Tile Layer 1" width="2" height="2">
   <data encoding="csv">
 0,0,
@@ -481,16 +467,10 @@ infinite="0" nextlayerid="3" nextobjectid="3">
   </object>
  </objectgroup>
 </map>
-"""
-        tmx_path = "tests/assets/spawn_type_prop.tmx"
-        with open(tmx_path, "w") as f:
-            f.write(tmx_content)
-        try:
-            game_map = Map(tmx_path, mock_texture_manager)
-            assert game_map.player_spawn == (1, 1)
-            assert (0, 0) in game_map.spawn_points
-        finally:
-            os.remove(tmx_path)
+""")
+        game_map = Map(tmx_path, mock_texture_manager)
+        assert game_map.player_spawn == (1, 1)
+        assert (0, 0) in game_map.spawn_points
 
 
 class TestTileBehaviorProperties:
