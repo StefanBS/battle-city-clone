@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A Battle City (NES) clone built with Python 3.12 and Pygame. Uses `uv` as the package manager.
+A Battle City (NES) clone built with Python 3.13 and Pygame. Uses `uv` as the package manager.
 
 ## Common Commands
 
