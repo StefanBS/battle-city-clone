@@ -1,18 +1,16 @@
 """Path helpers for frozen (PyInstaller) and development builds."""
 
-import os
 import sys
+from pathlib import Path
+
+from platformdirs import user_log_dir
+
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _is_frozen() -> bool:
     """Return True if running inside a PyInstaller bundle."""
     return hasattr(sys, "_MEIPASS")
-
-
-def _project_root() -> str:
-    """Return the project root directory (for development mode)."""
-    # src/utils/paths.py -> go up 3 levels to reach project root
-    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def resource_path(relative_path: str) -> str:
@@ -29,16 +27,16 @@ def resource_path(relative_path: str) -> str:
         Absolute path to the resource.
     """
     if _is_frozen():
-        base = sys._MEIPASS  # type: ignore[attr-defined]
+        base = Path(sys._MEIPASS)  # type: ignore[attr-defined]
     else:
-        base = _project_root()
-    return os.path.join(base, relative_path)
+        base = _PROJECT_ROOT
+    return str(base / relative_path)
 
 
 def get_log_path() -> str:
     """Return the path for the game log file.
 
-    In frozen builds, writes to a platform-appropriate user data directory.
+    In frozen builds, writes to a platform-appropriate user log directory.
     In development, writes to the current directory.
 
     Returns:
@@ -47,13 +45,6 @@ def get_log_path() -> str:
     if not _is_frozen():
         return "game.log"
 
-    if sys.platform == "win32":
-        base = os.environ.get("APPDATA", os.path.expanduser("~"))
-    else:
-        base = os.environ.get(
-            "XDG_DATA_HOME", os.path.join(os.path.expanduser("~"), ".local", "share")
-        )
-
-    log_dir = os.path.join(base, "BattleCity")
-    os.makedirs(log_dir, exist_ok=True)
-    return os.path.join(log_dir, "game.log")
+    log_dir = Path(user_log_dir("BattleCity", appauthor=False))
+    log_dir.mkdir(parents=True, exist_ok=True)
+    return str(log_dir / "game.log")

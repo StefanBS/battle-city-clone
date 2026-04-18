@@ -1,4 +1,4 @@
-# Generated with flatpak-pip-generator --runtime org.freedesktop.Sdk//25.08 --prefer-wheels pygame,pyinstaller --yaml --output python-deps pyinstaller pygame loguru pytmx
+# Generated with flatpak-pip-generator --runtime org.freedesktop.Sdk//25.08 --prefer-wheels pygame,pyinstaller --yaml --output python-deps pyinstaller pygame loguru pytmx platformdirs
 name: python-deps
 buildsystem: simple
 build-commands: []
@@ -59,3 +59,12 @@ modules:
       - type: file
         url: https://files.pythonhosted.org/packages/35/e0/fd0a2d2b93599dec876158fe7fccb8c3e8096844a5a4110dd5bc67377128/PyTMX-3.32-py3-none-any.whl
         sha256: 4da4c01133dfcb2746cb4e7f46ea1aef21d56119ab044f8f77b9906dea5fbccb
+  - name: python3-platformdirs
+    buildsystem: simple
+    build-commands:
+      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
+        --prefix=${FLATPAK_DEST} "platformdirs" --no-build-isolation
+    sources:
+      - type: file
+        url: https://files.pythonhosted.org/packages/75/a6/a0a304dc33b49145b21f4808d763822111e67d1c3a32b524a1baf947b6e1/platformdirs-4.9.6-py3-none-any.whl
+        sha256: e61adb1d5e5cb3441b4b7710bea7e4c12250ca49439228cc1021c00dcfac0917
