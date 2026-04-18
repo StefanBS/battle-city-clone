@@ -57,12 +57,15 @@ battle-city-clone/
 │   │
 │   ├── managers/                          # Game systems
 │   │   ├── game_manager.py                # Main loop, orchestration, state machine
+│   │   ├── player_manager.py              # Player tanks, input, bullets, and score
+│   │   ├── player_input.py                # Per-player gameplay input (keyboard/controller)
+│   │   ├── input_handler.py               # Menu and system input (SDL GameController API)
+│   │   ├── menu_controller.py             # Declarative menu navigation (items + callbacks)
 │   │   ├── collision_manager.py           # Collision detection and event queuing
 │   │   ├── collision_response_handler.py  # Collision outcome processing
 │   │   ├── spawn_manager.py               # Enemy wave spawning logic
 │   │   ├── renderer.py                    # Rendering pipeline (logical -> display surface)
 │   │   ├── texture_manager.py             # Sprite atlas slicing and caching
-│   │   ├── input_handler.py               # Keyboard and gamepad input mapping
 │   │   ├── effect_manager.py              # Effect lifecycle management
 │   │   ├── power_up_manager.py            # Power-up spawning, collection, effects
 │   │   ├── sound_manager.py               # Sound effect loading and playback
@@ -73,6 +76,7 @@ battle-city-clone/
 │   │
 │   └── utils/
 │       ├── constants.py                   # Sizes, speeds, grid dimensions, enums, colors
+│       ├── collections.py                 # Shared collection helpers (update_and_prune)
 │       └── paths.py                       # Resource path resolution (dev and packaged)
 │
 ├── assets/
