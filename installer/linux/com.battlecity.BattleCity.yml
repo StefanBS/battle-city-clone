@@ -13,13 +13,25 @@ finish-args:
   - --filesystem=xdg-data/BattleCity:create
 
 modules:
+  # Pinned Python wheels (pyinstaller + runtime deps).
+  # Regenerate with:
+  #   uv run --python 3.12 --with requirements-parser --with packaging \
+  #     tools/flatpak-pip-generator --runtime org.freedesktop.Sdk//24.08 \
+  #     --yaml --output python-deps pyinstaller pygame loguru pytmx
+  - python-deps.yaml
+
   - name: battle-city
     buildsystem: simple
+    build-options:
+      env:
+        PYTHONPATH: /app/lib/python3.12/site-packages
     build-commands:
-      - install -d /app/bin
+      # Freeze the game with PyInstaller inside the SDK so bundled shared libs
+      # are ABI-matched to the runtime (fixes host glibc vs runtime glibc drift).
+      - pyinstaller battle-city.spec --noconfirm --workpath build --distpath dist
       - install -d /app/lib/battle-city
-      - cp -r BattleCity/* /app/lib/battle-city/
-      # Wrapper script that sets LD_LIBRARY_PATH to prioritize bundled libs
+      - cp -r dist/BattleCity/. /app/lib/battle-city/
+      # Wrapper script: see issue #205 for whether this is still needed.
       - |
         cat > /app/bin/battle-city << 'WRAPPER'
         #!/bin/bash
@@ -28,15 +40,19 @@ modules:
         WRAPPER
       - chmod +x /app/bin/battle-city
       - install -Dm644 com.battlecity.BattleCity.desktop /app/share/applications/com.battlecity.BattleCity.desktop
-      - install -Dm644 icons/battle-city-64.png /app/share/icons/hicolor/64x64/apps/com.battlecity.BattleCity.png
-      - install -Dm644 icons/battle-city-128.png /app/share/icons/hicolor/128x128/apps/com.battlecity.BattleCity.png
-      - install -Dm644 icons/battle-city-256.png /app/share/icons/hicolor/256x256/apps/com.battlecity.BattleCity.png
+      - install -Dm644 assets/icons/battle-city-64.png /app/share/icons/hicolor/64x64/apps/com.battlecity.BattleCity.png
+      - install -Dm644 assets/icons/battle-city-128.png /app/share/icons/hicolor/128x128/apps/com.battlecity.BattleCity.png
+      - install -Dm644 assets/icons/battle-city-256.png /app/share/icons/hicolor/256x256/apps/com.battlecity.BattleCity.png
     sources:
+      - type: file
+        path: ../../main.py
+      - type: file
+        path: ../../battle-city.spec
       - type: dir
-        path: ../../dist/BattleCity
-        dest: BattleCity
+        path: ../../src
+        dest: src
+      - type: dir
+        path: ../../assets
+        dest: assets
       - type: file
         path: com.battlecity.BattleCity.desktop
-      - type: dir
-        path: ../../assets/icons
-        dest: icons

@@ -190,3 +190,9 @@ settings.json
 .claude/
 .superpowers/
 .vscode/
+
+# Flatpak build artifacts
+installer/linux/.flatpak-builder/
+installer/linux/build/
+installer/linux/repo/
+installer/linux/tools/

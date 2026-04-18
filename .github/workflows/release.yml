@@ -57,23 +57,21 @@ jobs:
         uses: astral-sh/setup-uv@v4
 
       - name: Install dependencies
-        run: uv pip install -e ".[dev,build]" --system
+        run: uv pip install -e ".[dev]" --system
 
       - name: Run tests
         run: pytest
-
-      - name: Build with PyInstaller
-        run: pyinstaller battle-city.spec --noconfirm
 
       - name: Install Flatpak tools
         run: |
           sudo apt-get update
           sudo apt-get install -y flatpak flatpak-builder
           flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-          flatpak install --user -y flathub org.freedesktop.Platform//23.08 org.freedesktop.Sdk//23.08
+          flatpak install --user -y flathub org.freedesktop.Platform//24.08 org.freedesktop.Sdk//24.08
 
       - name: Build Flatpak
         run: |
+          mkdir -p dist
           cd installer/linux
           flatpak-builder --user --force-clean --repo=repo build com.battlecity.BattleCity.yml
           flatpak build-bundle repo BattleCity-${GITHUB_REF_NAME}.flatpak com.battlecity.BattleCity
