@@ -17,7 +17,6 @@ class TestBullet:
     @pytest.fixture
     def bullet(self):
         """Create a bullet instance for testing."""
-        pygame.init()
         mock_owner = MagicMock()
         mock_owner.owner_type = "test"
         mock_owner.map_width_px = 16 * TILE_SIZE
