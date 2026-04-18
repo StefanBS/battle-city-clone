@@ -75,7 +75,7 @@ class PowerUpManager:
 
         power_up = PowerUp(x, y, power_up_type, self._texture_manager)
         self.active_power_ups.append(power_up)
-        logger.info(f"Power-up spawned: {power_up_type.value} at ({x}, {y})")
+        logger.info(f"Power-up spawned: {power_up_type} at ({x}, {y})")
 
     def update(self, dt: float) -> None:
         """Update all active power-ups; remove any that have timed out."""
@@ -113,7 +113,7 @@ class PowerUpManager:
             case _:
                 logger.warning(f"Unhandled power-up type: {power_up_type}")
                 return
-        logger.info(f"Power-up applied: {power_up_type.value}")
+        logger.info(f"Power-up applied: {power_up_type}")
 
     @staticmethod
     def _detonate_bomb(

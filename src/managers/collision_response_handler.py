@@ -272,7 +272,7 @@ class CollisionResponseHandler:
         if power_up_type is not None:
             self._add_score(POWERUP_COLLECT_POINTS, player_id=player.player_id)
             self._play("powerup")
-            logger.info(f"Player collected power-up: {power_up_type.value}")
+            logger.info(f"Player collected power-up: {power_up_type}")
             self._collected_power_up_type = power_up_type
             self._collected_power_up_player = player
         return True
