@@ -7,3 +7,4 @@ Icon=com.battlecity.BattleCity
 Terminal=false
 Categories=Game;ArcadeGame;
 Keywords=battle;city;tank;arcade;nes;
+StartupWMClass=BattleCity
