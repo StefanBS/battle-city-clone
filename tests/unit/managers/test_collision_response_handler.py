@@ -448,8 +448,8 @@ class TestExplosionEffects:
         mock_map.get_tile_at.return_value = Tile(TileType.EMPTY, 4, 5)
         bullet = make_bullet(direction=Direction.RIGHT, rect=pygame.Rect(64, 66, 2, 2))
         handler.process_collisions([(bullet, tile)])
-        mock_effect_manager.spawn.assert_called_once_with(
-            EffectType.SMALL_EXPLOSION, 65.0, 67.0
+        mock_effect_manager.spawn_at_rect.assert_called_once_with(
+            EffectType.SMALL_EXPLOSION, bullet.rect
         )
 
     def test_bullet_vs_steel_spawns_small_explosion(
@@ -462,8 +462,8 @@ class TestExplosionEffects:
         tile.is_destructible = False
         tile.x, tile.y = 0, 0
         handler.process_collisions([(bullet, tile)])
-        mock_effect_manager.spawn.assert_called_once_with(
-            EffectType.SMALL_EXPLOSION, 51.0, 51.0
+        mock_effect_manager.spawn_at_rect.assert_called_once_with(
+            EffectType.SMALL_EXPLOSION, bullet.rect
         )
 
     def test_bullet_vs_base_spawns_small_explosion(
@@ -476,8 +476,8 @@ class TestExplosionEffects:
         tile.is_destructible = False
         tile.x, tile.y = 0, 0
         handler.process_collisions([(bullet, tile)])
-        mock_effect_manager.spawn.assert_called_once_with(
-            EffectType.SMALL_EXPLOSION, 51.0, 51.0
+        mock_effect_manager.spawn_at_rect.assert_called_once_with(
+            EffectType.SMALL_EXPLOSION, bullet.rect
         )
 
     def test_enemy_destroyed_spawns_large_explosion(
@@ -490,8 +490,8 @@ class TestExplosionEffects:
         enemy.take_damage = MagicMock(return_value=True)
         enemy.rect = pygame.Rect(100, 100, 32, 32)
         handler.process_collisions([(bullet, enemy)])
-        mock_effect_manager.spawn.assert_called_once_with(
-            EffectType.LARGE_EXPLOSION, 116.0, 116.0
+        mock_effect_manager.spawn_at_rect.assert_called_once_with(
+            EffectType.LARGE_EXPLOSION, enemy.rect
         )
 
     def test_bullet_vs_bullet_no_explosion(
@@ -501,6 +501,7 @@ class TestExplosionEffects:
         b2 = make_bullet(rect=pygame.Rect(52, 50, 2, 2))
         handler.process_collisions([(b1, b2)])
         mock_effect_manager.spawn.assert_not_called()
+        mock_effect_manager.spawn_at_rect.assert_not_called()
 
     def test_player_destroyed_spawns_large_explosion(
         self, handler, make_bullet, mock_player, mock_effect_manager
@@ -509,8 +510,8 @@ class TestExplosionEffects:
         mock_player.take_damage.return_value = True
         mock_player.rect = pygame.Rect(100, 100, 32, 32)
         handler.process_collisions([(bullet, mock_player)])
-        mock_effect_manager.spawn.assert_called_once_with(
-            EffectType.LARGE_EXPLOSION, 116.0, 116.0
+        mock_effect_manager.spawn_at_rect.assert_called_once_with(
+            EffectType.LARGE_EXPLOSION, mock_player.rect
         )
 
 

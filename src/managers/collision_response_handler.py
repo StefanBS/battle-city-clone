@@ -162,11 +162,7 @@ class CollisionResponseHandler:
                 ENEMY_POINTS.get(enemy.tank_type, 0),
                 player_id=bullet.owner.player_id,
             )
-            self._effect_manager.spawn(
-                EffectType.LARGE_EXPLOSION,
-                float(enemy.rect.centerx),
-                float(enemy.rect.centery),
-            )
+            self._effect_manager.spawn_at_rect(EffectType.LARGE_EXPLOSION, enemy.rect)
             self._play("explosion")
         return True
 
@@ -194,10 +190,8 @@ class CollisionResponseHandler:
             destroyed = player.take_damage()
             if destroyed:
                 logger.info("Player tank destroyed.")
-                self._effect_manager.spawn(
-                    EffectType.LARGE_EXPLOSION,
-                    float(player.rect.centerx),
-                    float(player.rect.centery),
+                self._effect_manager.spawn_at_rect(
+                    EffectType.LARGE_EXPLOSION, player.rect
                 )
                 self._play("explosion")
                 if self._on_player_death is not None:
@@ -220,11 +214,7 @@ class CollisionResponseHandler:
 
         logger.debug(f"Bullet hit {tile.type.name} tile at ({tile.x}, {tile.y})")
         bullet.active = False
-        self._effect_manager.spawn(
-            EffectType.SMALL_EXPLOSION,
-            float(bullet.rect.centerx),
-            float(bullet.rect.centery),
-        )
+        self._effect_manager.spawn_at_rect(EffectType.SMALL_EXPLOSION, bullet.rect)
         if tile.type == TileType.BASE:
             self._play("explosion")
         else:

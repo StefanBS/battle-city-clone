@@ -75,3 +75,11 @@ class TestEffectManager:
         surface = pygame.Surface((256, 256))
         effect_manager.spawn(EffectType.SMALL_EXPLOSION, 100, 100)
         effect_manager.draw(surface)
+
+    def test_spawn_at_rect_centers_on_rect(self, effect_manager):
+        rect = pygame.Rect(100, 200, 32, 32)
+        effect_manager.spawn_at_rect(EffectType.SMALL_EXPLOSION, rect)
+        assert len(effect_manager.effects) == 1
+        effect = effect_manager.effects[0]
+        assert effect.x == 116.0  # centerx of (100, 200, 32, 32)
+        assert effect.y == 216.0  # centery
