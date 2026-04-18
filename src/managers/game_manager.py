@@ -498,25 +498,15 @@ class GameManager:
 
     def _set_game_state(self, state: GameState) -> None:
         """Set the game state with sound management."""
-        if state in (
-            GameState.GAME_OVER,
-            GameState.VICTORY,
-            GameState.GAME_COMPLETE,
-        ):
-            self.sound_manager.stop_loops()
+        self.sound_manager.stop_loops()
         if state == GameState.GAME_OVER:
             self.state = GameState.GAME_OVER_ANIMATION
             self._state_timer = 0.0
             self.sound_manager.play("game_over")
             return
         if state == GameState.VICTORY:
-            self.state = GameState.VICTORY
             self._state_timer = 0.0
             self.sound_manager.play("victory")
-            return
-        if state == GameState.GAME_COMPLETE:
-            self.state = GameState.GAME_COMPLETE
-            return
         self.state = state
 
     def _apply_power_up(
