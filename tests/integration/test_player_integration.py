@@ -314,7 +314,7 @@ def test_player_shooting():
 
 
 @pytest.mark.parametrize(
-    "direction_str, axis_index, direction_sign",
+    "direction, axis_index, direction_sign",
     [
         (Direction.UP, 1, -1),  # UP: axis=1 (y), sign=-1 (decrease)
         (Direction.DOWN, 1, 1),  # DOWN: axis=1 (y), sign=1 (increase)
@@ -322,7 +322,7 @@ def test_player_shooting():
         (Direction.RIGHT, 0, 1),  # RIGHT: axis=0 (x), sign=1 (increase)
     ],
 )
-def test_player_bullet_movement(direction_str, axis_index, direction_sign):
+def test_player_bullet_movement(direction, axis_index, direction_sign):
     """Test that the player's bullet moves correctly after firing."""
     # Use fresh instance
     game_manager = GameManager()
@@ -330,13 +330,13 @@ def test_player_bullet_movement(direction_str, axis_index, direction_sign):
     player_tank = first_player(game_manager)
 
     # Set tank direction and fire
-    player_tank.direction = direction_str
+    player_tank.direction = direction
     game_manager._try_shoot(player_tank)
 
     assert len(game_manager.bullets) == 1, "Bullet failed to spawn."
     bullet = next(b for b in game_manager.bullets if b.owner is player_tank)
     assert bullet.active, "Bullet spawned but is not active."
-    assert bullet.direction == direction_str, "Bullet has wrong direction."
+    assert bullet.direction == direction, "Bullet has wrong direction."
 
     initial_pos = bullet.get_position()
 
@@ -356,12 +356,12 @@ def test_player_bullet_movement(direction_str, axis_index, direction_sign):
     # Assert movement occurred in the correct direction
     if direction_sign == -1:
         assert final_pos[axis_index] < initial_pos[axis_index], (
-            f"Bullet moved wrong way ({direction_str}). "
+            f"Bullet moved wrong way ({direction}). "
             f"Start: {initial_pos[axis_index]}, End: {final_pos[axis_index]}"
         )
     else:
         assert final_pos[axis_index] > initial_pos[axis_index], (
-            f"Bullet moved wrong way ({direction_str}). "
+            f"Bullet moved wrong way ({direction}). "
             f"Start: {initial_pos[axis_index]}, End: {final_pos[axis_index]}"
         )
 
