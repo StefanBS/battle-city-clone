@@ -1,7 +1,6 @@
 import pytest
 import pygame
 from loguru import logger
-from src.managers.game_manager import GameManager
 from src.utils.constants import (
     Direction,
     FPS,
@@ -25,11 +24,11 @@ from tests.integration.conftest import first_player
         (pygame.K_RIGHT, 0, 1, Direction.RIGHT),  # RIGHT: x-axis, positive
     ],
 )
-def test_player_movement(key, axis, direction_sign, expected_direction):
+def test_player_movement(
+    game_manager_fixture, key, axis, direction_sign, expected_direction
+):
     """Test player tank movement and direction in all four directions."""
-    # Use fresh instance to avoid side effects from other tests
-    game_manager = GameManager()
-    game_manager._reset_game()
+    game_manager = game_manager_fixture
     player_tank = first_player(game_manager)
     game_map = game_manager.map
 
@@ -271,11 +270,9 @@ def test_player_movement_blocked_by_tile(
     )
 
 
-def test_player_shooting():
+def test_player_shooting(game_manager_fixture):
     """Test player shooting mechanics."""
-    # Use fresh instance
-    game_manager = GameManager()
-    game_manager._reset_game()
+    game_manager = game_manager_fixture
     player_tank = first_player(game_manager)
 
     # 1. Initial state: No bullets
@@ -322,11 +319,11 @@ def test_player_shooting():
         (Direction.RIGHT, 0, 1),  # RIGHT: axis=0 (x), sign=1 (increase)
     ],
 )
-def test_player_bullet_movement(direction_str, axis_index, direction_sign):
+def test_player_bullet_movement(
+    game_manager_fixture, direction_str, axis_index, direction_sign
+):
     """Test that the player's bullet moves correctly after firing."""
-    # Use fresh instance
-    game_manager = GameManager()
-    game_manager._reset_game()
+    game_manager = game_manager_fixture
     player_tank = first_player(game_manager)
 
     # Set tank direction and fire
@@ -373,11 +370,9 @@ def test_player_bullet_movement(direction_str, axis_index, direction_sign):
     )
 
 
-def test_player_respawn():
+def test_player_respawn(game_manager_fixture):
     """Test player respawn mechanics after taking lethal damage with lives remaining."""
-    # Use fresh instance
-    game_manager = GameManager()
-    game_manager._reset_game()
+    game_manager = game_manager_fixture
     player_tank = first_player(game_manager)
 
     initial_lives = player_tank.lives

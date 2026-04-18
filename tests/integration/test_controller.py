@@ -37,11 +37,9 @@ class TestControllerGameplay:
     """Test controller input during gameplay via the SDL GameController API."""
 
     @pytest.mark.parametrize("source", ["dpad", "stick", "keyboard"])
-    def test_up_input_moves_player(self, source: str) -> None:
+    def test_up_input_moves_player(self, game_manager_fixture, source: str) -> None:
         """D-pad, left stick, and keyboard all move the player tank up."""
-        gm = GameManager()
-        gm._reset_game()
-        gm.state = GameState.RUNNING
+        gm = game_manager_fixture
         initial_y = first_player(gm).y
 
         _send_event(gm, _up_event(source))
@@ -49,11 +47,9 @@ class TestControllerGameplay:
 
         assert first_player(gm).y < initial_y
 
-    def test_ctrl_a_button_fires_bullet(self) -> None:
+    def test_ctrl_a_button_fires_bullet(self, game_manager_fixture) -> None:
         """Controller A button fires a bullet."""
-        gm = GameManager()
-        gm._reset_game()
-        gm.state = GameState.RUNNING
+        gm = game_manager_fixture
 
         event = pygame.event.Event(
             pygame.CONTROLLERBUTTONDOWN,
