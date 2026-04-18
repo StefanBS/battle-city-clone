@@ -5,13 +5,7 @@ import pytest
 from src.managers.game_manager import GameManager
 from src.managers.player_input import AXIS_MAX
 from src.states.game_state import GameState
-from tests.integration.conftest import first_player
-
-
-def _send_event(gm, event):
-    """Send event to both input_handler and player_manager."""
-    gm.input_handler.handle_event(event)
-    gm.player_manager.handle_event(event)
+from tests.integration.conftest import first_player, send_event
 
 
 def _up_event(source: str) -> pygame.event.Event:
@@ -42,7 +36,7 @@ class TestControllerGameplay:
         gm = game_manager_fixture
         initial_y = first_player(gm).y
 
-        _send_event(gm, _up_event(source))
+        send_event(gm, _up_event(source))
         gm.update()
 
         assert first_player(gm).y < initial_y
@@ -56,7 +50,7 @@ class TestControllerGameplay:
             button=pygame.CONTROLLER_BUTTON_A,
             instance_id=0,
         )
-        _send_event(gm, event)
+        send_event(gm, event)
         gm.update()
 
         assert len(gm.player_manager.get_all_bullets()) > 0

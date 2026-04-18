@@ -1,9 +1,14 @@
 import pytest
-from src.utils.constants import Direction, FPS, TILE_SIZE, SUB_TILE_SIZE, TankType
+from src.utils.constants import Direction, FPS, SUB_TILE_SIZE
 from src.states.game_state import GameState
 from src.core.tile import BrickVariant, Tile, TileDefaults, TileType
-from src.core.enemy_tank import EnemyTank
-from tests.integration.conftest import first_player
+from tests.integration.conftest import (
+    clear_tiles,
+    fire_bullet_from,
+    first_player,
+    place_player_at,
+    spawn_enemy_at,
+)
 
 
 @pytest.mark.parametrize(
@@ -51,29 +56,28 @@ def test_player_bullet_vs_tile(
 
     # Clear 2 sub-tiles wide (bullet path) for 4 sub-tiles deep (target + player area),
     # skipping the target itself.
-    for y in range(target_y_grid, target_y_grid + 4):
-        for dx in range(2):
-            sx = target_x_grid + dx
-            if 0 <= sx < game_map.width and 0 <= y < game_map.height:
-                if sx == target_x_grid and y == target_y_grid:
-                    continue
-                t = game_map.get_tile_at(sx, y)
-                if t and t.type != TileType.EMPTY:
-                    game_map.place_tile(
-                        sx, y, Tile(TileType.EMPTY, sx, y, SUB_TILE_SIZE)
-                    )
+    clear_tiles(
+        game_map,
+        [
+            (target_x_grid + dx, y)
+            for y in range(target_y_grid, target_y_grid + 4)
+            for dx in range(2)
+            if not (dx == 0 and y == target_y_grid)
+        ],
+    )
 
     # Player below target (2 sub-tiles = 1 tank height).
-    player_start_x = target_x_grid * SUB_TILE_SIZE
-    player_start_y = (target_y_grid + 2) * SUB_TILE_SIZE
-    player_tank.set_position(player_start_x, player_start_y)
-    player_tank.prev_x, player_tank.prev_y = player_start_x, player_start_y
+    place_player_at(
+        game_manager,
+        target_x_grid * SUB_TILE_SIZE,
+        (target_y_grid + 2) * SUB_TILE_SIZE,
+        player=player_tank,
+    )
 
     player_tank.direction = Direction.UP
-    bullet_obj = player_tank.shoot()
-    assert bullet_obj is not None, "Bullet failed to spawn."
-    game_manager.player_manager._bullets.append(bullet_obj)
-    bullet = bullet_obj
+    bullet = player_tank.shoot()
+    assert bullet is not None, "Bullet failed to spawn."
+    game_manager.player_manager._bullets.append(bullet)
 
     dt = 1.0 / FPS
     update_duration = 0.2
@@ -103,60 +107,38 @@ def test_player_bullet_vs_tile(
         assert damaged, "Brick should be damaged or destroyed after being hit."
 
 
-def _clear_tiles(game_map, positions):
-    """Clear tiles at given sub-tile grid positions to EMPTY for test setup."""
-    for gx, gy in positions:
-        if 0 <= gx < game_map.width and 0 <= gy < game_map.height:
-            tile = game_map.get_tile_at(gx, gy)
-            if tile and tile.type != TileType.EMPTY:
-                game_map.place_tile(gx, gy, Tile(TileType.EMPTY, gx, gy, SUB_TILE_SIZE))
-
-
 def test_player_bullet_destroys_enemy_tank(game_manager_fixture, mocker):
     """Test player bullet hitting and destroying a basic enemy tank."""
     mocker.patch("src.core.enemy_tank.random.uniform", return_value=0.0)
     game_manager = game_manager_fixture
     player_tank = first_player(game_manager)
 
-    enemy_type = TankType.BASIC
     enemy_x_grid = 14
     enemy_y_grid = 10
-    enemy_start_x = enemy_x_grid * SUB_TILE_SIZE
-    enemy_start_y = enemy_y_grid * SUB_TILE_SIZE
 
     # Clear enemy + player (2 sub-tiles each = 4 total) across 2 columns.
-    _clear_tiles(
+    clear_tiles(
         game_manager.map,
         [(enemy_x_grid + dx, enemy_y_grid + dy) for dy in range(4) for dx in range(2)],
     )
 
-    map_w_px = game_manager.map.width * SUB_TILE_SIZE
-    map_h_px = game_manager.map.height * SUB_TILE_SIZE
-    enemy_tank = EnemyTank(
-        enemy_start_x,
-        enemy_start_y,
-        TILE_SIZE,
-        game_manager.texture_manager,
-        enemy_type,
-        map_width_px=map_w_px,
-        map_height_px=map_h_px,
-    )
+    enemy_tank = spawn_enemy_at(game_manager, enemy_x_grid, enemy_y_grid)
     # Prevent enemy shooting so its bullets don't interfere with the player bullet.
     enemy_tank.shoot = lambda: None
-    game_manager.spawn_manager.enemy_tanks = [enemy_tank]
     initial_enemy_count = len(game_manager.spawn_manager.enemy_tanks)
 
     # Player below enemy (2 sub-tiles = 1 tank height).
-    player_start_x = enemy_x_grid * SUB_TILE_SIZE
-    player_start_y = (enemy_y_grid + 2) * SUB_TILE_SIZE
-    player_tank.set_position(player_start_x, player_start_y)
-    player_tank.prev_x, player_tank.prev_y = player_start_x, player_start_y
+    place_player_at(
+        game_manager,
+        enemy_x_grid * SUB_TILE_SIZE,
+        (enemy_y_grid + 2) * SUB_TILE_SIZE,
+        player=player_tank,
+    )
 
     player_tank.direction = Direction.UP
-    bullet_obj = player_tank.shoot()
-    assert bullet_obj is not None, "Bullet failed to spawn."
-    game_manager.player_manager._bullets.append(bullet_obj)
-    bullet = bullet_obj
+    bullet = player_tank.shoot()
+    assert bullet is not None, "Bullet failed to spawn."
+    game_manager.player_manager._bullets.append(bullet)
 
     dt = 1.0 / FPS
     max_simulation_time = 0.5
@@ -213,15 +195,11 @@ def test_enemy_bullet_hits_player_tank(
     player_tank.is_invincible = player_is_invincible
     player_tank.invincibility_timer = 0
 
-    enemy_type = TankType.BASIC
     player_x_grid = int(player_tank.x // SUB_TILE_SIZE)
     player_y_grid = int(player_tank.y // SUB_TILE_SIZE)
     enemy_x_grid = player_x_grid
     # 4 sub-tiles (= 2 tank heights) above the player.
     enemy_y_grid = player_y_grid - 4
-
-    enemy_start_x = enemy_x_grid * SUB_TILE_SIZE
-    enemy_start_y = enemy_y_grid * SUB_TILE_SIZE
 
     if not (
         0 <= enemy_y_grid < game_manager.map.height
@@ -232,7 +210,7 @@ def test_enemy_bullet_hits_player_tank(
             f"is out of bounds. Skipping."
         )
 
-    _clear_tiles(
+    clear_tiles(
         game_manager.map,
         [
             (enemy_x_grid + dx, y)
@@ -241,24 +219,11 @@ def test_enemy_bullet_hits_player_tank(
         ],
     )
 
-    map_w_px = game_manager.map.width * SUB_TILE_SIZE
-    map_h_px = game_manager.map.height * SUB_TILE_SIZE
-    enemy_tank = EnemyTank(
-        enemy_start_x,
-        enemy_start_y,
-        TILE_SIZE,
-        game_manager.texture_manager,
-        enemy_type,
-        map_width_px=map_w_px,
-        map_height_px=map_h_px,
+    enemy_tank = spawn_enemy_at(
+        game_manager, enemy_x_grid, enemy_y_grid, direction=Direction.DOWN
     )
-    enemy_tank.direction = Direction.DOWN
-    game_manager.spawn_manager.enemy_tanks = [enemy_tank]
 
-    game_manager._try_shoot(enemy_tank)
-    enemy_bullets = [b for b in game_manager.bullets if b.owner is enemy_tank]
-    assert len(enemy_bullets) == 1, "Enemy bullet failed to spawn."
-    enemy_bullet = enemy_bullets[0]
+    enemy_bullet = fire_bullet_from(game_manager, enemy_tank)
     assert enemy_bullet.active, "Enemy bullet spawned inactive."
 
     dt = 1.0 / FPS
@@ -345,52 +310,24 @@ def test_enemy_bullet_hits_other_enemy(game_manager_fixture, mocker):
     mocker.patch("src.core.enemy_tank.random.uniform", return_value=0.0)
     game_manager = game_manager_fixture
 
-    enemy_type = TankType.BASIC
     # enemy1 shoots down at enemy2 (4 sub-tiles apart).
     enemy1_x_grid, enemy1_y_grid = 16, 16
     enemy2_x_grid, enemy2_y_grid = 16, 20
 
-    _clear_tiles(
+    clear_tiles(
         game_manager.map,
         [(16 + dx, y) for y in range(16, 22) for dx in range(2)],
     )
 
-    enemy1_start_x = enemy1_x_grid * SUB_TILE_SIZE
-    enemy1_start_y = enemy1_y_grid * SUB_TILE_SIZE
-    enemy2_start_x = enemy2_x_grid * SUB_TILE_SIZE
-    enemy2_start_y = enemy2_y_grid * SUB_TILE_SIZE
-
-    map_w_px = game_manager.map.width * SUB_TILE_SIZE
-    map_h_px = game_manager.map.height * SUB_TILE_SIZE
-    enemy1 = EnemyTank(
-        enemy1_start_x,
-        enemy1_start_y,
-        TILE_SIZE,
-        game_manager.texture_manager,
-        enemy_type,
-        map_width_px=map_w_px,
-        map_height_px=map_h_px,
+    enemy1 = spawn_enemy_at(
+        game_manager, enemy1_x_grid, enemy1_y_grid, direction=Direction.DOWN
     )
-    enemy1.direction = Direction.DOWN
+    enemy2 = spawn_enemy_at(game_manager, enemy2_x_grid, enemy2_y_grid, replace=False)
 
-    enemy2 = EnemyTank(
-        enemy2_start_x,
-        enemy2_start_y,
-        TILE_SIZE,
-        game_manager.texture_manager,
-        enemy_type,
-        map_width_px=map_w_px,
-        map_height_px=map_h_px,
-    )
-
-    game_manager.spawn_manager.enemy_tanks = [enemy1, enemy2]
     initial_enemy_count = len(game_manager.spawn_manager.enemy_tanks)
     initial_enemy2_health = enemy2.health
 
-    game_manager._try_shoot(enemy1)
-    enemy1_bullets = [b for b in game_manager.bullets if b.owner is enemy1]
-    assert len(enemy1_bullets) == 1, "Enemy1 bullet failed to spawn."
-    bullet = enemy1_bullets[0]
+    bullet = fire_bullet_from(game_manager, enemy1)
     assert bullet.active, "Enemy1 bullet spawned inactive."
 
     dt = 1.0 / FPS
@@ -428,17 +365,13 @@ def test_player_tank_vs_enemy_tank_no_overlap(game_manager_fixture, mocker):
     game_manager = game_manager_fixture
     player_tank = first_player(game_manager)
 
-    enemy_type = TankType.BASIC
     player_x_grid = int(player_tank.x // SUB_TILE_SIZE)
     player_y_grid = int(player_tank.y // SUB_TILE_SIZE)
     # 2 sub-tiles above = exactly adjacent (one tank-height gap).
     enemy_x_grid = player_x_grid
     enemy_y_grid = player_y_grid - 2
 
-    enemy_start_x = enemy_x_grid * SUB_TILE_SIZE
-    enemy_start_y = enemy_y_grid * SUB_TILE_SIZE
-
-    _clear_tiles(
+    clear_tiles(
         game_manager.map,
         [
             (enemy_x_grid + dx, y)
@@ -447,22 +380,11 @@ def test_player_tank_vs_enemy_tank_no_overlap(game_manager_fixture, mocker):
         ],
     )
 
-    map_w_px = game_manager.map.width * SUB_TILE_SIZE
-    map_h_px = game_manager.map.height * SUB_TILE_SIZE
-    enemy_tank = EnemyTank(
-        enemy_start_x,
-        enemy_start_y,
-        TILE_SIZE,
-        game_manager.texture_manager,
-        enemy_type,
-        map_width_px=map_w_px,
-        map_height_px=map_h_px,
-    )
+    enemy_tank = spawn_enemy_at(game_manager, enemy_x_grid, enemy_y_grid)
     # Pin the enemy so only the player moves; we want to test the collision, not AI.
     enemy_tank.speed = 0
     enemy_tank.direction_change_interval = 999
     enemy_tank.shoot_interval = 999
-    game_manager.spawn_manager.enemy_tanks = [enemy_tank]
 
     dt = 1.0 / FPS
     for _ in range(30):
@@ -496,55 +418,27 @@ def test_enemy_bullets_collide(game_manager_fixture, mocker):
     mocker.patch("src.core.enemy_tank.random.uniform", return_value=0.0)
     game_manager = game_manager_fixture
 
-    enemy_type = TankType.BASIC
     enemy1_x_grid, enemy1_y_grid = 2, 16
     enemy2_x_grid, enemy2_y_grid = 8, 16
 
-    _clear_tiles(
+    clear_tiles(
         game_manager.map,
         [(x, 16 + dy) for x in range(2, 10) for dy in range(2)],
     )
 
-    enemy1_start_x = enemy1_x_grid * SUB_TILE_SIZE
-    enemy1_start_y = enemy1_y_grid * SUB_TILE_SIZE
-    enemy2_start_x = enemy2_x_grid * SUB_TILE_SIZE
-    enemy2_start_y = enemy2_y_grid * SUB_TILE_SIZE
-
-    map_w_px = game_manager.map.width * SUB_TILE_SIZE
-    map_h_px = game_manager.map.height * SUB_TILE_SIZE
-    enemy1 = EnemyTank(
-        enemy1_start_x,
-        enemy1_start_y,
-        TILE_SIZE,
-        game_manager.texture_manager,
-        enemy_type,
-        map_width_px=map_w_px,
-        map_height_px=map_h_px,
+    enemy1 = spawn_enemy_at(
+        game_manager, enemy1_x_grid, enemy1_y_grid, direction=Direction.RIGHT
     )
-    enemy1.direction = Direction.RIGHT
-
-    enemy2 = EnemyTank(
-        enemy2_start_x,
-        enemy2_start_y,
-        TILE_SIZE,
-        game_manager.texture_manager,
-        enemy_type,
-        map_width_px=map_w_px,
-        map_height_px=map_h_px,
+    enemy2 = spawn_enemy_at(
+        game_manager,
+        enemy2_x_grid,
+        enemy2_y_grid,
+        direction=Direction.LEFT,
+        replace=False,
     )
-    enemy2.direction = Direction.LEFT
 
-    game_manager.spawn_manager.enemy_tanks = [enemy1, enemy2]
-
-    game_manager._try_shoot(enemy1)
-    game_manager._try_shoot(enemy2)
-
-    enemy1_bullets = [b for b in game_manager.bullets if b.owner is enemy1]
-    enemy2_bullets = [b for b in game_manager.bullets if b.owner is enemy2]
-    assert len(enemy1_bullets) == 1, "Enemy1 bullet failed to spawn."
-    assert len(enemy2_bullets) == 1, "Enemy2 bullet failed to spawn."
-    bullet1 = enemy1_bullets[0]
-    bullet2 = enemy2_bullets[0]
+    bullet1 = fire_bullet_from(game_manager, enemy1)
+    bullet2 = fire_bullet_from(game_manager, enemy2)
     assert bullet1.active, "Enemy1 bullet spawned inactive."
     assert bullet2.active, "Enemy2 bullet spawned inactive."
 
