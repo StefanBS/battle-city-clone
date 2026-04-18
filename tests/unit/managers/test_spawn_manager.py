@@ -134,7 +134,7 @@ class TestSpawnManager:
 
         existing_enemy = MagicMock(spec=EnemyTank)
         existing_enemy.rect = pygame.Rect(spawn_x, spawn_y, TILE_SIZE, TILE_SIZE)
-        existing_enemy.tank_type = "basic"
+        existing_enemy.tank_type = TankType.BASIC
         spawn_manager.enemy_tanks = [existing_enemy]
         spawn_manager.total_enemy_spawns = 1
 

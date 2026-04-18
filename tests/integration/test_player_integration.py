@@ -5,6 +5,7 @@ from src.managers.game_manager import GameManager
 from src.utils.constants import (
     Direction,
     FPS,
+    OwnerType,
     SUB_TILE_SIZE,
     BULLET_WIDTH,
     BULLET_HEIGHT,
@@ -289,7 +290,7 @@ def test_player_shooting():
     bullet = game_manager.bullets[0]
     assert bullet.active, "Bullet should be active after shooting."
     assert bullet.direction == Direction.RIGHT, "Bullet direction is incorrect."
-    assert bullet.owner_type == "player", "Bullet owner type is incorrect."
+    assert bullet.owner_type == OwnerType.PLAYER, "Bullet owner type is incorrect."
     assert bullet.owner is player_tank, "Bullet owner should be the player tank."
 
     # 4. Verify bullet initial position (centered on tank)

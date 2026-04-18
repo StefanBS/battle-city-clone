@@ -6,7 +6,7 @@ from src.core.tile import TileType, Tile
 from src.core.player_tank import PlayerTank
 from src.core.enemy_tank import EnemyTank
 from src.core.bullet import Bullet
-from src.utils.constants import TILE_SIZE
+from src.utils.constants import OwnerType, TILE_SIZE
 
 
 @pytest.fixture
@@ -20,25 +20,25 @@ def mock_objects(create_mock_sprite):
     """Provides a dictionary of mock game objects for collision tests."""
     tile_size = TILE_SIZE
     player = create_mock_sprite(
-        0, 0, tile_size, tile_size, spec=PlayerTank, owner_type="player"
+        0, 0, tile_size, tile_size, spec=PlayerTank, owner_type=OwnerType.PLAYER
     )
     enemy1 = create_mock_sprite(
-        100, 100, tile_size, tile_size, spec=EnemyTank, owner_type="enemy"
+        100, 100, tile_size, tile_size, spec=EnemyTank, owner_type=OwnerType.ENEMY
     )
     enemy2 = create_mock_sprite(
-        200, 200, tile_size, tile_size, spec=EnemyTank, owner_type="enemy"
+        200, 200, tile_size, tile_size, spec=EnemyTank, owner_type=OwnerType.ENEMY
     )
     p_bullet1 = create_mock_sprite(
-        50, 50, 5, 5, spec=Bullet, owner_type="player", active=True
+        50, 50, 5, 5, spec=Bullet, owner_type=OwnerType.PLAYER, active=True
     )
     p_bullet2 = create_mock_sprite(
-        60, 60, 5, 5, spec=Bullet, owner_type="player", active=True
+        60, 60, 5, 5, spec=Bullet, owner_type=OwnerType.PLAYER, active=True
     )
     e_bullet1 = create_mock_sprite(
-        150, 150, 5, 5, spec=Bullet, owner_type="enemy", active=True
+        150, 150, 5, 5, spec=Bullet, owner_type=OwnerType.ENEMY, active=True
     )
     e_bullet2 = create_mock_sprite(
-        160, 160, 5, 5, spec=Bullet, owner_type="enemy", active=True
+        160, 160, 5, 5, spec=Bullet, owner_type=OwnerType.ENEMY, active=True
     )
     brick1 = create_mock_sprite(
         300, 300, tile_size, tile_size, spec=Tile, type=TileType.BRICK

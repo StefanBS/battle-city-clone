@@ -4,6 +4,7 @@ from src.core.enemy_tank import EnemyTank, _get_enemy_config, _reset_enemy_confi
 from src.utils.constants import (
     TILE_SIZE,
     FPS,
+    OwnerType,
     TankType,
     Direction,
     Difficulty,
@@ -62,7 +63,7 @@ def test_enemy_tank_initialization_properties(
         expected["direction_change_interval"]
     )
 
-    assert tank.owner_type == "enemy"
+    assert tank.owner_type == OwnerType.ENEMY
     assert tank.lives == 1
     assert tank.x == 0
     assert tank.y == 0

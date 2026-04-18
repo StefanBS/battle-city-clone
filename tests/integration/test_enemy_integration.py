@@ -5,6 +5,7 @@ from src.utils.constants import (
     Direction,
     Difficulty,
     FPS,
+    OwnerType,
     TILE_SIZE,
     SUB_TILE_SIZE,
     TankType,
@@ -572,7 +573,9 @@ def test_enemy_shooting(game_manager_fixture):
 
         # Check if an enemy bullet appeared in game_manager.bullets
         enemy_bullets = [
-            b for b in game_manager.bullets if b.owner_type == "enemy" and b.active
+            b
+            for b in game_manager.bullets
+            if b.owner_type == OwnerType.ENEMY and b.active
         ]
         if not bullet_fired and len(enemy_bullets) > 0:
             bullet_fired = True

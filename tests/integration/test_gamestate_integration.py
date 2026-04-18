@@ -6,6 +6,7 @@ from src.utils.constants import (
     Direction,
     ENEMY_POINTS,
     FPS,
+    OwnerType,
     TILE_SIZE,
     SUB_TILE_SIZE,
     TankType,
@@ -96,7 +97,7 @@ def test_player_game_over_on_zero_lives():
     # --- Setup Mocks for Collision --- #
     # 1. Mock an enemy bullet involved in the collision
     mock_enemy_bullet = MagicMock(spec=Bullet)
-    mock_enemy_bullet.owner_type = "enemy"
+    mock_enemy_bullet.owner_type = OwnerType.ENEMY
     mock_enemy_bullet.active = True  # Needs to be active to be processed
 
     # 2. Mock the player tank's take_damage to return True (fatal hit)

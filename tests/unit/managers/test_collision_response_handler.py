@@ -58,8 +58,8 @@ def mock_bullet(make_bullet):
 @pytest.fixture
 def mock_enemy():
     e = MagicMock(spec=EnemyTank)
-    e.owner_type = "enemy"
-    e.tank_type = "basic"
+    e.owner_type = OwnerType.ENEMY
+    e.tank_type = TankType.BASIC
     e.take_damage = MagicMock(return_value=False)
     e.on_movement_blocked = MagicMock()
     e.revert_move = MagicMock()
@@ -70,7 +70,7 @@ def mock_enemy():
 @pytest.fixture
 def mock_player():
     p = MagicMock(spec=PlayerTank)
-    p.owner_type = "player"
+    p.owner_type = OwnerType.PLAYER
     p.is_invincible = False
     p.take_damage = MagicMock(return_value=False)
     p.respawn = MagicMock()
@@ -94,13 +94,13 @@ def mock_tile():
 class TestDispatch:
     def test_lookup_forward_order(self, handler, mock_bullet, mock_enemy):
         """Test registry finds handler with (Bullet, EnemyTank) order."""
-        mock_bullet.owner_type = "player"
+        mock_bullet.owner_type = OwnerType.PLAYER
         handler.process_collisions([(mock_bullet, mock_enemy)])
         assert not mock_bullet.active
 
     def test_lookup_swapped_order(self, handler, mock_bullet, mock_enemy):
         """Test registry finds handler with (EnemyTank, Bullet) order."""
-        mock_bullet.owner_type = "player"
+        mock_bullet.owner_type = OwnerType.PLAYER
         handler.process_collisions([(mock_enemy, mock_bullet)])
         assert not mock_bullet.active
 
@@ -117,20 +117,20 @@ class TestDispatch:
 
 class TestBulletVsEnemy:
     def test_player_bullet_damages_enemy(self, handler, mock_bullet, mock_enemy):
-        mock_bullet.owner_type = "player"
+        mock_bullet.owner_type = OwnerType.PLAYER
         handler.process_collisions([(mock_bullet, mock_enemy)])
         assert not mock_bullet.active
         mock_enemy.take_damage.assert_called_once()
 
     def test_player_bullet_destroys_enemy(self, handler, mock_bullet, mock_enemy):
-        mock_bullet.owner_type = "player"
+        mock_bullet.owner_type = OwnerType.PLAYER
         mock_enemy.take_damage.return_value = True
         enemies = handler.process_collisions([(mock_bullet, mock_enemy)])
         assert mock_enemy in enemies
 
     def test_enemy_bullet_does_not_damage_enemy(self, handler, make_bullet, mock_enemy):
         """Friendly fire — enemy bullet should not damage enemy."""
-        bullet = make_bullet(owner_type="enemy")
+        bullet = make_bullet(owner_type=OwnerType.ENEMY)
         handler.process_collisions([(bullet, mock_enemy)])
         mock_enemy.take_damage.assert_not_called()
         assert bullet.active  # Bullet not consumed
@@ -138,21 +138,21 @@ class TestBulletVsEnemy:
 
 class TestBulletVsPlayer:
     def test_enemy_bullet_damages_player(self, handler, make_bullet, mock_player):
-        bullet = make_bullet(owner_type="enemy")
+        bullet = make_bullet(owner_type=OwnerType.ENEMY)
         handler.process_collisions([(bullet, mock_player)])
         assert not bullet.active
         mock_player.take_damage.assert_called_once()
         mock_player.respawn.assert_called_once()
 
     def test_enemy_bullet_kills_player(self, handler, make_bullet, mock_player):
-        bullet = make_bullet(owner_type="enemy")
+        bullet = make_bullet(owner_type=OwnerType.ENEMY)
         mock_player.take_damage.return_value = True
         handler.process_collisions([(bullet, mock_player)])
         handler._set_game_state.assert_called_with(GameState.GAME_OVER)
         mock_player.respawn.assert_not_called()
 
     def test_bullet_vs_invincible_player(self, handler, make_bullet, mock_player):
-        bullet = make_bullet(owner_type="enemy")
+        bullet = make_bullet(owner_type=OwnerType.ENEMY)
         mock_player.is_invincible = True
         handler.process_collisions([(bullet, mock_player)])
         assert not bullet.active
@@ -358,7 +358,7 @@ class TestTracking:
         bullet = make_bullet()
         enemy2 = MagicMock(spec=EnemyTank)
         enemy2.take_damage = MagicMock(return_value=False)
-        enemy2.owner_type = "enemy"
+        enemy2.owner_type = OwnerType.ENEMY
         handler.process_collisions(
             [
                 (bullet, mock_enemy),
@@ -442,8 +442,8 @@ class TestExplosionEffects:
     ):
         bullet = make_bullet(rect=pygame.Rect(50, 50, 2, 2))
         enemy = MagicMock(spec=EnemyTank)
-        enemy.owner_type = "enemy"
-        enemy.tank_type = "basic"
+        enemy.owner_type = OwnerType.ENEMY
+        enemy.tank_type = TankType.BASIC
         enemy.take_damage = MagicMock(return_value=True)
         enemy.rect = pygame.Rect(100, 100, 32, 32)
         handler.process_collisions([(bullet, enemy)])
@@ -462,7 +462,7 @@ class TestExplosionEffects:
     def test_player_destroyed_spawns_large_explosion(
         self, handler, make_bullet, mock_player, mock_effect_manager
     ):
-        bullet = make_bullet(owner_type="enemy", rect=pygame.Rect(50, 50, 2, 2))
+        bullet = make_bullet(owner_type=OwnerType.ENEMY, rect=pygame.Rect(50, 50, 2, 2))
         mock_player.take_damage.return_value = True
         mock_player.rect = pygame.Rect(100, 100, 32, 32)
         handler.process_collisions([(bullet, mock_player)])
