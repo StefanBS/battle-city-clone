@@ -58,8 +58,11 @@ class Renderer:
 
         self.map_surface: pygame.Surface = pygame.Surface((map_width_px, map_height_px))
 
-        # Cached text surface for game over animation (set on first use)
-        self._game_over_text: pygame.Surface | None = None
+        # Cache rendered text surfaces — HUD labels and menu items re-render
+        # every frame with unchanged content, and font.render is CPU-heavy.
+        self._text_cache: dict[
+            tuple[int, str, tuple[int, int, int]], pygame.Surface
+        ] = {}
 
         # Reusable overlay surfaces for pause/game-over screens
         self._pause_overlay: pygame.Surface = pygame.Surface(
@@ -134,6 +137,20 @@ class Renderer:
         )
         pygame.display.flip()
 
+    def _render_text(
+        self,
+        text: str,
+        font: pygame.font.Font,
+        color: tuple[int, int, int],
+    ) -> pygame.Surface:
+        """Return a cached text surface, rendering on first miss."""
+        key = (id(font), text, color)
+        surf = self._text_cache.get(key)
+        if surf is None:
+            surf = font.render(text, True, color)
+            self._text_cache[key] = surf
+        return surf
+
     def _draw_centered_text(
         self,
         text: str,
@@ -142,7 +159,7 @@ class Renderer:
         y: int,
     ) -> None:
         """Render text centered horizontally at the given y position."""
-        surface = font.render(text, True, color)
+        surface = self._render_text(text, font, color)
         rect = surface.get_rect(center=(self._center_x, y))
         self.game_surface.blit(surface, rect)
 
@@ -187,9 +204,11 @@ class Renderer:
         align: str,
     ) -> None:
         """Render a HUD label and optional score line at the given edge."""
-        label_surf = self.small_font.render(label, True, color)
+        label_surf = self._render_text(label, self.small_font, color)
         score_surf = (
-            self.small_font.render(score_text, True, WHITE) if score_text else None
+            self._render_text(score_text, self.small_font, WHITE)
+            if score_text
+            else None
         )
         if align == "left":
             self.game_surface.blit(label_surf, (10, 10))
@@ -208,9 +227,7 @@ class Renderer:
         Args:
             progress: 0.0 (text at bottom) to 1.0 (text at center).
         """
-        if self._game_over_text is None:
-            self._game_over_text = self.font.render("GAME OVER", True, RED)
-        text = self._game_over_text
+        text = self._render_text("GAME OVER", self.font, RED)
         bottom_y = self.logical_height + text.get_height()
         y = bottom_y + (self._center_y - bottom_y) * progress
         text_rect = text.get_rect(center=(self._center_x, int(y)))
@@ -272,13 +289,13 @@ class Renderer:
         rects = []
         for i, label in enumerate(options):
             color = colors[i] if colors else WHITE
-            text = self.small_font.render(label, True, color)
+            text = self._render_text(label, self.small_font, color)
             text_rect = text.get_rect(center=(self._center_x, start_y + i * spacing))
             self.game_surface.blit(text, text_rect)
             rects.append(text_rect)
 
         cursor_y = start_y + selection * spacing
-        cursor_text = self.small_font.render(">", True, WHITE)
+        cursor_text = self._render_text(">", self.small_font, WHITE)
         cursor_rect = cursor_text.get_rect(
             midright=(rects[selection].left - 10, cursor_y)
         )
