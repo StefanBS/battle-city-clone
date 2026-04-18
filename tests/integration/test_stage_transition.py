@@ -22,7 +22,9 @@ class TestStageTransition:
         assert game.state == GameState.VICTORY
 
         # Tick through entire transition
-        for _ in range(600):
+        # Total ~4s: VICTORY_PAUSE (1.0) + CURTAIN_CLOSE (0.75) + CURTAIN_STAGE_DISPLAY
+        # (1.5) + CURTAIN_OPEN (0.75). Allow comfortable margin.
+        for _ in range(300):
             game.update()
             if game.state == GameState.RUNNING:
                 break

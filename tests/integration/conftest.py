@@ -69,7 +69,7 @@ def spawn_carrier(game):
     the small test map's spawn points.
     """
     first_carrier_index = POWERUP_CARRIER_INDICES[0]
-    max_attempts = (first_carrier_index + 1) * 5
+    max_attempts = first_carrier_index + 2
     for _ in range(max_attempts):
         if game.spawn_manager.total_enemy_spawns > first_carrier_index:
             break

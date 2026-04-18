@@ -43,7 +43,7 @@ class TestEffectLifecycle:
 
         # Run updates until the bullet hits the tile (or max iterations)
         effect_spawned = False
-        for _ in range(200):
+        for _ in range(30):
             gm.update()
             if gm.effect_manager.effects:
                 effect_spawned = True
@@ -55,7 +55,7 @@ class TestEffectLifecycle:
         assert len(gm.effect_manager.effects) >= 1
 
         # Now keep updating until the effect expires
-        for _ in range(100):
+        for _ in range(60):
             gm.effect_manager.update(dt)
             if not gm.effect_manager.effects:
                 break
