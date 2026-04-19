@@ -3,6 +3,7 @@ import random
 from loguru import logger
 from .tank import Tank
 from typing import TypedDict
+from src.core.ai_geometry import direction_moves_toward, is_aligned_with
 from src.utils.animation import is_blink_visible
 from src.utils.constants import (
     CARRIER_BLINK_INTERVAL,
@@ -158,11 +159,7 @@ class EnemyTank(Tank):
         self, direction: Direction, target: tuple[float, float]
     ) -> bool:
         """Check if moving in direction reduces distance to target."""
-        dx, dy = direction.delta
-        tx, ty = target
-        if dx != 0:
-            return (dx > 0 and tx > self.x) or (dx < 0 and tx < self.x)
-        return (dy > 0 and ty > self.y) or (dy < 0 and ty < self.y)
+        return direction_moves_toward((self.x, self.y), direction, target)
 
     def _change_direction(
         self,
@@ -219,16 +216,7 @@ class EnemyTank(Tank):
 
     def _is_aligned_with(self, target: tuple[float, float]) -> bool:
         """Check if the tank is facing toward and aligned with a target position."""
-        tx, ty = target
-        dx, dy = self.direction.delta
-        tile = self.tile_size
-        if dx != 0:
-            if abs(self.y - ty) > tile:
-                return False
-        else:
-            if abs(self.x - tx) > tile:
-                return False
-        return self._direction_moves_toward(self.direction, target)
+        return is_aligned_with((self.x, self.y), self.direction, self.tile_size, target)
 
     def consume_shoot(self) -> bool:
         """Check if the tank wants to shoot and clear the flag."""
