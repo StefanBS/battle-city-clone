@@ -874,3 +874,26 @@ class TestPlayerManagerUpdateAI:
         )
         player_manager.update(1 / 60, mock_game_map, [])
         assert recorded["teammate"] is None
+
+
+class TestAICoopRespawnReset:
+    def test_ai_state_resets_when_tank_respawns(self, player_manager, mock_game_map):
+        mock_game_map.player_spawn_2 = (16, 24)
+        player_manager.create_players(
+            mock_game_map,
+            controller_instance_ids=[],
+            mode=GameMode.ONE_PLAYER_AI,
+        )
+        ai_tank = player_manager._players[1]
+        ai_input = player_manager._player_inputs[1]
+        # Simulate stale state accumulated in the previous life.
+        ai_input._wants_shoot = True
+        ai_input._direction_timer = 0.9
+        ai_input._shoot_timer = 0.9
+
+        ai_tank.lives = 2  # ensure respawn path, not game-over
+        player_manager.handle_player_death(ai_tank)
+
+        assert ai_input.consume_shoot() is False
+        assert ai_input._direction_timer == 0.0
+        assert ai_input._shoot_timer == 0.0

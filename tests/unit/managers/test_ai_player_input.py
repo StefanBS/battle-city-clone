@@ -59,6 +59,22 @@ class TestProtocolMethods:
         assert ai.consume_shoot() is False
 
 
+class TestReset:
+    def test_reset_clears_transient_state(self, mock_player_tank):
+        ai = AIPlayerInput(tank=mock_player_tank)
+        ai._dx, ai._dy = 1, 0
+        ai._wants_shoot = True
+        ai._direction_timer = 0.42
+        ai._shoot_timer = 0.7
+        ai._blocked_directions = {Direction.UP, Direction.LEFT}
+        ai.reset()
+        assert (ai._dx, ai._dy) == (0, 0)
+        assert ai.consume_shoot() is False
+        assert ai._direction_timer == 0.0
+        assert ai._shoot_timer == 0.0
+        assert ai._blocked_directions == set()
+
+
 class TestConfigLoader:
     def test_loads_config_fields(self, mock_player_tank):
         ai = AIPlayerInput(tank=mock_player_tank)

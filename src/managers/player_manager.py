@@ -279,6 +279,13 @@ class PlayerManager:
         """
         if player.lives > 0:
             player.respawn()
+            for p, pi in zip(self._players, self._player_inputs):
+                if p is player:
+                    if isinstance(pi, AIPlayerInput):
+                        pi.reset()
+                    else:
+                        pi.clear_pending_shoot()
+                    break
             return False
 
         return self.is_game_over()

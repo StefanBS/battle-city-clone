@@ -86,6 +86,18 @@ class AIPlayerInput:
     def clear_pending_shoot(self) -> None:
         self._wants_shoot = False
 
+    def reset(self) -> None:
+        """Clear all transient AI state. Called on the teammate's respawn so
+        stale timers, pending shots, and block-memory from the previous life
+        don't leak into the new one.
+        """
+        self._dx = 0
+        self._dy = 0
+        self._wants_shoot = False
+        self._direction_timer = 0.0
+        self._shoot_timer = 0.0
+        self._blocked_directions.clear()
+
     # AI-specific, called by PlayerManager via isinstance branch ---------------
     def update(
         self,
