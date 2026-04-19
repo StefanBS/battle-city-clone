@@ -8,6 +8,7 @@ in the respective unit test files.
 import pytest
 import pygame
 from src.managers.game_manager import GameManager
+from src.states.game_mode import GameMode
 
 
 @pytest.fixture
@@ -15,7 +16,7 @@ def two_player_game():
     """GameManager in 2P mode with game running."""
     pygame.init()
     gm = GameManager()
-    gm._two_player_mode = True
+    gm._game_mode = GameMode.TWO_PLAYER
     gm._reset_game()
     return gm
 
@@ -72,7 +73,7 @@ class TestTwoPlayerStageTransition:
         gm.player_manager.create_players(
             gm.map,
             controller_instance_ids=gm.input_handler.controller_instance_ids,
-            two_player_mode=True,
+            mode=GameMode.TWO_PLAYER,
         )
         gm.player_manager.restore_state()
 
