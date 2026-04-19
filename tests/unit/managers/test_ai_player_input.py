@@ -70,3 +70,60 @@ class TestConfigLoader:
         from src.managers import ai_player_input as mod
 
         assert mod._ai_teammate_config is not None
+
+
+class TestBlockMemory:
+    def test_cleared_when_tank_moved(self, mock_player_tank):
+        ai = AIPlayerInput(tank=mock_player_tank)
+        ai._blocked_directions.add(Direction.UP)
+        mock_player_tank.prev_x = 0.0
+        mock_player_tank.prev_y = 0.0
+        mock_player_tank.x = 10.0
+        mock_player_tank.y = 0.0
+        ai.update(dt=1 / 60, enemies=[], teammate=None)
+        assert Direction.UP not in ai._blocked_directions
+
+    def test_added_when_tank_did_not_move_with_nonzero_intent(self, mock_player_tank):
+        ai = AIPlayerInput(tank=mock_player_tank)
+        ai._dx, ai._dy = 0, -1
+        mock_player_tank.direction = Direction.UP
+        mock_player_tank.prev_x = 0.0
+        mock_player_tank.prev_y = 0.0
+        mock_player_tank.x = 0.0
+        mock_player_tank.y = 0.0
+        ai.update(dt=1 / 60, enemies=[], teammate=None)
+        assert Direction.UP in ai._blocked_directions
+        assert ai._direction_timer == 0.0
+
+    def test_not_added_when_frozen(self, mock_player_tank):
+        ai = AIPlayerInput(tank=mock_player_tank)
+        ai._dx, ai._dy = 0, -1
+        mock_player_tank.direction = Direction.UP
+        mock_player_tank.prev_x = 0.0
+        mock_player_tank.prev_y = 0.0
+        mock_player_tank.x = 0.0
+        mock_player_tank.y = 0.0
+        mock_player_tank.is_frozen = True
+        ai.update(dt=1 / 60, enemies=[], teammate=None)
+        assert ai._blocked_directions == set()
+
+    def test_not_added_when_intent_is_zero(self, mock_player_tank):
+        ai = AIPlayerInput(tank=mock_player_tank)
+        ai._dx, ai._dy = 0, 0
+        mock_player_tank.direction = Direction.UP
+        mock_player_tank.prev_x = mock_player_tank.x = 0.0
+        mock_player_tank.prev_y = mock_player_tank.y = 0.0
+        ai.update(dt=1 / 60, enemies=[], teammate=None)
+        assert ai._blocked_directions == set()
+
+
+class TestTimerAdvancement:
+    def test_direction_timer_advances(self, mock_player_tank):
+        ai = AIPlayerInput(tank=mock_player_tank)
+        ai.update(dt=0.1, enemies=[], teammate=None)
+        assert ai._direction_timer == pytest.approx(0.1)
+
+    def test_shoot_timer_advances(self, mock_player_tank):
+        ai = AIPlayerInput(tank=mock_player_tank)
+        ai.update(dt=0.1, enemies=[], teammate=None)
+        assert ai._shoot_timer == pytest.approx(0.1)

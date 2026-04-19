@@ -87,4 +87,15 @@ class AIPlayerInput:
         teammate: PlayerTank | None,
     ) -> None:
         """Advance AI state by one frame. Filled in over subsequent tasks."""
-        return
+        self._direction_timer += dt
+        self._shoot_timer += dt
+
+        moved = (self._tank.x != self._tank.prev_x) or (
+            self._tank.y != self._tank.prev_y
+        )
+        requested_movement = self._dx != 0 or self._dy != 0
+        if moved:
+            self._blocked_directions.clear()
+        elif requested_movement and not self._tank.is_frozen:
+            self._blocked_directions.add(self._tank.direction)
+            self._direction_timer = 0.0
