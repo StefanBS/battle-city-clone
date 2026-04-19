@@ -2,6 +2,29 @@
 
 from src.utils.constants import Direction
 
+_ALL_DIRECTIONS = list(Direction)
+
+
+def manhattan(a: tuple[float, float], b: tuple[float, float]) -> float:
+    """L1 distance between two points."""
+    return abs(a[0] - b[0]) + abs(a[1] - b[1])
+
+
+def filter_candidate_directions(
+    current: Direction, blocked: set[Direction]
+) -> list[Direction]:
+    """Directions the tank may pick next.
+
+    Prefers directions that are neither blocked nor the reverse of `current`.
+    Falls back to allowing the reverse when every other non-blocked direction
+    is gone, and returns an empty list only when every direction is blocked.
+    """
+    opposite = current.opposite
+    filtered = [d for d in _ALL_DIRECTIONS if d not in blocked and d != opposite]
+    if filtered:
+        return filtered
+    return [d for d in _ALL_DIRECTIONS if d not in blocked]
+
 
 def direction_moves_toward(
     pos: tuple[float, float],

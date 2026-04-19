@@ -3,7 +3,11 @@ import random
 from loguru import logger
 from .tank import Tank
 from typing import TypedDict
-from src.core.ai_geometry import direction_moves_toward, is_aligned_with
+from src.core.ai_geometry import (
+    direction_moves_toward,
+    filter_candidate_directions,
+    is_aligned_with,
+)
 from src.utils.animation import is_blink_visible
 from src.utils.constants import (
     CARRIER_BLINK_INTERVAL,
@@ -134,8 +138,6 @@ class EnemyTank(Tank):
             f"shoot_interval={self.shoot_interval:.2f}"
         )
 
-    _ALL_DIRECTIONS = list(Direction)
-
     def _update_sprite(self) -> None:
         """Update sprite using type-specific prefix and carrier red variant."""
         if self.is_carrier and not is_blink_visible(
@@ -169,18 +171,9 @@ class EnemyTank(Tank):
         """Change the tank's direction, weighted by AI biases when applicable."""
         old_direction = self.direction
 
-        # Prefer unblocked directions, excluding opposite to avoid reversing
-        opposite = old_direction.opposite
-        candidates = [
-            d
-            for d in self._ALL_DIRECTIONS
-            if d not in self._blocked_directions and d != opposite
-        ]
-        # Fall back to unblocked only (allow opposite)
-        if not candidates:
-            candidates = [
-                d for d in self._ALL_DIRECTIONS if d not in self._blocked_directions
-            ]
+        candidates = filter_candidate_directions(
+            old_direction, self._blocked_directions
+        )
         # All directions blocked — stay put and wait for one to open
         if not candidates:
             return

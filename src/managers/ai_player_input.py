@@ -9,7 +9,13 @@ from typing import TYPE_CHECKING
 
 import pygame
 
-from src.core.ai_geometry import direction_moves_toward, is_aligned_with
+from src.core.ai_geometry import (
+    direction_moves_toward,
+    filter_candidate_directions,
+    is_aligned_with,
+    manhattan,
+)
+from src.core.enemy_tank import EnemyTank
 from src.utils.constants import (
     DIRECTION_CHANGE_RANDOM_OFFSET,
     SHOOT_RANDOM_OFFSET,
@@ -18,7 +24,6 @@ from src.utils.constants import (
 )
 
 if TYPE_CHECKING:
-    from src.core.enemy_tank import EnemyTank
     from src.core.player_tank import PlayerTank
 
 
@@ -72,7 +77,6 @@ class AIPlayerInput:
         self._shoot_timer: float = 0.0
         self._blocked_directions: set[Direction] = set()
 
-    # PlayerInput protocol -----------------------------------------------------
     def handle_event(self, event: pygame.event.Event) -> None:
         pass
 
@@ -98,7 +102,6 @@ class AIPlayerInput:
         self._shoot_timer = 0.0
         self._blocked_directions.clear()
 
-    # AI-specific, called by PlayerManager via isinstance branch ---------------
     def update(
         self,
         dt: float,
@@ -125,8 +128,6 @@ class AIPlayerInput:
 
         self._maybe_shoot(enemies, teammate)
 
-    _ALL_DIRECTIONS = list(Direction)
-
     def _maybe_shoot(
         self,
         enemies: list[EnemyTank],
@@ -138,10 +139,8 @@ class AIPlayerInput:
         if self._shoot_timer < self._shoot_interval:
             if not enemies:
                 return
-            nearest = min(
-                enemies,
-                key=lambda e: abs(e.x - self._tank.x) + abs(e.y - self._tank.y),
-            )
+            pos = (self._tank.x, self._tank.y)
+            nearest = min(enemies, key=lambda e: manhattan((e.x, e.y), pos))
             if not is_aligned_with(
                 (self._tank.x, self._tank.y),
                 self._tank.direction,
@@ -171,13 +170,13 @@ class AIPlayerInput:
         return 0 < along <= self._friendly_fire_check_px and perp <= TILE_SIZE
 
     def _replan(self, enemies: list[EnemyTank]) -> None:
-        from src.core.enemy_tank import EnemyTank
-
         base_position = EnemyTank.base_position
         role = self._select_role(enemies, base_position)
         target_pos = self._select_target(enemies, base_position, role)
 
-        candidates = self._candidate_directions()
+        candidates = filter_candidate_directions(
+            self._tank.direction, self._blocked_directions
+        )
         if not candidates:
             self._dx, self._dy = 0, 0
             return
@@ -196,9 +195,8 @@ class AIPlayerInput:
     ) -> AIRole:
         if base_position is None:
             return AIRole.HUNTER
-        bx, by = base_position
         for e in enemies:
-            if abs(e.x - bx) + abs(e.y - by) <= self._defender_base_radius:
+            if manhattan((e.x, e.y), base_position) <= self._defender_base_radius:
                 return AIRole.DEFENDER
         return AIRole.HUNTER
 
@@ -211,25 +209,11 @@ class AIPlayerInput:
         if not enemies:
             return None
         if role == AIRole.DEFENDER and base_position is not None:
-            bx, by = base_position
-            nearest = min(enemies, key=lambda e: abs(e.x - bx) + abs(e.y - by))
+            anchor = base_position
         else:
-            nearest = min(
-                enemies,
-                key=lambda e: abs(e.x - self._tank.x) + abs(e.y - self._tank.y),
-            )
+            anchor = (self._tank.x, self._tank.y)
+        nearest = min(enemies, key=lambda e: manhattan((e.x, e.y), anchor))
         return (nearest.x, nearest.y)
-
-    def _candidate_directions(self) -> list[Direction]:
-        opposite = self._tank.direction.opposite
-        filtered = [
-            d
-            for d in self._ALL_DIRECTIONS
-            if d not in self._blocked_directions and d != opposite
-        ]
-        if filtered:
-            return filtered
-        return [d for d in self._ALL_DIRECTIONS if d not in self._blocked_directions]
 
     def _compute_weights(
         self,
