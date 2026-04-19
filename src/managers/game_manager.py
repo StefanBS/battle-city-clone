@@ -6,6 +6,7 @@ from src.core.map import Map
 from src.core.player_tank import PlayerTank
 from src.core.tile import Tile
 from src.core.bullet import Bullet
+from src.states.game_mode import GameMode
 from src.states.game_state import GameState
 from src.utils.constants import (
     VOLUME_ADJUSTMENT_STEP,
@@ -212,10 +213,11 @@ class GameManager:
             on_player_death=self.player_manager.handle_player_death,
         )
 
+        mode = GameMode.TWO_PLAYER if self._two_player_mode else GameMode.ONE_PLAYER
         self.player_manager.create_players(
             self.map,
             controller_instance_ids=self.input_handler.controller_instance_ids,
-            two_player_mode=self._two_player_mode,
+            mode=mode,
         )
 
         # Renderer (fixed logical surface with map centered inside)
@@ -381,7 +383,7 @@ class GameManager:
 
         self.map.update(dt)
         # Update player tanks via PlayerManager
-        self.player_manager.update(dt, self.map)
+        self.player_manager.update(dt, self.map, self.spawn_manager.enemy_tanks)
         self.player_manager.try_shoot()
 
         active_players = self.player_manager.get_active_players()

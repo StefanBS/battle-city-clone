@@ -9,14 +9,17 @@ from loguru import logger
 
 from src.core.bullet import Bullet
 from src.core.player_tank import PlayerTank
+from src.managers.ai_player_input import AIPlayerInput
 from src.managers.player_input import (
     CombinedInput,
     ControllerInput,
     KeyboardInput,
     PlayerInput,
 )
+from src.states.game_mode import GameMode
 
 if TYPE_CHECKING:
+    from src.core.enemy_tank import EnemyTank
     from src.core.map import Map
     from src.managers.sound_manager import SoundManager
     from src.managers.texture_manager import TextureManager
@@ -54,7 +57,7 @@ class PlayerManager:
         self,
         game_map: Map,
         controller_instance_ids: list[int],
-        two_player_mode: bool = False,
+        mode: GameMode = GameMode.ONE_PLAYER,
     ) -> None:
         # controller_instance_ids must come from InputHandler — it's the single
         # source of truth for which SDL game controllers are currently open.
@@ -79,15 +82,22 @@ class PlayerManager:
 
         self._players.append(make_player(game_map.player_spawn, 1))
 
-        if two_player_mode:
+        if mode == GameMode.ONE_PLAYER:
+            self._player_inputs.extend(self._one_player_inputs())
+        else:
             p2_spawn = game_map.player_spawn_2
             if p2_spawn is None:
                 px = game_map.player_spawn[0] + 8
                 p2_spawn = (px, game_map.player_spawn[1])
             self._players.append(make_player(p2_spawn, 2))
-            self._player_inputs.extend(self._two_player_inputs(controller_instance_ids))
-        else:
-            self._player_inputs.extend(self._one_player_inputs())
+
+            if mode == GameMode.ONE_PLAYER_AI:
+                self._player_inputs.extend(self._one_player_inputs())
+                self._player_inputs.append(AIPlayerInput(tank=self._players[1]))
+            else:  # GameMode.TWO_PLAYER
+                self._player_inputs.extend(
+                    self._two_player_inputs(controller_instance_ids)
+                )
 
         for player in self._players:
             if player.player_id not in self._scores:
@@ -122,14 +132,16 @@ class PlayerManager:
         for pi in self._player_inputs:
             pi.clear_pending_shoot()
 
-    def update(self, dt: float, game_map: Map) -> None:
+    def update(self, dt: float, game_map: Map, enemies: list[EnemyTank]) -> None:
         """Process input, move players, and handle ice sliding.
 
         For each live player:
-        1. Call player.update(dt) to advance timers.
-        2. Read movement direction from the paired PlayerInput.
-        3. Detect whether the player is on an ice tile and start sliding if needed.
-        4. Apply player.move() when there is valid (non-diagonal) input and the
+        1. If the input is an AIPlayerInput, advance its AI state with the
+           current enemy list and surviving teammate (if any).
+        2. Call player.update(dt) to advance timers.
+        3. Read movement direction from the paired PlayerInput.
+        4. Detect whether the player is on an ice tile and start sliding if needed.
+        5. Apply player.move() when there is valid (non-diagonal) input and the
            player is not currently sliding.
 
         Also advances all active bullets and prunes inactive ones.
@@ -137,10 +149,18 @@ class PlayerManager:
         Args:
             dt: Time step in seconds.
             game_map: Current map (used for ice tile detection).
+            enemies: Live enemy tanks; forwarded to AI inputs for targeting.
         """
         for player, player_input in zip(self._players, self._player_inputs):
             if player.health <= 0:
                 continue
+
+            if isinstance(player_input, AIPlayerInput):
+                teammate = next(
+                    (p for p in self._players if p is not player and p.health > 0),
+                    None,
+                )
+                player_input.update(dt, enemies, teammate)
 
             player.update(dt)
 
