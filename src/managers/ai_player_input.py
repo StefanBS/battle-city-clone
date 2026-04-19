@@ -3,12 +3,18 @@
 from __future__ import annotations
 
 import json
+import random
 from enum import Enum, auto
 from typing import TYPE_CHECKING
 
 import pygame
 
-from src.utils.constants import TILE_SIZE, Direction
+from src.core.ai_geometry import direction_moves_toward
+from src.utils.constants import (
+    DIRECTION_CHANGE_RANDOM_OFFSET,
+    TILE_SIZE,
+    Direction,
+)
 
 if TYPE_CHECKING:
     from src.core.enemy_tank import EnemyTank
@@ -86,7 +92,7 @@ class AIPlayerInput:
         enemies: list[EnemyTank],
         teammate: PlayerTank | None,
     ) -> None:
-        """Advance AI state by one frame. Filled in over subsequent tasks."""
+        """Advance AI state by one frame."""
         self._direction_timer += dt
         self._shoot_timer += dt
 
@@ -99,3 +105,93 @@ class AIPlayerInput:
         elif requested_movement and not self._tank.is_frozen:
             self._blocked_directions.add(self._tank.direction)
             self._direction_timer = 0.0
+
+        if self._direction_timer >= self._direction_change_interval:
+            self._replan(enemies)
+            self._direction_timer = random.uniform(0, DIRECTION_CHANGE_RANDOM_OFFSET)
+
+    _ALL_DIRECTIONS = list(Direction)
+
+    def _replan(self, enemies: list[EnemyTank]) -> None:
+        from src.core.enemy_tank import EnemyTank
+
+        base_position = EnemyTank.base_position
+        role = self._select_role(enemies, base_position)
+        target_pos = self._select_target(enemies, base_position, role)
+
+        candidates = self._candidate_directions()
+        if not candidates:
+            self._dx, self._dy = 0, 0
+            return
+
+        pos = (self._tank.x, self._tank.y)
+        weights = self._compute_weights(
+            candidates, pos, role, target_pos, base_position
+        )
+        new_direction = random.choices(candidates, weights)[0]
+        self._dx, self._dy = new_direction.delta
+
+    def _select_role(
+        self,
+        enemies: list[EnemyTank],
+        base_position: tuple[float, float] | None,
+    ) -> AIRole:
+        if base_position is None:
+            return AIRole.HUNTER
+        bx, by = base_position
+        for e in enemies:
+            if abs(e.x - bx) + abs(e.y - by) <= self._defender_base_radius:
+                return AIRole.DEFENDER
+        return AIRole.HUNTER
+
+    def _select_target(
+        self,
+        enemies: list[EnemyTank],
+        base_position: tuple[float, float] | None,
+        role: AIRole,
+    ) -> tuple[float, float] | None:
+        if not enemies:
+            return None
+        if role == AIRole.DEFENDER and base_position is not None:
+            bx, by = base_position
+            nearest = min(enemies, key=lambda e: abs(e.x - bx) + abs(e.y - by))
+        else:
+            nearest = min(
+                enemies,
+                key=lambda e: abs(e.x - self._tank.x) + abs(e.y - self._tank.y),
+            )
+        return (nearest.x, nearest.y)
+
+    def _candidate_directions(self) -> list[Direction]:
+        opposite = self._tank.direction.opposite
+        filtered = [
+            d
+            for d in self._ALL_DIRECTIONS
+            if d not in self._blocked_directions and d != opposite
+        ]
+        if filtered:
+            return filtered
+        return [d for d in self._ALL_DIRECTIONS if d not in self._blocked_directions]
+
+    def _compute_weights(
+        self,
+        candidates: list[Direction],
+        pos: tuple[float, float],
+        role: AIRole,
+        target_pos: tuple[float, float] | None,
+        base_position: tuple[float, float] | None,
+    ) -> list[float]:
+        weights = [1.0] * len(candidates)
+        if role == AIRole.DEFENDER and base_position is not None:
+            for i, d in enumerate(candidates):
+                if direction_moves_toward(pos, d, base_position):
+                    weights[i] += self._defender_base_bias
+                if target_pos is not None and direction_moves_toward(
+                    pos, d, target_pos
+                ):
+                    weights[i] += self._defender_enemy_bias
+        elif role == AIRole.HUNTER and target_pos is not None:
+            for i, d in enumerate(candidates):
+                if direction_moves_toward(pos, d, target_pos):
+                    weights[i] += self._hunter_target_bias
+        return weights

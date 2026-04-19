@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 import pygame
 import pytest
 
+from src.core.enemy_tank import EnemyTank
 from src.core.player_tank import PlayerTank
 from src.managers.ai_player_input import (
     AIPlayerInput,
@@ -127,3 +128,162 @@ class TestTimerAdvancement:
         ai = AIPlayerInput(tank=mock_player_tank)
         ai.update(dt=0.1, enemies=[], teammate=None)
         assert ai._shoot_timer == pytest.approx(0.1)
+
+
+@pytest.fixture
+def mock_enemy_factory():
+    def _make(x: float, y: float) -> MagicMock:
+        e = MagicMock(spec=EnemyTank)
+        e.x = x
+        e.y = y
+        return e
+
+    return _make
+
+
+class TestRoleSelection:
+    def test_hunter_when_no_enemies(self, mock_player_tank, monkeypatch):
+        ai = AIPlayerInput(tank=mock_player_tank)
+        ai._direction_timer = ai._direction_change_interval
+        captured = {}
+
+        def fake_choices(candidates, weights):
+            captured["weights"] = weights
+            return [candidates[0]]
+
+        monkeypatch.setattr("src.managers.ai_player_input.random.choices", fake_choices)
+        monkeypatch.setattr(EnemyTank, "base_position", (100.0, 100.0))
+        ai.update(dt=0.01, enemies=[], teammate=None)
+        assert all(w == 1.0 for w in captured["weights"])
+
+    def test_defender_when_enemy_near_base(
+        self, mock_player_tank, mock_enemy_factory, monkeypatch
+    ):
+        ai = AIPlayerInput(tank=mock_player_tank)
+        ai._direction_timer = ai._direction_change_interval
+        # Base at origin, tank 5 tiles to the right, enemy 1 tile from base.
+        monkeypatch.setattr(EnemyTank, "base_position", (0.0, 0.0))
+        mock_player_tank.x = 5 * TILE_SIZE
+        mock_player_tank.y = 0.0
+        # Face UP so LEFT (toward base) is not the excluded opposite.
+        mock_player_tank.direction = Direction.UP
+
+        close_enemy = mock_enemy_factory(TILE_SIZE, 0.0)
+
+        captured = {}
+
+        def fake_choices(candidates, weights):
+            captured["candidates"] = candidates
+            captured["weights"] = weights
+            return [candidates[0]]
+
+        monkeypatch.setattr("src.managers.ai_player_input.random.choices", fake_choices)
+        ai.update(dt=0.01, enemies=[close_enemy], teammate=None)
+        assert max(captured["weights"]) >= 1.0 + ai._defender_base_bias
+
+    def test_hunter_when_base_position_is_none(
+        self, mock_player_tank, mock_enemy_factory, monkeypatch
+    ):
+        ai = AIPlayerInput(tank=mock_player_tank)
+        ai._direction_timer = ai._direction_change_interval
+        monkeypatch.setattr(EnemyTank, "base_position", None)
+        # Face UP so RIGHT (toward enemy) is not the excluded opposite.
+        mock_player_tank.direction = Direction.UP
+        enemy = mock_enemy_factory(100.0, 0.0)
+
+        captured = {}
+
+        def fake_choices(candidates, weights):
+            captured["weights"] = weights
+            return [candidates[0]]
+
+        monkeypatch.setattr("src.managers.ai_player_input.random.choices", fake_choices)
+        ai.update(dt=0.01, enemies=[enemy], teammate=None)
+        assert max(captured["weights"]) == pytest.approx(1.0 + ai._hunter_target_bias)
+
+
+class TestDirectionCandidates:
+    def test_blocked_directions_excluded(self, mock_player_tank, monkeypatch):
+        ai = AIPlayerInput(tank=mock_player_tank)
+        ai._blocked_directions = {Direction.UP}
+        ai._direction_timer = ai._direction_change_interval
+        mock_player_tank.direction = Direction.RIGHT
+        monkeypatch.setattr(EnemyTank, "base_position", None)
+
+        captured = {}
+
+        def fake_choices(candidates, weights):
+            captured["candidates"] = list(candidates)
+            return [candidates[0]]
+
+        monkeypatch.setattr("src.managers.ai_player_input.random.choices", fake_choices)
+        ai.update(dt=0.01, enemies=[], teammate=None)
+        assert Direction.UP not in captured["candidates"]
+
+    def test_opposite_direction_excluded_when_others_available(
+        self, mock_player_tank, monkeypatch
+    ):
+        ai = AIPlayerInput(tank=mock_player_tank)
+        ai._direction_timer = ai._direction_change_interval
+        mock_player_tank.direction = Direction.RIGHT
+        monkeypatch.setattr(EnemyTank, "base_position", None)
+
+        captured = {}
+
+        def fake_choices(candidates, weights):
+            captured["candidates"] = list(candidates)
+            return [candidates[0]]
+
+        monkeypatch.setattr("src.managers.ai_player_input.random.choices", fake_choices)
+        ai.update(dt=0.01, enemies=[], teammate=None)
+        assert Direction.LEFT not in captured["candidates"]
+
+    def test_opposite_allowed_when_only_option(self, mock_player_tank, monkeypatch):
+        ai = AIPlayerInput(tank=mock_player_tank)
+        ai._blocked_directions = {Direction.UP, Direction.DOWN, Direction.RIGHT}
+        ai._direction_timer = ai._direction_change_interval
+        mock_player_tank.direction = Direction.RIGHT
+        monkeypatch.setattr(EnemyTank, "base_position", None)
+
+        captured = {}
+
+        def fake_choices(candidates, weights):
+            captured["candidates"] = list(candidates)
+            return [candidates[0]]
+
+        monkeypatch.setattr("src.managers.ai_player_input.random.choices", fake_choices)
+        ai.update(dt=0.01, enemies=[], teammate=None)
+        assert Direction.LEFT in captured["candidates"]
+
+
+class TestDirectionPicking:
+    def test_timer_resets_with_jitter(self, mock_player_tank, monkeypatch):
+        ai = AIPlayerInput(tank=mock_player_tank)
+        ai._direction_timer = ai._direction_change_interval
+        mock_player_tank.direction = Direction.RIGHT
+        monkeypatch.setattr(EnemyTank, "base_position", None)
+        monkeypatch.setattr(
+            "src.managers.ai_player_input.random.choices",
+            lambda c, w: [c[0]],
+        )
+        monkeypatch.setattr(
+            "src.managers.ai_player_input.random.uniform", lambda a, b: 0.03
+        )
+        ai.update(dt=0.01, enemies=[], teammate=None)
+        assert ai._direction_timer == pytest.approx(0.03)
+
+    def test_dx_dy_set_from_picked_direction(self, mock_player_tank, monkeypatch):
+        ai = AIPlayerInput(tank=mock_player_tank)
+        ai._direction_timer = ai._direction_change_interval
+        mock_player_tank.direction = Direction.RIGHT
+        monkeypatch.setattr(EnemyTank, "base_position", None)
+
+        monkeypatch.setattr(
+            "src.managers.ai_player_input.random.choices",
+            lambda c, w: [Direction.DOWN],
+        )
+        monkeypatch.setattr(
+            "src.managers.ai_player_input.random.uniform", lambda a, b: 0.0
+        )
+        ai.update(dt=0.01, enemies=[], teammate=None)
+        assert (ai._dx, ai._dy) == Direction.DOWN.delta
