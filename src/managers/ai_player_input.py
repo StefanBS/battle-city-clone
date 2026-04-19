@@ -138,8 +138,25 @@ class AIPlayerInput:
             ):
                 return
 
+        if self._teammate_in_line_of_fire(teammate):
+            return
+
         self._wants_shoot = True
         self._shoot_timer = random.uniform(0, SHOOT_RANDOM_OFFSET)
+
+    def _teammate_in_line_of_fire(self, teammate: PlayerTank | None) -> bool:
+        if teammate is None:
+            return False
+        dx, dy = self._tank.direction.delta
+        ox = teammate.x - self._tank.x
+        oy = teammate.y - self._tank.y
+        if dx != 0:
+            along = ox * dx
+            perp = abs(oy)
+        else:
+            along = oy * dy
+            perp = abs(ox)
+        return 0 < along <= self._friendly_fire_check_px and perp <= TILE_SIZE
 
     def _replan(self, enemies: list[EnemyTank]) -> None:
         from src.core.enemy_tank import EnemyTank

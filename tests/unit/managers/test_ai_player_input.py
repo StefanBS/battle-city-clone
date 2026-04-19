@@ -346,3 +346,90 @@ class TestShooting:
         perp_enemy = mock_enemy_factory(0.0, 5 * TILE_SIZE)
         ai.update(dt=0.01, enemies=[perp_enemy], teammate=None)
         assert ai.consume_shoot() is False
+
+
+class TestFriendlyFireSuppression:
+    def test_suppresses_when_teammate_in_line(
+        self, mock_player_tank, mock_enemy_factory, monkeypatch
+    ):
+        ai = AIPlayerInput(tank=mock_player_tank)
+        ai._shoot_timer = ai._shoot_interval
+        mock_player_tank.direction = Direction.RIGHT
+        monkeypatch.setattr(EnemyTank, "base_position", None)
+
+        teammate = MagicMock(spec=PlayerTank)
+        teammate.x = 2 * TILE_SIZE
+        teammate.y = 0.0
+        teammate.health = 1
+
+        pre_timer = ai._shoot_timer
+        ai.update(
+            dt=0.01,
+            enemies=[mock_enemy_factory(10 * TILE_SIZE, 0.0)],
+            teammate=teammate,
+        )
+        assert ai.consume_shoot() is False
+        assert ai._shoot_timer >= pre_timer
+
+    def test_fires_when_no_teammate(
+        self, mock_player_tank, mock_enemy_factory, monkeypatch
+    ):
+        ai = AIPlayerInput(tank=mock_player_tank)
+        ai._shoot_timer = ai._shoot_interval
+        mock_player_tank.direction = Direction.RIGHT
+        monkeypatch.setattr(EnemyTank, "base_position", None)
+        monkeypatch.setattr(
+            "src.managers.ai_player_input.random.uniform", lambda a, b: 0.0
+        )
+        ai.update(
+            dt=0.01,
+            enemies=[mock_enemy_factory(5 * TILE_SIZE, 0.0)],
+            teammate=None,
+        )
+        assert ai.consume_shoot() is True
+
+    def test_fires_when_teammate_perpendicular(
+        self, mock_player_tank, mock_enemy_factory, monkeypatch
+    ):
+        ai = AIPlayerInput(tank=mock_player_tank)
+        ai._shoot_timer = ai._shoot_interval
+        mock_player_tank.direction = Direction.RIGHT
+        monkeypatch.setattr(EnemyTank, "base_position", None)
+        monkeypatch.setattr(
+            "src.managers.ai_player_input.random.uniform", lambda a, b: 0.0
+        )
+
+        teammate = MagicMock(spec=PlayerTank)
+        teammate.x = 0.0
+        teammate.y = 5 * TILE_SIZE
+        teammate.health = 1
+
+        ai.update(
+            dt=0.01,
+            enemies=[mock_enemy_factory(10 * TILE_SIZE, 0.0)],
+            teammate=teammate,
+        )
+        assert ai.consume_shoot() is True
+
+    def test_fires_when_teammate_behind_ai(
+        self, mock_player_tank, mock_enemy_factory, monkeypatch
+    ):
+        ai = AIPlayerInput(tank=mock_player_tank)
+        ai._shoot_timer = ai._shoot_interval
+        mock_player_tank.direction = Direction.RIGHT
+        monkeypatch.setattr(EnemyTank, "base_position", None)
+        monkeypatch.setattr(
+            "src.managers.ai_player_input.random.uniform", lambda a, b: 0.0
+        )
+
+        teammate = MagicMock(spec=PlayerTank)
+        teammate.x = -2 * TILE_SIZE
+        teammate.y = 0.0
+        teammate.health = 1
+
+        ai.update(
+            dt=0.01,
+            enemies=[mock_enemy_factory(10 * TILE_SIZE, 0.0)],
+            teammate=teammate,
+        )
+        assert ai.consume_shoot() is True
