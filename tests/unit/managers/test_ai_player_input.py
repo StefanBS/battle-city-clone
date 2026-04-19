@@ -287,3 +287,62 @@ class TestDirectionPicking:
         )
         ai.update(dt=0.01, enemies=[], teammate=None)
         assert (ai._dx, ai._dy) == Direction.DOWN.delta
+
+
+class TestShooting:
+    def test_fires_when_timer_exceeds_interval(
+        self, mock_player_tank, mock_enemy_factory, monkeypatch
+    ):
+        ai = AIPlayerInput(tank=mock_player_tank)
+        ai._shoot_timer = ai._shoot_interval
+        mock_player_tank.direction = Direction.RIGHT
+        monkeypatch.setattr(EnemyTank, "base_position", None)
+        monkeypatch.setattr(
+            "src.managers.ai_player_input.random.uniform", lambda a, b: 0.0
+        )
+        ai.update(
+            dt=0.01,
+            enemies=[mock_enemy_factory(100.0, 0.0)],
+            teammate=None,
+        )
+        assert ai.consume_shoot() is True
+        assert ai._shoot_timer == 0.0
+
+    def test_does_not_fire_before_interval(
+        self, mock_player_tank, mock_enemy_factory, monkeypatch
+    ):
+        ai = AIPlayerInput(tank=mock_player_tank)
+        ai._shoot_timer = 0.0
+        mock_player_tank.direction = Direction.UP
+        monkeypatch.setattr(EnemyTank, "base_position", None)
+        ai.update(
+            dt=0.01,
+            enemies=[mock_enemy_factory(0.0, -100.0)],
+            teammate=None,
+        )
+        assert ai.consume_shoot() is False
+
+    def test_aligned_shoot_fires_early(
+        self, mock_player_tank, mock_enemy_factory, monkeypatch
+    ):
+        ai = AIPlayerInput(tank=mock_player_tank)
+        ai._shoot_timer = ai._shoot_interval * ai._aligned_shoot_multiplier + 0.01
+        mock_player_tank.direction = Direction.RIGHT
+        monkeypatch.setattr(EnemyTank, "base_position", None)
+        monkeypatch.setattr(
+            "src.managers.ai_player_input.random.uniform", lambda a, b: 0.0
+        )
+        aligned_enemy = mock_enemy_factory(5 * TILE_SIZE, 0.0)
+        ai.update(dt=0.01, enemies=[aligned_enemy], teammate=None)
+        assert ai.consume_shoot() is True
+
+    def test_aligned_shoot_misaligned_does_not_fire_early(
+        self, mock_player_tank, mock_enemy_factory, monkeypatch
+    ):
+        ai = AIPlayerInput(tank=mock_player_tank)
+        ai._shoot_timer = ai._shoot_interval * ai._aligned_shoot_multiplier + 0.01
+        mock_player_tank.direction = Direction.RIGHT
+        monkeypatch.setattr(EnemyTank, "base_position", None)
+        perp_enemy = mock_enemy_factory(0.0, 5 * TILE_SIZE)
+        ai.update(dt=0.01, enemies=[perp_enemy], teammate=None)
+        assert ai.consume_shoot() is False

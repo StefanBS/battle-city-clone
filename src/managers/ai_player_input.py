@@ -9,9 +9,10 @@ from typing import TYPE_CHECKING
 
 import pygame
 
-from src.core.ai_geometry import direction_moves_toward
+from src.core.ai_geometry import direction_moves_toward, is_aligned_with
 from src.utils.constants import (
     DIRECTION_CHANGE_RANDOM_OFFSET,
+    SHOOT_RANDOM_OFFSET,
     TILE_SIZE,
     Direction,
 )
@@ -110,7 +111,35 @@ class AIPlayerInput:
             self._replan(enemies)
             self._direction_timer = random.uniform(0, DIRECTION_CHANGE_RANDOM_OFFSET)
 
+        self._maybe_shoot(enemies, teammate)
+
     _ALL_DIRECTIONS = list(Direction)
+
+    def _maybe_shoot(
+        self,
+        enemies: list[EnemyTank],
+        teammate: PlayerTank | None,
+    ) -> None:
+        if self._shoot_timer < self._shoot_interval * self._aligned_shoot_multiplier:
+            return
+
+        if self._shoot_timer < self._shoot_interval:
+            if not enemies:
+                return
+            nearest = min(
+                enemies,
+                key=lambda e: abs(e.x - self._tank.x) + abs(e.y - self._tank.y),
+            )
+            if not is_aligned_with(
+                (self._tank.x, self._tank.y),
+                self._tank.direction,
+                self._tank.tile_size,
+                (nearest.x, nearest.y),
+            ):
+                return
+
+        self._wants_shoot = True
+        self._shoot_timer = random.uniform(0, SHOOT_RANDOM_OFFSET)
 
     def _replan(self, enemies: list[EnemyTank]) -> None:
         from src.core.enemy_tank import EnemyTank
