@@ -116,13 +116,14 @@ class AIPlayerInput:
             self._tank.y != self._tank.prev_y
         )
         requested_movement = self._dx != 0 or self._dy != 0
+        replan_now = False
         if moved:
             self._blocked_directions.clear()
         elif requested_movement and not self._tank.is_frozen:
             self._blocked_directions.add(self._tank.direction)
-            self._direction_timer = 0.0
+            replan_now = True
 
-        if self._direction_timer >= self._direction_change_interval:
+        if replan_now or self._direction_timer >= self._direction_change_interval:
             self._replan(enemies)
             self._direction_timer = random.uniform(0, DIRECTION_CHANGE_RANDOM_OFFSET)
 

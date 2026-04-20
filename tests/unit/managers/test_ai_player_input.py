@@ -110,7 +110,6 @@ class TestBlockMemory:
         mock_player_tank.y = 0.0
         ai.update(dt=1 / 60, enemies=[], teammate=None)
         assert Direction.UP in ai._blocked_directions
-        assert ai._direction_timer == 0.0
 
     def test_not_added_when_frozen(self, mock_player_tank):
         ai = AIPlayerInput(tank=mock_player_tank)
@@ -132,6 +131,35 @@ class TestBlockMemory:
         mock_player_tank.prev_y = mock_player_tank.y = 0.0
         ai.update(dt=1 / 60, enemies=[], teammate=None)
         assert ai._blocked_directions == set()
+
+
+class TestBlockageReplan:
+    def test_blocked_ai_replans_same_frame(
+        self, mock_player_tank, mock_enemy_factory, monkeypatch
+    ):
+        """When the tank can't move and the AI is requesting movement, the
+        AI must replan that frame instead of resetting its timer and looping
+        forever on the same blocked direction.
+        """
+        ai = AIPlayerInput(tank=mock_player_tank)
+        ai._dx, ai._dy = 1, 0
+        mock_player_tank.direction = Direction.RIGHT
+        # Tank did not move (prev == current).
+        mock_player_tank.prev_x = mock_player_tank.x = 100.0
+        mock_player_tank.prev_y = mock_player_tank.y = 100.0
+        monkeypatch.setattr(EnemyTank, "base_position", None)
+        monkeypatch.setattr(
+            "src.managers.ai_player_input.random.choices",
+            lambda c, w: [Direction.UP],
+        )
+        monkeypatch.setattr(
+            "src.managers.ai_player_input.random.uniform", lambda a, b: 0.0
+        )
+
+        ai.update(dt=1 / 60, enemies=[mock_enemy_factory(0.0, 0.0)], teammate=None)
+
+        assert Direction.RIGHT in ai._blocked_directions
+        assert (ai._dx, ai._dy) == Direction.UP.delta
 
 
 class TestTimerAdvancement:
