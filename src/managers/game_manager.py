@@ -6,6 +6,7 @@ from src.core.map import Map
 from src.core.player_tank import PlayerTank
 from src.core.tile import Tile
 from src.core.bullet import Bullet
+from src.states.game_mode import GameMode
 from src.states.game_state import GameState
 from src.utils.constants import (
     VOLUME_ADJUSTMENT_STEP,
@@ -74,7 +75,7 @@ class GameManager:
         self.state: GameState = GameState.TITLE_SCREEN
         self._options_from_pause: bool = False
         self._state_timer: float = 0.0
-        self._two_player_mode: bool = False
+        self._game_mode: GameMode = GameMode.ONE_PLAYER
         self._post_curtain_state: GameState = GameState.RUNNING
 
         self._title_menu, self._pause_menu, self._options_menu = self._build_menus()
@@ -114,8 +115,18 @@ class GameManager:
 
         title = MenuController(
             items=[
-                MenuItem("1 Player", on_confirm=lambda: self._start_game(False)),
-                MenuItem("2 Players", on_confirm=lambda: self._start_game(True)),
+                MenuItem(
+                    "1 Player",
+                    on_confirm=lambda: self._start_game(GameMode.ONE_PLAYER),
+                ),
+                MenuItem(
+                    "2 Players",
+                    on_confirm=lambda: self._start_game(GameMode.TWO_PLAYER),
+                ),
+                MenuItem(
+                    "1 Player + AI",
+                    on_confirm=lambda: self._start_game(GameMode.ONE_PLAYER_AI),
+                ),
                 MenuItem("Options", on_confirm=lambda: self._open_options(False)),
                 MenuItem("Quit", on_confirm=self._quit_game),
             ],
@@ -215,7 +226,7 @@ class GameManager:
         self.player_manager.create_players(
             self.map,
             controller_instance_ids=self.input_handler.controller_instance_ids,
-            two_player_mode=self._two_player_mode,
+            mode=self._game_mode,
         )
 
         # Renderer (fixed logical surface with map centered inside)
@@ -331,11 +342,9 @@ class GameManager:
         else:
             self.state = GameState.TITLE_SCREEN
 
-    def _start_game(self, two_player: bool) -> None:
-        self._two_player_mode = two_player
-        logger.info(
-            f"{'2 Players' if two_player else '1 Player'} selected, starting game."
-        )
+    def _start_game(self, mode: GameMode) -> None:
+        self._game_mode = mode
+        logger.info(f"{mode.name} selected, starting game.")
         self._new_game()
         self.state = GameState.STAGE_CURTAIN_CLOSE
         self._state_timer = 0.0
@@ -381,7 +390,7 @@ class GameManager:
 
         self.map.update(dt)
         # Update player tanks via PlayerManager
-        self.player_manager.update(dt, self.map)
+        self.player_manager.update(dt, self.map, self.spawn_manager.enemy_tanks)
         self.player_manager.try_shoot()
 
         active_players = self.player_manager.get_active_players()

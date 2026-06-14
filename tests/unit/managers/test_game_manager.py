@@ -1,6 +1,7 @@
 import pytest
 import pygame
 from unittest.mock import patch, MagicMock
+from src.states.game_mode import GameMode
 from src.states.game_state import GameState
 from src.core.enemy_tank import EnemyTank
 from src.utils.constants import (
@@ -57,7 +58,7 @@ class TestGameManager:
         pygame.event.post(key_down_event(pygame.K_RETURN))
         gm.handle_events()
         assert gm.state == GameState.STAGE_CURTAIN_CLOSE
-        assert gm._two_player_mode is True
+        assert gm._game_mode == GameMode.TWO_PLAYER
 
     def test_victory_r_does_nothing(self, game_manager, key_down_event):
         """Test pressing R during VICTORY does nothing (auto-advances instead)."""
@@ -392,7 +393,7 @@ class TestPauseAndOptionsStateMachine:
     ):
         """Enter on OPTIONS (index 2) on title screen goes to OPTIONS_MENU."""
         gm = game_manager_at_title
-        gm._title_menu.selection = 2
+        gm._title_menu.selection = 3
         pygame.event.post(key_down_event(pygame.K_RETURN))
         gm.handle_events()
         assert gm.state == GameState.OPTIONS_MENU
@@ -400,9 +401,9 @@ class TestPauseAndOptionsStateMachine:
         assert gm._options_menu.selection == 0
 
     def test_title_quit_exits(self, game_manager_at_title, key_down_event):
-        """Enter on QUIT (index 3) on title screen exits the game."""
+        """Enter on QUIT (index 4) on title screen exits the game."""
         gm = game_manager_at_title
-        gm._title_menu.selection = 3
+        gm._title_menu.selection = 4
         gm.sound_manager = MagicMock()
         pygame.event.post(key_down_event(pygame.K_RETURN))
         gm.handle_events()
@@ -676,3 +677,30 @@ class TestPauseAndOptionsStateMachine:
         gm.renderer.render_title_screen.assert_called_once_with(
             gm._title_menu.labels, 2
         )
+
+
+class TestAICoopMenu:
+    def test_title_menu_contains_ai_coop_item(self, game_manager):
+        labels = game_manager._title_menu.labels
+        assert "1 Player + AI" in labels
+
+    def test_selecting_ai_coop_starts_game_in_ai_mode(self, game_manager, monkeypatch):
+        captured = {}
+        monkeypatch.setattr(
+            game_manager,
+            "_start_game",
+            lambda mode: captured.update(mode=mode),
+        )
+        game_manager._title_menu, _, _ = game_manager._build_menus()
+        for item in game_manager._title_menu._items:
+            if item.label == "1 Player + AI":
+                item.on_confirm()
+                break
+        assert captured["mode"] == GameMode.ONE_PLAYER_AI
+
+    def test_game_mode_defaults_to_one_player(self, game_manager):
+        assert game_manager._game_mode == GameMode.ONE_PLAYER
+
+    def test_start_game_sets_game_mode(self, game_manager):
+        game_manager._start_game(GameMode.ONE_PLAYER_AI)
+        assert game_manager._game_mode == GameMode.ONE_PLAYER_AI

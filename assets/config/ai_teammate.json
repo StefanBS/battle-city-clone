@@ -1,0 +1,10 @@
+{
+  "direction_change_interval": 0.5,
+  "shoot_interval": 0.8,
+  "aligned_shoot_multiplier": 0.3,
+  "defender_base_radius_tiles": 6,
+  "hunter_target_bias": 2.0,
+  "defender_base_bias": 3.0,
+  "defender_enemy_bias": 1.0,
+  "friendly_fire_check_tiles": 5
+}

@@ -16,8 +16,10 @@ from src.managers.player_input import (
     KeyboardInput,
     PlayerInput,
 )
+from src.managers.ai_player_input import AIPlayerInput
 from src.managers.player_manager import PlayerManager
 from src.managers.sound_manager import SoundManager
+from src.states.game_mode import GameMode
 from src.utils.constants import TILE_SIZE
 
 
@@ -171,7 +173,7 @@ class TestPlayerManagerUpdate:
         # Pair with a keyboard input that has no keys pressed
         self.pm._player_inputs = [KeyboardInput()]
 
-        self.pm.update(0.016, self.game_map)
+        self.pm.update(0.016, self.game_map, [])
 
         player.update.assert_called_once_with(0.016)
 
@@ -182,7 +184,7 @@ class TestPlayerManagerUpdate:
         self.pm._players = [player]
         self.pm._player_inputs = [KeyboardInput()]
 
-        self.pm.update(0.016, self.game_map)
+        self.pm.update(0.016, self.game_map, [])
 
         player.update.assert_not_called()
 
@@ -204,7 +206,7 @@ class TestPlayerManagerUpdate:
         pi.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_UP))
         self.pm._player_inputs = [pi]
 
-        self.pm.update(0.016, self.game_map)
+        self.pm.update(0.016, self.game_map, [])
 
         player.move.assert_called_once_with(0, -1, 0.016)
 
@@ -228,7 +230,7 @@ class TestPlayerManagerUpdate:
         pi.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RIGHT))
         self.pm._player_inputs = [pi]
 
-        self.pm.update(0.016, self.game_map)
+        self.pm.update(0.016, self.game_map, [])
 
         player.move.assert_not_called()
 
@@ -250,7 +252,7 @@ class TestPlayerManagerUpdate:
         pi.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_UP))
         self.pm._player_inputs = [pi]
 
-        self.pm.update(0.016, self.game_map)
+        self.pm.update(0.016, self.game_map, [])
 
         player.move.assert_not_called()
 
@@ -278,7 +280,7 @@ class TestPlayerManagerUpdate:
         self.pm._players = [player]
         self.pm._player_inputs = [KeyboardInput()]  # no keys pressed
 
-        self.pm.update(0.016, self.game_map)
+        self.pm.update(0.016, self.game_map, [])
 
         player.start_slide.assert_called_once()
         self.pm._sound_manager.play.assert_called_once_with("ice_slide")
@@ -289,7 +291,7 @@ class TestPlayerManagerUpdate:
         bullet.active = True
         self.pm._bullets = [bullet]
 
-        self.pm.update(0.016, self.game_map)
+        self.pm.update(0.016, self.game_map, [])
 
         bullet.update.assert_called_once_with(0.016)
 
@@ -299,7 +301,7 @@ class TestPlayerManagerUpdate:
         bullet.active = False
         self.pm._bullets = [bullet]
 
-        self.pm.update(0.016, self.game_map)
+        self.pm.update(0.016, self.game_map, [])
 
         assert self.pm._bullets == []
 
@@ -619,10 +621,10 @@ class TestPlayerManagerReset:
 
 class TestPlayerManagerTwoPlayerCreation:
     def test_create_two_players(self, player_manager, mock_game_map):
-        """create_players(two_player_mode=True) produces two active players."""
+        """create_players(mode=GameMode.TWO_PLAYER) produces two active players."""
         mock_game_map.player_spawn_2 = (16, 24)
         player_manager.create_players(
-            mock_game_map, controller_instance_ids=[0], two_player_mode=True
+            mock_game_map, controller_instance_ids=[0], mode=GameMode.TWO_PLAYER
         )
         players = player_manager.get_active_players()
         assert len(players) == 2
@@ -631,7 +633,7 @@ class TestPlayerManagerTwoPlayerCreation:
         """Second player has player_id=2."""
         mock_game_map.player_spawn_2 = (16, 24)
         player_manager.create_players(
-            mock_game_map, controller_instance_ids=[0], two_player_mode=True
+            mock_game_map, controller_instance_ids=[0], mode=GameMode.TWO_PLAYER
         )
         assert player_manager._players[0].player_id == 1
         assert player_manager._players[1].player_id == 2
@@ -640,7 +642,7 @@ class TestPlayerManagerTwoPlayerCreation:
         """Player 2 spawns at player_spawn_2 coordinates."""
         mock_game_map.player_spawn_2 = (16, 24)
         player_manager.create_players(
-            mock_game_map, controller_instance_ids=[0], two_player_mode=True
+            mock_game_map, controller_instance_ids=[0], mode=GameMode.TWO_PLAYER
         )
         p2 = player_manager._players[1]
         assert p2.x == 16 * TILE_SIZE
@@ -650,7 +652,7 @@ class TestPlayerManagerTwoPlayerCreation:
         """2P + 1 controller: P1=keyboard, P2=controller bound by instance_id."""
         mock_game_map.player_spawn_2 = (16, 24)
         player_manager.create_players(
-            mock_game_map, controller_instance_ids=[4], two_player_mode=True
+            mock_game_map, controller_instance_ids=[4], mode=GameMode.TWO_PLAYER
         )
         assert isinstance(player_manager._player_inputs[0], KeyboardInput)
         assert isinstance(player_manager._player_inputs[1], ControllerInput)
@@ -660,7 +662,7 @@ class TestPlayerManagerTwoPlayerCreation:
         """2P + 2 controllers: each player bound to its own instance_id."""
         mock_game_map.player_spawn_2 = (16, 24)
         player_manager.create_players(
-            mock_game_map, controller_instance_ids=[8, 12], two_player_mode=True
+            mock_game_map, controller_instance_ids=[8, 12], mode=GameMode.TWO_PLAYER
         )
         assert isinstance(player_manager._player_inputs[0], ControllerInput)
         assert player_manager._player_inputs[0].instance_id == 8
@@ -678,7 +680,7 @@ class TestPlayerManagerTwoPlayerCreation:
         """
         mock_game_map.player_spawn_2 = (16, 24)
         player_manager.create_players(
-            mock_game_map, controller_instance_ids=[0, 5], two_player_mode=True
+            mock_game_map, controller_instance_ids=[0, 5], mode=GameMode.TWO_PLAYER
         )
         assert player_manager._player_inputs[0].instance_id == 0
         assert player_manager._player_inputs[1].instance_id == 5
@@ -688,7 +690,7 @@ class TestPlayerManagerTwoPlayerCreation:
         mock_game_map.player_spawn_2 = None
         mock_game_map.player_spawn = (8, 24)
         player_manager.create_players(
-            mock_game_map, controller_instance_ids=[0], two_player_mode=True
+            mock_game_map, controller_instance_ids=[0], mode=GameMode.TWO_PLAYER
         )
         p2 = player_manager._players[1]
         assert p2.x == (8 + 8) * TILE_SIZE
@@ -698,7 +700,7 @@ class TestPlayerManagerTwoPlayerCreation:
         """Per-player scores start at 0 and accumulate independently."""
         mock_game_map.player_spawn_2 = (16, 24)
         player_manager.create_players(
-            mock_game_map, controller_instance_ids=[0], two_player_mode=True
+            mock_game_map, controller_instance_ids=[0], mode=GameMode.TWO_PLAYER
         )
         player_manager.add_score(100, player_id=1)
         player_manager.add_score(200, player_id=2)
@@ -720,7 +722,7 @@ class TestPlayerManagerTwoPlayerCreation:
         """
         mock_game_map.player_spawn_2 = (16, 24)
         player_manager.create_players(
-            mock_game_map, controller_instance_ids=[], two_player_mode=True
+            mock_game_map, controller_instance_ids=[], mode=GameMode.TWO_PLAYER
         )
 
         assert isinstance(player_manager._player_inputs[0], KeyboardInput)
@@ -738,7 +740,7 @@ class TestPlayerManagerTwoPlayerDeath:
         """Create a 2P PlayerManager."""
         mock_game_map.player_spawn_2 = (16, 24)
         player_manager.create_players(
-            mock_game_map, controller_instance_ids=[0], two_player_mode=True
+            mock_game_map, controller_instance_ids=[0], mode=GameMode.TWO_PLAYER
         )
         return player_manager
 
@@ -781,3 +783,117 @@ class TestPlayerManagerTwoPlayerDeath:
         p2.lives = 0
         p2.health = 0
         assert two_player_pm.is_game_over() is True
+
+
+# ---------------------------------------------------------------------------
+# TestAICoopSlotConstruction / TestPlayerManagerUpdateAI
+# ---------------------------------------------------------------------------
+
+
+class TestAICoopSlotConstruction:
+    def test_one_player_ai_mode_builds_ai_input_in_slot_2(
+        self, player_manager, mock_game_map
+    ):
+        mock_game_map.player_spawn_2 = (16, 24)
+        player_manager.create_players(
+            mock_game_map,
+            controller_instance_ids=[],
+            mode=GameMode.ONE_PLAYER_AI,
+        )
+        assert len(player_manager._players) == 2
+        assert not isinstance(player_manager._player_inputs[0], AIPlayerInput)
+        assert isinstance(player_manager._player_inputs[1], AIPlayerInput)
+        assert player_manager._player_inputs[1]._tank is player_manager._players[1]
+
+    def test_one_player_mode_does_not_build_ai(self, player_manager, mock_game_map):
+        player_manager.create_players(
+            mock_game_map,
+            controller_instance_ids=[],
+            mode=GameMode.ONE_PLAYER,
+        )
+        assert len(player_manager._players) == 1
+        assert not any(
+            isinstance(pi, AIPlayerInput) for pi in player_manager._player_inputs
+        )
+
+    def test_two_player_mode_does_not_build_ai(self, player_manager, mock_game_map):
+        mock_game_map.player_spawn_2 = (16, 24)
+        player_manager.create_players(
+            mock_game_map,
+            controller_instance_ids=[],
+            mode=GameMode.TWO_PLAYER,
+        )
+        assert len(player_manager._players) == 2
+        assert not any(
+            isinstance(pi, AIPlayerInput) for pi in player_manager._player_inputs
+        )
+
+
+class TestPlayerManagerUpdateAI:
+    def test_update_calls_ai_input_with_enemies_and_teammate(
+        self, player_manager, mock_game_map, monkeypatch
+    ):
+        mock_game_map.player_spawn_2 = (16, 24)
+        mock_game_map.is_tile_slidable.return_value = False
+        player_manager.create_players(
+            mock_game_map,
+            controller_instance_ids=[],
+            mode=GameMode.ONE_PLAYER_AI,
+        )
+        ai = player_manager._player_inputs[1]
+        calls = []
+        monkeypatch.setattr(
+            ai,
+            "update",
+            lambda dt, enemies, teammate: calls.append((dt, enemies, teammate)),
+        )
+        enemies = []
+        player_manager.update(1 / 60, mock_game_map, enemies)
+        assert len(calls) == 1
+        dt, passed_enemies, passed_teammate = calls[0]
+        assert passed_enemies is enemies
+        assert passed_teammate is player_manager._players[0]
+
+    def test_update_passes_none_teammate_when_other_player_dead(
+        self, player_manager, mock_game_map, monkeypatch
+    ):
+        mock_game_map.player_spawn_2 = (16, 24)
+        mock_game_map.is_tile_slidable.return_value = False
+        player_manager.create_players(
+            mock_game_map,
+            controller_instance_ids=[],
+            mode=GameMode.ONE_PLAYER_AI,
+        )
+        player_manager._players[0].health = 0
+        ai = player_manager._player_inputs[1]
+        recorded = {}
+        monkeypatch.setattr(
+            ai,
+            "update",
+            lambda dt, enemies, teammate: recorded.update(teammate=teammate),
+        )
+        player_manager.update(1 / 60, mock_game_map, [])
+        assert recorded["teammate"] is None
+
+
+class TestAICoopRespawnReset:
+    def test_ai_state_resets_when_tank_respawns(self, player_manager, mock_game_map):
+        mock_game_map.player_spawn_2 = (16, 24)
+        player_manager.create_players(
+            mock_game_map,
+            controller_instance_ids=[],
+            mode=GameMode.ONE_PLAYER_AI,
+        )
+        ai_tank = player_manager._players[1]
+        ai_input = player_manager._player_inputs[1]
+        # Simulate stale state accumulated in the previous life.
+        ai_input._wants_shoot = True
+        ai_input._direction_timer = 0.9
+        ai_input._shoot_timer = 0.9
+
+        ai_tank.lives = 2  # ensure respawn path, not game-over
+        player_manager.handle_player_death(ai_tank)
+
+        assert ai_input.consume_shoot() is False
+        assert ai_input._direction_timer == 0.0
+        assert ai_input._shoot_timer == 0.0
