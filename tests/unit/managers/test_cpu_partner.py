@@ -5,7 +5,13 @@ import pytest
 from src.core.tile import TileType
 from src.managers.cpu_partner import CpuPartnerInput
 from src.managers.world_view import EnemyView, PlayerView, WorldView
-from src.utils.constants import SUB_TILE_SIZE, Direction
+from src.utils.constants import (
+    CPU_PARTNER_STUCK_TIME,
+    FPS,
+    SUB_TILE_SIZE,
+    TANK_ALIGN_THRESHOLD,
+    Direction,
+)
 
 GRID = 26
 CPU_ID = 2
@@ -69,20 +75,6 @@ class TestCpuPartnerHunt:
     def test_heads_for_nearest_of_several_enemies(self, cpu) -> None:
         cpu.observe(make_view(own=(12, 12, Direction.UP), enemies=[(12, 0), (18, 12)]))
         assert cpu.get_movement_direction() == Direction.RIGHT.delta
-
-    @pytest.mark.parametrize(
-        ("enemy", "expected"),
-        [
-            ((16, 2), Direction.RIGHT),  # 4 cells right, 10 up: line up the column
-            ((8, 2), Direction.LEFT),
-            ((2, 16), Direction.DOWN),  # 10 left, 4 down: line up the row
-            ((22, 8), Direction.UP),
-        ],
-    )
-    def test_lines_up_on_shorter_axis_first(self, cpu, enemy, expected) -> None:
-        cpu.observe(make_view(own=(12, 12, Direction.UP), enemies=[enemy]))
-        assert cpu.get_movement_direction() == expected.delta
-        assert cpu.consume_shoot() is False
 
     def test_keeps_target_when_another_enemy_comes_closer(self, cpu) -> None:
         cpu.observe(make_view(own=(12, 12, Direction.UP), enemies=[(12, 2)]))
@@ -185,7 +177,6 @@ class TestCpuPartnerHoldFireNearBase:
     ) -> None:
         cpu.observe(base_view((12, 4, Direction.DOWN), (12, 22), wall=wall))
         assert cpu.consume_shoot() is False
-        assert cpu.get_movement_direction() == (0, 0)
 
     def test_holds_fire_on_base_wall_behind_a_close_target(self, cpu) -> None:
         # A miss would carry on into the Base Wall.
@@ -385,3 +376,216 @@ class TestCpuPartnerHoldFireNearCorridorExit:
         )
         cpu.observe(replace(view, tiles=open_right))
         assert cpu.consume_shoot() is True
+
+
+def wall_row(
+    rows: tuple[int, ...],
+    tile: TileType,
+    gaps: tuple[int, ...] = (),
+    xs: range = range(GRID),
+) -> dict[Cell, TileType]:
+    """A horizontal wall of ``tile`` across ``rows``, open at columns ``gaps``."""
+    return {(x, y): tile for y in rows for x in xs if x not in gaps}
+
+
+# The CPU Partner at (12, 12) sits at the top of a steel corridor (walls at
+# columns 11 and 14, rows 12-21) under a brick wall across rows 10-11 whose
+# only gap is on the far left: going round means a long detour.
+BRICK_WALL_OVER_CORRIDOR = wall_row((10, 11), TileType.BRICK, gaps=(0, 1)) | {
+    (x, y): TileType.STEEL for x in (11, 14) for y in range(12, 22)
+}
+
+
+class TestCpuPartnerPathfinding:
+    def test_goes_around_steel_to_reach_enemy_behind_it(self, cpu) -> None:
+        # Lined up with the Enemy right under a steel wall that blocks the Line
+        # of Fire; the only way through is the gap on the far left.
+        cpu.observe(
+            make_view(
+                own=(12, 12, Direction.UP),
+                enemies=[(12, 2)],
+                tiles=wall_row((10, 11), TileType.STEEL, gaps=(0, 1)),
+            )
+        )
+        assert cpu.consume_shoot() is False
+        assert cpu.get_movement_direction() == Direction.LEFT.delta
+
+    def test_does_not_enter_a_one_sub_tile_gap(self, cpu) -> None:
+        # A 1-sub-tile gap right ahead is too narrow for the 2x2 tank; the
+        # tank-wide gap is further away on the right.
+        cpu.observe(
+            make_view(
+                own=(12, 12, Direction.UP),
+                enemies=[(12, 2)],
+                tiles=wall_row((10, 11), TileType.STEEL, gaps=(12, 20, 21)),
+            )
+        )
+        assert cpu.get_movement_direction() == Direction.RIGHT.delta
+
+    def test_goes_around_a_brick_wall_when_the_detour_is_short(self, cpu) -> None:
+        cpu.observe(
+            make_view(
+                own=(12, 12, Direction.UP),
+                enemies=[(20, 2)],
+                tiles=wall_row((10, 11), TileType.BRICK, gaps=(10, 11)),
+            )
+        )
+        assert cpu.get_movement_direction() == Direction.LEFT.delta
+        assert cpu.consume_shoot() is False
+
+    def test_shoots_through_a_brick_wall_when_the_detour_is_long(self, cpu) -> None:
+        cpu.observe(
+            make_view(
+                own=(12, 12, Direction.UP),
+                enemies=[(20, 2)],
+                tiles=BRICK_WALL_OVER_CORRIDOR,
+            )
+        )
+        assert cpu.get_movement_direction() == Direction.UP.delta
+        assert cpu.consume_shoot() is True
+
+    def test_turns_to_face_a_brick_before_shooting_it(self, cpu) -> None:
+        cpu.observe(
+            make_view(
+                own=(12, 12, Direction.LEFT),
+                enemies=[(20, 2)],
+                tiles=BRICK_WALL_OVER_CORRIDOR,
+            )
+        )
+        assert cpu.get_movement_direction() == Direction.UP.delta
+        assert cpu.consume_shoot() is False
+
+    def test_never_paths_through_the_base_wall(self, cpu) -> None:
+        # Down through the Base Wall would be as short as going round, but
+        # shooting it is forbidden.
+        cpu.observe(base_view((12, 13, Direction.DOWN), (16, 21)))
+        assert cpu.get_movement_direction() == Direction.RIGHT.delta
+        assert cpu.consume_shoot() is False
+
+    def test_hunts_the_enemy_nearest_by_path_not_by_distance(self, cpu) -> None:
+        # Enemy 0 is closer as the crow flies but sits behind steel, a long way
+        # round; Enemy 1 in the same row is quicker to reach.
+        cpu.observe(
+            make_view(
+                own=(12, 12, Direction.UP),
+                enemies=[(12, 4), (22, 12)],
+                tiles=wall_row((8, 9), TileType.STEEL, gaps=(0, 1)),
+            )
+        )
+        assert cpu.get_movement_direction() == Direction.RIGHT.delta
+
+    def test_backs_up_to_a_gap_it_slid_past(self, cpu) -> None:
+        # Slid 6px past the tank-wide gap, too far for the steering nudge to
+        # line it up, so it backs up before turning into the gap.
+        view = make_view(
+            own=(12, 12, Direction.RIGHT),
+            enemies=[(20, 2)],
+            tiles=wall_row((10, 11), TileType.STEEL, gaps=(12, 13)),
+        )
+        slid = replace(view.players[1], x=cell(12) + 6)
+        cpu.observe(replace(view, players=(view.players[0], slid)))
+        assert cpu.get_movement_direction() == Direction.LEFT.delta
+
+    def test_turns_into_a_gap_the_nudge_can_line_it_up_with(self, cpu) -> None:
+        view = make_view(
+            own=(12, 12, Direction.RIGHT),
+            enemies=[(20, 2)],
+            tiles=wall_row((10, 11), TileType.STEEL, gaps=(12, 13)),
+        )
+        slid = replace(view.players[1], x=cell(12) + TANK_ALIGN_THRESHOLD)
+        cpu.observe(replace(view, players=(view.players[0], slid)))
+        assert cpu.get_movement_direction() == Direction.UP.delta
+
+
+# The CPU Partner at (12, 12) under a steel wall across rows 10-11, hunting
+# the Enemy at (12, 2) above it. The nearer gap is on the left (columns
+# 9-10), a slightly longer route through the right gap (columns 16-17).
+TWO_GAP_WALL = wall_row((10, 11), TileType.STEEL, gaps=(9, 10, 16, 17))
+
+
+def blocked_view(
+    blocker_moved: bool = False, blocker: tuple[int, int] = (10, 12)
+) -> WorldView:
+    """The two-gap scene with a frozen Enemy parked just left of the CPU."""
+    if blocker_moved:
+        blocker = (10, 16)
+    return replace(
+        make_view(
+            own=(12, 12, Direction.LEFT),
+            enemies=[(12, 2), blocker],
+            tiles=TWO_GAP_WALL,
+        ),
+        enemies_frozen=True,
+    )
+
+
+def observe_stuck(
+    cpu: CpuPartnerInput, frames: int, blocker: tuple[int, int] = (10, 12)
+) -> None:
+    """Feed ``frames`` frames of the CPU Partner not moving from its spot."""
+    for _ in range(frames):
+        cpu.observe(blocked_view(blocker=blocker))
+
+
+STUCK_FRAMES = int(CPU_PARTNER_STUCK_TIME * FPS)
+
+
+class TestCpuPartnerBlocked:
+    @pytest.fixture
+    def hunting(self, cpu) -> CpuPartnerInput:
+        """A CPU Partner already hunting the Enemy at (12, 2)."""
+        cpu.observe(
+            make_view(
+                own=(12, 12, Direction.LEFT), enemies=[(12, 2)], tiles=TWO_GAP_WALL
+            )
+        )
+        assert cpu.get_movement_direction() == Direction.LEFT.delta
+        return cpu
+
+    def test_keeps_its_route_while_briefly_blocked(self, hunting) -> None:
+        observe_stuck(hunting, STUCK_FRAMES - 1)
+        assert hunting.get_movement_direction() == Direction.LEFT.delta
+
+    def test_replans_around_an_enemy_blocking_its_route(self, hunting) -> None:
+        observe_stuck(hunting, STUCK_FRAMES + 1)
+        assert hunting.get_movement_direction() == Direction.RIGHT.delta
+        # It sticks with the detour rather than turning back into the blocker.
+        hunting.observe(blocked_view())
+        assert hunting.get_movement_direction() == Direction.RIGHT.delta
+
+    def test_takes_the_short_route_again_once_the_blocker_moves(self, hunting) -> None:
+        observe_stuck(hunting, STUCK_FRAMES + 1)
+        hunting.observe(blocked_view(blocker_moved=True))
+        assert hunting.get_movement_direction() == Direction.LEFT.delta
+
+    def test_does_not_route_around_an_enemy_that_is_not_in_its_way(
+        self, hunting
+    ) -> None:
+        # Held in place (by anything) while a frozen Enemy sits in the far
+        # gap: that Enemy isn't what is stopping it, so the route stays.
+        far_in_the_gap = (9, 10)
+        observe_stuck(hunting, STUCK_FRAMES + 1, blocker=far_in_the_gap)
+        assert hunting.get_movement_direction() == Direction.LEFT.delta
+
+
+class TestCpuPartnerUnreachableTarget:
+    def test_switches_to_a_reachable_enemy_when_its_target_is_cut_off(
+        self, cpu
+    ) -> None:
+        cpu.observe(make_view(own=(12, 12, Direction.UP), enemies=[(20, 2), (2, 20)]))
+        # The target it picked gets sealed in by steel.
+        sealed = {
+            (x, y): TileType.STEEL
+            for x in range(16, GRID)
+            for y in range(0, 8)
+            if not (x >= 18 and y <= 5 and x <= 23)
+        }
+        view = make_view(
+            own=(12, 12, Direction.UP), enemies=[(20, 2), (2, 20)], tiles=sealed
+        )
+        cpu.observe(view)
+        cpu.observe(view)
+        assert cpu.get_movement_direction() in {
+            Direction.LEFT.delta,
+            Direction.DOWN.delta,
+        }

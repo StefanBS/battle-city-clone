@@ -187,6 +187,38 @@ class TestCpuPartnerHunt:
         assert enemy not in gm.spawn_manager.enemy_tanks
 
 
+def set_tiles(game_map, positions, tile_type) -> None:
+    """Turn the tiles at the given sub-tile grid positions into ``tile_type``."""
+    for gx, gy in positions:
+        game_map.set_tile_type(game_map.get_tile_at(gx, gy), tile_type)
+
+
+class TestCpuPartnerPathfinding:
+    def test_kills_enemy_walled_in_by_steel_and_brick(self, cpu_game):
+        gm = cpu_game
+        open_field(gm)
+        clear_enemies(gm)
+        gm.spawn_manager.spawn_interval = float("inf")
+        # The Enemy sits in the top-left corner, walled in by steel below
+        # and by brick on its right. Lining up from below leads nowhere.
+        set_tiles(gm.map, [(x, y) for x in range(10) for y in (8, 9)], TileType.STEEL)
+        set_tiles(gm.map, [(x, y) for x in (8, 9) for y in range(8)], TileType.BRICK)
+        p1, p2 = gm.player_manager.get_active_players()
+        place_player_at(gm, 24 * SUB_TILE_SIZE, 0, player=p1)
+        place_player_at(gm, 16 * SUB_TILE_SIZE, 16 * SUB_TILE_SIZE, player=p2)
+        enemy = spawn_enemy_at(gm, 4, 4)
+        enemy.speed = 0
+        enemy.shoot_interval = float("inf")
+
+        for _ in range(15 * FPS):
+            tick(gm)
+            if enemy not in gm.spawn_manager.enemy_tanks:
+                break
+
+        assert enemy not in gm.spawn_manager.enemy_tanks
+        assert gm.player_manager.get_score(2) > 0
+
+
 def fire_enemy_bullet_at(gm, player) -> None:
     """Fire an Enemy bullet straight down onto an unprotected `player`."""
     player.is_invincible = False

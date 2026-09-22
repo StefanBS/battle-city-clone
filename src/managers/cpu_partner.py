@@ -2,14 +2,26 @@
 
 import itertools
 import math
+from collections.abc import Collection
+from dataclasses import replace
 
 import pygame
 
 from src.core.tile import TileType
+from src.managers.pathfinding import Cell, NavGrid, find_path
 from src.managers.world_view import EnemyView, PlayerView, WorldView
-from src.utils.constants import BULLET_SIZE, CPU_PARTNER_ALIGN_TOLERANCE, Direction
+from src.utils.constants import (
+    BULLET_SIZE,
+    CPU_PARTNER_ALIGN_TOLERANCE,
+    CPU_PARTNER_STUCK_TIME,
+    FPS,
+    TANK_ALIGN_THRESHOLD,
+    Direction,
+)
 
 _BULLET_BLOCKING_TILES = frozenset({TileType.BRICK, TileType.STEEL, TileType.BASE})
+# Tiles a Player's bullet can't shoot its way through.
+_BULLET_PROOF_TILES = frozenset({TileType.STEEL})
 _TANK_BLOCKING_TILES = frozenset(
     {TileType.BRICK, TileType.STEEL, TileType.WATER, TileType.BASE}
 )
@@ -119,6 +131,51 @@ def is_line_of_fire_safe(world: WorldView, own: PlayerView, target: EnemyView) -
     return True
 
 
+def _lane_is_open(world: WorldView, own: PlayerView, target: EnemyView) -> bool:
+    """Whether ``own``'s bullet would reach ``target`` through brick at worst."""
+    horizontal, origin, lane = _bullet_lane(own)
+    target_at = _distance_ahead(target, origin, own.direction, lane)
+    if target_at is None:
+        return False
+    tile_size = world.tile_size
+    start = origin[0] if horizontal else origin[1]
+    step = _along_step(own.direction, horizontal)
+    lane_cells = range(math.floor(lane[0] / tile_size), math.ceil(lane[1] / tile_size))
+    height = len(world.tiles)
+    width = len(world.tiles[0]) if world.tiles else 0
+    row_or_col = math.floor(start / tile_size)
+    while 0 <= row_or_col < (width if horizontal else height):
+        edge = row_or_col * tile_size if step > 0 else (row_or_col + 1) * tile_size
+        if max((edge - start) * step, 0.0) >= target_at:
+            return True
+        for c in lane_cells:
+            x, y = (row_or_col, c) if horizontal else (c, row_or_col)
+            if 0 <= x < width and 0 <= y < height:
+                if world.tiles[y][x] in _BULLET_PROOF_TILES:
+                    return False
+        row_or_col += step
+    return True
+
+
+def _cell_of(world: WorldView, view: PlayerView | EnemyView) -> Cell:
+    """The sub-tile nearest a tank's top-left corner."""
+    return round(view.x / world.tile_size), round(view.y / world.tile_size)
+
+
+def _covered_cells(world: WorldView, view: EnemyView) -> set[Cell]:
+    """Every sub-tile a tank overlaps."""
+    size = world.tile_size
+    return {
+        (x, y)
+        for x in range(
+            math.floor(view.x / size), math.ceil((view.x + view.size) / size)
+        )
+        for y in range(
+            math.floor(view.y / size), math.ceil((view.y + view.size) / size)
+        )
+    }
+
+
 def _blocks_tanks(world: WorldView, x: int, y: int) -> bool:
     """Whether a tank can't enter cell ``(x, y)``; off the map counts as a wall."""
     if not (0 <= y < len(world.tiles) and 0 <= x < len(world.tiles[y])):
@@ -213,24 +270,32 @@ class CpuPartnerInput:
         self._movement: tuple[int, int] = (0, 0)
         self._shoot_requested: bool = False
         self._target_id: int | None = None
+        self._last_position: tuple[float, float] | None = None
+        self._stuck_frames: int = 0
+        # Enemies to route around, by id, while they stay where they blocked it.
+        self._detour_around: dict[int, tuple[float, float]] = {}
 
     def reset(self) -> None:
-        """Forget the current target (called on stage start and respawn)."""
+        """Forget the current target and route (on stage start and respawn)."""
         self._target_id = None
         self._movement = (0, 0)
         self._shoot_requested = False
+        self._last_position = None
+        self._stuck_frames = 0
+        self._detour_around = {}
 
     def handle_event(self, event: pygame.event.Event) -> None:
         """The CPU Partner ignores pygame events."""
 
     def observe(self, world: WorldView) -> None:
         """Decide this frame's movement and shooting from the World View."""
+        own = world.own_player
+        self._track_progress(own)
         self._movement = (0, 0)
         self._shoot_requested = False
-        own = world.own_player
         if own is None or not own.alive:
             return
-        target = self._pick_target(own, world.enemies)
+        target = self._pick_target(world, own)
         if target is None:
             return
         ox, oy = _center(own)
@@ -238,14 +303,15 @@ class CpuPartnerInput:
         dx, dy = ex - ox, ey - oy
         vertical = Direction.DOWN if dy > 0 else Direction.UP
         horizontal = Direction.RIGHT if dx > 0 else Direction.LEFT
+        facing = None
         if abs(dx) <= CPU_PARTNER_ALIGN_TOLERANCE:
             facing = vertical
         elif abs(dy) <= CPU_PARTNER_ALIGN_TOLERANCE:
             facing = horizontal
-        else:
-            # Not lined up: close the shorter gap first to get into the
-            # target's row or column.
-            self._movement = (horizontal if abs(dx) <= abs(dy) else vertical).delta
+        if facing is None or not _lane_is_open(
+            world, replace(own, direction=facing), target
+        ):
+            self._follow_path(world, own, target)
             return
         if own.direction == facing:
             self._shoot_requested = is_line_of_fire_safe(
@@ -254,19 +320,113 @@ class CpuPartnerInput:
         else:
             self._movement = facing.delta
 
-    def _pick_target(
-        self, own: PlayerView, enemies: tuple[EnemyView, ...]
-    ) -> EnemyView | None:
-        """Hunt: keep the current target while it lives, else take the nearest."""
+    def _track_progress(self, own: PlayerView | None) -> None:
+        """Count the frames it has tried to move without getting anywhere."""
+        position = None if own is None else (own.x, own.y)
+        if self._movement != (0, 0) and position == self._last_position:
+            self._stuck_frames += 1
+        else:
+            self._stuck_frames = 0
+        self._last_position = position
+
+    def _update_detour(
+        self, world: WorldView, own: PlayerView, target: EnemyView
+    ) -> set[Cell]:
+        """Update which Enemies to route around and return their cells.
+
+        Once stuck for long enough, the Enemies touching it (other than the
+        target) are routed around until they move off the spot where they
+        stood.
+        """
+        if self._stuck_frames >= CPU_PARTNER_STUCK_TIME * FPS:
+            self._stuck_frames = 0
+            x, y = _cell_of(world, own)
+            size = math.ceil(own.size / world.tile_size)
+            around = {
+                (cx, cy)
+                for cx in range(x - 1, x + size + 1)
+                for cy in range(y - 1, y + size + 1)
+            }
+            self._detour_around = {
+                e.enemy_id: (e.x, e.y)
+                for e in world.enemies
+                if e.enemy_id != target.enemy_id and _covered_cells(world, e) & around
+            }
+        still_there = [
+            e
+            for e in world.enemies
+            if self._detour_around.get(e.enemy_id) == (e.x, e.y)
+        ]
+        self._detour_around = {e.enemy_id: (e.x, e.y) for e in still_there}
+        return set().union(*(_covered_cells(world, e) for e in still_there))
+
+    def _follow_path(
+        self, world: WorldView, own: PlayerView, target: EnemyView
+    ) -> None:
+        """Take the next step on the cheapest path towards ``target``.
+
+        Shoots a brick that stands in the way once facing it.
+        """
+        start, goal = _cell_of(world, own), _cell_of(world, target)
+        grid = self._nav_grid(world, own, self._update_detour(world, own, target))
+        path = find_path(grid, start, [goal])
+        if path is None:
+            # No way round the blockers: push on and hope they move.
+            grid = self._nav_grid(world, own)
+            path = find_path(grid, start, [goal])
+        if path is None:
+            # Cut off from the target: hunt another one next frame.
+            self._target_id = None
+            return
+        if len(path) < 2:
+            return
+        (cx, cy), (nx, ny) = path[0], path[1]
+        self._movement = (nx - cx, ny - cy)
+        # Too far off the path's grid line (e.g. after sliding on ice) for the
+        # steering nudge to line it up: get back on the line before moving on.
+        if self._movement[0] == 0:
+            off_line = cx * world.tile_size - own.x
+            realign = (1 if off_line > 0 else -1, 0)
+        else:
+            off_line = cy * world.tile_size - own.y
+            realign = (0, 1 if off_line > 0 else -1)
+        if abs(off_line) > TANK_ALIGN_THRESHOLD:
+            self._movement = realign
+            return
+        if (
+            grid.has_brick((nx, ny))
+            and own.direction.delta == self._movement
+            and is_line_of_fire_safe(world, own, target)
+        ):
+            self._shoot_requested = True
+
+    def _pick_target(self, world: WorldView, own: PlayerView) -> EnemyView | None:
+        """Hunt: keep the current target while it lives, else take the nearest.
+
+        Nearest means cheapest to reach by path; if no Enemy can be reached,
+        the nearest as the crow flies.
+        """
+        enemies = world.enemies
         for enemy in enemies:
             if enemy.enemy_id == self._target_id:
                 return enemy
         if not enemies:
             self._target_id = None
             return None
-        target = min(enemies, key=lambda e: _distance(own, e))
+        cells = {_cell_of(world, e): e for e in reversed(enemies)}
+        path = find_path(self._nav_grid(world, own), _cell_of(world, own), cells)
+        if path is not None:
+            target = cells[path[-1]]
+        else:
+            target = min(enemies, key=lambda e: _distance(own, e))
         self._target_id = target.enemy_id
         return target
+
+    @staticmethod
+    def _nav_grid(
+        world: WorldView, own: PlayerView, avoid: Collection[Cell] = frozenset()
+    ) -> NavGrid:
+        return NavGrid(world, math.ceil(own.size / world.tile_size), avoid)
 
     def get_movement_direction(self) -> tuple[int, int]:
         return self._movement
