@@ -176,6 +176,40 @@ def _covered_cells(world: WorldView, view: EnemyView) -> set[Cell]:
     }
 
 
+def _firing_positions(
+    world: WorldView, own: PlayerView, target: EnemyView
+) -> set[Cell]:
+    """Cells in ``target``'s row or column from which ``own`` could hit it.
+
+    From each, the Line of Fire facing ``target`` is clear or blocked only by
+    brick. Cells where ``own`` would overlap ``target`` are left out; cells a
+    tank can't stand on are left to the pathfinder to reject.
+    """
+    tx, ty = _cell_of(world, target)
+    size_cells = math.ceil(own.size / world.tile_size)
+    height = len(world.tiles)
+    width = len(world.tiles[0]) if world.tiles else 0
+    positions: set[Cell] = set()
+    for away in Direction:
+        # Walk outward from the target; once steel cuts the Line of Fire,
+        # every cell further out is cut off too.
+        dx, dy = away.delta
+        for distance in itertools.count(size_cells):
+            x, y = tx + dx * distance, ty + dy * distance
+            if not (0 <= x < width and 0 <= y < height):
+                break
+            shooter = replace(
+                own,
+                x=float(x * world.tile_size),
+                y=float(y * world.tile_size),
+                direction=away.opposite,
+            )
+            if not _lane_is_open(world, shooter, target):
+                break
+            positions.add((x, y))
+    return positions
+
+
 def _blocks_tanks(world: WorldView, x: int, y: int) -> bool:
     """Whether a tank can't enter cell ``(x, y)``; off the map counts as a wall."""
     if not (0 <= y < len(world.tiles) and 0 <= x < len(world.tiles[y])):
@@ -363,17 +397,18 @@ class CpuPartnerInput:
     def _follow_path(
         self, world: WorldView, own: PlayerView, target: EnemyView
     ) -> None:
-        """Take the next step on the cheapest path towards ``target``.
+        """Take the next step on the cheapest path to a Firing Position.
 
         Shoots a brick that stands in the way once facing it.
         """
-        start, goal = _cell_of(world, own), _cell_of(world, target)
+        start = _cell_of(world, own)
+        goals = _firing_positions(world, own, target)
         grid = self._nav_grid(world, own, self._update_detour(world, own, target))
-        path = find_path(grid, start, [goal])
+        path = find_path(grid, start, goals)
         if path is None:
             # No way round the blockers: push on and hope they move.
             grid = self._nav_grid(world, own)
-            path = find_path(grid, start, [goal])
+            path = find_path(grid, start, goals)
         if path is None:
             # Cut off from the target: hunt another one next frame.
             self._target_id = None

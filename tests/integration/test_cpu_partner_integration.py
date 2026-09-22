@@ -219,6 +219,37 @@ class TestCpuPartnerPathfinding:
         assert gm.player_manager.get_score(2) > 0
 
 
+class TestCpuPartnerFiringPosition:
+    def test_kills_enemy_it_can_only_shoot_across_water(self, cpu_game):
+        gm = cpu_game
+        open_field(gm)
+        clear_enemies(gm)
+        gm.spawn_manager.spawn_interval = float("inf")
+        # A moat of water two sub-tiles wide rings the Enemy: no tank can
+        # reach it, but a bullet flies straight across.
+        moat = [
+            (x, y)
+            for x in range(2, 8)
+            for y in range(2, 8)
+            if not (4 <= x <= 5 and 4 <= y <= 5)
+        ]
+        set_tiles(gm.map, moat, TileType.WATER)
+        p1, p2 = gm.player_manager.get_active_players()
+        place_player_at(gm, 24 * SUB_TILE_SIZE, 0, player=p1)
+        place_player_at(gm, 16 * SUB_TILE_SIZE, 16 * SUB_TILE_SIZE, player=p2)
+        enemy = spawn_enemy_at(gm, 4, 4)
+        enemy.speed = 0
+        enemy.shoot_interval = float("inf")
+
+        for _ in range(10 * FPS):
+            tick(gm)
+            if enemy not in gm.spawn_manager.enemy_tanks:
+                break
+
+        assert enemy not in gm.spawn_manager.enemy_tanks
+        assert gm.player_manager.get_score(2) > 0
+
+
 def fire_enemy_bullet_at(gm, player) -> None:
     """Fire an Enemy bullet straight down onto an unprotected `player`."""
     player.is_invincible = False
