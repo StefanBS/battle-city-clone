@@ -4,10 +4,8 @@ import heapq
 import itertools
 from collections.abc import Collection
 
-from src.managers.world_view import WorldView
+from src.managers.world_view import Cell, WorldView
 from src.utils.constants import CPU_PARTNER_BRICK_COST, Direction
-
-Cell = tuple[int, int]
 
 
 class NavGrid:
@@ -49,7 +47,7 @@ class NavGrid:
         return not any(
             c in self._avoid
             or (
-                c in self._world.tank_blocking_cells
+                self._world.blocks_tanks(c)
                 and (not self._is_brick(c) or c in self._world.base_wall_cells)
             )
             for c in self._footprint(cell)
