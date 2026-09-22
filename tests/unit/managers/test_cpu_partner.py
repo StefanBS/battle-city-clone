@@ -7,6 +7,7 @@ from src.managers.cpu_partner import CpuPartnerInput
 from src.managers.world_view import EnemyView, PlayerView, WorldView
 from src.utils.constants import (
     CPU_PARTNER_ALIGN_TOLERANCE,
+    CPU_PARTNER_GOAL_STICKINESS,
     CPU_PARTNER_STUCK_TIME,
     FPS,
     SUB_TILE_SIZE,
@@ -694,3 +695,142 @@ class TestCpuPartnerFiringPosition:
         )
         assert cpu.consume_shoot() is False
         assert cpu.get_movement_direction() == Direction.RIGHT.delta
+
+
+# The CPU Partner in the top-left corner, facing down at DECOY, the Enemy it
+# would Hunt. A second Enemy stands where the test puts it.
+DECOY = (2, 8)
+
+
+def threat_view(
+    enemy: tuple[int, int],
+    wall: TileType | None = TileType.BRICK,
+    extra_tiles: dict[Cell, TileType] | None = None,
+) -> WorldView:
+    """The mid-field Base, the CPU Partner lined up on DECOY, and ``enemy``."""
+    return make_view(
+        own=(2, 2, Direction.DOWN),
+        enemies=[DECOY, enemy],
+        tiles=base_tiles(wall) | (extra_tiles or {}),
+        base_cells=BASE,
+        base_wall_cells=BASE_WALL,
+    )
+
+
+def leaves_decoy(cpu: CpuPartnerInput) -> bool:
+    """Whether it left DECOY alone this frame (so went after the other Enemy)."""
+    return not cpu.consume_shoot() and cpu.get_movement_direction() != (0, 0)
+
+
+class TestCpuPartnerBaseThreat:
+    @pytest.mark.parametrize(
+        "enemy, is_threat",
+        [
+            ((8, 12), True),  # ~6 sub-tiles from the Base
+            ((3, 10), False),  # ~11 sub-tiles away, off the Base's row and column
+        ],
+    )
+    def test_defends_against_an_enemy_close_to_the_base(
+        self, cpu, enemy, is_threat
+    ) -> None:
+        cpu.observe(threat_view(enemy))
+        assert leaves_decoy(cpu) is is_threat
+
+    # (12, 2) is far from the Base but in its column: only the Base Wall, or
+    # whatever else the test adds, stands between them.
+    @pytest.mark.parametrize(
+        "wall, extra_tiles, is_threat",
+        [
+            (TileType.BRICK, {}, True),
+            (None, {}, True),
+            (TileType.BRICK, {(x, 8): TileType.WATER for x in (12, 13)}, True),
+            (TileType.STEEL, {}, False),
+        ],
+    )
+    def test_defends_against_an_enemy_with_a_line_of_fire_to_the_base(
+        self, cpu, wall, extra_tiles, is_threat
+    ) -> None:
+        cpu.observe(threat_view((12, 2), wall=wall, extra_tiles=extra_tiles))
+        assert leaves_decoy(cpu) is is_threat
+
+    def test_an_enemy_just_off_the_base_column_is_no_threat(self, cpu) -> None:
+        # Its bullet would fly past the Base's left edge.
+        cpu.observe(threat_view((10, 2), wall=None))
+        assert leaves_decoy(cpu) is False
+
+    def test_defends_against_the_threat_nearest_the_base(self, cpu) -> None:
+        # Two threats: (0, 16) in the Base's row, reached by heading left,
+        # and (8, 12), nearer the Base and reached by heading right.
+        view = threat_view((0, 16))
+        near = EnemyView(enemy_id=9, x=cell(8), y=cell(12), direction=Direction.DOWN)
+        cpu.observe(replace(view, enemies=(*view.enemies, near)))
+        assert cpu.get_movement_direction() == Direction.RIGHT.delta
+
+
+STICKY_FRAMES = int(CPU_PARTNER_GOAL_STICKINESS * FPS)
+NEAR_BASE = (8, 12)
+
+
+# DECOY for it to Hunt, with and without an Enemy near the Base.
+WITH_THREAT = threat_view(NEAR_BASE)
+NO_THREAT = replace(WITH_THREAT, enemies=WITH_THREAT.enemies[:1])
+
+
+class TestCpuPartnerGoalStickiness:
+    def test_keeps_hunting_until_the_threat_has_lasted(self, cpu) -> None:
+        cpu.observe(NO_THREAT)
+        for _ in range(STICKY_FRAMES - 1):
+            cpu.observe(WITH_THREAT)
+            assert leaves_decoy(cpu) is False
+        cpu.observe(WITH_THREAT)
+        assert leaves_decoy(cpu) is True
+
+    def test_ignores_a_threat_that_flickers(self, cpu) -> None:
+        cpu.observe(NO_THREAT)
+        for _ in range(3):
+            for _ in range(STICKY_FRAMES - 1):
+                cpu.observe(WITH_THREAT)
+                assert leaves_decoy(cpu) is False
+            cpu.observe(NO_THREAT)
+
+    def test_keeps_defending_for_a_while_once_the_threat_passes(self, cpu) -> None:
+        cpu.observe(WITH_THREAT)
+        # The Enemy drives away from the Base, off its row and column.
+        away = threat_view((20, 2))
+        for _ in range(STICKY_FRAMES - 1):
+            cpu.observe(away)
+            assert leaves_decoy(cpu) is True
+        cpu.observe(away)
+        assert leaves_decoy(cpu) is False
+
+    def test_hunts_at_once_when_the_threat_dies(self, cpu) -> None:
+        cpu.observe(WITH_THREAT)
+        cpu.observe(NO_THREAT)
+        assert leaves_decoy(cpu) is False
+
+
+# A ring of steel around (7, 11), near the Base: nothing inside can be
+# reached by bullet or tank.
+STEEL_RING = {
+    (x, y): TileType.STEEL
+    for x in range(6, 10)
+    for y in range(10, 14)
+    if x in (6, 9) or y in (10, 13)
+}
+
+
+class TestCpuPartnerUnreachableThreat:
+    def test_hunts_instead_when_the_threat_is_sealed_off(self, cpu) -> None:
+        view = threat_view((7, 11), extra_tiles=STEEL_RING)
+        for _ in range(3):
+            cpu.observe(view)
+        assert cpu.consume_shoot() is True
+
+    def test_defends_once_the_threat_moves_where_it_can_be_reached(self, cpu) -> None:
+        for _ in range(3):
+            cpu.observe(threat_view((7, 11), extra_tiles=STEEL_RING))
+        # The same Enemy, now outside the ring and still near the Base.
+        out = threat_view((11, 11), extra_tiles=STEEL_RING)
+        for _ in range(STICKY_FRAMES):
+            cpu.observe(out)
+        assert leaves_decoy(cpu) is True
