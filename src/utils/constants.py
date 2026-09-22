@@ -178,6 +178,9 @@ CPU_PARTNER_REACTION_DELAY: float = 0.25
 # Chance that the CPU Partner hesitates before a shot, and for how many seconds.
 CPU_PARTNER_HESITATION_CHANCE: float = 0.1
 CPU_PARTNER_HESITATION_TIME: float = 0.3
+# Seconds the CPU Partner stays lined up on its target without a safe shot
+# before it moves to a Firing Position on another side of the target.
+CPU_PARTNER_REFUSED_SHOT_TIME: float = 1.0
 
 # UI settings
 FONT_SIZE_LARGE: int = 24

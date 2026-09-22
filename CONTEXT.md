@@ -22,7 +22,7 @@ What the CPU Partner is currently trying to do: in priority order **Defend** (in
 _Avoid_: State, mode, task
 
 **Firing Position**:
-A spot in a target's row or column from which a Player's Line of Fire reaches the target, either clear or blocked only by brick.
+A spot in a target's row or column from which a Player's Line of Fire reaches the target, either clear or blocked only by brick, and could never hit the Base or a Base Wall cell, even beyond the target.
 
 **Co-op**:
 A game with two Players, where P2 is either a second Human Player or a CPU Partner.

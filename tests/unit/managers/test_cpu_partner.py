@@ -15,6 +15,7 @@ from src.utils.constants import (
     CPU_PARTNER_HESITATION_TIME,
     CPU_PARTNER_POWER_UP_RANGE,
     CPU_PARTNER_REACTION_DELAY,
+    CPU_PARTNER_REFUSED_SHOT_TIME,
     CPU_PARTNER_STUCK_TIME,
     FPS,
     SUB_TILE_SIZE,
@@ -74,6 +75,44 @@ def make_view(
         players=tuple(players),
         own_player_id=CPU_ID,
     )
+
+
+REFUSED_FRAMES = round(CPU_PARTNER_REFUSED_SHOT_TIME * FPS)
+
+
+def observe_refused(cpu: CpuPartnerInput, view: WorldView) -> None:
+    """Feed ``view`` until just before it gives up on its Firing Position.
+
+    Checks it waits there without firing all along.
+    """
+    for _ in range(REFUSED_FRAMES):
+        cpu.observe(view)
+        assert cpu.consume_shoot() is False
+        assert cpu.get_movement_direction() == (0, 0)
+
+
+def walk(cpu: CpuPartnerInput, view: WorldView, steps: int = 40) -> PlayerView:
+    """Move the CPU Partner a sub-tile each frame the way it steers.
+
+    Steering a new way only turns it. Stops once it stands still; returns
+    where it ends up. It never fires on the way.
+    """
+    own = view.own_player
+    assert own is not None
+    for _ in range(steps):
+        cpu.observe(replace(view, players=(view.players[0], own)))
+        dx, dy = cpu.get_movement_direction()
+        if (dx, dy) == (0, 0):
+            break
+        assert cpu.consume_shoot() is False
+        direction = next(d for d in Direction if d.delta == (dx, dy))
+        if direction != own.direction:
+            own = replace(own, direction=direction)
+        else:
+            own = replace(
+                own, x=own.x + dx * SUB_TILE_SIZE, y=own.y + dy * SUB_TILE_SIZE
+            )
+    return own
 
 
 @pytest.fixture
@@ -242,6 +281,15 @@ class TestCpuPartnerHoldFireNearBase:
         )
         assert cpu.consume_shoot() is True
 
+    def test_fires_from_off_a_line_of_fire_into_the_base(self, cpu) -> None:
+        # Above the Enemy, every shot could carry on into the Base Wall, and
+        # water fills the cells below it: it goes to a Firing Position beside
+        # the Enemy and fires from there.
+        water = {(x, y): TileType.WATER for x in (12, 13) for y in range(10, 15)}
+        own = walk(cpu, base_view((12, 4, Direction.DOWN), (12, 8), extra_tiles=water))
+        assert own.y == cell(8)
+        assert cpu.consume_shoot() is True
+
 
 class TestCpuPartnerHoldFireNearHuman:
     def test_holds_fire_when_human_lies_before_target(self, cpu) -> None:
@@ -286,6 +334,30 @@ class TestCpuPartnerHoldFireNearHuman:
             )
         )
         assert cpu.consume_shoot() is False
+
+    def test_moves_to_another_firing_position_while_human_blocks(self, cpu) -> None:
+        view = make_view(own=(12, 20, Direction.UP), enemies=[(12, 2)], human=(13, 10))
+        observe_refused(cpu, view)
+        # It gives up on the side below the Enemy and fires from another.
+        own = walk(cpu, view)
+        assert (own.x, own.y) != (cell(12), cell(20))
+        assert cpu.consume_shoot() is True
+
+    def test_fires_once_the_human_moves_away_and_waits_afresh(self, cpu) -> None:
+        view = make_view(own=(12, 20, Direction.UP), enemies=[(12, 2)], human=(13, 10))
+        for _ in range(REFUSED_FRAMES - 1):
+            cpu.observe(view)
+        cpu.observe(replace(view, players=view.players[1:]))
+        assert cpu.consume_shoot() is True
+        observe_refused(cpu, view)
+
+    def test_waits_afresh_on_a_new_target(self, cpu) -> None:
+        view = make_view(own=(12, 20, Direction.UP), enemies=[(12, 2)], human=(13, 10))
+        for _ in range(REFUSED_FRAMES - 1):
+            cpu.observe(view)
+        # Its target dies and another Enemy, as badly placed, takes its place.
+        other = replace(view.enemies[0], enemy_id=1, y=cell(4))
+        observe_refused(cpu, replace(view, enemies=(other,)))
 
     def test_fires_through_dead_human(self, cpu) -> None:
         view = make_view(own=(12, 20, Direction.UP), enemies=[(12, 2)], human=(12, 10))
@@ -1000,6 +1072,21 @@ class TestAmbushPositions:
         # A tank at (12, 7) to (12, 9) would overlap the spawn point at (12, 8).
         assert {(12, 7), (12, 8), (12, 9)}.isdisjoint(positions)
         assert {(12, 6), (12, 10)} <= positions
+
+    def test_never_line_up_with_the_base(self) -> None:
+        # Above the mid-field Base, facing down at the spawn point beyond it.
+        view = with_spawns(
+            make_view(
+                own=(0, 0, Direction.UP),
+                tiles=base_tiles(),
+                base_cells=BASE,
+                base_wall_cells=BASE_WALL,
+            ),
+            (12, 22),
+        )
+        positions = ambush_positions(view, view.own_player, (12, 22))
+        assert not any(x == 12 and y < 15 for x, y in positions)
+        assert (12 + CPU_PARTNER_AMBUSH_DISTANCE, 22) in positions
 
 
 DECISION_FRAMES = round(CPU_PARTNER_DECISION_INTERVAL * FPS)

@@ -23,6 +23,7 @@ from src.utils.constants import (
     CPU_PARTNER_HESITATION_TIME,
     CPU_PARTNER_POWER_UP_RANGE,
     CPU_PARTNER_REACTION_DELAY,
+    CPU_PARTNER_REFUSED_SHOT_TIME,
     CPU_PARTNER_STUCK_TIME,
     CPU_PARTNER_THREAT_RADIUS,
     FPS,
@@ -114,16 +115,12 @@ def _bullet_lane(
     return horizontal, origin, (cross - BULLET_SIZE / 2, cross + BULLET_SIZE / 2)
 
 
-def is_line_of_fire_safe(
-    world: WorldView, own: PlayerView, target: EnemyView | None
-) -> bool:
-    """Whether ``own`` may fire at ``target`` along its current facing.
+def _solid_tile_ahead(world: WorldView, own: PlayerView) -> float | None:
+    """Px from ``own``'s center to the solid tile sure to stop its next bullet.
 
-    Unsafe when the bullet could hit the Base or a Base Wall cell before a
-    solid tile stops it (even beyond the target, since a miss carries on), or
-    when a live Human Player stands in the Line of Fire before both the target
-    and that solid tile. Half-bricks don't count as solid. With no target
-    (shooting a brick out of the way), only the solid tile stops the bullet.
+    ``math.inf`` when no tile stops it before it leaves the map, and ``None``
+    when it could hit the Base or a Base Wall cell first. Half-bricks don't
+    count as solid.
     """
     facing = own.direction
     horizontal, origin, lane = _bullet_lane(own)
@@ -137,7 +134,6 @@ def is_line_of_fire_safe(
     row_or_col = math.floor(start / tile_size)
     limit = width if horizontal else height
 
-    blocked_at = math.inf
     while 0 <= row_or_col < limit:
         cells = [(row_or_col, c) if horizontal else (c, row_or_col) for c in lane_cells]
         cells = [(x, y) for x, y in cells if 0 <= x < width and 0 <= y < height]
@@ -149,23 +145,39 @@ def is_line_of_fire_safe(
         if any(
             c in world.base_cells or c in world.base_wall_cells for c in blocking_cells
         ):
-            return False
+            return None
         # A half-brick may leave the lane open, so only a solid tile is sure
         # to stop the bullet.
         if any(c not in world.half_brick_cells for c in blocking_cells):
             edge = row_or_col * tile_size if step > 0 else (row_or_col + 1) * tile_size
-            blocked_at = max((edge - start) * step, 0.0)
-            break
+            return max((edge - start) * step, 0.0)
         row_or_col += step
+    return math.inf
 
+
+def is_line_of_fire_safe(
+    world: WorldView, own: PlayerView, target: EnemyView | None
+) -> bool:
+    """Whether ``own`` may fire at ``target`` along its current facing.
+
+    Unsafe when the bullet could hit the Base or a Base Wall cell before a
+    solid tile stops it (even beyond the target, since a miss carries on), or
+    when a live Human Player stands in the Line of Fire before both the target
+    and that solid tile. Half-bricks don't count as solid. With no target
+    (shooting a brick out of the way), only the solid tile stops the bullet.
+    """
+    blocked_at = _solid_tile_ahead(world, own)
+    if blocked_at is None:
+        return False
+    horizontal, origin, lane = _bullet_lane(own)
     target_at = (
-        None if target is None else _distance_ahead(target, origin, facing, lane)
+        None if target is None else _distance_ahead(target, origin, own.direction, lane)
     )
     nearest_stop = min(blocked_at, math.inf if target_at is None else target_at)
     for player in world.players:
         if player.player_id == own.player_id or not player.alive:
             continue
-        human_at = _distance_ahead(player, origin, facing, lane)
+        human_at = _distance_ahead(player, origin, own.direction, lane)
         if human_at is not None and human_at < nearest_stop:
             return False
     return True
@@ -199,6 +211,18 @@ def _lane_is_open(
     return True
 
 
+def _can_fire_from(world: WorldView, shooter: PlayerView, target: _Placed) -> bool:
+    """Whether ``shooter`` is at a Firing Position on ``target``, facing it.
+
+    Its Line of Fire reaches ``target`` through brick at worst and could
+    never hit the Base or a Base Wall cell.
+    """
+    return (
+        _lane_is_open(world, shooter, target)
+        and _solid_tile_ahead(world, shooter) is not None
+    )
+
+
 def _cell_of(world: WorldView, view: _Placed) -> Cell:
     """The sub-tile nearest a footprint's top-left corner."""
     return round(view.x / world.tile_size), round(view.y / world.tile_size)
@@ -218,19 +242,26 @@ def _covered_cells(world: WorldView, view: _Placed) -> set[Cell]:
     }
 
 
-def _firing_positions(world: WorldView, own: PlayerView, target: _Placed) -> set[Cell]:
+def _firing_positions(
+    world: WorldView,
+    own: PlayerView,
+    target: _Placed,
+    sides: Collection[Direction] = tuple(Direction),
+) -> set[Cell]:
     """Cells in ``target``'s row or column from which ``own`` could hit it.
 
     From each, the Line of Fire facing ``target`` is clear or blocked only by
-    brick. Cells where ``own`` would overlap ``target`` are left out; cells a
-    tank can't stand on are left to the pathfinder to reject.
+    brick, and could never hit the Base or a Base Wall cell. Only cells on
+    ``sides`` of ``target`` (the directions from it to them) are taken.
+    Cells where ``own`` would overlap ``target`` are left out; cells a tank
+    can't stand on are left to the pathfinder to reject.
     """
     tx, ty = _cell_of(world, target)
     size_cells = math.ceil(own.size / world.tile_size)
     height = len(world.tiles)
     width = len(world.tiles[0]) if world.tiles else 0
     positions: set[Cell] = set()
-    for away in Direction:
+    for away in sides:
         # Walk outward from the target; once steel cuts the Line of Fire,
         # every cell further out is cut off too.
         dx, dy = away.delta
@@ -246,7 +277,8 @@ def _firing_positions(world: WorldView, own: PlayerView, target: _Placed) -> set
             )
             if not _lane_is_open(world, shooter, target):
                 break
-            positions.add((x, y))
+            if _solid_tile_ahead(world, shooter) is not None:
+                positions.add((x, y))
     return positions
 
 
@@ -464,6 +496,13 @@ class CpuPartnerInput:
         # Enemies it found it can't reach, with the cell each stood on then;
         # left out of its Goals until they move.
         self._cut_off: dict[int, Cell] = {}
+        # Frames it has stayed lined up on its target without a safe shot,
+        # and that target's id.
+        self._refused_frames: int = 0
+        self._refused_target: int | None = None
+        # Enemies with the cell each stood on and the sides of it it gave up
+        # firing from there; those sides are avoided until the Enemy moves.
+        self._given_up_sides: dict[int, tuple[Cell, set[Direction]]] = {}
         self._last_position: tuple[float, float] | None = None
         self._stuck_frames: int = 0
         # The direction it keeps trying to move in while stuck.
@@ -482,6 +521,9 @@ class CpuPartnerInput:
         self._was_aiming = False
         self._frames_to_hesitate = 0
         self._cut_off = {}
+        self._refused_frames = 0
+        self._refused_target = None
+        self._given_up_sides = {}
         self._movement = (0, 0)
         self._shoot_requested = False
         self._last_position = None
@@ -512,7 +554,14 @@ class CpuPartnerInput:
             self._shoot_requested = False
 
     def _act(self, world: WorldView) -> None:
-        """Set this frame's movement and shoot request for its Goal."""
+        """Set this frame's movement and shoot request for its Goal.
+
+        Lined up on an Enemy but kept from shooting it safely for the refused
+        shot time, it gives up on that side of the Enemy and moves to a Firing
+        Position on another.
+        """
+        # Any frame it doesn't refuse a shot starts the count afresh.
+        refused_frames, self._refused_frames = self._refused_frames, 0
         own = world.own_player
         if own is None or not own.alive:
             return
@@ -535,17 +584,34 @@ class CpuPartnerInput:
             facing = vertical
         elif abs(dy) <= CPU_PARTNER_ALIGN_TOLERANCE:
             facing = horizontal
-        if facing is None or not _lane_is_open(
-            world, replace(own, direction=facing), target
+        given_up = self._given_up_sides.get(target.enemy_id, (None, set()))[1]
+        if (
+            facing is None
+            or facing.opposite in given_up
+            or not _can_fire_from(world, replace(own, direction=facing), target)
         ):
-            self._follow_path(world, own, _firing_positions(world, own, target), target)
+            sides = [side for side in Direction if side not in given_up]
+            positions = _firing_positions(world, own, target, sides)
+            self._follow_path(world, own, positions, target)
             return
-        if own.direction == facing:
-            self._shoot_requested = is_line_of_fire_safe(
-                world, own, target
-            ) and not can_evade_shot(world, own, target)
-        else:
+        if own.direction != facing:
             self._movement = facing.delta
+            return
+        self._shoot_requested = is_line_of_fire_safe(
+            world, own, target
+        ) and not can_evade_shot(world, own, target)
+        if self._shoot_requested:
+            return
+        if target.enemy_id != self._refused_target:
+            refused_frames = 0
+        self._refused_target = target.enemy_id
+        self._refused_frames = refused_frames + 1
+        if self._refused_frames >= CPU_PARTNER_REFUSED_SHOT_TIME * FPS:
+            self._refused_frames = 0
+            self._given_up_sides[target.enemy_id] = (
+                _cell_of(world, target),
+                given_up | {facing.opposite},
+            )
 
     def _ambush(self, world: WorldView, own: PlayerView, spawn: _Box) -> None:
         """Go to a Firing Position on ``spawn`` and wait there, facing it."""
@@ -685,6 +751,11 @@ class CpuPartnerInput:
         self._cut_off = {
             enemy_id: cell
             for enemy_id, cell in self._cut_off.items()
+            if enemy_id in enemies and _cell_of(world, enemies[enemy_id]) == cell
+        }
+        self._given_up_sides = {
+            enemy_id: (cell, sides)
+            for enemy_id, (cell, sides) in self._given_up_sides.items()
             if enemy_id in enemies and _cell_of(world, enemies[enemy_id]) == cell
         }
         self._frames_to_decision -= 1
