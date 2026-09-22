@@ -148,6 +148,11 @@ ENEMY_SPAWN_INTERVAL: float = 5.0
 DIRECTION_CHANGE_RANDOM_OFFSET: float = 0.5
 SHOOT_RANDOM_OFFSET: float = 0.3
 
+# CPU Partner tuning
+# Max px between the CPU Partner's and its target's centers on the cross axis
+# for the two to count as lined up (half a tank).
+CPU_PARTNER_ALIGN_TOLERANCE: float = TILE_SIZE / 2
+
 # UI settings
 FONT_SIZE_LARGE: int = 24
 FONT_SIZE_SMALL: int = 12

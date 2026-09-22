@@ -1,11 +1,16 @@
 """Per-player gameplay input encapsulation (keyboard or controller)."""
 
+from __future__ import annotations
+
 from enum import Enum, auto
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
 import pygame
 
 from src.utils.constants import Direction
+
+if TYPE_CHECKING:
+    from src.managers.world_view import WorldView
 
 AXIS_DEADZONE: float = 0.5
 """Threshold on a normalized axis value (range [-1.0, 1.0]) above which the
@@ -63,6 +68,10 @@ _CONTROLLER_EVENT_TYPES: tuple[int, ...] = (
 
 class PlayerInput(Protocol):
     def handle_event(self, event: pygame.event.Event) -> None: ...
+    # Called once per frame, before movement is read.
+    def observe(self, world: WorldView) -> None: ...
+    # Called when the paired tank respawns.
+    def reset(self) -> None: ...
     def get_movement_direction(self) -> tuple[int, int]: ...
     def consume_shoot(self) -> bool: ...
     def clear_pending_shoot(self) -> None: ...
@@ -77,6 +86,12 @@ class _DirectionalInput:
             Direction.RIGHT: False,
         }
         self._shoot_pressed: bool = False
+
+    def observe(self, world: WorldView) -> None:
+        """Human inputs ignore the World View."""
+
+    def reset(self) -> None:
+        """Held keys and buttons stay held across a respawn."""
 
     def get_movement_direction(self) -> tuple[int, int]:
         dx = 0
@@ -153,12 +168,20 @@ class ControllerInput(_DirectionalInput):
 
 
 class CombinedInput:
-    def __init__(self, inputs: list["PlayerInput"]) -> None:
+    def __init__(self, inputs: list[PlayerInput]) -> None:
         self._inputs = inputs
 
     def handle_event(self, event: pygame.event.Event) -> None:
         for inp in self._inputs:
             inp.handle_event(event)
+
+    def observe(self, world: WorldView) -> None:
+        for inp in self._inputs:
+            inp.observe(world)
+
+    def reset(self) -> None:
+        for inp in self._inputs:
+            inp.reset()
 
     def get_movement_direction(self) -> tuple[int, int]:
         dx = 0

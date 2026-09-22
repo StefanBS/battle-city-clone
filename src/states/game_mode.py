@@ -6,3 +6,4 @@ class GameMode(Enum):
 
     ONE_PLAYER = "1 Player"
     TWO_PLAYERS = "2 Players"
+    ONE_PLAYER_CPU = "1 Player + CPU"

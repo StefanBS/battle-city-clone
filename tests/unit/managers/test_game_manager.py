@@ -60,6 +60,28 @@ class TestGameManager:
         assert gm.state == GameState.STAGE_CURTAIN_CLOSE
         assert gm._game_mode is GameMode.TWO_PLAYERS
 
+    def test_title_menu_lists_cpu_mode_between_2_players_and_options(
+        self, game_manager_at_title
+    ):
+        assert game_manager_at_title._title_menu.labels == [
+            "1 Player",
+            "2 Players",
+            "1 Player + CPU",
+            "Options",
+            "Quit",
+        ]
+
+    def test_title_screen_enter_on_cpu_mode_starts_game(
+        self, game_manager_at_title, key_down_event
+    ):
+        """Enter on '1 Player + CPU' (index 2) starts the game with a CPU Partner."""
+        gm = game_manager_at_title
+        gm._title_menu.selection = 2
+        pygame.event.post(key_down_event(pygame.K_RETURN))
+        gm.handle_events()
+        assert gm.state == GameState.STAGE_CURTAIN_CLOSE
+        assert gm._game_mode is GameMode.ONE_PLAYER_CPU
+
     def test_victory_r_does_nothing(self, game_manager, key_down_event):
         """Test pressing R during VICTORY does nothing (auto-advances instead)."""
         game_manager.state = GameState.VICTORY
@@ -391,9 +413,9 @@ class TestPauseAndOptionsStateMachine:
     def test_title_options_transitions_to_options_menu(
         self, game_manager_at_title, key_down_event
     ):
-        """Enter on OPTIONS (index 2) on title screen goes to OPTIONS_MENU."""
+        """Enter on OPTIONS (index 3) on title screen goes to OPTIONS_MENU."""
         gm = game_manager_at_title
-        gm._title_menu.selection = 2
+        gm._title_menu.selection = 3
         pygame.event.post(key_down_event(pygame.K_RETURN))
         gm.handle_events()
         assert gm.state == GameState.OPTIONS_MENU
@@ -401,9 +423,9 @@ class TestPauseAndOptionsStateMachine:
         assert gm._options_menu.selection == 0
 
     def test_title_quit_exits(self, game_manager_at_title, key_down_event):
-        """Enter on QUIT (index 3) on title screen exits the game."""
+        """Enter on QUIT (index 4) on title screen exits the game."""
         gm = game_manager_at_title
-        gm._title_menu.selection = 3
+        gm._title_menu.selection = 4
         gm.sound_manager = MagicMock()
         pygame.event.post(key_down_event(pygame.K_RETURN))
         gm.handle_events()

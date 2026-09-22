@@ -46,6 +46,16 @@ EXPECTED_PROPERTIES = {
 TEST_CASES = [(tank_type, props) for tank_type, props in EXPECTED_PROPERTIES.items()]
 
 
+def test_each_enemy_gets_a_unique_enemy_id(create_enemy_tank):
+    """IDs are never reused, even after an earlier Enemy is discarded."""
+    first = create_enemy_tank()
+    first_id = first.enemy_id
+    del first
+    ids = {create_enemy_tank().enemy_id for _ in range(5)}
+    assert len(ids) == 5
+    assert first_id not in ids
+
+
 @pytest.mark.parametrize("tank_type, expected", TEST_CASES)
 def test_enemy_tank_initialization_properties(
     create_enemy_tank, tank_type: TankType, expected: dict
