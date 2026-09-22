@@ -4,15 +4,17 @@ import pytest
 
 from src.core.tile import TileType
 from src.managers.cpu_partner import CpuPartnerInput
-from src.managers.world_view import EnemyView, PlayerView, WorldView
+from src.managers.world_view import EnemyView, PlayerView, PowerUpView, WorldView
 from src.utils.constants import (
     CPU_PARTNER_ALIGN_TOLERANCE,
     CPU_PARTNER_GOAL_STICKINESS,
+    CPU_PARTNER_POWER_UP_RANGE,
     CPU_PARTNER_STUCK_TIME,
     FPS,
     SUB_TILE_SIZE,
     TANK_ALIGN_THRESHOLD,
     Direction,
+    PowerUpType,
 )
 
 GRID = 26
@@ -834,3 +836,80 @@ class TestCpuPartnerUnreachableThreat:
         for _ in range(STICKY_FRAMES):
             cpu.observe(out)
         assert leaves_decoy(cpu) is True
+
+
+def with_power_up(
+    view: WorldView, at: Cell, power_up_type: PowerUpType = PowerUpType.STAR
+) -> WorldView:
+    """``view`` with a Power-Up of ``power_up_type`` added at sub-tile ``at``."""
+    power_up = PowerUpView(x=cell(at[0]), y=cell(at[1]), power_up_type=power_up_type)
+    return replace(view, power_ups=(*view.power_ups, power_up))
+
+
+# The CPU Partner at (12, 12), lined up on an Enemy straight above it that
+# it would otherwise shoot.
+LINED_UP = make_view(own=(12, 12, Direction.UP), enemies=[(12, 2)])
+# The Power-Up column where the CPU Partner, driving right along row 12,
+# first touches it after exactly CPU_PARTNER_POWER_UP_RANGE steps.
+EDGE_OF_RANGE = 12 + CPU_PARTNER_POWER_UP_RANGE + 1
+
+
+def grabbing(cpu: CpuPartnerInput) -> bool:
+    """Whether it went right for the Power-Up rather than shoot the Enemy."""
+    return (
+        not cpu.consume_shoot()
+        and cpu.get_movement_direction() == Direction.RIGHT.delta
+    )
+
+
+class TestCpuPartnerGrabPowerUp:
+    @pytest.mark.parametrize("power_up_type", list(PowerUpType))
+    def test_grabs_a_nearby_power_up_of_any_type_before_hunting(
+        self, cpu, power_up_type
+    ) -> None:
+        cpu.observe(with_power_up(LINED_UP, (16, 12), power_up_type))
+        assert grabbing(cpu)
+
+    @pytest.mark.parametrize(
+        "column, grabs",
+        [(EDGE_OF_RANGE, True), (EDGE_OF_RANGE + 1, False)],
+    )
+    def test_only_grabs_a_power_up_within_range(self, cpu, column, grabs) -> None:
+        cpu.observe(with_power_up(LINED_UP, (column, 12)))
+        assert grabbing(cpu) is grabs
+
+    def test_brick_on_the_way_counts_toward_the_range(self, cpu) -> None:
+        # In range by steps, but shooting through the brick makes it too far.
+        brick = {(x, y): TileType.BRICK for x in (14, 15) for y in range(GRID)}
+        view = make_view(own=(12, 12, Direction.UP), enemies=[(12, 2)], tiles=brick)
+        cpu.observe(with_power_up(view, (EDGE_OF_RANGE - 2, 12)))
+        assert grabbing(cpu) is False
+
+    def test_ignores_a_power_up_it_cannot_reach(self, cpu) -> None:
+        ring = {
+            (x, y): TileType.STEEL
+            for x in range(15, 20)
+            for y in range(10, 16)
+            if x in (15, 19) or y in (10, 15)
+        }
+        view = make_view(own=(12, 12, Direction.UP), enemies=[(12, 2)], tiles=ring)
+        cpu.observe(with_power_up(view, (16, 12)))
+        assert grabbing(cpu) is False
+
+    def test_hunts_at_once_when_the_power_up_is_gone(self, cpu) -> None:
+        cpu.observe(with_power_up(LINED_UP, (16, 12)))
+        cpu.observe(LINED_UP)
+        assert cpu.consume_shoot() is True
+
+
+class TestCpuPartnerDefendOverridesGrab:
+    @pytest.mark.parametrize(
+        "view, heading",
+        [(NO_THREAT, Direction.UP), (WITH_THREAT, Direction.RIGHT)],
+    )
+    def test_defends_rather_than_grab_a_power_up(self, cpu, view, heading) -> None:
+        # A Power-Up right above it, one step away; the Base Threat, if any,
+        # lies below and to the right.
+        cpu.observe(with_power_up(view, (2, 0)))
+        assert cpu.get_movement_direction() == heading.delta
+        assert cpu.consume_shoot() is False

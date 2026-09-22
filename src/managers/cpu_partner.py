@@ -11,11 +11,12 @@ import pygame
 
 from src.core.tile import TileType
 from src.managers.pathfinding import Cell, NavGrid, find_path
-from src.managers.world_view import EnemyView, PlayerView, WorldView
+from src.managers.world_view import EnemyView, PlayerView, PowerUpView, WorldView
 from src.utils.constants import (
     BULLET_SIZE,
     CPU_PARTNER_ALIGN_TOLERANCE,
     CPU_PARTNER_GOAL_STICKINESS,
+    CPU_PARTNER_POWER_UP_RANGE,
     CPU_PARTNER_STUCK_TIME,
     CPU_PARTNER_THREAT_RADIUS,
     FPS,
@@ -106,13 +107,16 @@ def _bullet_lane(
     return horizontal, origin, (cross - BULLET_SIZE / 2, cross + BULLET_SIZE / 2)
 
 
-def is_line_of_fire_safe(world: WorldView, own: PlayerView, target: EnemyView) -> bool:
+def is_line_of_fire_safe(
+    world: WorldView, own: PlayerView, target: EnemyView | None
+) -> bool:
     """Whether ``own`` may fire at ``target`` along its current facing.
 
     Unsafe when the bullet could hit the Base or a Base Wall cell before a
     solid tile stops it (even beyond the target, since a miss carries on), or
     when a live Human Player stands in the Line of Fire before both the target
-    and that solid tile. Half-bricks don't count as solid.
+    and that solid tile. Half-bricks don't count as solid. With no target
+    (shooting a brick out of the way), only the solid tile stops the bullet.
     """
     facing = own.direction
     horizontal, origin, lane = _bullet_lane(own)
@@ -147,7 +151,9 @@ def is_line_of_fire_safe(world: WorldView, own: PlayerView, target: EnemyView) -
             break
         row_or_col += step
 
-    target_at = _distance_ahead(target, origin, facing, lane)
+    target_at = (
+        None if target is None else _distance_ahead(target, origin, facing, lane)
+    )
     nearest_stop = min(blocked_at, math.inf if target_at is None else target_at)
     for player in world.players:
         if player.player_id == own.player_id or not player.alive:
@@ -186,13 +192,13 @@ def _lane_is_open(
     return True
 
 
-def _cell_of(world: WorldView, view: PlayerView | EnemyView) -> Cell:
-    """The sub-tile nearest a tank's top-left corner."""
+def _cell_of(world: WorldView, view: _Placed) -> Cell:
+    """The sub-tile nearest a footprint's top-left corner."""
     return round(view.x / world.tile_size), round(view.y / world.tile_size)
 
 
-def _covered_cells(world: WorldView, view: PlayerView | EnemyView) -> set[Cell]:
-    """Every sub-tile a tank overlaps."""
+def _covered_cells(world: WorldView, view: _Placed) -> set[Cell]:
+    """Every sub-tile a footprint overlaps."""
     size = world.tile_size
     return {
         (x, y)
@@ -237,6 +243,19 @@ def _firing_positions(
                 break
             positions.add((x, y))
     return positions
+
+
+def _touching_cells(
+    world: WorldView, own: PlayerView, power_up: PowerUpView
+) -> set[Cell]:
+    """Cells from which ``own``'s footprint overlaps ``power_up``, collecting it."""
+    size_cells = math.ceil(own.size / world.tile_size)
+    return {
+        (x - dx, y - dy)
+        for x, y in _covered_cells(world, power_up)
+        for dx in range(size_cells)
+        for dy in range(size_cells)
+    }
 
 
 def _blocks_tanks(world: WorldView, x: int, y: int) -> bool:
@@ -361,13 +380,16 @@ class GoalKind(Enum):
     """What the CPU Partner is trying to do, highest priority first."""
 
     DEFEND = auto()
+    GRAB_POWER_UP = auto()
     HUNT = auto()
 
 
 @dataclass(frozen=True)
 class _Goal:
     kind: GoalKind
-    target_id: int
+    # The target Enemy's id, or the target Power-Up's cell (Power-Ups never
+    # move).
+    target: int | Cell
 
 
 class CpuPartnerInput:
@@ -420,6 +442,9 @@ class CpuPartnerInput:
         target = self._update_goal(world, own)
         if target is None:
             return
+        if isinstance(target, PowerUpView):
+            self._follow_path(world, own, _touching_cells(world, own, target), None)
+            return
         ox, oy = _center(own)
         ex, ey = _center(target)
         dx, dy = ex - ox, ey - oy
@@ -433,7 +458,7 @@ class CpuPartnerInput:
         if facing is None or not _lane_is_open(
             world, replace(own, direction=facing), target
         ):
-            self._follow_path(world, own, target)
+            self._follow_path(world, own, _firing_positions(world, own, target), target)
             return
         if own.direction == facing:
             self._shoot_requested = is_line_of_fire_safe(
@@ -453,12 +478,12 @@ class CpuPartnerInput:
         self._last_position = position
 
     def _update_detour(
-        self, world: WorldView, own: PlayerView, target: EnemyView
+        self, world: WorldView, own: PlayerView, target: EnemyView | None
     ) -> tuple[set[Cell], set[Cell]]:
         """Update which tanks to route around and return their cells.
 
         Once stuck for long enough, the tanks right ahead of it (Enemies other
-        than the target, and the Human Player, to give way rather than push)
+        than the ``target``, and the Human Player, to give way rather than push)
         are routed around until they move off the cells where they stood.
         Returns the cells of every tank to route around, and of the Players
         among them.
@@ -484,7 +509,7 @@ class CpuPartnerInput:
             self._detour_around = {
                 key: cells
                 for key, t in tanks.items()
-                if key != ("enemy", target.enemy_id)
+                if (target is None or key != ("enemy", target.enemy_id))
                 and (cells := _covered_cells(world, t)) & ahead
             }
         still_there = {
@@ -498,14 +523,18 @@ class CpuPartnerInput:
         return set().union(*still_there.values()), set().union(*players)
 
     def _follow_path(
-        self, world: WorldView, own: PlayerView, target: EnemyView
+        self,
+        world: WorldView,
+        own: PlayerView,
+        goals: set[Cell],
+        target: EnemyView | None,
     ) -> None:
-        """Take the next step on the cheapest path to a Firing Position.
+        """Take the next step on the cheapest path to one of ``goals``.
 
+        ``target`` is the Enemy the goals are Firing Positions for, if any.
         Shoots a brick that stands in the way once facing it.
         """
         start = _cell_of(world, own)
-        goals = _firing_positions(world, own, target)
         blockers, players = self._update_detour(world, own, target)
         grid = self._nav_grid(world, own, blockers)
         path = find_path(grid, start, goals)
@@ -519,7 +548,8 @@ class CpuPartnerInput:
                 # Only the Human Player is in the way: wait for them to move.
                 return
             # Cut off from the target: pick another one next frame.
-            self._cut_off[target.enemy_id] = _cell_of(world, target)
+            if target is not None:
+                self._cut_off[target.enemy_id] = _cell_of(world, target)
             self._goal = None
             return
         if len(path) < 2:
@@ -544,8 +574,10 @@ class CpuPartnerInput:
         ):
             self._shoot_requested = True
 
-    def _update_goal(self, world: WorldView, own: PlayerView) -> EnemyView | None:
-        """Settle this frame's Goal and return the Enemy it targets, if any.
+    def _update_goal(
+        self, world: WorldView, own: PlayerView
+    ) -> EnemyView | PowerUpView | None:
+        """Settle this frame's Goal and return what it targets, if anything.
 
         It keeps its current Goal until another has been preferred for the
         stickiness time, unless the current Goal's target is gone.
@@ -559,7 +591,7 @@ class CpuPartnerInput:
         preferred = self._preferred_goal(world, own)
         if (
             self._goal is None
-            or self._goal.target_id not in enemies
+            or self._find_target(world, self._goal) is None
             or preferred == self._goal
         ):
             self._goal = preferred
@@ -569,12 +601,23 @@ class CpuPartnerInput:
             if self._frames_preferring_other >= CPU_PARTNER_GOAL_STICKINESS * FPS:
                 self._goal = preferred
                 self._frames_preferring_other = 0
-        return None if self._goal is None else enemies[self._goal.target_id]
+        return None if self._goal is None else self._find_target(world, self._goal)
+
+    @staticmethod
+    def _find_target(world: WorldView, goal: _Goal) -> EnemyView | PowerUpView | None:
+        """What ``goal`` targets in ``world``, or ``None`` once it's gone."""
+        if goal.kind is GoalKind.GRAB_POWER_UP:
+            return next(
+                (p for p in world.power_ups if _cell_of(world, p) == goal.target),
+                None,
+            )
+        return next((e for e in world.enemies if e.enemy_id == goal.target), None)
 
     def _preferred_goal(self, world: WorldView, own: PlayerView) -> _Goal | None:
         """The Goal it would pick right now, highest priority first.
 
-        Defend targets the Base Threat nearest the Base. Hunt keeps its
+        Defend targets the Base Threat nearest the Base. Grab Power-Up targets
+        the Power-Up cheapest to reach, if within range. Hunt keeps its
         current target while it lives, else takes the nearest Enemy. Enemies
         it couldn't reach from where they stand are left out.
         """
@@ -584,12 +627,33 @@ class CpuPartnerInput:
         if base is not None and threats:
             nearest = min(threats, key=lambda e: _distance_to_base(base, e))
             return _Goal(GoalKind.DEFEND, nearest.enemy_id)
+        power_up = self._nearest_power_up(world, own)
+        if power_up is not None:
+            return _Goal(GoalKind.GRAB_POWER_UP, _cell_of(world, power_up))
         current = self._goal
         if current is not None and current.kind is GoalKind.HUNT:
-            if any(e.enemy_id == current.target_id for e in enemies):
+            if any(e.enemy_id == current.target for e in enemies):
                 return current
         target = self._nearest_enemy(world, own, enemies)
         return None if target is None else _Goal(GoalKind.HUNT, target.enemy_id)
+
+    def _nearest_power_up(
+        self, world: WorldView, own: PlayerView
+    ) -> PowerUpView | None:
+        """The Power-Up cheapest to reach by path, if within grabbing range."""
+        if not world.power_ups:
+            return None
+        cells = {
+            cell: p
+            for p in reversed(world.power_ups)
+            for cell in _touching_cells(world, own, p)
+        }
+        grid = self._nav_grid(world, own)
+        path = find_path(grid, _cell_of(world, own), cells)
+        if path is None:
+            return None
+        cost = sum(grid.step_cost(cell) for cell in path[1:])
+        return cells[path[-1]] if cost <= CPU_PARTNER_POWER_UP_RANGE else None
 
     def _nearest_enemy(
         self, world: WorldView, own: PlayerView, enemies: list[EnemyView]

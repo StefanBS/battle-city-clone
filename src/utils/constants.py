@@ -164,6 +164,9 @@ CPU_PARTNER_THREAT_RADIUS: float = 8.0
 # Seconds another Goal must stay preferred before the CPU Partner switches to
 # it, so it doesn't flicker between Goals.
 CPU_PARTNER_GOAL_STICKINESS: float = 0.5
+# Path cost (sub-tile steps, bricks at their extra cost) within which the CPU
+# Partner goes for a Power-Up, counted until its tank first touches it.
+CPU_PARTNER_POWER_UP_RANGE: int = 10
 
 # UI settings
 FONT_SIZE_LARGE: int = 24

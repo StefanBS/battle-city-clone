@@ -15,7 +15,13 @@ from src.core.tile import Tile, TileType
 from src.managers.game_manager import GameManager
 from src.states.game_mode import GameMode
 from src.states.game_state import GameState
-from src.utils.constants import FPS, SUB_TILE_SIZE, Direction, OwnerType
+from src.utils.constants import (
+    FPS,
+    SUB_TILE_SIZE,
+    Direction,
+    OwnerType,
+    PowerUpType,
+)
 from tests.integration.conftest import (
     clear_enemies,
     clear_tiles,
@@ -306,6 +312,36 @@ class TestCpuPartnerDefend:
         assert threat not in gm.spawn_manager.enemy_tanks
         assert far in gm.spawn_manager.enemy_tanks
         assert gm.player_manager.get_score(2) > 0
+
+
+class TestCpuPartnerGrabPowerUp:
+    def test_collects_a_nearby_power_up_before_hunting(self, cpu_game):
+        gm = cpu_game
+        open_field(gm)
+        clear_enemies(gm)
+        gm.spawn_manager.spawn_interval = float("inf")
+        p1, p2 = gm.player_manager.get_active_players()
+        place_player_at(gm, 0, 0, player=p1)
+        place_player_at(gm, 16 * SUB_TILE_SIZE, 16 * SUB_TILE_SIZE, player=p2)
+        # An Enemy lined up straight above the CPU Partner, far from the
+        # Base, and a Power-Up a few sub-tiles off to its right.
+        enemy = spawn_enemy_at(gm, 16, 4)
+        enemy.speed = 0
+        enemy.shoot_interval = float("inf")
+        gm.power_up_manager.spawn_power_up(
+            power_up_type=PowerUpType.STAR,
+            position=gm.map.grid_to_pixels(22, 16),
+        )
+
+        for _ in range(5 * FPS):
+            tick(gm)
+            if not gm.power_up_manager.active_power_ups:
+                break
+
+        assert not gm.power_up_manager.active_power_ups
+        assert p2.star_level == 1
+        assert p1.star_level == 0
+        assert enemy in gm.spawn_manager.enemy_tanks
 
 
 def fire_enemy_bullet_at(gm, player) -> None:
