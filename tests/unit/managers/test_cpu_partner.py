@@ -1,4 +1,5 @@
 from dataclasses import replace
+from unittest.mock import patch
 
 import pytest
 
@@ -8,8 +9,12 @@ from src.managers.world_view import EnemyView, PlayerView, PowerUpView, WorldVie
 from src.utils.constants import (
     CPU_PARTNER_ALIGN_TOLERANCE,
     CPU_PARTNER_AMBUSH_DISTANCE,
+    CPU_PARTNER_DECISION_INTERVAL,
     CPU_PARTNER_GOAL_STICKINESS,
+    CPU_PARTNER_HESITATION_CHANCE,
+    CPU_PARTNER_HESITATION_TIME,
     CPU_PARTNER_POWER_UP_RANGE,
+    CPU_PARTNER_REACTION_DELAY,
     CPU_PARTNER_STUCK_TIME,
     FPS,
     SUB_TILE_SIZE,
@@ -73,7 +78,8 @@ def make_view(
 
 @pytest.fixture
 def cpu() -> CpuPartnerInput:
-    return CpuPartnerInput()
+    """A CPU Partner without imperfection: it decides and acts every frame."""
+    return CpuPartnerInput(decision_interval=0, reaction_delay=0, hesitation_chance=0)
 
 
 class TestCpuPartnerHunt:
@@ -994,3 +1000,100 @@ class TestAmbushPositions:
         # A tank at (12, 7) to (12, 9) would overlap the spawn point at (12, 8).
         assert {(12, 7), (12, 8), (12, 9)}.isdisjoint(positions)
         assert {(12, 6), (12, 10)} <= positions
+
+
+DECISION_FRAMES = round(CPU_PARTNER_DECISION_INTERVAL * FPS)
+REACTION_FRAMES = round(CPU_PARTNER_REACTION_DELAY * FPS)
+HESITATION_FRAMES = round(CPU_PARTNER_HESITATION_TIME * FPS)
+
+
+def observe_frames(
+    cpu: CpuPartnerInput, view: WorldView, frames: int
+) -> list[tuple[int, int]]:
+    """Feed ``view`` for ``frames`` frames; return each frame's movement."""
+    moves = []
+    for _ in range(frames):
+        cpu.observe(view)
+        moves.append(cpu.get_movement_direction())
+    return moves
+
+
+class TestCpuPartnerReactionDelay:
+    @pytest.fixture
+    def cpu(self) -> CpuPartnerInput:
+        return CpuPartnerInput(decision_interval=0, hesitation_chance=0)
+
+    def test_waits_the_reaction_delay_before_taking_each_target(self, cpu) -> None:
+        view = make_view(own=(12, 12, Direction.UP), enemies=[(18, 12), (4, 12)])
+        assert observe_frames(cpu, view, REACTION_FRAMES) == [(0, 0)] * REACTION_FRAMES
+        cpu.observe(view)
+        assert cpu.get_movement_direction() == Direction.RIGHT.delta
+        # Its target dies; the other Enemy is left.
+        target_dead = replace(view, enemies=view.enemies[1:])
+        moves = observe_frames(cpu, target_dead, REACTION_FRAMES)
+        assert moves == [(0, 0)] * REACTION_FRAMES
+        cpu.observe(target_dead)
+        assert cpu.get_movement_direction() == Direction.LEFT.delta
+
+    def test_keeps_at_its_goal_while_reacting_to_a_new_one(self, cpu) -> None:
+        spawns = ((12, 0),)
+        ambush = with_spawns(make_view(own=(12, 12, Direction.LEFT)), *spawns)
+        cpu.observe(ambush)
+        observe_frames(cpu, ambush, REACTION_FRAMES)
+        assert cpu.get_movement_direction() == Direction.UP.delta
+        # An Enemy turns up while it's still turning to face the Enemy Spawn
+        # Point: it keeps turning until it reacts to the Enemy.
+        enemy = with_spawns(
+            make_view(own=(12, 12, Direction.LEFT), enemies=[(20, 12)]), *spawns
+        )
+        moves = observe_frames(cpu, enemy, REACTION_FRAMES)
+        assert moves == [Direction.UP.delta] * REACTION_FRAMES
+        cpu.observe(enemy)
+        assert cpu.get_movement_direction() == Direction.RIGHT.delta
+
+
+class TestCpuPartnerDecisionInterval:
+    @pytest.fixture
+    def cpu(self) -> CpuPartnerInput:
+        return CpuPartnerInput(reaction_delay=0, hesitation_chance=0)
+
+    def test_notices_a_new_enemy_only_when_it_next_decides(self, cpu) -> None:
+        spawns = ((12, 0),)
+        cpu.observe(with_spawns(make_view(own=(12, 12, Direction.UP)), *spawns))
+        assert cpu.get_movement_direction() == (0, 0)
+        view = with_spawns(
+            make_view(own=(12, 12, Direction.UP), enemies=[(20, 12)]), *spawns
+        )
+        moves = observe_frames(cpu, view, DECISION_FRAMES - 1)
+        assert moves == [(0, 0)] * (DECISION_FRAMES - 1)
+        cpu.observe(view)
+        assert cpu.get_movement_direction() == Direction.RIGHT.delta
+
+
+class TestCpuPartnerHesitation:
+    @pytest.fixture
+    def cpu(self) -> CpuPartnerInput:
+        return CpuPartnerInput(decision_interval=0, reaction_delay=0)
+
+    @patch(
+        "src.managers.cpu_partner.random.random",
+        return_value=CPU_PARTNER_HESITATION_CHANCE - 0.01,
+    )
+    def test_hesitates_briefly_before_a_shot(self, _random, cpu) -> None:
+        for _ in range(HESITATION_FRAMES):
+            cpu.observe(LINED_UP)
+            assert cpu.consume_shoot() is False
+            assert cpu.get_movement_direction() == (0, 0)
+        cpu.observe(LINED_UP)
+        assert cpu.consume_shoot() is True
+
+    @patch("src.managers.cpu_partner.random.random", return_value=0.5)
+    def test_rolls_once_per_shot_while_it_keeps_aiming(self, random_, cpu) -> None:
+        cpu.observe(LINED_UP)
+        assert cpu.consume_shoot() is True
+        for _ in range(4):
+            cpu.observe(LINED_UP)
+        assert random_.call_count == 1
+        cpu.observe(make_view(own=(12, 12, Direction.LEFT), enemies=[(12, 2)]))
+        cpu.observe(LINED_UP)
+        assert random_.call_count == 2

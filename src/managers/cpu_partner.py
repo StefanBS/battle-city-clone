@@ -2,6 +2,7 @@
 
 import itertools
 import math
+import random
 from collections.abc import Collection
 from dataclasses import dataclass, replace
 from enum import Enum, auto
@@ -16,8 +17,12 @@ from src.utils.constants import (
     BULLET_SIZE,
     CPU_PARTNER_ALIGN_TOLERANCE,
     CPU_PARTNER_AMBUSH_DISTANCE,
+    CPU_PARTNER_DECISION_INTERVAL,
     CPU_PARTNER_GOAL_STICKINESS,
+    CPU_PARTNER_HESITATION_CHANCE,
+    CPU_PARTNER_HESITATION_TIME,
     CPU_PARTNER_POWER_UP_RANGE,
+    CPU_PARTNER_REACTION_DELAY,
     CPU_PARTNER_STUCK_TIME,
     CPU_PARTNER_THREAT_RADIUS,
     FPS,
@@ -426,15 +431,36 @@ class CpuPartnerInput:
     """Computer-controlled input for the CPU Partner in the P2 slot.
 
     Reads the World View once per frame in :meth:`observe` and turns it into
-    a movement direction and shoot requests, exactly like a human input.
+    a movement direction and shoot requests, exactly like a human input. Like
+    a human it is imperfect: it decides on its Goal only every
+    ``decision_interval`` seconds, takes ``reaction_delay`` seconds to act on
+    a new Goal or target, and sometimes (``hesitation_chance``) hesitates
+    before a shot.
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        decision_interval: float = CPU_PARTNER_DECISION_INTERVAL,
+        reaction_delay: float = CPU_PARTNER_REACTION_DELAY,
+        hesitation_chance: float = CPU_PARTNER_HESITATION_CHANCE,
+    ) -> None:
+        self._decision_frames = max(1, round(decision_interval * FPS))
+        self._reaction_frames = round(reaction_delay * FPS)
+        self._hesitation_chance = hesitation_chance
         self._movement: tuple[int, int] = (0, 0)
         self._shoot_requested: bool = False
+        # The Goal it has decided on, and the one it is acting on: the
+        # previous Goal until the reaction delay has passed.
         self._goal: _Goal | None = None
-        # Frames in a row it has preferred another Goal to its current one.
+        self._acting_goal: _Goal | None = None
+        self._frames_to_react: int = 0
+        self._frames_to_decision: int = 0
+        # Frames it has preferred another Goal to its current one.
         self._frames_preferring_other: int = 0
+        # Whether it wanted to shoot last frame, and the frames it has left
+        # to hesitate before shooting.
+        self._was_aiming: bool = False
+        self._frames_to_hesitate: int = 0
         # Enemies it found it can't reach, with the cell each stood on then;
         # left out of its Goals until they move.
         self._cut_off: dict[int, Cell] = {}
@@ -449,7 +475,12 @@ class CpuPartnerInput:
     def reset(self) -> None:
         """Forget the current Goal and route (on stage start and respawn)."""
         self._goal = None
+        self._acting_goal = None
+        self._frames_to_react = 0
+        self._frames_to_decision = 0
         self._frames_preferring_other = 0
+        self._was_aiming = False
+        self._frames_to_hesitate = 0
         self._cut_off = {}
         self._movement = (0, 0)
         self._shoot_requested = False
@@ -463,10 +494,26 @@ class CpuPartnerInput:
 
     def observe(self, world: WorldView) -> None:
         """Decide this frame's movement and shooting from the World View."""
-        own = world.own_player
-        self._track_progress(own)
+        self._track_progress(world.own_player)
         self._movement = (0, 0)
         self._shoot_requested = False
+        self._act(world)
+        self._hesitate()
+
+    def _hesitate(self) -> None:
+        """Now and then hold back a shot it has just lined up, for a moment."""
+        aiming = self._shoot_requested
+        if aiming and not self._was_aiming:
+            if random.random() < self._hesitation_chance:
+                self._frames_to_hesitate = round(CPU_PARTNER_HESITATION_TIME * FPS)
+        self._was_aiming = aiming
+        if self._frames_to_hesitate > 0:
+            self._frames_to_hesitate -= 1
+            self._shoot_requested = False
+
+    def _act(self, world: WorldView) -> None:
+        """Set this frame's movement and shoot request for its Goal."""
+        own = world.own_player
         if own is None or not own.alive:
             return
         target = self._update_goal(world, own)
@@ -599,7 +646,9 @@ class CpuPartnerInput:
             # Cut off from the target: pick another one next frame.
             if target is not None:
                 self._cut_off[target.enemy_id] = _cell_of(world, target)
-            self._goal = None
+            if self._goal == self._acting_goal:
+                self._goal = None
+            self._acting_goal = None
             return
         if len(path) < 2:
             return
@@ -626,11 +675,11 @@ class CpuPartnerInput:
     def _update_goal(
         self, world: WorldView, own: PlayerView
     ) -> EnemyView | PowerUpView | _Box | None:
-        """Settle this frame's Goal and return what it targets, if anything.
+        """Settle this frame's Goal and return what it acts on, if anything.
 
-        It keeps its current Goal until another has been preferred for the
-        stickiness time, unless the current Goal's target is gone. Ambush,
-        just waiting, gives way at once.
+        It decides every decision interval, or at once when it has no Goal
+        or its Goal's target is gone. Once it decides on a new Goal, it keeps
+        acting on the old one for the reaction delay.
         """
         enemies = {e.enemy_id: e for e in world.enemies}
         self._cut_off = {
@@ -638,6 +687,31 @@ class CpuPartnerInput:
             for enemy_id, cell in self._cut_off.items()
             if enemy_id in enemies and _cell_of(world, enemies[enemy_id]) == cell
         }
+        self._frames_to_decision -= 1
+        if (
+            self._frames_to_decision <= 0
+            or self._goal is None
+            or self._find_target(world, self._goal) is None
+        ):
+            self._frames_to_decision = self._decision_frames
+            decided = self._decide_goal(world, own)
+            if decided != self._goal:
+                self._goal = decided
+                self._frames_to_react = self._reaction_frames
+        if self._frames_to_react > 0:
+            self._frames_to_react -= 1
+        else:
+            self._acting_goal = self._goal
+        goal = self._acting_goal
+        return None if goal is None else self._find_target(world, goal)
+
+    def _decide_goal(self, world: WorldView, own: PlayerView) -> _Goal | None:
+        """The Goal to pursue from now on.
+
+        It keeps its current Goal until another has been preferred for the
+        stickiness time, unless the current Goal's target is gone. Ambush,
+        just waiting, gives way at once.
+        """
         preferred = self._preferred_goal(world, own)
         if (
             self._goal is None
@@ -645,14 +719,13 @@ class CpuPartnerInput:
             or self._find_target(world, self._goal) is None
             or preferred == self._goal
         ):
-            self._goal = preferred
             self._frames_preferring_other = 0
-        else:
-            self._frames_preferring_other += 1
-            if self._frames_preferring_other >= CPU_PARTNER_GOAL_STICKINESS * FPS:
-                self._goal = preferred
-                self._frames_preferring_other = 0
-        return None if self._goal is None else self._find_target(world, self._goal)
+            return preferred
+        self._frames_preferring_other += self._decision_frames
+        if self._frames_preferring_other >= CPU_PARTNER_GOAL_STICKINESS * FPS:
+            self._frames_preferring_other = 0
+            return preferred
+        return self._goal
 
     @staticmethod
     def _find_target(
