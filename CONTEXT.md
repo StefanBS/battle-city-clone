@@ -18,7 +18,7 @@ A Player in the P2 slot that the computer controls, fighting on the Human Player
 _Avoid_: Bot, AI player, ally, companion
 
 **Goal**:
-What the CPU Partner is currently trying to do: in priority order **Defend** (intercept a Base Threat), **Grab Power-Up**, **Hunt** (attack the nearest Enemy) and **Ambush** (wait at a Firing Position covering an Enemy Spawn Point when there is nothing else to do). Only one Goal is active at a time.
+What the CPU Partner is currently trying to do: in priority order **Defend** (intercept a Base Threat), **Grab Power-Up**, **Hunt** (attack the Enemy with the Firing Position cheapest to reach) and **Ambush** (wait at a Firing Position covering an Enemy Spawn Point when there is nothing else to do). Only one Goal is active at a time.
 _Avoid_: State, mode, task
 
 **Firing Position**:

@@ -584,13 +584,12 @@ class CpuPartnerInput:
             facing = vertical
         elif abs(dy) <= CPU_PARTNER_ALIGN_TOLERANCE:
             facing = horizontal
-        given_up = self._given_up_sides.get(target.enemy_id, (None, set()))[1]
+        sides = self._open_sides(target)
         if (
             facing is None
-            or facing.opposite in given_up
+            or facing.opposite not in sides
             or not _can_fire_from(world, replace(own, direction=facing), target)
         ):
-            sides = [side for side in Direction if side not in given_up]
             positions = _firing_positions(world, own, target, sides)
             self._follow_path(world, own, positions, target)
             return
@@ -608,10 +607,16 @@ class CpuPartnerInput:
         self._refused_frames = refused_frames + 1
         if self._refused_frames >= CPU_PARTNER_REFUSED_SHOT_TIME * FPS:
             self._refused_frames = 0
+            given_up = set(Direction) - set(sides)
             self._given_up_sides[target.enemy_id] = (
                 _cell_of(world, target),
                 given_up | {facing.opposite},
             )
+
+    def _open_sides(self, enemy: EnemyView) -> list[Direction]:
+        """Sides of ``enemy`` it hasn't given up firing from."""
+        given_up = self._given_up_sides.get(enemy.enemy_id, (None, set()))[1]
+        return [side for side in Direction if side not in given_up]
 
     def _ambush(self, world: WorldView, own: PlayerView, spawn: _Box) -> None:
         """Go to a Firing Position on ``spawn`` and wait there, facing it."""
@@ -823,9 +828,10 @@ class CpuPartnerInput:
 
         Defend targets the Base Threat nearest the Base. Grab Power-Up targets
         the Power-Up cheapest to reach, if within range. Hunt keeps its
-        current target while it lives, else takes the nearest Enemy. Enemies
-        it couldn't reach from where they stand are left out. Ambush keeps
-        its current Enemy Spawn Point, else takes the one cheapest to reach.
+        current target while it lives, else takes the Enemy with the Firing
+        Position cheapest to reach. Enemies it couldn't reach from where they
+        stand are left out. Ambush keeps its current Enemy Spawn Point, else
+        takes the one cheapest to reach.
         """
         enemies = [e for e in world.enemies if e.enemy_id not in self._cut_off]
         base = _base_box(world)
@@ -869,16 +875,23 @@ class CpuPartnerInput:
     def _nearest_enemy(
         self, world: WorldView, own: PlayerView, enemies: list[EnemyView]
     ) -> EnemyView | None:
-        """The one of ``enemies`` cheapest to reach by path.
+        """The one of ``enemies`` with a Firing Position cheapest to reach by path.
 
-        If none can be reached, the nearest as the crow flies.
+        If no Enemy has a Firing Position that can be reached, the nearest as
+        the crow flies.
         """
         if not enemies:
             return None
-        cells = {_cell_of(world, e): e for e in reversed(enemies)}
-        path = find_path(self._nav_grid(world, own), _cell_of(world, own), cells)
+        positions = {
+            position: enemy
+            for enemy in reversed(enemies)
+            for position in _firing_positions(
+                world, own, enemy, self._open_sides(enemy)
+            )
+        }
+        path = find_path(self._nav_grid(world, own), _cell_of(world, own), positions)
         if path is not None:
-            return cells[path[-1]]
+            return positions[path[-1]]
         return min(enemies, key=lambda e: _distance(own, e))
 
     def _nearest_spawn_point(self, world: WorldView, own: PlayerView) -> Cell | None:

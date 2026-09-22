@@ -122,9 +122,10 @@ def cpu() -> CpuPartnerInput:
 
 
 class TestCpuPartnerHunt:
-    def test_heads_for_nearest_of_several_enemies(self, cpu) -> None:
-        cpu.observe(make_view(own=(12, 12, Direction.UP), enemies=[(12, 0), (18, 12)]))
-        assert cpu.get_movement_direction() == Direction.RIGHT.delta
+    def test_heads_for_nearest_firing_position_of_several_enemies(self, cpu) -> None:
+        # Enemy 1 can be shot from 2 sub-tiles below; Enemy 0 from 8 to the left.
+        cpu.observe(make_view(own=(12, 12, Direction.UP), enemies=[(4, 0), (18, 14)]))
+        assert cpu.get_movement_direction() == Direction.DOWN.delta
 
     def test_keeps_target_when_another_enemy_comes_closer(self, cpu) -> None:
         cpu.observe(make_view(own=(12, 12, Direction.UP), enemies=[(12, 2)]))
@@ -138,6 +139,36 @@ class TestCpuPartnerHunt:
         view = make_view(own=(12, 12, Direction.UP), enemies=[(12, 2), (20, 12)])
         cpu.observe(replace(view, enemies=view.enemies[1:]))
         assert cpu.get_movement_direction() == Direction.RIGHT.delta
+
+    def test_targets_a_shootable_enemy_it_cannot_reach(self, cpu) -> None:
+        # Enemy 0 is ringed by water, so it can't be driven up to, but a Firing
+        # Position below it is 4 sub-tiles away. Enemy 1 can be reached, but
+        # its nearest Firing Position is 6 sub-tiles away.
+        moat = {
+            (x, y): TileType.WATER
+            for x in range(10, 16)
+            for y in range(0, 6)
+            if not (x in (12, 13) and y in (2, 3))
+        }
+        cpu.observe(
+            make_view(
+                own=(16, 12, Direction.UP), enemies=[(12, 2), (22, 22)], tiles=moat
+            )
+        )
+        assert cpu.get_movement_direction() == Direction.LEFT.delta
+
+    def test_prefers_a_cheap_firing_position_to_a_short_drive(self, cpu) -> None:
+        # Enemy 0 is a long drive round the water, but can be shot across it
+        # from 4 sub-tiles away. Enemy 1 is a shorter drive, but its nearest
+        # Firing Position is 6 sub-tiles away.
+        cpu.observe(
+            make_view(
+                own=(16, 12, Direction.UP),
+                enemies=[(12, 2), (22, 22)],
+                tiles=wall_under_far_enemy(TileType.WATER),
+            )
+        )
+        assert cpu.get_movement_direction() == Direction.LEFT.delta
 
     def test_stands_still_without_enemies(self, cpu) -> None:
         cpu.observe(make_view(own=(12, 12, Direction.UP), enemies=[]))

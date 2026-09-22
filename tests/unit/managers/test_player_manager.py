@@ -771,17 +771,18 @@ class TestPlayerManagerCpuPartner:
 
     def test_respawn_makes_cpu_partner_choose_a_new_target(self, cpu_pm, mock_game_map):
         p2 = cpu_pm.players[1]
-        far_above = (p2.x, p2.y - 10 * TILE_SIZE)
-        cpu_pm.observe(self.view(cpu_pm, enemies=[far_above]))
+        far_left = (p2.x - 6 * TILE_SIZE, p2.y - 10 * TILE_SIZE)
+        cpu_pm.observe(self.view(cpu_pm, enemies=[far_left]))
         cpu_pm.update(self.DT, mock_game_map)
 
         p2.lives = 2
         cpu_pm.handle_player_death(p2)
         x_after_respawn = p2.x
-        close_right = (p2.x + 3 * TILE_SIZE, p2.y)
+        # Its Firing Positions are 3 tiles right, against 6 left for far_left.
+        close_right = (p2.x + 3 * TILE_SIZE, p2.y - 10 * TILE_SIZE)
         # Past the CPU Partner's reaction delay to its new target.
         for _ in range(round(CPU_PARTNER_REACTION_DELAY * FPS) + 1):
-            cpu_pm.observe(self.view(cpu_pm, enemies=[far_above, close_right]))
+            cpu_pm.observe(self.view(cpu_pm, enemies=[far_left, close_right]))
             cpu_pm.update(self.DT, mock_game_map)
 
         assert p2.x > x_after_respawn
