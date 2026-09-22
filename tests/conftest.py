@@ -6,6 +6,7 @@ from src.core.bullet import Bullet
 from src.core.enemy_tank import EnemyTank
 from src.core.player_tank import PlayerTank
 from src.core.tank import Tank
+from src.core.tile import TileDefaults, TileType
 from src.managers.texture_manager import TextureManager
 from src.utils.constants import Direction, OwnerType, TankType, TILE_SIZE
 
@@ -195,3 +196,39 @@ def ctrl_device_removed_event():
         )
 
     return _ctrl_device_removed_event
+
+
+# The tileset's tile rules (assets/sprites/sprites.tsx), for hand-built World
+# Views. Types not listed block nothing.
+TILE_RULES: dict[TileType, TileDefaults] = {
+    TileType.BRICK: TileDefaults(
+        blocks_tanks=True, blocks_bullets=True, is_destructible=True
+    ),
+    TileType.STEEL: TileDefaults(blocks_tanks=True, blocks_bullets=True),
+    TileType.WATER: TileDefaults(blocks_tanks=True),
+    TileType.BASE: TileDefaults(blocks_tanks=True, blocks_bullets=True),
+}
+
+
+def tile_fields(
+    tiles: dict[tuple[int, int], TileType], grid: int = 26
+) -> dict[str, object]:
+    """World View tile fields for a ``grid`` x ``grid`` field of ``tiles``.
+
+    Every other cell is EMPTY; each tile's rules come from ``TILE_RULES``.
+    """
+
+    def cells_where(rule: str) -> frozenset[tuple[int, int]]:
+        return frozenset(
+            c for c, t in tiles.items() if getattr(TILE_RULES.get(t), rule, False)
+        )
+
+    return dict(
+        tiles=tuple(
+            tuple(tiles.get((x, y), TileType.EMPTY) for x in range(grid))
+            for y in range(grid)
+        ),
+        tank_blocking_cells=cells_where("blocks_tanks"),
+        bullet_blocking_cells=cells_where("blocks_bullets"),
+        destructible_cells=cells_where("is_destructible"),
+    )

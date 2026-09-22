@@ -4,25 +4,19 @@ import heapq
 import itertools
 from collections.abc import Collection
 
-from src.core.tile import TileType
-from src.managers.world_view import WorldView
+from src.managers.world_view import Cell, WorldView
 from src.utils.constants import CPU_PARTNER_BRICK_COST, Direction
-
-Cell = tuple[int, int]
-
-_IMPASSABLE_TILES = frozenset(
-    {TileType.STEEL, TileType.WATER, TileType.BASE, TileType.BASE_DESTROYED}
-)
 
 
 class NavGrid:
     """Where a tank of ``size_cells`` x ``size_cells`` sub-tiles can stand.
 
-    Cells are the tank's top-left sub-tile. Steel, water, the Base, the map
-    edges and Base Wall bricks (which must never be shot) are impassable.
-    Other bricks are passable at a higher cost, since the tank must shoot
-    its way through. Tanks are not obstacles; pass ``avoid`` to keep a
-    tank's footprint out of the plan.
+    Cells are the tank's top-left sub-tile. Tiles that block tanks and
+    can't be destroyed (steel, water, the Base), the map edges and Base Wall
+    bricks (which must never be shot) are impassable. Other bricks are
+    passable at a higher cost, since the tank must shoot its way through.
+    Tanks are not obstacles; pass ``avoid`` to keep a tank's footprint out
+    of the plan.
     """
 
     def __init__(
@@ -51,20 +45,23 @@ class NavGrid:
         ):
             return False
         return not any(
-            self._world.tiles[cy][cx] in _IMPASSABLE_TILES
-            or (cx, cy) in self._avoid
+            c in self._avoid
             or (
-                self._world.tiles[cy][cx] is TileType.BRICK
-                and (cx, cy) in self._world.base_wall_cells
+                self._world.blocks_tanks(c)
+                and (not self._is_brick(c) or c in self._world.base_wall_cells)
             )
-            for cx, cy in self._footprint(cell)
+            for c in self._footprint(cell)
         )
 
     def has_brick(self, cell: Cell) -> bool:
-        """Whether the tank's footprint at ``cell`` overlaps a brick."""
-        return any(
-            self._world.tiles[cy][cx] is TileType.BRICK
-            for cx, cy in self._footprint(cell)
+        """Whether the tank's footprint at ``cell`` overlaps a brick to shoot."""
+        return any(self._is_brick(c) for c in self._footprint(cell))
+
+    def _is_brick(self, cell: Cell) -> bool:
+        """Whether ``cell`` blocks tanks until a bullet destroys it."""
+        return (
+            cell in self._world.tank_blocking_cells
+            and cell in self._world.destructible_cells
         )
 
     def step_cost(self, cell: Cell) -> float:

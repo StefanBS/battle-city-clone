@@ -6,15 +6,20 @@ import random
 from collections.abc import Collection
 from dataclasses import dataclass, replace
 from enum import Enum, auto
-from typing import Literal, Protocol
+from typing import Literal
 
 import pygame
 
-from src.core.tile import TileType
 from src.managers.pathfinding import Cell, NavGrid, find_path
-from src.managers.world_view import EnemyView, PlayerView, PowerUpView, WorldView
+from src.managers.world_view import (
+    EnemyView,
+    Footprint,
+    PlayerView,
+    PowerUpView,
+    WorldView,
+    center,
+)
 from src.utils.constants import (
-    BULLET_SIZE,
     CPU_PARTNER_ALIGN_TOLERANCE,
     CPU_PARTNER_AMBUSH_DISTANCE,
     CPU_PARTNER_DECISION_INTERVAL,
@@ -25,134 +30,24 @@ from src.utils.constants import (
     CPU_PARTNER_REACTION_DELAY,
     CPU_PARTNER_REFUSED_SHOT_TIME,
     CPU_PARTNER_STUCK_TIME,
-    CPU_PARTNER_THREAT_RADIUS,
     FPS,
     TANK_ALIGN_THRESHOLD,
-    TILE_SIZE,
     Direction,
-)
-
-_BULLET_BLOCKING_TILES = frozenset({TileType.BRICK, TileType.STEEL, TileType.BASE})
-# Tiles a Player's bullet can't shoot its way through.
-_BULLET_PROOF_TILES = frozenset({TileType.STEEL})
-_TANK_BLOCKING_TILES = frozenset(
-    {TileType.BRICK, TileType.STEEL, TileType.WATER, TileType.BASE}
 )
 
 # Identifies a tank in the World View: Enemy and Player ids can overlap.
 _TankKey = tuple[Literal["enemy", "player"], int]
 
 
-class _Placed(Protocol):
-    """Anything with a square footprint on the battlefield (pixels)."""
-
-    @property
-    def x(self) -> float: ...
-    @property
-    def y(self) -> float: ...
-    @property
-    def size(self) -> int: ...
-
-
-@dataclass(frozen=True)
-class _Box:
-    """A square footprint that isn't a tank, such as the Base."""
-
-    x: float
-    y: float
-    size: int
-
-
-def _center(view: _Placed) -> tuple[float, float]:
-    return view.x + view.size / 2, view.y + view.size / 2
-
-
 def _distance(a: PlayerView | EnemyView, b: PlayerView | EnemyView) -> float:
     """Manhattan distance between two tanks' centers, in pixels."""
-    (ax, ay), (bx, by) = _center(a), _center(b)
+    (ax, ay), (bx, by) = center(a), center(b)
     return abs(ax - bx) + abs(ay - by)
-
-
-def _distance_ahead(
-    tank: _Placed,
-    origin: tuple[float, float],
-    facing: Direction,
-    lane: tuple[float, float],
-) -> float | None:
-    """Px from ``origin`` to where a bullet in ``lane`` would first touch ``tank``.
-
-    ``None`` when the tank is outside the lane or behind the origin.
-    """
-    horizontal = facing in (Direction.LEFT, Direction.RIGHT)
-    along, across = (tank.x, tank.y) if horizontal else (tank.y, tank.x)
-    if across + tank.size <= lane[0] or across >= lane[1]:
-        return None
-    step = facing.delta[0] if horizontal else facing.delta[1]
-    start = origin[0] if horizontal else origin[1]
-    # Signed distances to the tank's two edges along the direction of travel.
-    edges = sorted(((along - start) * step, (along + tank.size - start) * step))
-    if edges[1] <= 0:
-        return None
-    return max(edges[0], 0.0)
 
 
 def _along_step(direction: Direction, horizontal: bool) -> int:
     """``direction``'s step along the lane axis: -1, 0 or 1."""
     return direction.delta[0] if horizontal else direction.delta[1]
-
-
-def _bullet_lane(
-    own: PlayerView | EnemyView,
-) -> tuple[bool, tuple[float, float], tuple[float, float]]:
-    """Where ``own``'s next bullet would fly.
-
-    Returns whether it flies horizontally, its origin (the tank's center) and
-    its lane: the span it sweeps across the direction of travel.
-    """
-    horizontal = own.direction in (Direction.LEFT, Direction.RIGHT)
-    origin = _center(own)
-    cross = origin[1] if horizontal else origin[0]
-    return horizontal, origin, (cross - BULLET_SIZE / 2, cross + BULLET_SIZE / 2)
-
-
-def _solid_tile_ahead(world: WorldView, own: PlayerView) -> float | None:
-    """Px from ``own``'s center to the solid tile sure to stop its next bullet.
-
-    ``math.inf`` when no tile stops it before it leaves the map, and ``None``
-    when it could hit the Base or a Base Wall cell first. Half-bricks don't
-    count as solid.
-    """
-    facing = own.direction
-    horizontal, origin, lane = _bullet_lane(own)
-    start = origin[0] if horizontal else origin[1]
-
-    tile_size = world.tile_size
-    height = len(world.tiles)
-    width = len(world.tiles[0]) if world.tiles else 0
-    lane_cells = range(math.floor(lane[0] / tile_size), math.ceil(lane[1] / tile_size))
-    step = _along_step(facing, horizontal)
-    row_or_col = math.floor(start / tile_size)
-    limit = width if horizontal else height
-
-    while 0 <= row_or_col < limit:
-        cells = [(row_or_col, c) if horizontal else (c, row_or_col) for c in lane_cells]
-        cells = [(x, y) for x, y in cells if 0 <= x < width and 0 <= y < height]
-        blocking_cells = [
-            cell
-            for cell in cells
-            if world.tiles[cell[1]][cell[0]] in _BULLET_BLOCKING_TILES
-        ]
-        if any(
-            c in world.base_cells or c in world.base_wall_cells for c in blocking_cells
-        ):
-            return None
-        # A half-brick may leave the lane open, so only a solid tile is sure
-        # to stop the bullet.
-        if any(c not in world.half_brick_cells for c in blocking_cells):
-            edge = row_or_col * tile_size if step > 0 else (row_or_col + 1) * tile_size
-            return max((edge - start) * step, 0.0)
-        row_or_col += step
-    return math.inf
 
 
 def is_line_of_fire_safe(
@@ -163,129 +58,21 @@ def is_line_of_fire_safe(
     Unsafe when the bullet could hit the Base or a Base Wall cell before a
     solid tile stops it (even beyond the target, since a miss carries on), or
     when a live Human Player stands in the Line of Fire before both the target
-    and that solid tile. Half-bricks don't count as solid. With no target
-    (shooting a brick out of the way), only the solid tile stops the bullet.
+    and that solid tile. With no target (shooting a brick out of the way),
+    only the solid tile stops the bullet.
     """
-    blocked_at = _solid_tile_ahead(world, own)
-    if blocked_at is None:
+    line = world.line_of_fire(own, own.direction)
+    if line.endangers_base:
         return False
-    horizontal, origin, lane = _bullet_lane(own)
-    target_at = (
-        None if target is None else _distance_ahead(target, origin, own.direction, lane)
-    )
-    nearest_stop = min(blocked_at, math.inf if target_at is None else target_at)
+    target_at = None if target is None else line.distance_to(target)
+    nearest_stop = min(line.stopped_at, math.inf if target_at is None else target_at)
     for player in world.players:
         if player.player_id == own.player_id or not player.alive:
             continue
-        human_at = _distance_ahead(player, origin, own.direction, lane)
+        human_at = line.distance_to(player)
         if human_at is not None and human_at < nearest_stop:
             return False
     return True
-
-
-def _lane_is_open(
-    world: WorldView, own: PlayerView | EnemyView, target: _Placed
-) -> bool:
-    """Whether ``own``'s bullet would reach ``target`` through brick at worst."""
-    horizontal, origin, lane = _bullet_lane(own)
-    target_at = _distance_ahead(target, origin, own.direction, lane)
-    if target_at is None:
-        return False
-    tile_size = world.tile_size
-    start = origin[0] if horizontal else origin[1]
-    step = _along_step(own.direction, horizontal)
-    lane_cells = range(math.floor(lane[0] / tile_size), math.ceil(lane[1] / tile_size))
-    height = len(world.tiles)
-    width = len(world.tiles[0]) if world.tiles else 0
-    row_or_col = math.floor(start / tile_size)
-    while 0 <= row_or_col < (width if horizontal else height):
-        edge = row_or_col * tile_size if step > 0 else (row_or_col + 1) * tile_size
-        if max((edge - start) * step, 0.0) >= target_at:
-            return True
-        for c in lane_cells:
-            x, y = (row_or_col, c) if horizontal else (c, row_or_col)
-            if 0 <= x < width and 0 <= y < height:
-                if world.tiles[y][x] in _BULLET_PROOF_TILES:
-                    return False
-        row_or_col += step
-    return True
-
-
-def _can_fire_from(world: WorldView, shooter: PlayerView, target: _Placed) -> bool:
-    """Whether ``shooter`` is at a Firing Position on ``target``, facing it.
-
-    Its Line of Fire reaches ``target`` through brick at worst and could
-    never hit the Base or a Base Wall cell.
-    """
-    return (
-        _lane_is_open(world, shooter, target)
-        and _solid_tile_ahead(world, shooter) is not None
-    )
-
-
-def _cell_of(world: WorldView, view: _Placed) -> Cell:
-    """The sub-tile nearest a footprint's top-left corner."""
-    return round(view.x / world.tile_size), round(view.y / world.tile_size)
-
-
-def _covered_cells(world: WorldView, view: _Placed) -> set[Cell]:
-    """Every sub-tile a footprint overlaps."""
-    size = world.tile_size
-    return {
-        (x, y)
-        for x in range(
-            math.floor(view.x / size), math.ceil((view.x + view.size) / size)
-        )
-        for y in range(
-            math.floor(view.y / size), math.ceil((view.y + view.size) / size)
-        )
-    }
-
-
-def _firing_positions(
-    world: WorldView,
-    own: PlayerView,
-    target: _Placed,
-    sides: Collection[Direction] = tuple(Direction),
-) -> set[Cell]:
-    """Cells in ``target``'s row or column from which ``own`` could hit it.
-
-    From each, the Line of Fire facing ``target`` is clear or blocked only by
-    brick, and could never hit the Base or a Base Wall cell. Only cells on
-    ``sides`` of ``target`` (the directions from it to them) are taken.
-    Cells where ``own`` would overlap ``target`` are left out; cells a tank
-    can't stand on are left to the pathfinder to reject.
-    """
-    tx, ty = _cell_of(world, target)
-    size_cells = math.ceil(own.size / world.tile_size)
-    height = len(world.tiles)
-    width = len(world.tiles[0]) if world.tiles else 0
-    positions: set[Cell] = set()
-    for away in sides:
-        # Walk outward from the target; once steel cuts the Line of Fire,
-        # every cell further out is cut off too.
-        dx, dy = away.delta
-        for distance in itertools.count(size_cells):
-            x, y = tx + dx * distance, ty + dy * distance
-            if not (0 <= x < width and 0 <= y < height):
-                break
-            shooter = replace(
-                own,
-                x=float(x * world.tile_size),
-                y=float(y * world.tile_size),
-                direction=away.opposite,
-            )
-            if not _lane_is_open(world, shooter, target):
-                break
-            if _solid_tile_ahead(world, shooter) is not None:
-                positions.add((x, y))
-    return positions
-
-
-def _spawn_box(world: WorldView, spawn_point: Cell) -> _Box:
-    """The footprint an Enemy spawning at ``spawn_point`` takes up."""
-    x, y = spawn_point
-    return _Box(float(x * world.tile_size), float(y * world.tile_size), TILE_SIZE)
 
 
 def ambush_positions(world: WorldView, own: PlayerView, spawn_point: Cell) -> set[Cell]:
@@ -296,12 +83,15 @@ def ambush_positions(world: WorldView, own: PlayerView, spawn_point: Cell) -> se
     """
     size_cells = math.ceil(own.size / world.tile_size)
     spawn_cells = set().union(
-        *(_covered_cells(world, _spawn_box(world, s)) for s in world.enemy_spawn_points)
+        *(
+            world.covered_cells(world.spawn_footprint(s))
+            for s in world.enemy_spawn_points
+        )
     )
     sx, sy = spawn_point
     return {
         (x, y)
-        for x, y in _firing_positions(world, own, _spawn_box(world, spawn_point))
+        for x, y in world.firing_positions(world.spawn_footprint(spawn_point), own.size)
         if abs(x - sx) + abs(y - sy) >= CPU_PARTNER_AMBUSH_DISTANCE
         and not any(
             (x + dx, y + dy) in spawn_cells
@@ -318,17 +108,10 @@ def _touching_cells(
     size_cells = math.ceil(own.size / world.tile_size)
     return {
         (x - dx, y - dy)
-        for x, y in _covered_cells(world, power_up)
+        for x, y in world.covered_cells(power_up)
         for dx in range(size_cells)
         for dy in range(size_cells)
     }
-
-
-def _blocks_tanks(world: WorldView, x: int, y: int) -> bool:
-    """Whether a tank can't enter cell ``(x, y)``; off the map counts as a wall."""
-    if not (0 <= y < len(world.tiles) and 0 <= x < len(world.tiles[y])):
-        return True
-    return world.tiles[y][x] in _TANK_BLOCKING_TILES
 
 
 def can_evade_shot(world: WorldView, own: PlayerView, target: EnemyView) -> bool:
@@ -342,15 +125,16 @@ def can_evade_shot(world: WorldView, own: PlayerView, target: EnemyView) -> bool
     """
     if world.enemies_frozen or target.speed <= 0:
         return False
-    horizontal, origin, lane = _bullet_lane(own)
-    gap = _distance_ahead(target, origin, own.direction, lane)
+    line = world.line_of_fire(own, own.direction)
+    horizontal, lane = line.horizontal, line.lane
+    gap = line.distance_to(target)
     if gap is None:
         return False
 
     def blocked(along_cell: int, across_cell: int) -> bool:
         if horizontal:
-            return _blocks_tanks(world, along_cell, across_cell)
-        return _blocks_tanks(world, across_cell, along_cell)
+            return world.blocks_tanks((along_cell, across_cell))
+        return world.blocks_tanks((across_cell, along_cell))
 
     # "Along" runs with the bullet; "across" is sideways, out of the lane.
     tile_size = world.tile_size
@@ -381,7 +165,7 @@ def can_evade_shot(world: WorldView, own: PlayerView, target: EnemyView) -> bool
     ]
     corridor = range(first, last + 1)
     size_cells = math.ceil(target.size / tile_size)
-    bullet_step = _along_step(own.direction, horizontal)
+    bullet_step = line.step
     target_step = _along_step(target.direction, horizontal)
     for step in [target_step] if target_step else [-1, 1]:
         # The bullet closes the gap more slowly while the target drives away.
@@ -405,41 +189,6 @@ def can_evade_shot(world: WorldView, own: PlayerView, target: EnemyView) -> bool
                 if open_exit and (travelled + sideways) / target.speed < time_left:
                     return True
     return False
-
-
-def _base_box(world: WorldView) -> _Box | None:
-    """The Base's footprint, or ``None`` when the map has no Base."""
-    if not world.base_cells:
-        return None
-    xs = [x for x, _ in world.base_cells]
-    ys = [y for _, y in world.base_cells]
-    size = (max(xs) - min(xs) + 1) * world.tile_size
-    return _Box(
-        float(min(xs) * world.tile_size), float(min(ys) * world.tile_size), size
-    )
-
-
-def _distance_to_base(base: _Box, enemy: EnemyView) -> float:
-    """Straight-line px between the centers of ``enemy`` and the Base."""
-    (bx, by), (ex, ey) = _center(base), _center(enemy)
-    return math.hypot(ex - bx, ey - by)
-
-
-def _is_base_threat(world: WorldView, base: _Box, enemy: EnemyView) -> bool:
-    """Whether ``enemy`` is a Base Threat to ``base``.
-
-    It is when its center is within the threat radius of the Base's center,
-    or when, turned to face the Base, its Line of Fire would reach the Base
-    clear or through brick. Which way it faces now doesn't matter: an Enemy
-    can turn and fire at any moment.
-    """
-    radius = CPU_PARTNER_THREAT_RADIUS * world.tile_size
-    if _distance_to_base(base, enemy) <= radius:
-        return True
-    return any(
-        _lane_is_open(world, replace(enemy, direction=facing), base)
-        for facing in Direction
-    )
 
 
 class GoalKind(Enum):
@@ -571,11 +320,11 @@ class CpuPartnerInput:
         if isinstance(target, PowerUpView):
             self._follow_path(world, own, _touching_cells(world, own, target), None)
             return
-        if isinstance(target, _Box):
+        if isinstance(target, Footprint):
             self._ambush(world, own, target)
             return
-        ox, oy = _center(own)
-        ex, ey = _center(target)
+        ox, oy = center(own)
+        ex, ey = center(target)
         dx, dy = ex - ox, ey - oy
         vertical = Direction.DOWN if dy > 0 else Direction.UP
         horizontal = Direction.RIGHT if dx > 0 else Direction.LEFT
@@ -588,9 +337,9 @@ class CpuPartnerInput:
         if (
             facing is None
             or facing.opposite not in sides
-            or not _can_fire_from(world, replace(own, direction=facing), target)
+            or not world.line_of_fire(own, facing).is_from_firing_position(target)
         ):
-            positions = _firing_positions(world, own, target, sides)
+            positions = world.firing_positions(target, own.size, sides)
             self._follow_path(world, own, positions, target)
             return
         if own.direction != facing:
@@ -609,7 +358,7 @@ class CpuPartnerInput:
             self._refused_frames = 0
             given_up = set(Direction) - set(sides)
             self._given_up_sides[target.enemy_id] = (
-                _cell_of(world, target),
+                world.cell_of(target),
                 given_up | {facing.opposite},
             )
 
@@ -618,11 +367,11 @@ class CpuPartnerInput:
         given_up = self._given_up_sides.get(enemy.enemy_id, (None, set()))[1]
         return [side for side in Direction if side not in given_up]
 
-    def _ambush(self, world: WorldView, own: PlayerView, spawn: _Box) -> None:
+    def _ambush(self, world: WorldView, own: PlayerView, spawn: Footprint) -> None:
         """Go to a Firing Position on ``spawn`` and wait there, facing it."""
-        spawn_point = _cell_of(world, spawn)
+        spawn_point = world.cell_of(spawn)
         positions = ambush_positions(world, own, spawn_point)
-        cx, cy = _cell_of(world, own)
+        cx, cy = world.cell_of(own)
         if (cx, cy) not in positions:
             self._follow_path(world, own, positions, None)
             return
@@ -665,25 +414,24 @@ class CpuPartnerInput:
         if self._stuck_frames >= CPU_PARTNER_STUCK_TIME * FPS:
             self._stuck_frames = 0
             dx, dy = self._pushing
-            ahead = _covered_cells(
-                world,
+            ahead = world.covered_cells(
                 replace(
                     own,
                     x=own.x + dx * world.tile_size,
                     y=own.y + dy * world.tile_size,
-                ),
+                )
             )
             self._detour_around = {
                 key: cells
                 for key, t in tanks.items()
                 if (target is None or key != ("enemy", target.enemy_id))
-                and (cells := _covered_cells(world, t)) & ahead
+                and (cells := world.covered_cells(t)) & ahead
             }
         still_there = {
             key: cells
             for key, t in tanks.items()
             if key in self._detour_around
-            and (cells := _covered_cells(world, t)) & self._detour_around[key]
+            and (cells := world.covered_cells(t)) & self._detour_around[key]
         }
         self._detour_around = {key: self._detour_around[key] for key in still_there}
         players = [cells for key, cells in still_there.items() if key[0] == "player"]
@@ -701,7 +449,7 @@ class CpuPartnerInput:
         ``target`` is the Enemy the goals are Firing Positions for, if any.
         Shoots a brick that stands in the way once facing it.
         """
-        start = _cell_of(world, own)
+        start = world.cell_of(own)
         blockers, players = self._update_detour(world, own, target)
         grid = self._nav_grid(world, own, blockers)
         path = find_path(grid, start, goals)
@@ -716,7 +464,7 @@ class CpuPartnerInput:
                 return
             # Cut off from the target: pick another one next frame.
             if target is not None:
-                self._cut_off[target.enemy_id] = _cell_of(world, target)
+                self._cut_off[target.enemy_id] = world.cell_of(target)
             if self._goal == self._acting_goal:
                 self._goal = None
             self._acting_goal = None
@@ -745,7 +493,7 @@ class CpuPartnerInput:
 
     def _update_goal(
         self, world: WorldView, own: PlayerView
-    ) -> EnemyView | PowerUpView | _Box | None:
+    ) -> EnemyView | PowerUpView | Footprint | None:
         """Settle this frame's Goal and return what it acts on, if anything.
 
         It decides every decision interval, or at once when it has no Goal
@@ -756,12 +504,12 @@ class CpuPartnerInput:
         self._cut_off = {
             enemy_id: cell
             for enemy_id, cell in self._cut_off.items()
-            if enemy_id in enemies and _cell_of(world, enemies[enemy_id]) == cell
+            if enemy_id in enemies and world.cell_of(enemies[enemy_id]) == cell
         }
         self._given_up_sides = {
             enemy_id: (cell, sides)
             for enemy_id, (cell, sides) in self._given_up_sides.items()
-            if enemy_id in enemies and _cell_of(world, enemies[enemy_id]) == cell
+            if enemy_id in enemies and world.cell_of(enemies[enemy_id]) == cell
         }
         self._frames_to_decision -= 1
         if (
@@ -806,11 +554,11 @@ class CpuPartnerInput:
     @staticmethod
     def _find_target(
         world: WorldView, goal: _Goal
-    ) -> EnemyView | PowerUpView | _Box | None:
+    ) -> EnemyView | PowerUpView | Footprint | None:
         """What ``goal`` targets in ``world``, or ``None`` once it's gone."""
         if goal.kind is GoalKind.GRAB_POWER_UP:
             return next(
-                (p for p in world.power_ups if _cell_of(world, p) == goal.target),
+                (p for p in world.power_ups if world.cell_of(p) == goal.target),
                 None,
             )
         if goal.kind is GoalKind.AMBUSH:
@@ -820,7 +568,7 @@ class CpuPartnerInput:
                 or spawn_point not in world.enemy_spawn_points
             ):
                 return None
-            return _spawn_box(world, spawn_point)
+            return world.spawn_footprint(spawn_point)
         return next((e for e in world.enemies if e.enemy_id == goal.target), None)
 
     def _preferred_goal(self, world: WorldView, own: PlayerView) -> _Goal | None:
@@ -834,14 +582,12 @@ class CpuPartnerInput:
         takes the one cheapest to reach.
         """
         enemies = [e for e in world.enemies if e.enemy_id not in self._cut_off]
-        base = _base_box(world)
-        threats = [e for e in enemies if base and _is_base_threat(world, base, e)]
-        if base is not None and threats:
-            nearest = min(threats, key=lambda e: _distance_to_base(base, e))
-            return _Goal(GoalKind.DEFEND, nearest.enemy_id)
+        threats = [e for e in world.base_threats if e.enemy_id not in self._cut_off]
+        if threats:
+            return _Goal(GoalKind.DEFEND, threats[0].enemy_id)
         power_up = self._nearest_power_up(world, own)
         if power_up is not None:
-            return _Goal(GoalKind.GRAB_POWER_UP, _cell_of(world, power_up))
+            return _Goal(GoalKind.GRAB_POWER_UP, world.cell_of(power_up))
         current = self._goal
         if current is not None and current.kind is GoalKind.HUNT:
             if any(e.enemy_id == current.target for e in enemies):
@@ -866,7 +612,7 @@ class CpuPartnerInput:
             for cell in _touching_cells(world, own, p)
         }
         grid = self._nav_grid(world, own)
-        path = find_path(grid, _cell_of(world, own), cells)
+        path = find_path(grid, world.cell_of(own), cells)
         if path is None:
             return None
         cost = sum(grid.step_cost(cell) for cell in path[1:])
@@ -885,11 +631,11 @@ class CpuPartnerInput:
         positions = {
             position: enemy
             for enemy in reversed(enemies)
-            for position in _firing_positions(
-                world, own, enemy, self._open_sides(enemy)
+            for position in world.firing_positions(
+                enemy, own.size, self._open_sides(enemy)
             )
         }
-        path = find_path(self._nav_grid(world, own), _cell_of(world, own), positions)
+        path = find_path(self._nav_grid(world, own), world.cell_of(own), positions)
         if path is not None:
             return positions[path[-1]]
         return min(enemies, key=lambda e: _distance(own, e))
@@ -897,7 +643,7 @@ class CpuPartnerInput:
     def _nearest_spawn_point(self, world: WorldView, own: PlayerView) -> Cell | None:
         """The Enemy Spawn Point cheapest to reach by path, if any can be."""
         path = find_path(
-            self._nav_grid(world, own), _cell_of(world, own), world.enemy_spawn_points
+            self._nav_grid(world, own), world.cell_of(own), world.enemy_spawn_points
         )
         return None if path is None else path[-1]
 
