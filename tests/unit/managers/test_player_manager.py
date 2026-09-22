@@ -21,7 +21,7 @@ from src.managers.player_manager import PlayerManager
 from src.managers.sound_manager import SoundManager
 from src.managers.world_view import EnemyView, PlayerView, WorldView
 from src.states.game_mode import GameMode
-from src.utils.constants import TILE_SIZE, Direction
+from src.utils.constants import CPU_PARTNER_REACTION_DELAY, FPS, TILE_SIZE, Direction
 
 
 # ---------------------------------------------------------------------------
@@ -779,8 +779,10 @@ class TestPlayerManagerCpuPartner:
         cpu_pm.handle_player_death(p2)
         x_after_respawn = p2.x
         close_right = (p2.x + 3 * TILE_SIZE, p2.y)
-        cpu_pm.observe(self.view(cpu_pm, enemies=[far_above, close_right]))
-        cpu_pm.update(self.DT, mock_game_map)
+        # Past the CPU Partner's reaction delay to its new target.
+        for _ in range(round(CPU_PARTNER_REACTION_DELAY * FPS) + 1):
+            cpu_pm.observe(self.view(cpu_pm, enemies=[far_above, close_right]))
+            cpu_pm.update(self.DT, mock_game_map)
 
         assert p2.x > x_after_respawn
 

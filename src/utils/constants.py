@@ -171,6 +171,13 @@ CPU_PARTNER_POWER_UP_RANGE: int = 10
 # it covers (top-left to top-left), so an arriving Enemy isn't right on top of
 # the CPU Partner.
 CPU_PARTNER_AMBUSH_DISTANCE: int = 4
+# Seconds between the CPU Partner's decisions about which Goal to pursue.
+CPU_PARTNER_DECISION_INTERVAL: float = 0.25
+# Seconds the CPU Partner takes to start acting on a new Goal or target.
+CPU_PARTNER_REACTION_DELAY: float = 0.25
+# Chance that the CPU Partner hesitates before a shot, and for how many seconds.
+CPU_PARTNER_HESITATION_CHANCE: float = 0.1
+CPU_PARTNER_HESITATION_TIME: float = 0.3
 
 # UI settings
 FONT_SIZE_LARGE: int = 24
