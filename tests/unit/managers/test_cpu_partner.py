@@ -388,6 +388,14 @@ def wall_row(
     return {(x, y): tile for y in rows for x in xs if x not in gaps}
 
 
+# The Enemy at (20, 2) sits far above and to the right of the CPU Partner at
+# (12, 12): on open ground, the nearest Firing Position is straight below it
+# at (20, 12).
+FAR_ENEMY = (20, 2)
+# Steel right under FAR_ENEMY spoils every Firing Position below it in its
+# column, leaving only those in its row (and the one right above it).
+STEEL_UNDER_FAR_ENEMY = {(x, y): TileType.STEEL for x in (20, 21) for y in (6, 7)}
+
 # The CPU Partner at (12, 12) sits at the top of a steel corridor (walls at
 # columns 11 and 14, rows 12-21) under a brick wall across rows 10-11 whose
 # only gap is on the far left: going round means a long detour.
@@ -426,8 +434,9 @@ class TestCpuPartnerPathfinding:
         cpu.observe(
             make_view(
                 own=(12, 12, Direction.UP),
-                enemies=[(20, 2)],
-                tiles=wall_row((10, 11), TileType.BRICK, gaps=(10, 11)),
+                enemies=[FAR_ENEMY],
+                tiles=wall_row((10, 11), TileType.BRICK, gaps=(10, 11))
+                | STEEL_UNDER_FAR_ENEMY,
             )
         )
         assert cpu.get_movement_direction() == Direction.LEFT.delta
@@ -437,8 +446,8 @@ class TestCpuPartnerPathfinding:
         cpu.observe(
             make_view(
                 own=(12, 12, Direction.UP),
-                enemies=[(20, 2)],
-                tiles=BRICK_WALL_OVER_CORRIDOR,
+                enemies=[FAR_ENEMY],
+                tiles=BRICK_WALL_OVER_CORRIDOR | STEEL_UNDER_FAR_ENEMY,
             )
         )
         assert cpu.get_movement_direction() == Direction.UP.delta
@@ -448,8 +457,8 @@ class TestCpuPartnerPathfinding:
         cpu.observe(
             make_view(
                 own=(12, 12, Direction.LEFT),
-                enemies=[(20, 2)],
-                tiles=BRICK_WALL_OVER_CORRIDOR,
+                enemies=[FAR_ENEMY],
+                tiles=BRICK_WALL_OVER_CORRIDOR | STEEL_UNDER_FAR_ENEMY,
             )
         )
         assert cpu.get_movement_direction() == Direction.UP.delta
@@ -589,3 +598,48 @@ class TestCpuPartnerUnreachableTarget:
             Direction.LEFT.delta,
             Direction.DOWN.delta,
         }
+
+
+# A wall across rows 8-9 between the CPU Partner and FAR_ENEMY, open only at
+# the far left.
+def wall_under_far_enemy(tile: TileType) -> dict[Cell, TileType]:
+    return wall_row((8, 9), tile, gaps=(0, 1))
+
+
+class TestCpuPartnerFiringPosition:
+    @pytest.mark.parametrize("wall", [TileType.WATER, TileType.BRICK])
+    def test_heads_for_the_cheapest_firing_position(self, cpu, wall) -> None:
+        # Rather than drive round through the far-left gap, it lines up under
+        # the Enemy to shoot across water or through brick.
+        cpu.observe(
+            make_view(
+                own=(12, 12, Direction.UP),
+                enemies=[FAR_ENEMY],
+                tiles=wall_under_far_enemy(wall),
+            )
+        )
+        assert cpu.get_movement_direction() == Direction.RIGHT.delta
+        assert cpu.consume_shoot() is False
+
+    def test_rejects_a_firing_position_behind_steel(self, cpu) -> None:
+        # With no Firing Position below the Enemy, it goes up to its row.
+        cpu.observe(
+            make_view(
+                own=(12, 12, Direction.UP),
+                enemies=[FAR_ENEMY],
+                tiles=STEEL_UNDER_FAR_ENEMY,
+            )
+        )
+        assert cpu.get_movement_direction() == Direction.UP.delta
+
+    def test_picks_a_new_firing_position_when_the_target_moves(self, cpu) -> None:
+        water = wall_under_far_enemy(TileType.WATER)
+        cpu.observe(
+            make_view(own=(20, 12, Direction.UP), enemies=[FAR_ENEMY], tiles=water)
+        )
+        assert cpu.consume_shoot() is True
+        cpu.observe(
+            make_view(own=(20, 12, Direction.UP), enemies=[(24, 2)], tiles=water)
+        )
+        assert cpu.consume_shoot() is False
+        assert cpu.get_movement_direction() == Direction.RIGHT.delta
