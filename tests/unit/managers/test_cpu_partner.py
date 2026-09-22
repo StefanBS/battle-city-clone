@@ -28,7 +28,7 @@ def cell(n: int) -> float:
 def make_view(
     own: tuple[int, int, Direction] | None = (12, 12, Direction.UP),
     enemies: list[tuple[int, int]] | None = None,
-    human: tuple[int, int] = (0, 24),
+    human: tuple[float, float] = (0, 24),
     tiles: dict[Cell, TileType] | None = None,
     base_cells: frozenset[Cell] = frozenset(),
     base_wall_cells: frozenset[Cell] = frozenset(),
@@ -524,44 +524,46 @@ TWO_GAP_WALL = wall_row((10, 11), TileType.STEEL, gaps=(9, 10, 16, 17))
 
 
 def blocked_view(
-    blocker_moved: bool = False, blocker: tuple[int, int] = (10, 12)
+    blocker: tuple[int, int] | None = (10, 12),
+    human: tuple[float, float] = (0, 24),
+    tiles: dict[Cell, TileType] = TWO_GAP_WALL,
 ) -> WorldView:
-    """The two-gap scene with a frozen Enemy parked just left of the CPU."""
-    if blocker_moved:
-        blocker = (10, 16)
+    """The CPU Partner at (12, 12) hunting the Enemy at (12, 2) past a wall.
+
+    A frozen Enemy is parked at ``blocker`` (just left of the CPU Partner by
+    default; none if ``None``) and the Human Player at ``human``.
+    """
     return replace(
         make_view(
             own=(12, 12, Direction.LEFT),
-            enemies=[(12, 2), blocker],
-            tiles=TWO_GAP_WALL,
+            enemies=[(12, 2)] + ([blocker] if blocker else []),
+            human=human,
+            tiles=tiles,
         ),
         enemies_frozen=True,
     )
 
 
 def observe_stuck(
-    cpu: CpuPartnerInput, frames: int, blocker: tuple[int, int] = (10, 12)
+    cpu: CpuPartnerInput, frames: int, view: WorldView | None = None
 ) -> None:
     """Feed ``frames`` frames of the CPU Partner not moving from its spot."""
     for _ in range(frames):
-        cpu.observe(blocked_view(blocker=blocker))
+        cpu.observe(view or blocked_view())
 
 
 STUCK_FRAMES = int(CPU_PARTNER_STUCK_TIME * FPS)
 
 
-class TestCpuPartnerBlocked:
-    @pytest.fixture
-    def hunting(self, cpu) -> CpuPartnerInput:
-        """A CPU Partner already hunting the Enemy at (12, 2)."""
-        cpu.observe(
-            make_view(
-                own=(12, 12, Direction.LEFT), enemies=[(12, 2)], tiles=TWO_GAP_WALL
-            )
-        )
-        assert cpu.get_movement_direction() == Direction.LEFT.delta
-        return cpu
+@pytest.fixture
+def hunting(cpu) -> CpuPartnerInput:
+    """A CPU Partner already heading for the left gap to hunt the Enemy."""
+    cpu.observe(blocked_view(blocker=None))
+    assert cpu.get_movement_direction() == Direction.LEFT.delta
+    return cpu
 
+
+class TestCpuPartnerBlocked:
     def test_keeps_its_route_while_briefly_blocked(self, hunting) -> None:
         observe_stuck(hunting, STUCK_FRAMES - 1)
         assert hunting.get_movement_direction() == Direction.LEFT.delta
@@ -575,7 +577,7 @@ class TestCpuPartnerBlocked:
 
     def test_takes_the_short_route_again_once_the_blocker_moves(self, hunting) -> None:
         observe_stuck(hunting, STUCK_FRAMES + 1)
-        hunting.observe(blocked_view(blocker_moved=True))
+        hunting.observe(blocked_view(blocker=(10, 16)))
         assert hunting.get_movement_direction() == Direction.LEFT.delta
 
     def test_does_not_route_around_an_enemy_that_is_not_in_its_way(
@@ -584,8 +586,46 @@ class TestCpuPartnerBlocked:
         # Held in place (by anything) while a frozen Enemy sits in the far
         # gap: that Enemy isn't what is stopping it, so the route stays.
         far_in_the_gap = (9, 10)
-        observe_stuck(hunting, STUCK_FRAMES + 1, blocker=far_in_the_gap)
+        observe_stuck(hunting, STUCK_FRAMES + 1, blocked_view(blocker=far_in_the_gap))
         assert hunting.get_movement_direction() == Direction.LEFT.delta
+
+
+# The Human Player parked just left of the CPU Partner, on its way to the
+# left gap.
+HUMAN_IN_THE_WAY = blocked_view(blocker=None, human=(10, 12))
+
+
+class TestCpuPartnerGivesWayToHuman:
+    def test_takes_another_route_when_blocked_by_the_human(self, hunting) -> None:
+        observe_stuck(hunting, STUCK_FRAMES + 1, HUMAN_IN_THE_WAY)
+        assert hunting.get_movement_direction() == Direction.RIGHT.delta
+
+    def test_keeps_the_detour_while_the_human_shuffles_in_place(self, hunting) -> None:
+        observe_stuck(hunting, STUCK_FRAMES + 1, HUMAN_IN_THE_WAY)
+        one_px_over = 10 + 1 / SUB_TILE_SIZE
+        hunting.observe(blocked_view(blocker=None, human=(one_px_over, 12)))
+        assert hunting.get_movement_direction() == Direction.RIGHT.delta
+
+    def test_waits_when_the_human_blocks_the_only_way(self, cpu) -> None:
+        one_gap = wall_row((10, 11), TileType.STEEL, gaps=(9, 10))
+        cpu.observe(blocked_view(blocker=None, tiles=one_gap))
+        assert cpu.get_movement_direction() == Direction.LEFT.delta
+        in_the_way = blocked_view(blocker=None, human=(10, 12), tiles=one_gap)
+        observe_stuck(cpu, STUCK_FRAMES + 1, in_the_way)
+        assert cpu.get_movement_direction() == (0, 0)
+        cpu.observe(in_the_way)
+        assert cpu.get_movement_direction() == (0, 0)
+        cpu.observe(blocked_view(blocker=None, human=(0, 24), tiles=one_gap))
+        assert cpu.get_movement_direction() == Direction.LEFT.delta
+
+    def test_blocked_by_an_enemy_does_not_route_around_the_human_beside_it(
+        self, hunting
+    ) -> None:
+        # The Enemy on its left stops it; the Human Player merely stands on
+        # its right, on the way to the other gap. Only the Enemy is routed
+        # around, so it heads right past the Human Player.
+        observe_stuck(hunting, STUCK_FRAMES + 1, blocked_view(human=(14, 12)))
+        assert hunting.get_movement_direction() == Direction.RIGHT.delta
 
 
 class TestCpuPartnerUnreachableTarget:

@@ -4,6 +4,7 @@ import itertools
 import math
 from collections.abc import Collection
 from dataclasses import replace
+from typing import Literal
 
 import pygame
 
@@ -25,6 +26,9 @@ _BULLET_PROOF_TILES = frozenset({TileType.STEEL})
 _TANK_BLOCKING_TILES = frozenset(
     {TileType.BRICK, TileType.STEEL, TileType.WATER, TileType.BASE}
 )
+
+# Identifies a tank in the World View: Enemy and Player ids can overlap.
+_TankKey = tuple[Literal["enemy", "player"], int]
 
 
 def _center(view: PlayerView | EnemyView) -> tuple[float, float]:
@@ -162,7 +166,7 @@ def _cell_of(world: WorldView, view: PlayerView | EnemyView) -> Cell:
     return round(view.x / world.tile_size), round(view.y / world.tile_size)
 
 
-def _covered_cells(world: WorldView, view: EnemyView) -> set[Cell]:
+def _covered_cells(world: WorldView, view: PlayerView | EnemyView) -> set[Cell]:
     """Every sub-tile a tank overlaps."""
     size = world.tile_size
     return {
@@ -306,8 +310,11 @@ class CpuPartnerInput:
         self._target_id: int | None = None
         self._last_position: tuple[float, float] | None = None
         self._stuck_frames: int = 0
-        # Enemies to route around, by id, while they stay where they blocked it.
-        self._detour_around: dict[int, tuple[float, float]] = {}
+        # The direction it keeps trying to move in while stuck.
+        self._pushing: tuple[int, int] = (0, 0)
+        # Tanks to route around, with the cells they blocked it from, while
+        # they still stand on any of those cells.
+        self._detour_around: dict[_TankKey, set[Cell]] = {}
 
     def reset(self) -> None:
         """Forget the current target and route (on stage start and respawn)."""
@@ -316,6 +323,7 @@ class CpuPartnerInput:
         self._shoot_requested = False
         self._last_position = None
         self._stuck_frames = 0
+        self._pushing = (0, 0)
         self._detour_around = {}
 
     def handle_event(self, event: pygame.event.Event) -> None:
@@ -359,40 +367,55 @@ class CpuPartnerInput:
         position = None if own is None else (own.x, own.y)
         if self._movement != (0, 0) and position == self._last_position:
             self._stuck_frames += 1
+            self._pushing = self._movement
         else:
             self._stuck_frames = 0
         self._last_position = position
 
     def _update_detour(
         self, world: WorldView, own: PlayerView, target: EnemyView
-    ) -> set[Cell]:
-        """Update which Enemies to route around and return their cells.
+    ) -> tuple[set[Cell], set[Cell]]:
+        """Update which tanks to route around and return their cells.
 
-        Once stuck for long enough, the Enemies touching it (other than the
-        target) are routed around until they move off the spot where they
-        stood.
+        Once stuck for long enough, the tanks right ahead of it (Enemies other
+        than the target, and the Human Player, to give way rather than push)
+        are routed around until they move off the cells where they stood.
+        Returns the cells of every tank to route around, and of the Players
+        among them.
         """
+        tanks: dict[_TankKey, PlayerView | EnemyView] = {
+            ("enemy", e.enemy_id): e for e in world.enemies
+        } | {
+            ("player", p.player_id): p
+            for p in world.players
+            if p.player_id != own.player_id and p.alive
+        }
         if self._stuck_frames >= CPU_PARTNER_STUCK_TIME * FPS:
             self._stuck_frames = 0
-            x, y = _cell_of(world, own)
-            size = math.ceil(own.size / world.tile_size)
-            around = {
-                (cx, cy)
-                for cx in range(x - 1, x + size + 1)
-                for cy in range(y - 1, y + size + 1)
-            }
+            dx, dy = self._pushing
+            ahead = _covered_cells(
+                world,
+                replace(
+                    own,
+                    x=own.x + dx * world.tile_size,
+                    y=own.y + dy * world.tile_size,
+                ),
+            )
             self._detour_around = {
-                e.enemy_id: (e.x, e.y)
-                for e in world.enemies
-                if e.enemy_id != target.enemy_id and _covered_cells(world, e) & around
+                key: cells
+                for key, t in tanks.items()
+                if key != ("enemy", target.enemy_id)
+                and (cells := _covered_cells(world, t)) & ahead
             }
-        still_there = [
-            e
-            for e in world.enemies
-            if self._detour_around.get(e.enemy_id) == (e.x, e.y)
-        ]
-        self._detour_around = {e.enemy_id: (e.x, e.y) for e in still_there}
-        return set().union(*(_covered_cells(world, e) for e in still_there))
+        still_there = {
+            key: cells
+            for key, t in tanks.items()
+            if key in self._detour_around
+            and (cells := _covered_cells(world, t)) & self._detour_around[key]
+        }
+        self._detour_around = {key: self._detour_around[key] for key in still_there}
+        players = [cells for key, cells in still_there.items() if key[0] == "player"]
+        return set().union(*still_there.values()), set().union(*players)
 
     def _follow_path(
         self, world: WorldView, own: PlayerView, target: EnemyView
@@ -403,13 +426,18 @@ class CpuPartnerInput:
         """
         start = _cell_of(world, own)
         goals = _firing_positions(world, own, target)
-        grid = self._nav_grid(world, own, self._update_detour(world, own, target))
+        blockers, players = self._update_detour(world, own, target)
+        grid = self._nav_grid(world, own, blockers)
         path = find_path(grid, start, goals)
         if path is None:
-            # No way round the blockers: push on and hope they move.
-            grid = self._nav_grid(world, own)
+            # No way round the Enemies in its way: push on and hope they move.
+            # It never pushes the Human Player, though.
+            grid = self._nav_grid(world, own, players)
             path = find_path(grid, start, goals)
         if path is None:
+            if players and find_path(self._nav_grid(world, own), start, goals):
+                # Only the Human Player is in the way: wait for them to move.
+                return
             # Cut off from the target: hunt another one next frame.
             self._target_id = None
             return

@@ -219,6 +219,37 @@ class TestCpuPartnerPathfinding:
         assert gm.player_manager.get_score(2) > 0
 
 
+class TestCpuPartnerGivesWay:
+    def test_routes_around_human_sitting_in_a_corridor(self, cpu_game):
+        gm = cpu_game
+        open_field(gm)
+        clear_enemies(gm)
+        gm.spawn_manager.spawn_interval = float("inf")
+        # A steel wall across rows 12-13 with a near gap at columns 4-5 and
+        # a far one at columns 20-21. The Human Player sits in the near gap.
+        gaps = (4, 5, 20, 21)
+        set_tiles(
+            gm.map,
+            [(x, y) for x in range(gm.map.width) for y in (12, 13) if x not in gaps],
+            TileType.STEEL,
+        )
+        p1, p2 = gm.player_manager.get_active_players()
+        place_player_at(gm, 4 * SUB_TILE_SIZE, 12 * SUB_TILE_SIZE, player=p1)
+        place_player_at(gm, 4 * SUB_TILE_SIZE, 20 * SUB_TILE_SIZE, player=p2)
+        enemy = spawn_enemy_at(gm, 12, 2)
+        enemy.speed = 0
+        enemy.shoot_interval = float("inf")
+
+        for _ in range(15 * FPS):
+            tick(gm)
+            if enemy not in gm.spawn_manager.enemy_tanks:
+                break
+
+        assert enemy not in gm.spawn_manager.enemy_tanks
+        assert gm.player_manager.get_score(2) > 0
+        assert (p1.x, p1.y) == (4 * SUB_TILE_SIZE, 12 * SUB_TILE_SIZE)
+
+
 class TestCpuPartnerFiringPosition:
     def test_kills_enemy_it_can_only_shoot_across_water(self, cpu_game):
         gm = cpu_game
