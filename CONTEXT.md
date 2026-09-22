@@ -1,0 +1,60 @@
+# Battle City Clone
+
+A clone of the NES game Battle City: one or two player tanks defend their Base from waves of enemy tanks.
+
+## Language
+
+### Players
+
+**Player**:
+A tank that occupies a player slot (P1 or P2). A Player is controlled by either a human or the CPU, and both follow the same rules.
+_Avoid_: User, hero
+
+**Human Player**:
+A Player controlled by a person through the keyboard or a game controller. P1 is always a Human Player.
+
+**CPU Partner**:
+A Player in the P2 slot that the computer controls, fighting on the Human Player's side. It is fully autonomous and takes no orders.
+_Avoid_: Bot, AI player, ally, companion
+
+**Goal**:
+What the CPU Partner is currently trying to do: in priority order **Defend** (intercept a Base Threat), **Grab Power-Up**, **Hunt** (attack the nearest Enemy) and **Ambush** (wait at a Firing Position covering an Enemy Spawn Point when there is nothing else to do). Only one Goal is active at a time.
+_Avoid_: State, mode, task
+
+**Firing Position**:
+A spot in a target's row or column from which a Player's Line of Fire reaches the target, either clear or blocked only by brick.
+
+**Co-op**:
+A game with two Players, where P2 is either a second Human Player or a CPU Partner.
+
+### Opponents
+
+**Enemy**:
+A computer-controlled tank that attacks Players and the Base.
+
+**Enemy Spawn Point**:
+One of the fixed spots on a map where Enemies appear. A tank standing on it stops Enemies from spawning there.
+
+**Enemy AI**:
+The behaviour that drives an Enemy's movement and shooting. Never used for the CPU Partner.
+
+### Battlefield
+
+**Base**:
+The eagle the Players defend. When it is destroyed, the game is lost.
+_Avoid_: Eagle, HQ
+
+**Base Wall**:
+The brick (or, after a shovel, steel) tiles directly surrounding the Base.
+
+**Base Threat**:
+An Enemy close to the Base, or with a line of fire to the Base that is clear or blocked only by brick.
+
+**Line of Fire**:
+The straight row or column a tank's bullet would travel along from its current position and facing.
+
+**Power-Up**:
+A pickup that appears on the battlefield and gives the Player who collects it an effect (star, helmet, grenade, clock, shovel, extra life).
+
+**Game Over**:
+The end of a game: the Base is destroyed, or every Human Player is out of lives. A CPU Partner that still has lives does not keep the game going.
