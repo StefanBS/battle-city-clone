@@ -18,6 +18,7 @@ from src.managers.player_input import (
 )
 from src.managers.player_manager import PlayerManager
 from src.managers.sound_manager import SoundManager
+from src.states.game_mode import GameMode
 from src.utils.constants import TILE_SIZE
 
 
@@ -619,10 +620,10 @@ class TestPlayerManagerReset:
 
 class TestPlayerManagerTwoPlayerCreation:
     def test_create_two_players(self, player_manager, mock_game_map):
-        """create_players(two_player_mode=True) produces two active players."""
+        """create_players(mode=GameMode.TWO_PLAYERS) produces two active players."""
         mock_game_map.player_spawn_2 = (16, 24)
         player_manager.create_players(
-            mock_game_map, controller_instance_ids=[0], two_player_mode=True
+            mock_game_map, controller_instance_ids=[0], mode=GameMode.TWO_PLAYERS
         )
         players = player_manager.get_active_players()
         assert len(players) == 2
@@ -631,7 +632,7 @@ class TestPlayerManagerTwoPlayerCreation:
         """Second player has player_id=2."""
         mock_game_map.player_spawn_2 = (16, 24)
         player_manager.create_players(
-            mock_game_map, controller_instance_ids=[0], two_player_mode=True
+            mock_game_map, controller_instance_ids=[0], mode=GameMode.TWO_PLAYERS
         )
         assert player_manager._players[0].player_id == 1
         assert player_manager._players[1].player_id == 2
@@ -640,7 +641,7 @@ class TestPlayerManagerTwoPlayerCreation:
         """Player 2 spawns at player_spawn_2 coordinates."""
         mock_game_map.player_spawn_2 = (16, 24)
         player_manager.create_players(
-            mock_game_map, controller_instance_ids=[0], two_player_mode=True
+            mock_game_map, controller_instance_ids=[0], mode=GameMode.TWO_PLAYERS
         )
         p2 = player_manager._players[1]
         assert p2.x == 16 * TILE_SIZE
@@ -650,7 +651,7 @@ class TestPlayerManagerTwoPlayerCreation:
         """2P + 1 controller: P1=keyboard, P2=controller bound by instance_id."""
         mock_game_map.player_spawn_2 = (16, 24)
         player_manager.create_players(
-            mock_game_map, controller_instance_ids=[4], two_player_mode=True
+            mock_game_map, controller_instance_ids=[4], mode=GameMode.TWO_PLAYERS
         )
         assert isinstance(player_manager._player_inputs[0], KeyboardInput)
         assert isinstance(player_manager._player_inputs[1], ControllerInput)
@@ -660,7 +661,7 @@ class TestPlayerManagerTwoPlayerCreation:
         """2P + 2 controllers: each player bound to its own instance_id."""
         mock_game_map.player_spawn_2 = (16, 24)
         player_manager.create_players(
-            mock_game_map, controller_instance_ids=[8, 12], two_player_mode=True
+            mock_game_map, controller_instance_ids=[8, 12], mode=GameMode.TWO_PLAYERS
         )
         assert isinstance(player_manager._player_inputs[0], ControllerInput)
         assert player_manager._player_inputs[0].instance_id == 8
@@ -678,7 +679,7 @@ class TestPlayerManagerTwoPlayerCreation:
         """
         mock_game_map.player_spawn_2 = (16, 24)
         player_manager.create_players(
-            mock_game_map, controller_instance_ids=[0, 5], two_player_mode=True
+            mock_game_map, controller_instance_ids=[0, 5], mode=GameMode.TWO_PLAYERS
         )
         assert player_manager._player_inputs[0].instance_id == 0
         assert player_manager._player_inputs[1].instance_id == 5
@@ -688,7 +689,7 @@ class TestPlayerManagerTwoPlayerCreation:
         mock_game_map.player_spawn_2 = None
         mock_game_map.player_spawn = (8, 24)
         player_manager.create_players(
-            mock_game_map, controller_instance_ids=[0], two_player_mode=True
+            mock_game_map, controller_instance_ids=[0], mode=GameMode.TWO_PLAYERS
         )
         p2 = player_manager._players[1]
         assert p2.x == (8 + 8) * TILE_SIZE
@@ -698,7 +699,7 @@ class TestPlayerManagerTwoPlayerCreation:
         """Per-player scores start at 0 and accumulate independently."""
         mock_game_map.player_spawn_2 = (16, 24)
         player_manager.create_players(
-            mock_game_map, controller_instance_ids=[0], two_player_mode=True
+            mock_game_map, controller_instance_ids=[0], mode=GameMode.TWO_PLAYERS
         )
         player_manager.add_score(100, player_id=1)
         player_manager.add_score(200, player_id=2)
@@ -720,7 +721,7 @@ class TestPlayerManagerTwoPlayerCreation:
         """
         mock_game_map.player_spawn_2 = (16, 24)
         player_manager.create_players(
-            mock_game_map, controller_instance_ids=[], two_player_mode=True
+            mock_game_map, controller_instance_ids=[], mode=GameMode.TWO_PLAYERS
         )
 
         assert isinstance(player_manager._player_inputs[0], KeyboardInput)
@@ -738,7 +739,7 @@ class TestPlayerManagerTwoPlayerDeath:
         """Create a 2P PlayerManager."""
         mock_game_map.player_spawn_2 = (16, 24)
         player_manager.create_players(
-            mock_game_map, controller_instance_ids=[0], two_player_mode=True
+            mock_game_map, controller_instance_ids=[0], mode=GameMode.TWO_PLAYERS
         )
         return player_manager
 
