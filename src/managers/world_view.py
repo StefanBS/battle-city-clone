@@ -80,12 +80,17 @@ class WorldView:
     """Snapshot of the battlefield: plain data, never live game objects.
 
     Grid coordinates are ``(x, y)`` sub-tile cells; everything else is pixels.
-    ``tiles`` is indexed ``tiles[y][x]``. ``half_brick_cells`` are BRICK
-    cells already shot down to half, which a bullet may slip past.
+    ``tiles`` is indexed ``tiles[y][x]``. The ``*_cells`` tile rules are
+    copied from each tile's own flags: the cells that stop tanks, those that
+    stop bullets, and those a bullet can destroy. ``half_brick_cells`` are
+    BRICK cells already shot down to half, which a bullet may slip past.
     """
 
     tile_size: int
     tiles: tuple[tuple[TileType, ...], ...]
+    tank_blocking_cells: frozenset[tuple[int, int]] = frozenset()
+    bullet_blocking_cells: frozenset[tuple[int, int]] = frozenset()
+    destructible_cells: frozenset[tuple[int, int]] = frozenset()
     base_cells: frozenset[tuple[int, int]] = frozenset()
     base_wall_cells: frozenset[tuple[int, int]] = frozenset()
     half_brick_cells: frozenset[tuple[int, int]] = frozenset()
@@ -123,9 +128,13 @@ def build_world_view(
         tuple(tile.type if tile is not None else TileType.EMPTY for tile in row)
         for row in game_map.tiles
     )
+    placed = [tile for row in game_map.tiles for tile in row if tile is not None]
     return WorldView(
         tile_size=game_map.tile_size,
         tiles=tiles,
+        tank_blocking_cells=frozenset((t.x, t.y) for t in placed if t.blocks_tanks),
+        bullet_blocking_cells=frozenset((t.x, t.y) for t in placed if t.blocks_bullets),
+        destructible_cells=frozenset((t.x, t.y) for t in placed if t.is_destructible),
         base_cells=frozenset(
             (t.x, t.y) for t in game_map.get_tiles_by_type([TileType.BASE])
         ),
@@ -133,12 +142,9 @@ def build_world_view(
             (t.x, t.y) for t in game_map.get_base_surrounding_tiles(include_empty=True)
         ),
         half_brick_cells=frozenset(
-            (tile.x, tile.y)
-            for row in game_map.tiles
-            for tile in row
-            if tile is not None
-            and tile.type is TileType.BRICK
-            and tile.brick_variant is not BrickVariant.FULL
+            (t.x, t.y)
+            for t in placed
+            if t.type is TileType.BRICK and t.brick_variant is not BrickVariant.FULL
         ),
         enemies=tuple(
             EnemyView(

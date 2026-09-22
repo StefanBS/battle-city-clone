@@ -23,6 +23,7 @@ from src.utils.constants import (
     Direction,
     PowerUpType,
 )
+from tests.conftest import tile_fields
 
 GRID = 26
 CPU_ID = 2
@@ -48,7 +49,6 @@ def make_view(
 
     The field is open except for ``tiles``; the Human Player sits at ``human``.
     """
-    tiles = tiles or {}
     players: list[PlayerView] = [
         PlayerView(
             player_id=1, x=cell(human[0]), y=cell(human[1]), direction=Direction.UP
@@ -61,10 +61,7 @@ def make_view(
         )
     return WorldView(
         tile_size=SUB_TILE_SIZE,
-        tiles=tuple(
-            tuple(tiles.get((x, y), TileType.EMPTY) for x in range(GRID))
-            for y in range(GRID)
-        ),
+        **tile_fields(tiles or {}, GRID),
         base_cells=base_cells,
         base_wall_cells=base_wall_cells,
         half_brick_cells=half_brick_cells,
@@ -303,6 +300,19 @@ class TestCpuPartnerHoldFireNearBase:
         assert cpu.consume_shoot() is True
 
     def test_fires_when_other_brick_is_hit_before_base_wall(self, cpu) -> None:
+        # A miss would hit the brick, not the Base Wall behind it.
+        cpu.observe(
+            base_view(
+                (12, 4, Direction.DOWN),
+                (12, 7),
+                extra_tiles={(12, 10): TileType.BRICK},
+            )
+        )
+        assert cpu.consume_shoot() is True
+
+    def test_never_shoots_at_an_enemy_behind_the_base(self, cpu) -> None:
+        # A bullet can't pass through the Base, so shooting the brick in front
+        # of it would never reach the Enemy beyond.
         cpu.observe(
             base_view(
                 (12, 4, Direction.DOWN),
@@ -310,7 +320,8 @@ class TestCpuPartnerHoldFireNearBase:
                 extra_tiles={(12, 10): TileType.BRICK},
             )
         )
-        assert cpu.consume_shoot() is True
+        assert cpu.consume_shoot() is False
+        assert cpu.get_movement_direction() != (0, 0)
 
     def test_fires_from_off_a_line_of_fire_into_the_base(self, cpu) -> None:
         # Above the Enemy, every shot could carry on into the Base Wall, and

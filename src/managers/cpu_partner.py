@@ -10,7 +10,6 @@ from typing import Literal, Protocol
 
 import pygame
 
-from src.core.tile import TileType
 from src.managers.pathfinding import Cell, NavGrid, find_path
 from src.managers.world_view import EnemyView, PlayerView, PowerUpView, WorldView
 from src.utils.constants import (
@@ -30,13 +29,6 @@ from src.utils.constants import (
     TANK_ALIGN_THRESHOLD,
     TILE_SIZE,
     Direction,
-)
-
-_BULLET_BLOCKING_TILES = frozenset({TileType.BRICK, TileType.STEEL, TileType.BASE})
-# Tiles a Player's bullet can't shoot its way through.
-_BULLET_PROOF_TILES = frozenset({TileType.STEEL})
-_TANK_BLOCKING_TILES = frozenset(
-    {TileType.BRICK, TileType.STEEL, TileType.WATER, TileType.BASE}
 )
 
 # Identifies a tank in the World View: Enemy and Player ids can overlap.
@@ -137,11 +129,7 @@ def _solid_tile_ahead(world: WorldView, own: PlayerView) -> float | None:
     while 0 <= row_or_col < limit:
         cells = [(row_or_col, c) if horizontal else (c, row_or_col) for c in lane_cells]
         cells = [(x, y) for x, y in cells if 0 <= x < width and 0 <= y < height]
-        blocking_cells = [
-            cell
-            for cell in cells
-            if world.tiles[cell[1]][cell[0]] in _BULLET_BLOCKING_TILES
-        ]
+        blocking_cells = [c for c in cells if c in world.bullet_blocking_cells]
         if any(
             c in world.base_cells or c in world.base_wall_cells for c in blocking_cells
         ):
@@ -205,7 +193,12 @@ def _lane_is_open(
         for c in lane_cells:
             x, y = (row_or_col, c) if horizontal else (c, row_or_col)
             if 0 <= x < width and 0 <= y < height:
-                if world.tiles[y][x] in _BULLET_PROOF_TILES:
+                # A bullet can't shoot its way through what it can't destroy.
+                cell = (x, y)
+                if (
+                    cell in world.bullet_blocking_cells
+                    and cell not in world.destructible_cells
+                ):
                     return False
         row_or_col += step
     return True
@@ -328,7 +321,7 @@ def _blocks_tanks(world: WorldView, x: int, y: int) -> bool:
     """Whether a tank can't enter cell ``(x, y)``; off the map counts as a wall."""
     if not (0 <= y < len(world.tiles) and 0 <= x < len(world.tiles[y])):
         return True
-    return world.tiles[y][x] in _TANK_BLOCKING_TILES
+    return (x, y) in world.tank_blocking_cells
 
 
 def can_evade_shot(world: WorldView, own: PlayerView, target: EnemyView) -> bool:

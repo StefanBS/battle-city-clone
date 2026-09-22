@@ -118,6 +118,25 @@ class TestWorldView:
         assert (wall.x, wall.y) in view.base_wall_cells
         assert view.tiles[wall.y][wall.x] is wall.type
 
+    def test_carries_each_tiles_rules(self, cpu_game):
+        gm = cpu_game
+        placed = [t for row in gm.map.tiles for t in row if t is not None]
+
+        view = gm._world_view()
+
+        assert view.tank_blocking_cells == {
+            (t.x, t.y) for t in placed if t.blocks_tanks
+        }
+        assert view.bullet_blocking_cells == {
+            (t.x, t.y) for t in placed if t.blocks_bullets
+        }
+        assert view.destructible_cells == {
+            (t.x, t.y) for t in placed if t.is_destructible
+        }
+        steel = gm.map.get_tiles_by_type([TileType.STEEL])[0]
+        assert (steel.x, steel.y) in view.bullet_blocking_cells
+        assert (steel.x, steel.y) not in view.destructible_cells
+
     def test_reports_tank_and_bullet_speeds(self, cpu_game):
         gm = cpu_game
         enemy = spawn_enemy_at(gm, 4, 6)
