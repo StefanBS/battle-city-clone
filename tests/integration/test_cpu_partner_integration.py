@@ -281,6 +281,33 @@ class TestCpuPartnerFiringPosition:
         assert gm.player_manager.get_score(2) > 0
 
 
+class TestCpuPartnerDefend:
+    def test_intercepts_a_base_threat_before_hunting(self, cpu_game):
+        gm = cpu_game
+        open_field(gm)
+        clear_enemies(gm)
+        gm.spawn_manager.spawn_interval = float("inf")
+        p1, p2 = gm.player_manager.get_active_players()
+        place_player_at(gm, 0, 0, player=p1)
+        place_player_at(gm, 20 * SUB_TILE_SIZE, 16 * SUB_TILE_SIZE, player=p2)
+        # One Enemy lined up straight above the CPU Partner, far from the
+        # Base; the other a few sub-tiles from the Base, off to its left.
+        far = spawn_enemy_at(gm, 20, 6)
+        threat = spawn_enemy_at(gm, 6, 20, replace=False)
+        for enemy in (far, threat):
+            enemy.speed = 0
+            enemy.shoot_interval = float("inf")
+
+        for _ in range(10 * FPS):
+            tick(gm)
+            if threat not in gm.spawn_manager.enemy_tanks:
+                break
+
+        assert threat not in gm.spawn_manager.enemy_tanks
+        assert far in gm.spawn_manager.enemy_tanks
+        assert gm.player_manager.get_score(2) > 0
+
+
 def fire_enemy_bullet_at(gm, player) -> None:
     """Fire an Enemy bullet straight down onto an unprotected `player`."""
     player.is_invincible = False

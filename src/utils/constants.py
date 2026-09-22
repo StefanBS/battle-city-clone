@@ -158,6 +158,12 @@ CPU_PARTNER_BRICK_COST: float = 4.0
 # Seconds without moving, while trying to, before the CPU Partner plans a
 # route around the Enemies in its way.
 CPU_PARTNER_STUCK_TIME: float = 0.5
+# Sub-tiles between an Enemy's center and the Base's center within which the
+# Enemy counts as a Base Threat.
+CPU_PARTNER_THREAT_RADIUS: float = 8.0
+# Seconds another Goal must stay preferred before the CPU Partner switches to
+# it, so it doesn't flicker between Goals.
+CPU_PARTNER_GOAL_STICKINESS: float = 0.5
 
 # UI settings
 FONT_SIZE_LARGE: int = 24
