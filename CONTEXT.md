@@ -24,6 +24,12 @@ _Avoid_: State, mode, task
 **Firing Position**:
 A spot in a target's row or column from which a Player's Line of Fire reaches the target, either clear or blocked only by brick, and could never hit the Base or a Base Wall cell, even beyond the target.
 
+**Reaction Delay**:
+The moment the CPU Partner takes before acting on a new Goal. Until it passes, it keeps acting on its previous Goal.
+
+**Cut Off**:
+An Enemy the CPU Partner found it can't reach from where the Enemy stands. It is left out of the CPU Partner's Goals until it moves.
+
 **Co-op**:
 A game with two Players, where P2 is either a second Human Player or a CPU Partner.
 

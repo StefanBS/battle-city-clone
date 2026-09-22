@@ -1205,7 +1205,7 @@ class TestCpuPartnerHesitation:
         return CpuPartnerInput(decision_interval=0, reaction_delay=0)
 
     @patch(
-        "src.managers.cpu_partner.random.random",
+        "src.managers.goal_timing.random.random",
         return_value=CPU_PARTNER_HESITATION_CHANCE - 0.01,
     )
     def test_hesitates_briefly_before_a_shot(self, _random, cpu) -> None:
@@ -1216,7 +1216,7 @@ class TestCpuPartnerHesitation:
         cpu.observe(LINED_UP)
         assert cpu.consume_shoot() is True
 
-    @patch("src.managers.cpu_partner.random.random", return_value=0.5)
+    @patch("src.managers.goal_timing.random.random", return_value=0.5)
     def test_rolls_once_per_shot_while_it_keeps_aiming(self, random_, cpu) -> None:
         cpu.observe(LINED_UP)
         assert cpu.consume_shoot() is True

@@ -2,14 +2,14 @@
 
 import itertools
 import math
-import random
 from collections.abc import Collection
-from dataclasses import dataclass, replace
-from enum import Enum, auto
+from dataclasses import replace
 from typing import Literal
 
 import pygame
 
+from src.managers.enemy_memory import EnemyMemory
+from src.managers.goal_timing import Goal, GoalKind, GoalTiming, Hesitation
 from src.managers.pathfinding import Cell, NavGrid, find_path
 from src.managers.world_view import (
     EnemyView,
@@ -191,23 +191,6 @@ def can_evade_shot(world: WorldView, own: PlayerView, target: EnemyView) -> bool
     return False
 
 
-class GoalKind(Enum):
-    """What the CPU Partner is trying to do, highest priority first."""
-
-    DEFEND = auto()
-    GRAB_POWER_UP = auto()
-    HUNT = auto()
-    AMBUSH = auto()
-
-
-@dataclass(frozen=True)
-class _Goal:
-    kind: GoalKind
-    # The target Enemy's id, or the target Power-Up's or Enemy Spawn Point's
-    # cell (neither ever moves).
-    target: int | Cell
-
-
 class CpuPartnerInput:
     """Computer-controlled input for the CPU Partner in the P2 slot.
 
@@ -228,30 +211,32 @@ class CpuPartnerInput:
         self._decision_frames = max(1, round(decision_interval * FPS))
         self._reaction_frames = round(reaction_delay * FPS)
         self._hesitation_chance = hesitation_chance
+        self.reset()
+
+    def reset(self) -> None:
+        """Start afresh (on stage start and respawn).
+
+        All state that changes during play is set here and nowhere else, so
+        nothing it has decided, learnt or planned survives a reset.
+        """
         self._movement: tuple[int, int] = (0, 0)
         self._shoot_requested: bool = False
-        # The Goal it has decided on, and the one it is acting on: the
-        # previous Goal until the reaction delay has passed.
-        self._goal: _Goal | None = None
-        self._acting_goal: _Goal | None = None
-        self._frames_to_react: int = 0
-        self._frames_to_decision: int = 0
-        # Frames it has preferred another Goal to its current one.
-        self._frames_preferring_other: int = 0
-        # Whether it wanted to shoot last frame, and the frames it has left
-        # to hesitate before shooting.
-        self._was_aiming: bool = False
-        self._frames_to_hesitate: int = 0
-        # Enemies it found it can't reach, with the cell each stood on then;
-        # left out of its Goals until they move.
-        self._cut_off: dict[int, Cell] = {}
+        self._goal_timing = GoalTiming(
+            self._decision_frames,
+            self._reaction_frames,
+            round(CPU_PARTNER_GOAL_STICKINESS * FPS),
+        )
+        self._hesitation = Hesitation(
+            self._hesitation_chance, round(CPU_PARTNER_HESITATION_TIME * FPS)
+        )
+        # Enemies that are Cut Off, left out of its Goals until they move.
+        self._cut_off: EnemyMemory[None] = EnemyMemory()
+        # Sides of Enemies it gave up firing from, avoided until they move.
+        self._given_up_sides: EnemyMemory[set[Direction]] = EnemyMemory()
         # Frames it has stayed lined up on its target without a safe shot,
         # and that target's id.
         self._refused_frames: int = 0
         self._refused_target: int | None = None
-        # Enemies with the cell each stood on and the sides of it it gave up
-        # firing from there; those sides are avoided until the Enemy moves.
-        self._given_up_sides: dict[int, tuple[Cell, set[Direction]]] = {}
         self._last_position: tuple[float, float] | None = None
         self._stuck_frames: int = 0
         # The direction it keeps trying to move in while stuck.
@@ -259,26 +244,6 @@ class CpuPartnerInput:
         # Tanks to route around, with the cells they blocked it from, while
         # they still stand on any of those cells.
         self._detour_around: dict[_TankKey, set[Cell]] = {}
-
-    def reset(self) -> None:
-        """Forget the current Goal and route (on stage start and respawn)."""
-        self._goal = None
-        self._acting_goal = None
-        self._frames_to_react = 0
-        self._frames_to_decision = 0
-        self._frames_preferring_other = 0
-        self._was_aiming = False
-        self._frames_to_hesitate = 0
-        self._cut_off = {}
-        self._refused_frames = 0
-        self._refused_target = None
-        self._given_up_sides = {}
-        self._movement = (0, 0)
-        self._shoot_requested = False
-        self._last_position = None
-        self._stuck_frames = 0
-        self._pushing = (0, 0)
-        self._detour_around = {}
 
     def handle_event(self, event: pygame.event.Event) -> None:
         """The CPU Partner ignores pygame events."""
@@ -289,18 +254,7 @@ class CpuPartnerInput:
         self._movement = (0, 0)
         self._shoot_requested = False
         self._act(world)
-        self._hesitate()
-
-    def _hesitate(self) -> None:
-        """Now and then hold back a shot it has just lined up, for a moment."""
-        aiming = self._shoot_requested
-        if aiming and not self._was_aiming:
-            if random.random() < self._hesitation_chance:
-                self._frames_to_hesitate = round(CPU_PARTNER_HESITATION_TIME * FPS)
-        self._was_aiming = aiming
-        if self._frames_to_hesitate > 0:
-            self._frames_to_hesitate -= 1
-            self._shoot_requested = False
+        self._shoot_requested = self._hesitation.filter(self._shoot_requested)
 
     def _act(self, world: WorldView) -> None:
         """Set this frame's movement and shoot request for its Goal.
@@ -357,14 +311,13 @@ class CpuPartnerInput:
         if self._refused_frames >= CPU_PARTNER_REFUSED_SHOT_TIME * FPS:
             self._refused_frames = 0
             given_up = set(Direction) - set(sides)
-            self._given_up_sides[target.enemy_id] = (
-                world.cell_of(target),
-                given_up | {facing.opposite},
+            self._given_up_sides.remember(
+                target.enemy_id, world.cell_of(target), given_up | {facing.opposite}
             )
 
     def _open_sides(self, enemy: EnemyView) -> list[Direction]:
         """Sides of ``enemy`` it hasn't given up firing from."""
-        given_up = self._given_up_sides.get(enemy.enemy_id, (None, set()))[1]
+        given_up = self._given_up_sides.get(enemy.enemy_id) or set()
         return [side for side in Direction if side not in given_up]
 
     def _ambush(self, world: WorldView, own: PlayerView, spawn: Footprint) -> None:
@@ -464,10 +417,8 @@ class CpuPartnerInput:
                 return
             # Cut off from the target: pick another one next frame.
             if target is not None:
-                self._cut_off[target.enemy_id] = world.cell_of(target)
-            if self._goal == self._acting_goal:
-                self._goal = None
-            self._acting_goal = None
+                self._cut_off.remember(target.enemy_id, world.cell_of(target), None)
+            self._goal_timing.abandon()
             return
         if len(path) < 2:
             return
@@ -494,66 +445,19 @@ class CpuPartnerInput:
     def _update_goal(
         self, world: WorldView, own: PlayerView
     ) -> EnemyView | PowerUpView | Footprint | None:
-        """Settle this frame's Goal and return what it acts on, if anything.
-
-        It decides every decision interval, or at once when it has no Goal
-        or its Goal's target is gone. Once it decides on a new Goal, it keeps
-        acting on the old one for the reaction delay.
-        """
-        enemies = {e.enemy_id: e for e in world.enemies}
-        self._cut_off = {
-            enemy_id: cell
-            for enemy_id, cell in self._cut_off.items()
-            if enemy_id in enemies and world.cell_of(enemies[enemy_id]) == cell
-        }
-        self._given_up_sides = {
-            enemy_id: (cell, sides)
-            for enemy_id, (cell, sides) in self._given_up_sides.items()
-            if enemy_id in enemies and world.cell_of(enemies[enemy_id]) == cell
-        }
-        self._frames_to_decision -= 1
-        if (
-            self._frames_to_decision <= 0
-            or self._goal is None
-            or self._find_target(world, self._goal) is None
-        ):
-            self._frames_to_decision = self._decision_frames
-            decided = self._decide_goal(world, own)
-            if decided != self._goal:
-                self._goal = decided
-                self._frames_to_react = self._reaction_frames
-        if self._frames_to_react > 0:
-            self._frames_to_react -= 1
-        else:
-            self._acting_goal = self._goal
-        goal = self._acting_goal
+        """Settle this frame's Goal and return what it acts on, if anything."""
+        cells = {e.enemy_id: world.cell_of(e) for e in world.enemies}
+        self._cut_off.expire(cells)
+        self._given_up_sides.expire(cells)
+        goal = self._goal_timing.update(
+            lambda: self._preferred_goal(world, own),
+            lambda g: self._find_target(world, g) is not None,
+        )
         return None if goal is None else self._find_target(world, goal)
-
-    def _decide_goal(self, world: WorldView, own: PlayerView) -> _Goal | None:
-        """The Goal to pursue from now on.
-
-        It keeps its current Goal until another has been preferred for the
-        stickiness time, unless the current Goal's target is gone. Ambush,
-        just waiting, gives way at once.
-        """
-        preferred = self._preferred_goal(world, own)
-        if (
-            self._goal is None
-            or self._goal.kind is GoalKind.AMBUSH
-            or self._find_target(world, self._goal) is None
-            or preferred == self._goal
-        ):
-            self._frames_preferring_other = 0
-            return preferred
-        self._frames_preferring_other += self._decision_frames
-        if self._frames_preferring_other >= CPU_PARTNER_GOAL_STICKINESS * FPS:
-            self._frames_preferring_other = 0
-            return preferred
-        return self._goal
 
     @staticmethod
     def _find_target(
-        world: WorldView, goal: _Goal
+        world: WorldView, goal: Goal
     ) -> EnemyView | PowerUpView | Footprint | None:
         """What ``goal`` targets in ``world``, or ``None`` once it's gone."""
         if goal.kind is GoalKind.GRAB_POWER_UP:
@@ -571,7 +475,7 @@ class CpuPartnerInput:
             return world.spawn_footprint(spawn_point)
         return next((e for e in world.enemies if e.enemy_id == goal.target), None)
 
-    def _preferred_goal(self, world: WorldView, own: PlayerView) -> _Goal | None:
+    def _preferred_goal(self, world: WorldView, own: PlayerView) -> Goal | None:
         """The Goal it would pick right now, highest priority first.
 
         Defend targets the Base Threat nearest the Base. Grab Power-Up targets
@@ -584,21 +488,21 @@ class CpuPartnerInput:
         enemies = [e for e in world.enemies if e.enemy_id not in self._cut_off]
         threats = [e for e in world.base_threats if e.enemy_id not in self._cut_off]
         if threats:
-            return _Goal(GoalKind.DEFEND, threats[0].enemy_id)
+            return Goal(GoalKind.DEFEND, threats[0].enemy_id)
         power_up = self._nearest_power_up(world, own)
         if power_up is not None:
-            return _Goal(GoalKind.GRAB_POWER_UP, world.cell_of(power_up))
-        current = self._goal
+            return Goal(GoalKind.GRAB_POWER_UP, world.cell_of(power_up))
+        current = self._goal_timing.decided
         if current is not None and current.kind is GoalKind.HUNT:
             if any(e.enemy_id == current.target for e in enemies):
                 return current
         target = self._nearest_enemy(world, own, enemies)
         if target is not None:
-            return _Goal(GoalKind.HUNT, target.enemy_id)
+            return Goal(GoalKind.HUNT, target.enemy_id)
         if current is not None and current.kind is GoalKind.AMBUSH:
             return current
         spawn_point = self._nearest_spawn_point(world, own)
-        return None if spawn_point is None else _Goal(GoalKind.AMBUSH, spawn_point)
+        return None if spawn_point is None else Goal(GoalKind.AMBUSH, spawn_point)
 
     def _nearest_power_up(
         self, world: WorldView, own: PlayerView
