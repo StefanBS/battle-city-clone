@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 from src.core.bullet import Bullet
 from src.core.map import Map
 from src.core.player_tank import PlayerTank
-from src.core.tile import Tile
+from src.core.tile import Tile, TileType
 from src.managers.player_input import (
     CombinedInput,
     ControllerInput,
@@ -750,10 +750,10 @@ class TestPlayerManagerCpuPartner:
 
     @staticmethod
     def view(pm: PlayerManager, enemies: list[tuple[float, float]]) -> WorldView:
-        """Hand-built World View of the current tanks plus Enemies at pixels."""
+        """Hand-built open-field World View of the tanks plus Enemies at pixels."""
         return WorldView(
             tile_size=TILE_SIZE,
-            tiles=(),
+            tiles=((TileType.EMPTY,) * 26,) * 26,
             players=tuple(
                 PlayerView(player_id=p.player_id, x=p.x, y=p.y, direction=p.direction)
                 for p in pm.players
