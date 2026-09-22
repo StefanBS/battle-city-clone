@@ -63,6 +63,12 @@ _Avoid_: Game state, world state
 **Line of Fire**:
 The straight row or column a tank's bullet would travel along from its current position and facing.
 
+**Slide**:
+The short, fixed distance a tank keeps travelling in its old direction when it stops or turns on ice. Players and Enemies follow the same rule. A tank that has just run into something doesn't Slide.
+
+**Bullet Cap**:
+The number of a tank's bullets that can be in flight at once: 1, or 2 for a Player with enough Stars. A tank at its Bullet Cap can't fire.
+
 **Power-Up**:
 A pickup that appears on the battlefield and gives the Player who collects it an effect (star, helmet, grenade, clock, shovel, extra life).
 
