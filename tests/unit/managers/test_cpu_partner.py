@@ -6,6 +6,7 @@ from src.core.tile import TileType
 from src.managers.cpu_partner import CpuPartnerInput
 from src.managers.world_view import EnemyView, PlayerView, WorldView
 from src.utils.constants import (
+    CPU_PARTNER_ALIGN_TOLERANCE,
     CPU_PARTNER_STUCK_TIME,
     FPS,
     SUB_TILE_SIZE,
@@ -108,10 +109,20 @@ class TestCpuPartnerFiring:
         assert cpu.consume_shoot() is True
         assert cpu.get_movement_direction() == (0, 0)
 
-    def test_fires_within_half_a_tile_of_alignment(self, cpu) -> None:
-        # One sub-tile (half a tank) off the column still counts as lined up.
-        cpu.observe(make_view(own=(12, 12, Direction.RIGHT), enemies=[(20, 13)]))
-        assert cpu.consume_shoot() is True
+    @pytest.mark.parametrize(
+        "offset, fires",
+        [
+            (CPU_PARTNER_ALIGN_TOLERANCE, True),
+            (CPU_PARTNER_ALIGN_TOLERANCE + 1, False),
+        ],
+    )
+    def test_fires_only_within_half_a_sub_tile_of_alignment(
+        self, cpu, offset, fires
+    ) -> None:
+        view = make_view(own=(12, 12, Direction.RIGHT), enemies=[(20, 12)])
+        enemy = replace(view.enemies[0], y=cell(12) + offset)
+        cpu.observe(replace(view, enemies=(enemy,)))
+        assert cpu.consume_shoot() is fires
 
     def test_turns_to_face_enemy_before_firing(self, cpu) -> None:
         cpu.observe(make_view(own=(12, 12, Direction.LEFT), enemies=[(12, 2)]))
