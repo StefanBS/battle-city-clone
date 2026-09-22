@@ -2,6 +2,7 @@ import pytest
 import pygame
 from unittest.mock import patch, MagicMock
 from src.states.game_state import GameState
+from src.states.game_mode import GameMode
 from src.core.enemy_tank import EnemyTank
 from src.utils.constants import (
     Difficulty,
@@ -57,7 +58,7 @@ class TestGameManager:
         pygame.event.post(key_down_event(pygame.K_RETURN))
         gm.handle_events()
         assert gm.state == GameState.STAGE_CURTAIN_CLOSE
-        assert gm._two_player_mode is True
+        assert gm._game_mode is GameMode.TWO_PLAYERS
 
     def test_victory_r_does_nothing(self, game_manager, key_down_event):
         """Test pressing R during VICTORY does nothing (auto-advances instead)."""

@@ -15,6 +15,7 @@ from src.managers.player_input import (
     KeyboardInput,
     PlayerInput,
 )
+from src.states.game_mode import GameMode
 
 if TYPE_CHECKING:
     from src.core.map import Map
@@ -54,7 +55,7 @@ class PlayerManager:
         self,
         game_map: Map,
         controller_instance_ids: list[int],
-        two_player_mode: bool = False,
+        mode: GameMode = GameMode.ONE_PLAYER,
     ) -> None:
         # controller_instance_ids must come from InputHandler — it's the single
         # source of truth for which SDL game controllers are currently open.
@@ -79,15 +80,18 @@ class PlayerManager:
 
         self._players.append(make_player(game_map.player_spawn, 1))
 
-        if two_player_mode:
-            p2_spawn = game_map.player_spawn_2
-            if p2_spawn is None:
-                px = game_map.player_spawn[0] + 8
-                p2_spawn = (px, game_map.player_spawn[1])
-            self._players.append(make_player(p2_spawn, 2))
-            self._player_inputs.extend(self._two_player_inputs(controller_instance_ids))
-        else:
-            self._player_inputs.extend(self._one_player_inputs())
+        match mode:
+            case GameMode.ONE_PLAYER:
+                self._player_inputs.extend(self._one_player_inputs())
+            case GameMode.TWO_PLAYERS:
+                p2_spawn = game_map.player_spawn_2
+                if p2_spawn is None:
+                    px = game_map.player_spawn[0] + 8
+                    p2_spawn = (px, game_map.player_spawn[1])
+                self._players.append(make_player(p2_spawn, 2))
+                self._player_inputs.extend(
+                    self._two_player_inputs(controller_instance_ids)
+                )
 
         for player in self._players:
             if player.player_id not in self._scores:
