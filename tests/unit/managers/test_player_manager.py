@@ -784,10 +784,20 @@ class TestPlayerManagerCpuPartner:
 
         assert p2.x > x_after_respawn
 
+    def test_game_over_when_human_out_even_if_cpu_partner_has_lives(self, cpu_pm):
+        p1, p2 = cpu_pm.players
+        p1.lives = 0
+        p1.health = 0
+        p2.lives = 3
 
-# ---------------------------------------------------------------------------
-# TestPlayerManagerTwoPlayerDeath
-# ---------------------------------------------------------------------------
+        assert cpu_pm.handle_player_death(p1) is True
+
+    def test_cpu_partner_out_does_not_end_game_while_human_alive(self, cpu_pm):
+        p1, p2 = cpu_pm.players
+        p2.lives = 0
+        p2.health = 0
+
+        assert cpu_pm.handle_player_death(p2) is False
 
 
 class TestPlayerManagerTwoPlayerDeath:

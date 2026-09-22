@@ -149,3 +149,55 @@ class TestCpuPartnerHunt:
         tick(gm, 3 * FPS)
 
         assert enemy not in gm.spawn_manager.enemy_tanks
+
+
+def fire_enemy_bullet_at(gm, player) -> None:
+    """Fire an Enemy bullet straight down onto an unprotected `player`."""
+    player.is_invincible = False
+    gx, gy = int(player.x // SUB_TILE_SIZE), int(player.y // SUB_TILE_SIZE)
+    enemy = spawn_enemy_at(gm, gx, gy - 4, direction=Direction.DOWN)
+    enemy.speed = 0
+    enemy.shoot_interval = float("inf")
+    fire_bullet_from(gm, enemy)
+
+
+class TestCpuPartnerGameOver:
+    @pytest.fixture
+    def arena(self, cpu_game):
+        gm = cpu_game
+        open_field(gm)
+        clear_enemies(gm)
+        gm.spawn_manager.spawn_interval = float("inf")
+        p1, p2 = gm.player_manager.players
+        place_player_at(gm, 4 * SUB_TILE_SIZE, 12 * SUB_TILE_SIZE, player=p1)
+        place_player_at(gm, 20 * SUB_TILE_SIZE, 12 * SUB_TILE_SIZE, player=p2)
+        return gm
+
+    def test_game_over_when_human_out_and_cpu_partner_alive(self, arena):
+        gm = arena
+        p1, p2 = gm.player_manager.players
+        p1.lives = 1
+        p2.lives = 3
+        fire_enemy_bullet_at(gm, p1)
+
+        tick(gm, FPS)
+
+        assert p1.lives == 0
+        assert p2.lives == 3
+        assert gm.state in (GameState.GAME_OVER, GameState.GAME_OVER_ANIMATION)
+
+
+class TestCpuPartnerHud:
+    @staticmethod
+    def hud_labels(gm) -> set[str]:
+        gm.renderer._text_cache.clear()
+        gm.render()
+        return {text for _, text, _ in gm.renderer._text_cache}
+
+    def test_shows_cpu_out_once_eliminated(self, cpu_game):
+        p2 = cpu_game.player_manager.players[1]
+        p2.lives = 0
+        p2.health = 0
+        labels = self.hud_labels(cpu_game)
+        assert "CPU: OUT" in labels
+        assert not any(label.startswith("P2") for label in labels)

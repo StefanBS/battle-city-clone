@@ -56,6 +56,7 @@ class TestRendererRender:
         mock_map = MagicMock()
         mock_player = MagicMock()
         mock_player.lives = 3
+        mock_player.health = 1
         mock_player.is_invincible = False
 
         mock_enemy1 = MagicMock()
@@ -89,11 +90,41 @@ class TestRendererRender:
         mock_bullet1.draw.assert_called_once_with(renderer.map_surface)
         mock_bullet2.draw.assert_not_called()
 
+    def test_render_skips_eliminated_player_tank_but_keeps_it_in_hud(self, renderer):
+        """An eliminated Player is not drawn, but the HUD still lists it."""
+        alive = MagicMock(lives=3, health=1, player_id=1)
+        out = MagicMock(lives=0, health=0, player_id=2)
+
+        with (
+            patch.object(renderer, "_draw_hud") as mock_draw_hud,
+            patch("pygame.transform.scale") as mock_scale,
+            patch("pygame.display.flip"),
+        ):
+            mock_scale.return_value = MagicMock()
+            renderer.render(
+                MagicMock(),
+                [alive, out],
+                [],
+                [],
+                [],
+                MagicMock(),
+                GameState.RUNNING,
+                {1: 0, 2: 0},
+                cpu_partner_ids=frozenset({2}),
+            )
+
+        alive.draw.assert_called_once_with(renderer.map_surface)
+        out.draw.assert_not_called()
+        mock_draw_hud.assert_called_once_with(
+            [alive, out], {1: 0, 2: 0}, frozenset({2})
+        )
+
     def test_render_victory_overlay(self, renderer):
         """Victory overlay is drawn when state is VICTORY."""
         mock_map = MagicMock()
         mock_player = MagicMock()
         mock_player.lives = 3
+        mock_player.health = 1
         mock_player.is_invincible = False
 
         with (
@@ -114,6 +145,7 @@ class TestRendererRender:
         mock_map = MagicMock()
         mock_player = MagicMock()
         mock_player.lives = 3
+        mock_player.health = 1
         mock_player.is_invincible = False
 
         with (
@@ -134,6 +166,7 @@ class TestRendererRender:
         mock_map = MagicMock()
         mock_player = MagicMock()
         mock_player.lives = 3
+        mock_player.health = 1
         mock_player.is_invincible = False
         mock_scaled = MagicMock()
 
@@ -431,6 +464,24 @@ class TestTwoPlayerHUD:
         renderer._draw_hud([p1, p2], {1: 100, 2: 50})
         rendered_texts = [c[0][0] for c in renderer.small_font.render.call_args_list]
         assert any("OUT" in t for t in rendered_texts)
+
+    @staticmethod
+    def _hud_texts(renderer, p2_lives, p2_health, cpu_partner_ids):
+        p1 = MagicMock(lives=3, health=1, player_id=1)
+        p2 = MagicMock(lives=p2_lives, health=p2_health, player_id=2)
+        renderer.small_font.render.reset_mock()
+        renderer._draw_hud([p1, p2], {1: 100, 2: 250}, cpu_partner_ids=cpu_partner_ids)
+        return [c[0][0] for c in renderer.small_font.render.call_args_list]
+
+    def test_cpu_partner_label_shows_lives_and_score(self, renderer):
+        texts = self._hud_texts(renderer, 2, 1, frozenset({2}))
+        assert "CPU: 2" in texts
+        assert f"{250:>6}" in texts
+        assert not any(t.startswith("P2") for t in texts)
+
+    def test_eliminated_cpu_partner_shows_cpu_out(self, renderer):
+        texts = self._hud_texts(renderer, 0, 0, frozenset({2}))
+        assert "CPU: OUT" in texts
 
 
 class TestRenderTitleScreenUpdated:
