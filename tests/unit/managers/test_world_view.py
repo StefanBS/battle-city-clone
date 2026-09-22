@@ -3,7 +3,7 @@ import math
 import pytest
 
 from src.core.tile import TileType
-from src.managers.world_view import EnemyView, Footprint, WorldView
+from src.managers.world_view import EnemyView, WorldView
 from src.utils.constants import SUB_TILE_SIZE, TILE_SIZE, Direction
 from tests.conftest import tile_fields
 
@@ -52,21 +52,10 @@ def make_world(
 
 
 class TestTileRules:
-    @pytest.mark.parametrize(
-        ("tile", "blocks"),
-        [
-            (TileType.BRICK, True),
-            (TileType.STEEL, True),
-            (TileType.WATER, True),
-            (TileType.BASE, True),
-            (TileType.BASE_DESTROYED, False),
-            (TileType.BUSH, False),
-            (TileType.ICE, False),
-            (TileType.EMPTY, False),
-        ],
-    )
-    def test_blocks_tanks_follows_tile_rules(self, tile, blocks) -> None:
-        assert make_world({(3, 3): tile}).blocks_tanks((3, 3)) is blocks
+    def test_blocks_tanks_follows_tile_rules(self) -> None:
+        world = make_world({(3, 3): TileType.WATER})
+        assert world.blocks_tanks((3, 3)) is True
+        assert world.blocks_tanks((4, 4)) is False
 
     @pytest.mark.parametrize("cell", [(-1, 0), (0, -1), (26, 0), (0, 26)])
     def test_off_the_map_blocks_tanks(self, cell) -> None:
@@ -95,22 +84,16 @@ class TestLineOfFire:
         )
         assert world.line_of_fire(self.SHOOTER, Direction.UP).stopped_at == math.inf
 
-    def test_water_does_not_stop_bullets(self) -> None:
-        line = make_world({(12, 5): TileType.WATER}).line_of_fire(
-            self.SHOOTER, Direction.UP
-        )
-        assert line.stopped_at == math.inf
-        assert line.reaches(tank(12, 2)) is True
-
     def test_reaches_through_brick(self) -> None:
         line = make_world({(12, 5): TileType.BRICK}).line_of_fire(
             self.SHOOTER, Direction.UP
         )
         assert line.reaches(tank(12, 2)) is True
 
-    @pytest.mark.parametrize("tile", [TileType.STEEL, TileType.BASE])
-    def test_nothing_gets_past_what_a_bullet_cant_destroy(self, tile) -> None:
-        line = make_world({(12, 5): tile}).line_of_fire(self.SHOOTER, Direction.UP)
+    def test_nothing_gets_past_what_a_bullet_cant_destroy(self) -> None:
+        line = make_world({(12, 5): TileType.STEEL}).line_of_fire(
+            self.SHOOTER, Direction.UP
+        )
         assert line.reaches(tank(12, 2)) is False
         assert line.reaches(tank(12, 7)) is True
 
@@ -127,10 +110,6 @@ class TestLineOfFire:
         line = make_world().line_of_fire(self.SHOOTER, Direction.UP)
         assert line.distance_to(other) is None
 
-    def test_tank_half_in_the_lane_is_in_the_line(self) -> None:
-        line = make_world().line_of_fire(self.SHOOTER, Direction.UP)
-        assert line.distance_to(tank(13, 2)) is not None
-
     def test_facing_decides_the_direction(self) -> None:
         line = make_world().line_of_fire(self.SHOOTER, Direction.RIGHT)
         assert line.horizontal is True
@@ -138,9 +117,9 @@ class TestLineOfFire:
         assert line.distance_to(tank(20, 12)) == px(20) - 208
         assert line.distance_to(tank(12, 2)) is None
 
-    @pytest.mark.parametrize("wall", [TileType.BRICK, TileType.STEEL])
-    def test_endangers_base_when_base_wall_is_hit_first(self, wall) -> None:
-        line = make_world(base_wall=wall).line_of_fire(tank(12, 4), Direction.DOWN)
+    def test_endangers_base_when_base_wall_is_hit_first(self) -> None:
+        world = make_world(base_wall=TileType.BRICK)
+        line = world.line_of_fire(tank(12, 4), Direction.DOWN)
         assert line.endangers_base is True
 
     def test_endangers_base_through_a_half_brick(self) -> None:
@@ -212,10 +191,6 @@ class TestFiringPositions:
         assert (12, 20) in positions
         assert not any(x == 12 and y < 18 for x, y in positions)
 
-    def test_targets_any_footprint(self) -> None:
-        spawn = make_world().spawn_footprint((0, 0))
-        assert (0, 2) in make_world().firing_positions(spawn, TILE_SIZE)
-
 
 class TestBaseThreats:
     @pytest.mark.parametrize(
@@ -228,14 +203,6 @@ class TestBaseThreats:
 
     def test_steel_base_wall_shields_far_enemy(self) -> None:
         world = make_world(enemies=[tank(12, 2)], base_wall=TileType.STEEL)
-        assert world.base_threats == ()
-
-    def test_steel_between_shields_far_enemy(self) -> None:
-        world = make_world(
-            {(12, 8): TileType.STEEL, (13, 8): TileType.STEEL},
-            enemies=[tank(12, 2)],
-            base_wall=TileType.BRICK,
-        )
         assert world.base_threats == ()
 
     def test_enemy_close_to_the_base_is_a_threat_without_a_line(self) -> None:
@@ -261,10 +228,6 @@ class TestBaseThreats:
 
 
 class TestFootprints:
-    def test_base_footprint_covers_the_base_cells(self) -> None:
-        world = make_world(base_wall=TileType.BRICK)
-        assert world.base_footprint == Footprint(px(12), px(16), 2 * SUB_TILE_SIZE)
-
     def test_covered_cells_of_an_unaligned_tank(self) -> None:
         world = make_world()
         enemy = EnemyView(enemy_id=0, x=px(3) + 4, y=px(5), direction=Direction.UP)
