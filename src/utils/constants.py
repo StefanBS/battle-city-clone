@@ -150,8 +150,8 @@ SHOOT_RANDOM_OFFSET: float = 0.3
 
 # CPU Partner tuning
 # Max px between the CPU Partner's and its target's centers on the cross axis
-# for the two to count as lined up (half a tank).
-CPU_PARTNER_ALIGN_TOLERANCE: float = TILE_SIZE / 2
+# for the two to count as lined up (half a sub-tile).
+CPU_PARTNER_ALIGN_TOLERANCE: float = SUB_TILE_SIZE / 2
 # Extra path cost of each sub-tile step that leaves the tank overlapping brick
 # (which must be shot away first); a brick 1 sub-tile thick costs two steps.
 CPU_PARTNER_BRICK_COST: float = 4.0
