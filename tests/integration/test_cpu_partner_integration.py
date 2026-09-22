@@ -5,15 +5,17 @@ placing tanks to build a small scenario.
 """
 
 import dataclasses
+import random
 
 import pytest
 import pygame
 
-from src.core.tile import TileType
+from src.core.bullet import Bullet
+from src.core.tile import Tile, TileType
 from src.managers.game_manager import GameManager
 from src.states.game_mode import GameMode
 from src.states.game_state import GameState
-from src.utils.constants import FPS, SUB_TILE_SIZE, Direction
+from src.utils.constants import FPS, SUB_TILE_SIZE, Direction, OwnerType
 from tests.integration.conftest import (
     clear_enemies,
     clear_tiles,
@@ -25,14 +27,28 @@ from tests.integration.conftest import (
 )
 
 
-@pytest.fixture
-def cpu_game():
-    """GameManager in 1 Player + CPU mode with the game running."""
+def start_cpu_game() -> GameManager:
+    """Start a GameManager in 1 Player + CPU mode with the game running."""
     pygame.init()
     gm = GameManager()
     gm._game_mode = GameMode.ONE_PLAYER_CPU
     gm._reset_game()
     return gm
+
+
+@pytest.fixture
+def cpu_game():
+    """GameManager in 1 Player + CPU mode with the game running."""
+    return start_cpu_game()
+
+
+@pytest.fixture(params=[1, 7, 42, 1234])
+def seeded_cpu_game(request):
+    """A CPU game started under a fixed random seed; restores the RNG after."""
+    state = random.getstate()
+    random.seed(request.param)
+    yield start_cpu_game()
+    random.setstate(state)
 
 
 def open_field(game) -> None:
@@ -91,6 +107,26 @@ class TestWorldView:
         wall = gm.map.get_base_surrounding_tiles()[0]
         assert (wall.x, wall.y) in view.base_wall_cells
         assert view.tiles[wall.y][wall.x] is wall.type
+
+    def test_reports_tank_and_bullet_speeds(self, cpu_game):
+        gm = cpu_game
+        enemy = spawn_enemy_at(gm, 4, 6)
+        p2 = gm.player_manager.players[1]
+
+        view = gm._world_view().for_player(2)
+
+        assert view.enemies[0].speed == enemy.speed
+        assert view.own_player.bullet_speed == p2.bullet_speed
+
+    def test_reports_half_bricks(self, cpu_game):
+        gm = cpu_game
+        brick = gm.map.get_tiles_by_type([TileType.BRICK])[0]
+        gm.map.damage_brick(brick, Direction.UP, brick.rect)
+
+        view = gm._world_view()
+
+        assert (brick.x, brick.y) in view.half_brick_cells
+        assert view.tiles[brick.y][brick.x] is TileType.BRICK
 
     def test_is_a_snapshot_not_live_objects(self, cpu_game):
         gm = cpu_game
@@ -201,3 +237,43 @@ class TestCpuPartnerHud:
         labels = self.hud_labels(cpu_game)
         assert "CPU: OUT" in labels
         assert not any(label.startswith("P2") for label in labels)
+
+
+class TestCpuPartnerHoldFireSoak:
+    SOAK_SECONDS = 90
+
+    def test_player_bullets_never_hit_base_or_base_wall(self, seeded_cpu_game):
+        gm = seeded_cpu_game
+        p1 = gm.player_manager.players[0]
+        protected = {(t.x, t.y) for t in gm.map.get_tiles_by_type([TileType.BASE])}
+        protected |= {
+            (t.x, t.y) for t in gm.map.get_base_surrounding_tiles(include_empty=True)
+        }
+
+        # Record every Player bullet that hits a protected tile, then let the
+        # real handler respond as usual.
+        forbidden_hits: list[tuple[int, int]] = []
+        handlers = gm.collision_response_handler._handlers
+        real_handler = handlers[(Bullet, Tile)]
+
+        def recording_handler(bullet, tile, enemies_to_remove):
+            if (
+                bullet.owner_type is OwnerType.PLAYER
+                and tile.blocks_bullets
+                and (tile.x, tile.y) in protected
+            ):
+                forbidden_hits.append((tile.x, tile.y))
+            return real_handler(bullet, tile, enemies_to_remove)
+
+        handlers[(Bullet, Tile)] = recording_handler
+
+        for _ in range(self.SOAK_SECONDS * FPS):
+            # Keep the idle Human Player in the game so the soak runs its full
+            # length; only the CPU Partner acts.
+            p1.lives = max(p1.lives, 2)
+            tick(gm)
+            if gm.state is not GameState.RUNNING:
+                break
+
+        assert forbidden_hits == []
+        assert gm.player_manager.get_score(2) > 0

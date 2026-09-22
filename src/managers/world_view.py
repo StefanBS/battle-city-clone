@@ -6,8 +6,10 @@ from collections.abc import Iterable
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
-from src.core.tile import TileType
+from src.core.tile import BrickVariant, TileType
 from src.utils.constants import (
+    BULLET_SPEED,
+    TANK_SPEED,
     TILE_SIZE,
     Direction,
     OwnerType,
@@ -34,6 +36,7 @@ class PlayerView:
     alive: bool = True
     frozen: bool = False
     size: int = TILE_SIZE
+    bullet_speed: float = BULLET_SPEED
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -49,6 +52,7 @@ class EnemyView:
     direction: Direction
     tank_type: TankType = TankType.BASIC
     size: int = TILE_SIZE
+    speed: float = TANK_SPEED
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -76,13 +80,15 @@ class WorldView:
     """Snapshot of the battlefield: plain data, never live game objects.
 
     Grid coordinates are ``(x, y)`` sub-tile cells; everything else is pixels.
-    ``tiles`` is indexed ``tiles[y][x]``.
+    ``tiles`` is indexed ``tiles[y][x]``. ``half_brick_cells`` are BRICK
+    cells already shot down to half, which a bullet may slip past.
     """
 
     tile_size: int
     tiles: tuple[tuple[TileType, ...], ...]
     base_cells: frozenset[tuple[int, int]] = frozenset()
     base_wall_cells: frozenset[tuple[int, int]] = frozenset()
+    half_brick_cells: frozenset[tuple[int, int]] = frozenset()
     enemies: tuple[EnemyView, ...] = ()
     enemies_frozen: bool = False
     enemy_spawn_points: tuple[tuple[int, int], ...] = ()
@@ -126,6 +132,14 @@ def build_world_view(
         base_wall_cells=frozenset(
             (t.x, t.y) for t in game_map.get_base_surrounding_tiles(include_empty=True)
         ),
+        half_brick_cells=frozenset(
+            (tile.x, tile.y)
+            for row in game_map.tiles
+            for tile in row
+            if tile is not None
+            and tile.type is TileType.BRICK
+            and tile.brick_variant is not BrickVariant.FULL
+        ),
         enemies=tuple(
             EnemyView(
                 enemy_id=e.enemy_id,
@@ -134,6 +148,7 @@ def build_world_view(
                 direction=e.direction,
                 tank_type=e.tank_type,
                 size=e.width,
+                speed=e.speed,
             )
             for e in enemies
         ),
@@ -158,6 +173,7 @@ def build_world_view(
                 alive=p.health > 0,
                 frozen=p.is_frozen,
                 size=p.width,
+                bullet_speed=p.bullet_speed,
             )
             for p in players
         ),
