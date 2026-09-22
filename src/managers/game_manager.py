@@ -40,6 +40,7 @@ from src.managers.renderer import Renderer
 from src.managers.power_up_manager import PowerUpManager
 from src.managers.player_manager import PlayerManager
 from src.managers.sound_manager import SoundManager
+from src.managers.world_view import WorldView, build_world_view
 from src.managers.settings_manager import SettingsManager
 from src.utils.paths import resource_path
 
@@ -122,6 +123,10 @@ class GameManager:
                 MenuItem(
                     "2 Players",
                     on_confirm=lambda: self._start_game(GameMode.TWO_PLAYERS),
+                ),
+                MenuItem(
+                    "1 Player + CPU",
+                    on_confirm=lambda: self._start_game(GameMode.ONE_PLAYER_CPU),
                 ),
                 MenuItem("Options", on_confirm=lambda: self._open_options(False)),
                 MenuItem("Quit", on_confirm=self._quit_game),
@@ -385,6 +390,7 @@ class GameManager:
             return
 
         self.map.update(dt)
+        self.player_manager.observe(self._world_view())
         # Update player tanks via PlayerManager
         self.player_manager.update(dt, self.map)
         self.player_manager.try_shoot()
@@ -478,6 +484,17 @@ class GameManager:
             if self.spawn_manager.all_enemies_defeated():
                 logger.info("All enemies defeated. Victory!")
                 self._set_game_state(GameState.VICTORY)
+
+    def _world_view(self) -> WorldView:
+        """Snapshot the current battlefield for the Players' inputs."""
+        return build_world_view(
+            self.map,
+            players=self.player_manager.players,
+            enemies=self.spawn_manager.enemy_tanks,
+            enemies_frozen=self.spawn_manager.enemies_frozen,
+            power_ups=self.power_up_manager.active_power_ups,
+            bullets=[*self.player_manager.get_all_bullets(), *self.bullets],
+        )
 
     def _try_shoot(self, tank) -> None:
         """Attempt to fire a bullet for the given tank, respecting max_bullets."""

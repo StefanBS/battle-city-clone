@@ -16,10 +16,12 @@ from src.managers.player_input import (
     KeyboardInput,
     PlayerInput,
 )
+from src.managers.cpu_partner import CpuPartnerInput
 from src.managers.player_manager import PlayerManager
 from src.managers.sound_manager import SoundManager
+from src.managers.world_view import EnemyView, PlayerView, WorldView
 from src.states.game_mode import GameMode
-from src.utils.constants import TILE_SIZE
+from src.utils.constants import TILE_SIZE, Direction
 
 
 # ---------------------------------------------------------------------------
@@ -726,6 +728,61 @@ class TestPlayerManagerTwoPlayerCreation:
 
         assert isinstance(player_manager._player_inputs[0], KeyboardInput)
         assert isinstance(player_manager._player_inputs[1], KeyboardInput)
+
+
+# ---------------------------------------------------------------------------
+# TestPlayerManagerCpuPartner
+# ---------------------------------------------------------------------------
+
+
+class TestPlayerManagerCpuPartner:
+    DT = 1.0 / 60
+
+    @pytest.fixture
+    def cpu_pm(self, player_manager, mock_game_map):
+        """PlayerManager in 1 Player + CPU mode."""
+        mock_game_map.player_spawn_2 = (16, 24)
+        mock_game_map.is_tile_slidable.return_value = False
+        player_manager.create_players(
+            mock_game_map, controller_instance_ids=[3], mode=GameMode.ONE_PLAYER_CPU
+        )
+        return player_manager
+
+    @staticmethod
+    def view(pm: PlayerManager, enemies: list[tuple[float, float]]) -> WorldView:
+        """Hand-built World View of the current tanks plus Enemies at pixels."""
+        return WorldView(
+            tile_size=TILE_SIZE,
+            tiles=(),
+            players=tuple(
+                PlayerView(player_id=p.player_id, x=p.x, y=p.y, direction=p.direction)
+                for p in pm.players
+            ),
+            enemies=tuple(
+                EnemyView(enemy_id=i, x=x, y=y, direction=Direction.DOWN)
+                for i, (x, y) in enumerate(enemies)
+            ),
+        )
+
+    def test_p1_is_human_and_p2_is_cpu_partner(self, cpu_pm):
+        assert [p.player_id for p in cpu_pm.get_active_players()] == [1, 2]
+        assert isinstance(cpu_pm._player_inputs[0], CombinedInput)
+        assert isinstance(cpu_pm._player_inputs[1], CpuPartnerInput)
+
+    def test_respawn_makes_cpu_partner_choose_a_new_target(self, cpu_pm, mock_game_map):
+        p2 = cpu_pm.players[1]
+        far_above = (p2.x, p2.y - 10 * TILE_SIZE)
+        cpu_pm.observe(self.view(cpu_pm, enemies=[far_above]))
+        cpu_pm.update(self.DT, mock_game_map)
+
+        p2.lives = 2
+        cpu_pm.handle_player_death(p2)
+        x_after_respawn = p2.x
+        close_right = (p2.x + 3 * TILE_SIZE, p2.y)
+        cpu_pm.observe(self.view(cpu_pm, enemies=[far_above, close_right]))
+        cpu_pm.update(self.DT, mock_game_map)
+
+        assert p2.x > x_after_respawn
 
 
 # ---------------------------------------------------------------------------

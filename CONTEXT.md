@@ -50,6 +50,10 @@ The brick (or, after a shovel, steel) tiles directly surrounding the Base.
 **Base Threat**:
 An Enemy close to the Base, or with a line of fire to the Base that is clear or blocked only by brick.
 
+**World View**:
+A read-only snapshot of the battlefield (tiles, Base, Enemies, Power-Ups, bullets, Players), built once per frame and handed to every Player's input. Human Players' inputs ignore it; the CPU Partner decides from it alone.
+_Avoid_: Game state, world state
+
 **Line of Fire**:
 The straight row or column a tank's bullet would travel along from its current position and facing.
 

@@ -9,6 +9,7 @@ from loguru import logger
 
 from src.core.bullet import Bullet
 from src.core.player_tank import PlayerTank
+from src.managers.cpu_partner import CpuPartnerInput
 from src.managers.player_input import (
     CombinedInput,
     ControllerInput,
@@ -21,6 +22,7 @@ if TYPE_CHECKING:
     from src.core.map import Map
     from src.managers.sound_manager import SoundManager
     from src.managers.texture_manager import TextureManager
+    from src.managers.world_view import WorldView
 
 
 class PlayerManager:
@@ -79,19 +81,23 @@ class PlayerManager:
             )
 
         self._players.append(make_player(game_map.player_spawn, 1))
+        if mode is not GameMode.ONE_PLAYER:
+            p2_spawn = game_map.player_spawn_2
+            if p2_spawn is None:
+                px = game_map.player_spawn[0] + 8
+                p2_spawn = (px, game_map.player_spawn[1])
+            self._players.append(make_player(p2_spawn, 2))
 
         match mode:
             case GameMode.ONE_PLAYER:
                 self._player_inputs.extend(self._one_player_inputs())
             case GameMode.TWO_PLAYERS:
-                p2_spawn = game_map.player_spawn_2
-                if p2_spawn is None:
-                    px = game_map.player_spawn[0] + 8
-                    p2_spawn = (px, game_map.player_spawn[1])
-                self._players.append(make_player(p2_spawn, 2))
                 self._player_inputs.extend(
                     self._two_player_inputs(controller_instance_ids)
                 )
+            case GameMode.ONE_PLAYER_CPU:
+                self._player_inputs.extend(self._one_player_inputs())
+                self._player_inputs.append(CpuPartnerInput())
 
         for player in self._players:
             if player.player_id not in self._scores:
@@ -119,6 +125,11 @@ class PlayerManager:
     def handle_event(self, event: pygame.event.Event) -> None:
         for pi in self._player_inputs:
             pi.handle_event(event)
+
+    def observe(self, world: WorldView) -> None:
+        """Hand this frame's World View to every input, marking its own tank."""
+        for player, player_input in zip(self._players, self._player_inputs):
+            player_input.observe(world.for_player(player.player_id))
 
     def clear_pending_shoot(self) -> None:
         # Called when leaving a menu so the confirm-button press (e.g.
@@ -193,6 +204,11 @@ class PlayerManager:
         """
         return self._bullets
 
+    @property
+    def players(self) -> list[PlayerTank]:
+        """All player tanks, alive or not. Read-only view."""
+        return self._players
+
     def get_active_players(self) -> list[PlayerTank]:
         """Return players that are still alive (health > 0).
 
@@ -263,6 +279,9 @@ class PlayerManager:
         """
         if player.lives > 0:
             player.respawn()
+            for owner, player_input in zip(self._players, self._player_inputs):
+                if owner is player:
+                    player_input.reset()
             return False
 
         return self.is_game_over()

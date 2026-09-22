@@ -1,3 +1,4 @@
+import itertools
 import json
 import random
 from loguru import logger
@@ -30,6 +31,8 @@ class TankPropertyDict(TypedDict):
 
 
 _ENEMY_CONFIG_PATH = "assets/config/enemy_types.json"
+# Unlike id(), never reused for the lifetime of the process.
+_next_enemy_id = itertools.count()
 _enemy_config: dict | None = None
 
 
@@ -96,6 +99,7 @@ class EnemyTank(Tank):
             map_width_px=map_width_px,
             map_height_px=map_height_px,
         )
+        self.enemy_id: int = next(_next_enemy_id)
         self.tank_type = tank_type
         self._sprite_prefix: str = props.get("sprite_prefix", "enemy_tank")
         self.power_bullets = props["power_bullets"]

@@ -221,6 +221,61 @@ class TestCombinedInput:
         assert combined.consume_shoot() is False
 
 
+def _world_view_with_enemy():
+    from src.core.tile import TileType
+    from src.managers.world_view import EnemyView, PlayerView, WorldView
+    from src.utils.constants import Direction
+
+    return WorldView(
+        tile_size=16,
+        tiles=((TileType.EMPTY,) * 26,) * 26,
+        enemies=(EnemyView(enemy_id=0, x=0.0, y=0.0, direction=Direction.DOWN),),
+        players=(PlayerView(player_id=1, x=192.0, y=384.0, direction=Direction.UP),),
+        own_player_id=1,
+    )
+
+
+class TestHumanInputsIgnoreWorldView:
+    @pytest.fixture(params=["keyboard", "controller", "combined"])
+    def human_input(self, request):
+        from src.managers.player_input import (
+            CombinedInput,
+            ControllerInput,
+            KeyboardInput,
+        )
+
+        return {
+            "keyboard": lambda: KeyboardInput(),
+            "controller": lambda: ControllerInput(instance_id=None),
+            "combined": lambda: CombinedInput(
+                [KeyboardInput(), ControllerInput(instance_id=None)]
+            ),
+        }[request.param]()
+
+    def test_world_view_does_not_move_or_shoot(self, human_input) -> None:
+        human_input.observe(_world_view_with_enemy())
+        assert human_input.get_movement_direction() == (0, 0)
+        assert human_input.consume_shoot() is False
+
+    def test_world_view_keeps_held_input(
+        self, human_input, key_down_event, ctrl_button_down_event
+    ) -> None:
+        human_input.handle_event(key_down_event(pygame.K_UP))
+        human_input.handle_event(key_down_event(pygame.K_SPACE))
+        human_input.handle_event(
+            ctrl_button_down_event(pygame.CONTROLLER_BUTTON_DPAD_UP)
+        )
+        human_input.handle_event(ctrl_button_down_event(pygame.CONTROLLER_BUTTON_A))
+        expected = human_input.get_movement_direction()
+        assert expected != (0, 0)
+
+        human_input.observe(_world_view_with_enemy())
+        human_input.reset()
+
+        assert human_input.get_movement_direction() == expected
+        assert human_input.consume_shoot() is True
+
+
 class TestClassifyAxis:
     def test_neutral_at_zero(self) -> None:
         assert classify_axis(0) is AxisState.NEUTRAL
