@@ -86,18 +86,21 @@ class Renderer:
         scores: dict[int, int] | None = None,
         power_ups: Sequence = (),
         game_over_rise_progress: float | None = None,
+        cpu_partner_ids: frozenset[int] = frozenset(),
     ) -> None:
         """Render the complete game frame.
 
         Args:
             game_map: The game map to draw.
-            player_tanks: List of player tanks.
+            player_tanks: All player tanks; only live ones (health > 0) are
+                drawn, but eliminated ones still appear in the HUD.
             enemy_tanks: List of enemy tanks.
             player_bullets: Player-fired bullets.
             enemy_bullets: Enemy-fired bullets.
             state: Current game state.
             scores: Per-player scores dict {player_id: score}.
             power_ups: Active power-ups to draw.
+            cpu_partner_ids: Player ids the HUD labels as the CPU Partner.
         """
         self.game_surface.fill(GRAY)
         self.map_surface.fill(BLACK)
@@ -105,7 +108,8 @@ class Renderer:
         game_map.draw(self.map_surface)
 
         for player_tank in player_tanks:
-            player_tank.draw(self.map_surface)
+            if player_tank.health > 0:
+                player_tank.draw(self.map_surface)
         for enemy in enemy_tanks:
             enemy.draw(self.map_surface)
         for power_up in power_ups:
@@ -122,7 +126,7 @@ class Renderer:
 
         self.game_surface.blit(self.map_surface, (self.map_offset_x, self.map_offset_y))
 
-        self._draw_hud(player_tanks, scores)
+        self._draw_hud(player_tanks, scores, cpu_partner_ids)
 
         if state == GameState.VICTORY:
             self._draw_victory()
@@ -169,13 +173,17 @@ class Renderer:
         self.game_surface.blit(surface, rect)
 
     def _draw_hud(
-        self, player_tanks: list, scores: dict[int, int] | None = None
+        self,
+        player_tanks: list,
+        scores: dict[int, int] | None = None,
+        cpu_partner_ids: frozenset[int] = frozenset(),
     ) -> None:
         """Draw the heads-up display.
 
         Args:
             player_tanks: List of player tanks.
             scores: Per-player scores dict {player_id: score}.
+            cpu_partner_ids: Player ids labelled "CPU" instead of "P<id>".
         """
         if scores is None:
             scores = {}
@@ -186,12 +194,13 @@ class Renderer:
             for i, player in enumerate(player_tanks):
                 pid = player.player_id
                 player_score = scores.get(pid, 0)
+                name = "CPU" if pid in cpu_partner_ids else f"P{pid}"
                 eliminated = player.health <= 0 and player.lives <= 0
                 if eliminated:
-                    label = f"P{pid}: OUT"
+                    label = f"{name}: OUT"
                     color = GRAY
                 else:
-                    label = f"P{pid}: {player.lives}"
+                    label = f"{name}: {player.lives}"
                     color = WHITE
                 align = "left" if i == 0 else "right"
                 self._draw_hud_slot(label, f"{player_score:>6}", color, align)

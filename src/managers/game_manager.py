@@ -601,7 +601,7 @@ class GameManager:
 
         self.renderer.render(
             self.map,
-            self.player_manager.get_active_players(),
+            self.player_manager.players,
             self.spawn_manager.enemy_tanks,
             self.player_manager.get_all_bullets(),
             self.bullets,
@@ -610,6 +610,7 @@ class GameManager:
             self.player_manager.scores,
             power_ups=self.power_up_manager.active_power_ups,
             game_over_rise_progress=game_over_rise_progress,
+            cpu_partner_ids=self.player_manager.cpu_partner_ids,
         )
 
     def run(self) -> None:

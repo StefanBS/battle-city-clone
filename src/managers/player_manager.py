@@ -275,7 +275,8 @@ class PlayerManager:
             player: The PlayerTank that was just destroyed.
 
         Returns:
-            True if the game should end (all players eliminated), False otherwise.
+            True if the game should end (every Human Player eliminated),
+            False otherwise.
         """
         if player.lives > 0:
             player.respawn()
@@ -286,13 +287,29 @@ class PlayerManager:
 
         return self.is_game_over()
 
+    @property
+    def cpu_partner_ids(self) -> frozenset[int]:
+        """Player ids whose tank is driven by a CPU Partner."""
+        return frozenset(
+            player.player_id
+            for player, player_input in zip(self._players, self._player_inputs)
+            if isinstance(player_input, CpuPartnerInput)
+        )
+
     def is_game_over(self) -> bool:
-        """Check if all players are eliminated (0 lives and dead).
+        """Check if every Human Player is eliminated (0 lives and dead).
+
+        A CPU Partner's remaining lives do not keep the game going.
 
         Returns:
-            True when every player has no lives remaining and health <= 0.
+            True when every Human Player has no lives remaining and health <= 0.
         """
-        return all(p.lives <= 0 and p.health <= 0 for p in self._players)
+        cpu_ids = self.cpu_partner_ids
+        return all(
+            p.lives <= 0 and p.health <= 0
+            for p in self._players
+            if p.player_id not in cpu_ids
+        )
 
     def reset(self) -> None:
         """Full reset for starting a new game."""
