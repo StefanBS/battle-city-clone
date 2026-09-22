@@ -16,8 +16,10 @@ from src.managers.game_manager import GameManager
 from src.states.game_mode import GameMode
 from src.states.game_state import GameState
 from src.utils.constants import (
+    CPU_PARTNER_AMBUSH_DISTANCE,
     FPS,
     SUB_TILE_SIZE,
+    TILE_SIZE,
     Direction,
     OwnerType,
     PowerUpType,
@@ -83,6 +85,8 @@ class TestCpuPartnerSetup:
         gm = cpu_game
         clear_enemies(gm)
         gm.spawn_manager.spawn_interval = float("inf")
+        # No spawn points to Ambush at: the CPU Partner has nothing to do.
+        gm.map.spawn_points = []
         p1, p2 = gm.player_manager.get_active_players()
         p2_start = (p2.x, p2.y)
 
@@ -434,3 +438,40 @@ class TestCpuPartnerHoldFireSoak:
 
         assert forbidden_hits == []
         assert gm.player_manager.get_score(2) > 0
+
+
+class TestCpuPartnerAmbush:
+    def test_waits_covering_a_spawn_point_without_blocking_spawns(self, cpu_game):
+        gm = cpu_game
+        open_field(gm)
+        clear_enemies(gm)
+        gm.spawn_manager.spawn_interval = float("inf")
+        p1, p2 = gm.player_manager.get_active_players()
+        place_player_at(gm, 0, 24 * SUB_TILE_SIZE, player=p1)
+        place_player_at(gm, 16 * SUB_TILE_SIZE, 16 * SUB_TILE_SIZE, player=p2)
+
+        tick(gm, 5 * FPS)
+        settled = (p2.x, p2.y)
+        tick(gm, FPS)
+
+        assert (p2.x, p2.y) == settled
+        cx, cy = round(p2.x / SUB_TILE_SIZE), round(p2.y / SUB_TILE_SIZE)
+        covered = [
+            (sx, sy)
+            for sx, sy in gm.map.spawn_points
+            if (sx == cx or sy == cy)
+            and abs(sx - cx) + abs(sy - cy) >= CPU_PARTNER_AMBUSH_DISTANCE
+        ]
+        assert covered
+        sx, sy = covered[0]
+        facing = (
+            (Direction.DOWN if sy > cy else Direction.UP)
+            if sx == cx
+            else (Direction.RIGHT if sx > cx else Direction.LEFT)
+        )
+        assert p2.direction == facing
+        for sx, sy in gm.map.spawn_points:
+            rect = pygame.Rect(*gm.map.grid_to_pixels(sx, sy), TILE_SIZE, TILE_SIZE)
+            assert not gm.spawn_manager._is_spawn_blocked(
+                rect, gm.player_manager.get_active_players(), gm.map
+            )

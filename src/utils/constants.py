@@ -167,6 +167,10 @@ CPU_PARTNER_GOAL_STICKINESS: float = 0.5
 # Path cost (sub-tile steps, bricks at their extra cost) within which the CPU
 # Partner goes for a Power-Up, counted until its tank first touches it.
 CPU_PARTNER_POWER_UP_RANGE: int = 10
+# Fewest sub-tiles between an Ambush Firing Position and the Enemy Spawn Point
+# it covers (top-left to top-left), so an arriving Enemy isn't right on top of
+# the CPU Partner.
+CPU_PARTNER_AMBUSH_DISTANCE: int = 4
 
 # UI settings
 FONT_SIZE_LARGE: int = 24

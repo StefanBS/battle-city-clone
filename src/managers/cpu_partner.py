@@ -15,12 +15,14 @@ from src.managers.world_view import EnemyView, PlayerView, PowerUpView, WorldVie
 from src.utils.constants import (
     BULLET_SIZE,
     CPU_PARTNER_ALIGN_TOLERANCE,
+    CPU_PARTNER_AMBUSH_DISTANCE,
     CPU_PARTNER_GOAL_STICKINESS,
     CPU_PARTNER_POWER_UP_RANGE,
     CPU_PARTNER_STUCK_TIME,
     CPU_PARTNER_THREAT_RADIUS,
     FPS,
     TANK_ALIGN_THRESHOLD,
+    TILE_SIZE,
     Direction,
 )
 
@@ -211,9 +213,7 @@ def _covered_cells(world: WorldView, view: _Placed) -> set[Cell]:
     }
 
 
-def _firing_positions(
-    world: WorldView, own: PlayerView, target: EnemyView
-) -> set[Cell]:
+def _firing_positions(world: WorldView, own: PlayerView, target: _Placed) -> set[Cell]:
     """Cells in ``target``'s row or column from which ``own`` could hit it.
 
     From each, the Line of Fire facing ``target`` is clear or blocked only by
@@ -243,6 +243,35 @@ def _firing_positions(
                 break
             positions.add((x, y))
     return positions
+
+
+def _spawn_box(world: WorldView, spawn_point: Cell) -> _Box:
+    """The footprint an Enemy spawning at ``spawn_point`` takes up."""
+    x, y = spawn_point
+    return _Box(float(x * world.tile_size), float(y * world.tile_size), TILE_SIZE)
+
+
+def ambush_positions(world: WorldView, own: PlayerView, spawn_point: Cell) -> set[Cell]:
+    """Firing Positions from which ``own`` can wait for Enemies at ``spawn_point``.
+
+    Those at least the ambush distance from it, where ``own`` wouldn't stand
+    on any Enemy Spawn Point and so keep Enemies from spawning there.
+    """
+    size_cells = math.ceil(own.size / world.tile_size)
+    spawn_cells = set().union(
+        *(_covered_cells(world, _spawn_box(world, s)) for s in world.enemy_spawn_points)
+    )
+    sx, sy = spawn_point
+    return {
+        (x, y)
+        for x, y in _firing_positions(world, own, _spawn_box(world, spawn_point))
+        if abs(x - sx) + abs(y - sy) >= CPU_PARTNER_AMBUSH_DISTANCE
+        and not any(
+            (x + dx, y + dy) in spawn_cells
+            for dx in range(size_cells)
+            for dy in range(size_cells)
+        )
+    }
 
 
 def _touching_cells(
@@ -382,13 +411,14 @@ class GoalKind(Enum):
     DEFEND = auto()
     GRAB_POWER_UP = auto()
     HUNT = auto()
+    AMBUSH = auto()
 
 
 @dataclass(frozen=True)
 class _Goal:
     kind: GoalKind
-    # The target Enemy's id, or the target Power-Up's cell (Power-Ups never
-    # move).
+    # The target Enemy's id, or the target Power-Up's or Enemy Spawn Point's
+    # cell (neither ever moves).
     target: int | Cell
 
 
@@ -445,6 +475,9 @@ class CpuPartnerInput:
         if isinstance(target, PowerUpView):
             self._follow_path(world, own, _touching_cells(world, own, target), None)
             return
+        if isinstance(target, _Box):
+            self._ambush(world, own, target)
+            return
         ox, oy = _center(own)
         ex, ey = _center(target)
         dx, dy = ex - ox, ey - oy
@@ -465,6 +498,22 @@ class CpuPartnerInput:
                 world, own, target
             ) and not can_evade_shot(world, own, target)
         else:
+            self._movement = facing.delta
+
+    def _ambush(self, world: WorldView, own: PlayerView, spawn: _Box) -> None:
+        """Go to a Firing Position on ``spawn`` and wait there, facing it."""
+        spawn_point = _cell_of(world, spawn)
+        positions = ambush_positions(world, own, spawn_point)
+        cx, cy = _cell_of(world, own)
+        if (cx, cy) not in positions:
+            self._follow_path(world, own, positions, None)
+            return
+        sx, sy = spawn_point
+        if cx == sx:
+            facing = Direction.DOWN if sy > cy else Direction.UP
+        else:
+            facing = Direction.RIGHT if sx > cx else Direction.LEFT
+        if own.direction != facing:
             self._movement = facing.delta
 
     def _track_progress(self, own: PlayerView | None) -> None:
@@ -576,11 +625,12 @@ class CpuPartnerInput:
 
     def _update_goal(
         self, world: WorldView, own: PlayerView
-    ) -> EnemyView | PowerUpView | None:
+    ) -> EnemyView | PowerUpView | _Box | None:
         """Settle this frame's Goal and return what it targets, if anything.
 
         It keeps its current Goal until another has been preferred for the
-        stickiness time, unless the current Goal's target is gone.
+        stickiness time, unless the current Goal's target is gone. Ambush,
+        just waiting, gives way at once.
         """
         enemies = {e.enemy_id: e for e in world.enemies}
         self._cut_off = {
@@ -591,6 +641,7 @@ class CpuPartnerInput:
         preferred = self._preferred_goal(world, own)
         if (
             self._goal is None
+            or self._goal.kind is GoalKind.AMBUSH
             or self._find_target(world, self._goal) is None
             or preferred == self._goal
         ):
@@ -604,13 +655,23 @@ class CpuPartnerInput:
         return None if self._goal is None else self._find_target(world, self._goal)
 
     @staticmethod
-    def _find_target(world: WorldView, goal: _Goal) -> EnemyView | PowerUpView | None:
+    def _find_target(
+        world: WorldView, goal: _Goal
+    ) -> EnemyView | PowerUpView | _Box | None:
         """What ``goal`` targets in ``world``, or ``None`` once it's gone."""
         if goal.kind is GoalKind.GRAB_POWER_UP:
             return next(
                 (p for p in world.power_ups if _cell_of(world, p) == goal.target),
                 None,
             )
+        if goal.kind is GoalKind.AMBUSH:
+            spawn_point = goal.target
+            if (
+                not isinstance(spawn_point, tuple)
+                or spawn_point not in world.enemy_spawn_points
+            ):
+                return None
+            return _spawn_box(world, spawn_point)
         return next((e for e in world.enemies if e.enemy_id == goal.target), None)
 
     def _preferred_goal(self, world: WorldView, own: PlayerView) -> _Goal | None:
@@ -619,7 +680,8 @@ class CpuPartnerInput:
         Defend targets the Base Threat nearest the Base. Grab Power-Up targets
         the Power-Up cheapest to reach, if within range. Hunt keeps its
         current target while it lives, else takes the nearest Enemy. Enemies
-        it couldn't reach from where they stand are left out.
+        it couldn't reach from where they stand are left out. Ambush keeps
+        its current Enemy Spawn Point, else takes the one cheapest to reach.
         """
         enemies = [e for e in world.enemies if e.enemy_id not in self._cut_off]
         base = _base_box(world)
@@ -635,7 +697,12 @@ class CpuPartnerInput:
             if any(e.enemy_id == current.target for e in enemies):
                 return current
         target = self._nearest_enemy(world, own, enemies)
-        return None if target is None else _Goal(GoalKind.HUNT, target.enemy_id)
+        if target is not None:
+            return _Goal(GoalKind.HUNT, target.enemy_id)
+        if current is not None and current.kind is GoalKind.AMBUSH:
+            return current
+        spawn_point = self._nearest_spawn_point(world, own)
+        return None if spawn_point is None else _Goal(GoalKind.AMBUSH, spawn_point)
 
     def _nearest_power_up(
         self, world: WorldView, own: PlayerView
@@ -669,6 +736,13 @@ class CpuPartnerInput:
         if path is not None:
             return cells[path[-1]]
         return min(enemies, key=lambda e: _distance(own, e))
+
+    def _nearest_spawn_point(self, world: WorldView, own: PlayerView) -> Cell | None:
+        """The Enemy Spawn Point cheapest to reach by path, if any can be."""
+        path = find_path(
+            self._nav_grid(world, own), _cell_of(world, own), world.enemy_spawn_points
+        )
+        return None if path is None else path[-1]
 
     @staticmethod
     def _nav_grid(

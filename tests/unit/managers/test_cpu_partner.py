@@ -3,10 +3,11 @@ from dataclasses import replace
 import pytest
 
 from src.core.tile import TileType
-from src.managers.cpu_partner import CpuPartnerInput
+from src.managers.cpu_partner import CpuPartnerInput, ambush_positions
 from src.managers.world_view import EnemyView, PlayerView, PowerUpView, WorldView
 from src.utils.constants import (
     CPU_PARTNER_ALIGN_TOLERANCE,
+    CPU_PARTNER_AMBUSH_DISTANCE,
     CPU_PARTNER_GOAL_STICKINESS,
     CPU_PARTNER_POWER_UP_RANGE,
     CPU_PARTNER_STUCK_TIME,
@@ -913,3 +914,83 @@ class TestCpuPartnerDefendOverridesGrab:
         cpu.observe(with_power_up(view, (2, 0)))
         assert cpu.get_movement_direction() == heading.delta
         assert cpu.consume_shoot() is False
+
+
+def with_spawns(view: WorldView, *spawns: Cell) -> WorldView:
+    """``view`` with Enemy Spawn Points at the sub-tiles ``spawns``."""
+    return replace(view, enemy_spawn_points=spawns)
+
+
+class TestCpuPartnerAmbush:
+    def test_heads_for_a_spawn_point_when_there_is_nothing_else_to_do(
+        self, cpu
+    ) -> None:
+        # Its nearest Firing Position on the spawn point is (12, 12).
+        cpu.observe(with_spawns(make_view(own=(20, 12, Direction.UP)), (12, 0)))
+        assert cpu.get_movement_direction() == Direction.LEFT.delta
+        assert cpu.consume_shoot() is False
+
+    def test_hunts_rather_than_ambush(self, cpu) -> None:
+        cpu.observe(with_spawns(LINED_UP, (24, 12)))
+        assert cpu.consume_shoot() is True
+
+    def test_covers_the_spawn_point_nearest_by_path(self, cpu) -> None:
+        # (12, 2) is nearer as the crow flies, but steel walls it off; (24, 12)
+        # is in its row already, so it only turns to face it.
+        steel = {(x, y): TileType.STEEL for x in range(2, GRID) for y in (8, 9)}
+        view = make_view(own=(12, 12, Direction.UP), tiles=steel)
+        cpu.observe(with_spawns(view, (12, 2), (24, 12)))
+        assert cpu.get_movement_direction() == Direction.RIGHT.delta
+
+    def test_turns_to_face_the_spawn_point_once_in_position(self, cpu) -> None:
+        view = with_spawns(make_view(own=(12, 12, Direction.LEFT)), (12, 0))
+        cpu.observe(view)
+        assert cpu.get_movement_direction() == Direction.UP.delta
+
+    def test_waits_facing_the_spawn_point(self, cpu) -> None:
+        cpu.observe(with_spawns(make_view(own=(12, 12, Direction.UP)), (12, 0)))
+        assert cpu.get_movement_direction() == (0, 0)
+        assert cpu.consume_shoot() is False
+
+    def test_keeps_its_spawn_point_while_ambushing(self, cpu) -> None:
+        spawns = ((12, 0), (0, 20))
+        cpu.observe(with_spawns(make_view(own=(12, 12, Direction.UP)), *spawns))
+        # (0, 20) is now nearer, but it still heads for (12, 20) to cover
+        # (12, 0), rather than turn left to face (0, 20).
+        cpu.observe(with_spawns(make_view(own=(4, 20, Direction.UP)), *spawns))
+        assert cpu.get_movement_direction() == Direction.RIGHT.delta
+
+    def test_picks_the_nearest_spawn_point_again_after_another_goal(self, cpu) -> None:
+        spawns = ((12, 0), (0, 20))
+        cpu.observe(with_spawns(make_view(own=(12, 12, Direction.UP)), *spawns))
+        cpu.observe(
+            with_spawns(
+                make_view(own=(4, 20, Direction.UP), enemies=[(20, 2)]), *spawns
+            )
+        )
+        cpu.observe(with_spawns(make_view(own=(4, 20, Direction.UP)), *spawns))
+        assert cpu.get_movement_direction() == Direction.LEFT.delta
+
+    def test_fires_at_once_on_an_enemy_arriving_at_its_spawn_point(self, cpu) -> None:
+        cpu.observe(with_spawns(make_view(own=(12, 12, Direction.UP)), (12, 0)))
+        view = make_view(own=(12, 12, Direction.UP), enemies=[(12, 0)])
+        cpu.observe(with_spawns(view, (12, 0)))
+        assert cpu.consume_shoot() is True
+
+
+class TestAmbushPositions:
+    def test_are_in_the_spawn_points_row_or_column_at_a_distance(self) -> None:
+        view = with_spawns(make_view(own=(20, 20, Direction.UP)), (12, 0))
+        positions = ambush_positions(view, view.own_player, (12, 0))
+        assert (12, CPU_PARTNER_AMBUSH_DISTANCE) in positions
+        assert (12 + CPU_PARTNER_AMBUSH_DISTANCE, 0) in positions
+        assert (12, CPU_PARTNER_AMBUSH_DISTANCE - 1) not in positions
+        assert (12 - CPU_PARTNER_AMBUSH_DISTANCE + 1, 0) not in positions
+        assert all(x == 12 or y == 0 for x, y in positions)
+
+    def test_never_stand_on_an_enemy_spawn_point(self) -> None:
+        view = with_spawns(make_view(own=(20, 20, Direction.UP)), (12, 0), (12, 8))
+        positions = ambush_positions(view, view.own_player, (12, 0))
+        # A tank at (12, 7) to (12, 9) would overlap the spawn point at (12, 8).
+        assert {(12, 7), (12, 8), (12, 9)}.isdisjoint(positions)
+        assert {(12, 6), (12, 10)} <= positions
