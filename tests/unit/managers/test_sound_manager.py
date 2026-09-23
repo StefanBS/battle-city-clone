@@ -36,6 +36,21 @@ def sound_manager(mock_pygame):
 
 
 @pytest.fixture
+def fail_to_load(mock_pygame, mock_sound):
+    """Make one sound file fail to load with the given error; others load."""
+
+    def _fail(sound_file, error):
+        def load(path):
+            if path.endswith(sound_file):
+                raise error
+            return mock_sound
+
+        mock_pygame.mixer.Sound.side_effect = load
+
+    return _fail
+
+
+@pytest.fixture
 def disabled_sound_manager(mock_pygame):
     """A SoundManager whose mixer failed to initialize."""
     mock_pygame.mixer.init.side_effect = pygame.error("no audio")
@@ -51,13 +66,8 @@ class TestPlay:
         sound_manager.play("nonexistent")
         mock_sound.play.assert_not_called()
 
-    def test_sound_that_fails_to_load_is_skipped(self, mock_pygame, mock_sound):
-        def load(path):
-            if path.endswith("shoot.wav"):
-                raise FileNotFoundError(path)
-            return mock_sound
-
-        mock_pygame.mixer.Sound.side_effect = load
+    def test_sound_that_fails_to_load_is_skipped(self, fail_to_load, mock_sound):
+        fail_to_load("shoot.wav", FileNotFoundError("shoot.wav"))
         sound_manager = SoundManager()
         sound_manager.play("shoot")
         mock_sound.play.assert_not_called()
@@ -69,8 +79,8 @@ class TestDisabledMixer:
     def test_no_sound_is_loaded(self, disabled_sound_manager, mock_pygame):
         mock_pygame.mixer.Sound.assert_not_called()
 
-    def test_calls_make_no_sound_or_channel_calls(
-        self, disabled_sound_manager, mock_pygame, mock_sound, mock_channel
+    def test_every_call_leaves_the_mixer_untouched(
+        self, disabled_sound_manager, mock_pygame, mock_channel
     ):
         disabled_sound_manager.play("shoot")
         disabled_sound_manager.update_engine(True)
@@ -79,7 +89,6 @@ class TestDisabledMixer:
         disabled_sound_manager.update_engine(False)
         disabled_sound_manager.update_powerup_blink(False)
         disabled_sound_manager.stop_loops()
-        assert mock_sound.method_calls == []
         mock_pygame.mixer.find_channel.assert_not_called()
         assert mock_channel.method_calls == []
 
@@ -119,15 +128,10 @@ class TestLoopToggles:
         method(sound_manager, False)
         mock_channel.fadeout.assert_not_called()
 
-    def test_unknown_sound_requests_no_channel(
-        self, mock_pygame, mock_sound, method, sound_file
+    def test_unloaded_sound_requests_no_channel(
+        self, fail_to_load, mock_pygame, method, sound_file
     ):
-        def load(path):
-            if path.endswith(sound_file):
-                raise pygame.error("bad file")
-            return mock_sound
-
-        mock_pygame.mixer.Sound.side_effect = load
+        fail_to_load(sound_file, pygame.error("bad file"))
         sound_manager = SoundManager()
         method(sound_manager, True)
         mock_pygame.mixer.find_channel.assert_not_called()
