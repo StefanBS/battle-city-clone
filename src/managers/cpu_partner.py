@@ -39,12 +39,6 @@ from src.utils.constants import (
 _TankKey = tuple[Literal["enemy", "player"], int]
 
 
-def _distance(a: PlayerView | EnemyView, b: PlayerView | EnemyView) -> float:
-    """Manhattan distance between two tanks' centers, in pixels."""
-    (ax, ay), (bx, by) = center(a), center(b)
-    return abs(ax - bx) + abs(ay - by)
-
-
 def _along_step(direction: Direction, horizontal: bool) -> int:
     """``direction``'s step along the lane axis: -1, 0 or 1."""
     return direction.delta[0] if horizontal else direction.delta[1]
@@ -261,7 +255,8 @@ class CpuPartnerInput:
 
         Lined up on an Enemy but kept from shooting it safely for the refused
         shot time, it gives up on that side of the Enemy and moves to a Firing
-        Position on another.
+        Position on another. With none left on the other sides, the Enemy is
+        Cut Off.
         """
         # Any frame it doesn't refuse a shot starts the count afresh.
         refused_frames, self._refused_frames = self._refused_frames, 0
@@ -310,10 +305,12 @@ class CpuPartnerInput:
         self._refused_frames = refused_frames + 1
         if self._refused_frames >= CPU_PARTNER_REFUSED_SHOT_TIME * FPS:
             self._refused_frames = 0
-            given_up = set(Direction) - set(sides)
+            given_up = set(Direction) - set(sides) | {facing.opposite}
             self._given_up_sides.remember(
-                target.enemy_id, world.cell_of(target), given_up | {facing.opposite}
+                target.enemy_id, world.cell_of(target), given_up
             )
+            if not world.firing_positions(target, own.size, self._open_sides(target)):
+                self._give_up_on(world, target)
 
     def _open_sides(self, enemy: EnemyView) -> list[Direction]:
         """Sides of ``enemy`` it hasn't given up firing from."""
@@ -416,9 +413,10 @@ class CpuPartnerInput:
                 # Only the Human Player is in the way: wait for them to move.
                 return
             # Cut off from the target: pick another one next frame.
-            if target is not None:
-                self._cut_off.remember(target.enemy_id, world.cell_of(target), None)
-            self._goal_timing.abandon()
+            if target is None:
+                self._goal_timing.abandon()
+            else:
+                self._give_up_on(world, target)
             return
         if len(path) < 2:
             return
@@ -441,6 +439,11 @@ class CpuPartnerInput:
             and is_line_of_fire_safe(world, own, target)
         ):
             self._shoot_requested = True
+
+    def _give_up_on(self, world: WorldView, target: EnemyView) -> None:
+        """Leave ``target`` Cut Off and abandon the Goal: pick another next frame."""
+        self._cut_off.remember(target.enemy_id, world.cell_of(target), None)
+        self._goal_timing.abandon()
 
     def _update_goal(
         self, world: WorldView, own: PlayerView
@@ -481,9 +484,9 @@ class CpuPartnerInput:
         Defend targets the Base Threat nearest the Base. Grab Power-Up targets
         the Power-Up cheapest to reach, if within range. Hunt keeps its
         current target while it lives, else takes the Enemy with the Firing
-        Position cheapest to reach. Enemies it couldn't reach from where they
-        stand are left out. Ambush keeps its current Enemy Spawn Point, else
-        takes the one cheapest to reach.
+        Position cheapest to reach, if any can be reached. Cut Off Enemies are
+        left out. Ambush keeps its current Enemy Spawn Point, else takes the
+        one cheapest to reach.
         """
         enemies = [e for e in world.enemies if e.enemy_id not in self._cut_off]
         threats = [e for e in world.base_threats if e.enemy_id not in self._cut_off]
@@ -527,8 +530,7 @@ class CpuPartnerInput:
     ) -> EnemyView | None:
         """The one of ``enemies`` with a Firing Position cheapest to reach by path.
 
-        If no Enemy has a Firing Position that can be reached, the nearest as
-        the crow flies.
+        ``None`` if no Enemy has a Firing Position it can reach.
         """
         if not enemies:
             return None
@@ -540,9 +542,7 @@ class CpuPartnerInput:
             )
         }
         path = find_path(self._nav_grid(world, own), world.cell_of(own), positions)
-        if path is not None:
-            return positions[path[-1]]
-        return min(enemies, key=lambda e: _distance(own, e))
+        return None if path is None else positions[path[-1]]
 
     def _nearest_spawn_point(self, world: WorldView, own: PlayerView) -> Cell | None:
         """The Enemy Spawn Point cheapest to reach by path, if any can be."""
