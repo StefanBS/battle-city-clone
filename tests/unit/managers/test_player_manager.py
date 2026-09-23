@@ -337,6 +337,42 @@ class TestPlayerManagerCarriedProgress:
             2: CarriedProgress(lives=1, star_level=0, score=300),
         }
 
+    def test_carried_progress_marks_a_player_out_of_lives_as_eliminated(
+        self, make_player_manager, mock_game_map
+    ):
+        mock_game_map.player_spawn_2 = (16, 24)
+        player_manager = make_player_manager(
+            controller_instance_ids=[0], mode=GameMode.TWO_PLAYERS
+        )
+        p1, p2 = player_manager.players
+        p1.lives = 0  # on its last life, still in play
+        p2.lives = 0
+        p2.health = 0
+
+        carried = player_manager.carried_progress
+
+        assert carried[1].eliminated is False
+        assert carried[2].eliminated is True
+
+    def test_an_eliminated_player_stays_out_but_keeps_its_score(
+        self, make_player_manager, mock_game_map
+    ):
+        mock_game_map.player_spawn_2 = (16, 24)
+        player_manager = make_player_manager(
+            controller_instance_ids=[0],
+            mode=GameMode.TWO_PLAYERS,
+            carried={
+                1: CarriedProgress(lives=2, star_level=0, score=100),
+                2: CarriedProgress(lives=0, star_level=0, score=700, eliminated=True),
+            },
+        )
+
+        p1, p2 = player_manager.players
+        assert player_manager.get_active_players() == [p1]
+        assert p2.is_eliminated
+        assert player_manager.get_score(2) == 700
+        assert player_manager.carried_progress[2].eliminated is True
+
 
 # ---------------------------------------------------------------------------
 # TestPlayerManagerDeathHandling

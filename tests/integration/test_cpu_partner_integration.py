@@ -98,6 +98,19 @@ class TestCpuPartnerSetup:
         assert p1.direction == Direction.LEFT
         assert (p2.x, p2.y) == p2_start
 
+    def test_cpu_partner_out_of_lives_stays_out_in_the_next_stage(self, cpu_game):
+        """An eliminated CPU Partner does not come back; the Player plays on."""
+        gm = cpu_game
+        gm.battle.player_manager.add_score(300, player_id=2)
+        gm.battle.player_manager.players[1].eliminate()
+
+        gm._start_battle(gm.battle.carried_progress)
+
+        pm = gm.battle.player_manager
+        assert [p.player_id for p in pm.get_active_players()] == [1]
+        assert pm.get_score(2) == 300
+        assert not pm.is_game_over()
+
 
 class TestWorldView:
     def test_reflects_the_battlefield(self, cpu_game):

@@ -416,10 +416,12 @@ class TestTwoPlayerHUD:
         p1.lives = 3
         p1.health = 1
         p1.player_id = 1
+        p1.is_eliminated = False
         p2 = MagicMock()
         p2.lives = 2
         p2.health = 1
         p2.player_id = 2
+        p2.is_eliminated = False
 
         renderer.small_font.render.reset_mock()
         renderer._draw_hud([p1, p2], {1: 100, 2: 200})
@@ -445,10 +447,12 @@ class TestTwoPlayerHUD:
         p1.lives = 3
         p1.health = 1
         p1.player_id = 1
+        p1.is_eliminated = False
         p2 = MagicMock()
         p2.lives = 0
         p2.health = 0
         p2.player_id = 2
+        p2.is_eliminated = True
 
         renderer.small_font.render.reset_mock()
         renderer._draw_hud([p1, p2], {1: 100, 2: 50})
@@ -457,8 +461,13 @@ class TestTwoPlayerHUD:
 
     @staticmethod
     def _hud_texts(renderer, p2_lives, p2_health, cpu_partner_ids):
-        p1 = MagicMock(lives=3, health=1, player_id=1)
-        p2 = MagicMock(lives=p2_lives, health=p2_health, player_id=2)
+        p1 = MagicMock(lives=3, health=1, player_id=1, is_eliminated=False)
+        p2 = MagicMock(
+            lives=p2_lives,
+            health=p2_health,
+            player_id=2,
+            is_eliminated=p2_lives <= 0 and p2_health <= 0,
+        )
         renderer.small_font.render.reset_mock()
         renderer._draw_hud([p1, p2], {1: 100, 2: 250}, cpu_partner_ids=cpu_partner_ids)
         return [c[0][0] for c in renderer.small_font.render.call_args_list]

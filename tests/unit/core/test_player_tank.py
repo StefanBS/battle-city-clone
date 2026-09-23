@@ -169,6 +169,35 @@ class TestPlayerTank:
         assert player_tank.rect.topleft != moved_rect.topleft
 
 
+class TestPlayerTankElimination:
+    @pytest.fixture
+    def player(self, create_player_tank):
+        return create_player_tank(x=5, y=12)
+
+    def test_a_player_on_its_last_life_is_not_eliminated(self, player):
+        player.lives = 0
+
+        assert not player.is_eliminated
+
+    def test_a_destroyed_player_with_lives_left_is_not_eliminated(self, player):
+        player.health = 0
+
+        assert not player.is_eliminated
+
+    def test_a_destroyed_player_out_of_lives_is_eliminated(self, player):
+        player.lives = 0
+        player.health = 0
+
+        assert player.is_eliminated
+
+    def test_eliminate_takes_the_player_out_of_lives(self, player):
+        player.eliminate()
+
+        assert player.lives == 0
+        assert player.health == 0
+        assert player.is_eliminated
+
+
 class TestActivateInvincibility:
     @pytest.fixture
     def player(self, create_player_tank):

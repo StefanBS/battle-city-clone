@@ -57,6 +57,8 @@ class CarriedProgress:
     lives: int
     star_level: int
     score: int = 0
+    eliminated: bool = False
+    """Out of lives: the Player sits out every later Battle, keeping its score."""
 
 
 class PlayerManager:
@@ -142,6 +144,9 @@ class PlayerManager:
             progress = carried.get(slot.player_id)
             if progress is not None:
                 slot.score = progress.score
+                if progress.eliminated:
+                    slot.tank.eliminate()
+                    continue
                 slot.tank.lives = progress.lives
                 if progress.star_level > 0:
                     slot.tank.restore_star_level(progress.star_level)
@@ -262,6 +267,7 @@ class PlayerManager:
                 lives=slot.tank.lives,
                 star_level=slot.tank.star_level,
                 score=slot.score,
+                eliminated=slot.tank.is_eliminated,
             )
             for slot in self._slots
         }
@@ -297,7 +303,7 @@ class PlayerManager:
             True when every Human Player has no lives remaining and health <= 0.
         """
         return all(
-            slot.tank.lives <= 0 and slot.tank.health <= 0
+            slot.tank.is_eliminated
             for slot in self._slots
             if slot.kind is PlayerKind.HUMAN
         )
