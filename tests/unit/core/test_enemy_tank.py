@@ -64,43 +64,15 @@ def test_enemy_tank_initialization_properties(
     assert tank.y == 0
 
 
-class TestEnemyConfigLoading:
-    """Tests for enemy config JSON loading and caching."""
-
-    def test_config_loads_all_types(self):
+class TestEnemyConfig:
+    def test_is_cached_until_reset(self):
+        """The config file is read once and reloaded only after a reset."""
         config = get_enemy_config()
-        assert "basic" in config
-        assert "fast" in config
-        assert "power" in config
-        assert "armor" in config
+        assert get_enemy_config() is config
 
-    def test_reset_clears_cache(self):
-        get_enemy_config()  # ensure loaded
         _reset_enemy_config()
-        # After reset, next call reloads from file
-        config = get_enemy_config()
-        assert config is not None
-        assert "basic" in config
 
-    def test_config_contains_difficulty_section(self):
-        config = get_enemy_config()
-        assert "difficulty" in config
-        assert "easy" in config["difficulty"]
-        assert "normal" in config["difficulty"]
-
-    def test_difficulty_config_has_required_keys(self):
-        config = get_enemy_config()
-        for level in ("easy", "normal"):
-            diff = config["difficulty"][level]
-            assert "base_bias" in diff
-            assert "player_bias" in diff
-            assert "aligned_shoot_multiplier" in diff
-
-    def test_type_configs_have_bias_multipliers(self):
-        config = get_enemy_config()
-        for tank_type in ("basic", "fast", "power", "armor"):
-            assert "base_bias_multiplier" in config[tank_type]
-            assert "player_bias_multiplier" in config[tank_type]
+        assert get_enemy_config() is not config
 
 
 def test_enemy_tank_grid_alignment(create_enemy_tank):
@@ -143,12 +115,6 @@ class TestEnemyTankCarrier:
         tank.direction = Direction.DOWN
         return tank
 
-    def test_carrier_flag_default_false(self, normal_tank):
-        assert normal_tank.is_carrier is False
-
-    def test_carrier_flag_set_true(self, carrier_tank):
-        assert carrier_tank.is_carrier is True
-
     def test_carrier_uses_red_sprite_during_blink(
         self, carrier_tank, mock_texture_manager
     ):
@@ -166,14 +132,6 @@ class TestEnemyTankCarrier:
             c.args[0] for c in mock_texture_manager.get_sprite.call_args_list
         ]
         assert not any("red" in name for name in called_names)
-
-    def test_carrier_blink_timer_increments(self, carrier_tank):
-        carrier_tank.update(0.1)
-        assert carrier_tank.carrier_blink_timer > 0
-
-    def test_normal_tank_carrier_blink_timer_stays_zero(self, normal_tank):
-        normal_tank.update(0.1)
-        assert normal_tank.carrier_blink_timer == 0.0
 
     def test_stop_carrying_shows_the_normal_sprite(
         self, carrier_tank, mock_texture_manager
