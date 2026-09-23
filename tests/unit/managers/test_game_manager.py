@@ -1,6 +1,8 @@
 import pytest
 import pygame
 from unittest.mock import MagicMock, patch
+from src.managers.settings_manager import SettingsManager
+from src.managers.sound_manager import SoundManager
 from src.states.game_state import GameState
 from src.states.game_mode import GameMode
 from src.utils.constants import (
@@ -458,30 +460,30 @@ class TestPauseAndOptionsStateMachine:
         gm = game_manager
         gm.state = GameState.OPTIONS_MENU
         gm._options_menu.selection = 1
-        gm.settings_manager = MagicMock()
+        gm.settings_manager = MagicMock(spec=SettingsManager)
         gm.settings_manager.master_volume = new_volume  # what adjust_volume lands on
-        gm.sound_manager = MagicMock()
+        gm.sound_manager = MagicMock(spec=SoundManager)
         pygame.event.post(key_down_event(key))
         gm.handle_events()
         gm.settings_manager.adjust_volume.assert_called_once_with(delta)
         gm.sound_manager.set_master_volume.assert_called_once_with(new_volume)
 
     @pytest.mark.parametrize(
-        "from_pause, expected",
+        "from_pause, returns_to",
         [(False, GameState.TITLE_SCREEN), (True, GameState.PAUSED)],
     )
     def test_options_back_saves_and_returns(
-        self, game_manager, key_down_event, from_pause, expected
+        self, game_manager, key_down_event, from_pause, returns_to
     ):
         """Enter on BACK (2) in options saves and returns to the opening screen."""
         gm = game_manager
         gm.state = GameState.OPTIONS_MENU
         gm._options_menu.selection = 2
         gm._options_from_pause = from_pause
-        gm.settings_manager = MagicMock()
+        gm.settings_manager = MagicMock(spec=SettingsManager)
         pygame.event.post(key_down_event(pygame.K_RETURN))
         gm.handle_events()
-        assert gm.state == expected
+        assert gm.state == returns_to
         gm.settings_manager.save.assert_called_once()
 
     def test_options_navigation_up_down(self, game_manager, key_down_event):
