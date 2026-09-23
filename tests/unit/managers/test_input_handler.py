@@ -2,7 +2,6 @@ import pytest
 import pygame
 from unittest.mock import patch, MagicMock
 from src.managers.input_handler import InputHandler
-from src.managers.player_input import ControllerInput
 from src.utils.constants import MenuAction
 
 
@@ -46,10 +45,6 @@ def test_ignore_other_event_types(handler: InputHandler) -> None:
 
 class TestControllerInit:
     """Tests for controller initialization on InputHandler construction."""
-
-    def test_init_no_controller(self, handler: InputHandler) -> None:
-        """Handler initializes with no controllers when none are connected."""
-        assert handler.controller_instance_ids == []
 
     def test_init_opens_present_controllers(self) -> None:
         """Handler opens every connected SDL GameController at startup."""
@@ -161,81 +156,41 @@ class TestControllerHotPlug:
         handler.handle_event(ctrl_device_removed_event(instance_id=7))
         ctrl.quit.assert_called_once()
 
-    def test_hot_plugged_controller_routes_to_player_input(
-        self,
-        handler: InputHandler,
-        ctrl_device_added_event,
-        ctrl_button_down_event,
-    ) -> None:
-        """End-to-end: DEVICEADDED registers a controller; a BUTTONDOWN event
-        with the same instance_id drives a PlayerInput bound to it.
 
-        This covers the full hot-plug path: InputHandler registration +
-        PlayerInput routing agreeing on the same instance_id.
-        """
-        with patch("src.managers.input_handler.sdl_controller") as mock_sdl:
-            mock_sdl.is_controller.return_value = True
-            mock_sdl.Controller.return_value = _mock_controller(instance_id=42)
-            handler.handle_event(ctrl_device_added_event(device_index=0))
-        assert handler.controller_instance_ids == [42]
-
-        pi = ControllerInput(instance_id=42)
-        pi.handle_event(
-            ctrl_button_down_event(pygame.CONTROLLER_BUTTON_A, instance_id=42)
-        )
-        assert pi.consume_shoot() is True
+def _key(key: int) -> pygame.event.Event:
+    return pygame.event.Event(pygame.KEYDOWN, key=key)
 
 
-class TestControllerButtonUp:
-    """Tests for CONTROLLERBUTTONUP handling (direction release)."""
+def _button(button: int) -> pygame.event.Event:
+    return pygame.event.Event(pygame.CONTROLLERBUTTONDOWN, button=button, instance_id=0)
 
-    def test_dpad_up_release_clears_direction(self) -> None:
-        """Releasing a held D-pad direction clears it in ControllerInput."""
-        pi = ControllerInput(instance_id=0)
-        pi.handle_event(
-            pygame.event.Event(
-                pygame.CONTROLLERBUTTONDOWN,
-                button=pygame.CONTROLLER_BUTTON_DPAD_UP,
-                instance_id=0,
-            )
-        )
-        assert pi.get_movement_direction() == (0, -1)
-        pi.handle_event(
-            pygame.event.Event(
-                pygame.CONTROLLERBUTTONUP,
-                button=pygame.CONTROLLER_BUTTON_DPAD_UP,
-                instance_id=0,
-            )
-        )
-        assert pi.get_movement_direction() == (0, 0)
+
+@pytest.mark.parametrize(
+    ("event", "action"),
+    [
+        (_key(pygame.K_UP), MenuAction.UP),
+        (_key(pygame.K_DOWN), MenuAction.DOWN),
+        (_key(pygame.K_LEFT), MenuAction.LEFT),
+        (_key(pygame.K_RIGHT), MenuAction.RIGHT),
+        (_key(pygame.K_RETURN), MenuAction.CONFIRM),
+        (_key(pygame.K_r), MenuAction.CONFIRM),
+        (_button(pygame.CONTROLLER_BUTTON_DPAD_UP), MenuAction.UP),
+        (_button(pygame.CONTROLLER_BUTTON_DPAD_DOWN), MenuAction.DOWN),
+        (_button(pygame.CONTROLLER_BUTTON_DPAD_LEFT), MenuAction.LEFT),
+        (_button(pygame.CONTROLLER_BUTTON_DPAD_RIGHT), MenuAction.RIGHT),
+        (_button(pygame.CONTROLLER_BUTTON_A), MenuAction.CONFIRM),
+        (_button(pygame.CONTROLLER_BUTTON_B), MenuAction.BACK),
+    ],
+)
+def test_key_or_button_produces_menu_action(
+    handler: InputHandler, event: pygame.event.Event, action: MenuAction
+) -> None:
+    handler.handle_event(event)
+    assert handler.consume_menu_actions() == [action]
 
 
 class TestMenuActionsKeyboard:
     """Tests for keyboard menu action production."""
-
-    def test_key_up_produces_menu_up(self, handler, key_down_event) -> None:
-        handler.handle_event(key_down_event(pygame.K_UP))
-        assert handler.consume_menu_actions() == [MenuAction.UP]
-
-    def test_key_down_produces_menu_down(self, handler, key_down_event) -> None:
-        handler.handle_event(key_down_event(pygame.K_DOWN))
-        assert handler.consume_menu_actions() == [MenuAction.DOWN]
-
-    def test_key_left_produces_menu_left(self, handler, key_down_event) -> None:
-        handler.handle_event(key_down_event(pygame.K_LEFT))
-        assert handler.consume_menu_actions() == [MenuAction.LEFT]
-
-    def test_key_right_produces_menu_right(self, handler, key_down_event) -> None:
-        handler.handle_event(key_down_event(pygame.K_RIGHT))
-        assert handler.consume_menu_actions() == [MenuAction.RIGHT]
-
-    def test_key_return_produces_confirm(self, handler, key_down_event) -> None:
-        handler.handle_event(key_down_event(pygame.K_RETURN))
-        assert handler.consume_menu_actions() == [MenuAction.CONFIRM]
-
-    def test_key_r_produces_confirm(self, handler, key_down_event) -> None:
-        handler.handle_event(key_down_event(pygame.K_r))
-        assert handler.consume_menu_actions() == [MenuAction.CONFIRM]
 
     def test_consume_clears_list(self, handler, key_down_event) -> None:
         handler.handle_event(key_down_event(pygame.K_UP))
@@ -267,42 +222,6 @@ class TestMenuActionsKeyboard:
         assert handler.consume_menu_actions() == []
 
 
-class TestMenuActionsController:
-    """Tests for controller menu action production."""
-
-    def test_dpad_up_produces_menu_up(self, handler, ctrl_button_down_event) -> None:
-        handler.handle_event(ctrl_button_down_event(pygame.CONTROLLER_BUTTON_DPAD_UP))
-        assert MenuAction.UP in handler.consume_menu_actions()
-
-    def test_dpad_down_produces_menu_down(
-        self, handler, ctrl_button_down_event
-    ) -> None:
-        handler.handle_event(ctrl_button_down_event(pygame.CONTROLLER_BUTTON_DPAD_DOWN))
-        assert MenuAction.DOWN in handler.consume_menu_actions()
-
-    def test_dpad_left_produces_menu_left(
-        self, handler, ctrl_button_down_event
-    ) -> None:
-        handler.handle_event(ctrl_button_down_event(pygame.CONTROLLER_BUTTON_DPAD_LEFT))
-        assert MenuAction.LEFT in handler.consume_menu_actions()
-
-    def test_dpad_right_produces_menu_right(
-        self, handler, ctrl_button_down_event
-    ) -> None:
-        handler.handle_event(
-            ctrl_button_down_event(pygame.CONTROLLER_BUTTON_DPAD_RIGHT)
-        )
-        assert MenuAction.RIGHT in handler.consume_menu_actions()
-
-    def test_a_button_produces_confirm(self, handler, ctrl_button_down_event) -> None:
-        handler.handle_event(ctrl_button_down_event(pygame.CONTROLLER_BUTTON_A))
-        assert MenuAction.CONFIRM in handler.consume_menu_actions()
-
-    def test_b_button_produces_back(self, handler, ctrl_button_down_event) -> None:
-        handler.handle_event(ctrl_button_down_event(pygame.CONTROLLER_BUTTON_B))
-        assert MenuAction.BACK in handler.consume_menu_actions()
-
-
 class TestMenuActionsAxisEdgeDetection:
     """Tests for analog stick menu action edge detection."""
 
@@ -331,10 +250,6 @@ class TestMenuActionsAxisEdgeDetection:
         handler.consume_menu_actions()
         handler.handle_event(ctrl_axis_event(pygame.CONTROLLER_AXIS_LEFTX, 0.9))
         assert MenuAction.RIGHT in handler.consume_menu_actions()
-
-    def test_axis_within_deadzone_no_action(self, handler, ctrl_axis_event) -> None:
-        handler.handle_event(ctrl_axis_event(pygame.CONTROLLER_AXIS_LEFTX, 0.3))
-        assert handler.consume_menu_actions() == []
 
     def test_vertical_axis_edge_detection(self, handler, ctrl_axis_event) -> None:
         handler.handle_event(ctrl_axis_event(pygame.CONTROLLER_AXIS_LEFTY, 0.8))

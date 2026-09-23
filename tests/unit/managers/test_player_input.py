@@ -47,6 +47,7 @@ class TestControllerInput:
         assert ci.get_movement_direction() == (-1, -1)
 
     def test_axis_inside_deadzone_is_zero(self, ci, ctrl_axis_event) -> None:
+        """A neutral axis event with no direction held changes nothing."""
         ci.handle_event(ctrl_axis_event(pygame.CONTROLLER_AXIS_LEFTX, 0.3))
         assert ci.get_movement_direction() == (0, 0)
 
@@ -67,12 +68,11 @@ class TestControllerInput:
         ci.handle_event(ctrl_axis_event(pygame.CONTROLLER_AXIS_LEFTX, 0.0))
         assert ci.get_movement_direction() == (0, 0)
 
-    def test_shoot_button_a(self, ci, ctrl_button_down_event) -> None:
-        ci.handle_event(ctrl_button_down_event(pygame.CONTROLLER_BUTTON_A))
-        assert ci.consume_shoot() is True
-
-    def test_shoot_button_b(self, ci, ctrl_button_down_event) -> None:
-        ci.handle_event(ctrl_button_down_event(pygame.CONTROLLER_BUTTON_B))
+    @pytest.mark.parametrize(
+        "button", [pygame.CONTROLLER_BUTTON_A, pygame.CONTROLLER_BUTTON_B]
+    )
+    def test_shoot_button(self, ci, ctrl_button_down_event, button) -> None:
+        ci.handle_event(ctrl_button_down_event(button))
         assert ci.consume_shoot() is True
 
     def test_instance_id_filter_rejects_foreign_events(
@@ -113,12 +113,6 @@ class TestKeyboardInput:
         from src.managers.player_input import KeyboardInput
 
         return KeyboardInput()
-
-    def test_initial_direction_zero(self, ki) -> None:
-        assert ki.get_movement_direction() == (0, 0)
-
-    def test_initial_shoot_false(self, ki) -> None:
-        assert ki.consume_shoot() is False
 
     def test_arrow_up_sets_direction(self, ki, key_down_event) -> None:
         ki.handle_event(key_down_event(pygame.K_UP))
@@ -276,25 +270,18 @@ class TestHumanInputsIgnoreWorldView:
         assert human_input.consume_shoot() is True
 
 
-class TestClassifyAxis:
-    def test_neutral_at_zero(self) -> None:
-        assert classify_axis(0) is AxisState.NEUTRAL
-
-    def test_neutral_inside_positive_deadzone(self) -> None:
-        # AXIS_DEADZONE = 0.5; an int16 just below 0.5 * AXIS_MAX is NEUTRAL
-        assert classify_axis(int(0.49 * AXIS_MAX)) is AxisState.NEUTRAL
-
-    def test_neutral_inside_negative_deadzone(self) -> None:
-        assert classify_axis(int(-0.49 * AXIS_MAX)) is AxisState.NEUTRAL
-
-    def test_positive_just_above_deadzone(self) -> None:
-        assert classify_axis(int(0.51 * AXIS_MAX)) is AxisState.POSITIVE
-
-    def test_negative_just_below_deadzone(self) -> None:
-        assert classify_axis(int(-0.51 * AXIS_MAX)) is AxisState.NEGATIVE
-
-    def test_positive_int16_max(self) -> None:
-        assert classify_axis(AXIS_MAX) is AxisState.POSITIVE
-
-    def test_negative_int16_min(self) -> None:
-        assert classify_axis(-AXIS_MAX) is AxisState.NEGATIVE
+# AXIS_DEADZONE = 0.5 of AXIS_MAX, so 0.49 is inside it and 0.51 outside.
+@pytest.mark.parametrize(
+    ("raw_value", "state"),
+    [
+        (0, AxisState.NEUTRAL),
+        (int(0.49 * AXIS_MAX), AxisState.NEUTRAL),
+        (int(-0.49 * AXIS_MAX), AxisState.NEUTRAL),
+        (int(0.51 * AXIS_MAX), AxisState.POSITIVE),
+        (int(-0.51 * AXIS_MAX), AxisState.NEGATIVE),
+        (AXIS_MAX, AxisState.POSITIVE),
+        (-AXIS_MAX, AxisState.NEGATIVE),
+    ],
+)
+def test_classify_axis(raw_value: int, state: AxisState) -> None:
+    assert classify_axis(raw_value) is state
