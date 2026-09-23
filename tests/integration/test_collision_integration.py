@@ -376,12 +376,11 @@ def test_player_tank_vs_enemy_tank_no_overlap(game_manager_fixture, mocker):
         ],
     )
 
-    enemy_tank = spawn_enemy_at(game_manager, enemy_x_grid, enemy_y_grid)
+    enemy_tank = spawn_enemy_at(
+        game_manager, enemy_x_grid, enemy_y_grid, fires=False, turns=False
+    )
     # Pin the enemy so only the player moves; we want to test the collision, not AI.
     enemy_tank.speed = 0
-    enemy_ai = game_manager.spawn_manager.ai_for(enemy_tank)
-    enemy_ai.direction_change_interval = 999
-    enemy_ai.shoot_interval = 999
 
     dt = 1.0 / FPS
     for _ in range(30):

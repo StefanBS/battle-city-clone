@@ -37,11 +37,8 @@ def _enemy_bullet_on(game, target_rect, owner):
 
 def _idle_enemy(game):
     """An Enemy far from the Player that neither moves nor shoots."""
-    enemy = spawn_enemy_at(game, 0, 0)
+    enemy = spawn_enemy_at(game, 0, 0, fires=False, turns=False)
     enemy.speed = 0
-    ai = game.spawn_manager.ai_for(enemy)
-    ai.shoot_interval = 999
-    ai.direction_change_interval = 999
     return enemy
 
 
@@ -53,9 +50,10 @@ def _stop_spawning(game):
 
 class TestPowerUps:
     def test_first_hit_on_armored_carrier_drops_its_power_up(self, game):
-        carrier = spawn_enemy_at(game, 0, 0, TankType.ARMOR, is_carrier=True)
+        carrier = spawn_enemy_at(
+            game, 0, 0, TankType.ARMOR, fires=False, is_carrier=True
+        )
         carrier.speed = 0
-        game.spawn_manager.ai_for(carrier).shoot_interval = 999
         player = first_player(game)
 
         for _ in range(2):

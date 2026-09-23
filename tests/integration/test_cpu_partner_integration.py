@@ -184,9 +184,8 @@ class TestCpuPartnerHunt:
         p1, p2 = gm.player_manager.get_active_players()
         place_player_at(gm, 0, 0, player=p1)
         place_player_at(gm, 16 * SUB_TILE_SIZE, 16 * SUB_TILE_SIZE, player=p2)
-        enemy = spawn_enemy_at(gm, 4, 6)
+        enemy = spawn_enemy_at(gm, 4, 6, fires=False)
         enemy.speed = 0
-        gm.spawn_manager.ai_for(enemy).shoot_interval = float("inf")
 
         for _ in range(10 * FPS):
             tick(gm)
@@ -207,9 +206,8 @@ class TestCpuPartnerHunt:
         p1, p2 = gm.player_manager.get_active_players()
         place_player_at(gm, 0, 0, player=p1)
         place_player_at(gm, 16 * SUB_TILE_SIZE, 16 * SUB_TILE_SIZE, player=p2)
-        enemy = spawn_enemy_at(gm, 16, 4)
+        enemy = spawn_enemy_at(gm, 16, 4, fires=False)
         enemy.speed = 0
-        gm.spawn_manager.ai_for(enemy).shoot_interval = float("inf")
 
         tick(gm, 3 * FPS)
 
@@ -235,9 +233,8 @@ class TestCpuPartnerPathfinding:
         p1, p2 = gm.player_manager.get_active_players()
         place_player_at(gm, 24 * SUB_TILE_SIZE, 0, player=p1)
         place_player_at(gm, 16 * SUB_TILE_SIZE, 16 * SUB_TILE_SIZE, player=p2)
-        enemy = spawn_enemy_at(gm, 4, 4)
+        enemy = spawn_enemy_at(gm, 4, 4, fires=False)
         enemy.speed = 0
-        gm.spawn_manager.ai_for(enemy).shoot_interval = float("inf")
 
         for _ in range(15 * FPS):
             tick(gm)
@@ -265,9 +262,8 @@ class TestCpuPartnerGivesWay:
         p1, p2 = gm.player_manager.get_active_players()
         place_player_at(gm, 4 * SUB_TILE_SIZE, 12 * SUB_TILE_SIZE, player=p1)
         place_player_at(gm, 4 * SUB_TILE_SIZE, 20 * SUB_TILE_SIZE, player=p2)
-        enemy = spawn_enemy_at(gm, 12, 2)
+        enemy = spawn_enemy_at(gm, 12, 2, fires=False)
         enemy.speed = 0
-        gm.spawn_manager.ai_for(enemy).shoot_interval = float("inf")
 
         for _ in range(15 * FPS):
             tick(gm)
@@ -297,9 +293,8 @@ class TestCpuPartnerFiringPosition:
         p1, p2 = gm.player_manager.get_active_players()
         place_player_at(gm, 24 * SUB_TILE_SIZE, 0, player=p1)
         place_player_at(gm, 16 * SUB_TILE_SIZE, 16 * SUB_TILE_SIZE, player=p2)
-        enemy = spawn_enemy_at(gm, 4, 4)
+        enemy = spawn_enemy_at(gm, 4, 4, fires=False)
         enemy.speed = 0
-        gm.spawn_manager.ai_for(enemy).shoot_interval = float("inf")
 
         for _ in range(10 * FPS):
             tick(gm)
@@ -321,11 +316,10 @@ class TestCpuPartnerDefend:
         place_player_at(gm, 20 * SUB_TILE_SIZE, 16 * SUB_TILE_SIZE, player=p2)
         # One Enemy lined up straight above the CPU Partner, far from the
         # Base; the other a few sub-tiles from the Base, off to its left.
-        far = spawn_enemy_at(gm, 20, 6)
-        threat = spawn_enemy_at(gm, 6, 20, replace=False)
+        far = spawn_enemy_at(gm, 20, 6, fires=False)
+        threat = spawn_enemy_at(gm, 6, 20, replace=False, fires=False)
         for enemy in (far, threat):
             enemy.speed = 0
-            gm.spawn_manager.ai_for(enemy).shoot_interval = float("inf")
 
         for _ in range(10 * FPS):
             tick(gm)
@@ -348,9 +342,8 @@ class TestCpuPartnerGrabPowerUp:
         place_player_at(gm, 16 * SUB_TILE_SIZE, 16 * SUB_TILE_SIZE, player=p2)
         # An Enemy lined up straight above the CPU Partner, far from the
         # Base, and a Power-Up a few sub-tiles off to its right.
-        enemy = spawn_enemy_at(gm, 16, 4)
+        enemy = spawn_enemy_at(gm, 16, 4, fires=False)
         enemy.speed = 0
-        gm.spawn_manager.ai_for(enemy).shoot_interval = float("inf")
         gm.power_up_manager.spawn_power_up(
             power_up_type=PowerUpType.STAR,
             position=gm.map.grid_to_pixels(22, 16),
@@ -371,9 +364,8 @@ def fire_enemy_bullet_at(gm, player) -> None:
     """Fire an Enemy bullet straight down onto an unprotected `player`."""
     player.is_invincible = False
     gx, gy = int(player.x // SUB_TILE_SIZE), int(player.y // SUB_TILE_SIZE)
-    enemy = spawn_enemy_at(gm, gx, gy - 4, direction=Direction.DOWN)
+    enemy = spawn_enemy_at(gm, gx, gy - 4, direction=Direction.DOWN, fires=False)
     enemy.speed = 0
-    gm.spawn_manager.ai_for(enemy).shoot_interval = float("inf")
     fire_bullet_from(gm, enemy)
 
 

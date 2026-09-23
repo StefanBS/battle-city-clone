@@ -41,6 +41,29 @@ class TestIntent:
         assert ai.shoot_interval == pytest.approx(intervals[0])
         assert ai.direction_change_interval == pytest.approx(intervals[1])
 
+    def test_never_fires_with_an_infinite_shoot_interval(self, create_enemy_tank):
+        ai = EnemyAI(create_enemy_tank(), shoot_interval=float("inf"))
+
+        for _ in range(10 * FPS):
+            ai.update(1.0 / FPS, None)
+
+        assert ai.consume_shoot() is False
+
+    @patch("src.core.enemy_ai.random.choice")
+    def test_never_turns_with_an_infinite_direction_change_interval(
+        self, mock_choice, create_enemy_tank
+    ):
+        ai = EnemyAI(
+            create_enemy_tank(),
+            difficulty=Difficulty.EASY,
+            direction_change_interval=float("inf"),
+        )
+
+        for _ in range(10 * FPS):
+            ai.update(1.0 / FPS, None)
+
+        mock_choice.assert_not_called()
+
     def test_wants_to_keep_going_the_way_the_tank_faces(self, create_enemy_ai):
         """Until the AI turns, an Enemy wants to drive the way it spawned facing."""
         ai = create_enemy_ai(x=128, y=128)
@@ -52,7 +75,7 @@ class TestIntent:
         assert not ai.consume_shoot()
 
         ai.shoot_timer = ai.shoot_interval + 0.1
-        ai.update(0.01)
+        ai.update(0.01, None)
 
         assert ai.consume_shoot() is True
         assert ai.consume_shoot() is False
@@ -68,7 +91,7 @@ class TestIntent:
             patch("src.core.enemy_ai.random.uniform", return_value=0.0),
             patch("src.core.enemy_ai.random.choice", return_value=Direction.UP),
         ):
-            ai.update(1.0 / FPS)
+            ai.update(1.0 / FPS, None)
 
         assert ai.get_movement_direction() == Direction.UP.delta
         assert tank.direction == Direction.RIGHT
@@ -113,7 +136,7 @@ class TestMovementBlocked:
         ai._blocked_directions.update({Direction.UP, Direction.LEFT})
         ai.tank.prev_x, ai.tank.prev_y = ai.tank.x, ai.tank.y
 
-        ai.update(1.0 / 60)
+        ai.update(1.0 / 60, None)
 
         assert ai._blocked_directions == {Direction.UP, Direction.LEFT}
 
@@ -122,7 +145,7 @@ class TestMovementBlocked:
         ai._blocked_directions.add(Direction.UP)
         ai.tank.prev_x = ai.tank.x + 32.0
 
-        ai.update(1.0 / 60)
+        ai.update(1.0 / 60, None)
 
         assert ai._blocked_directions == set()
 
@@ -158,7 +181,7 @@ class TestBiases:
         ai.tank.direction = Direction.LEFT
         ai.direction_timer = ai.direction_change_interval + 1
 
-        ai.update(0.01)
+        ai.update(0.01, None)
 
         candidates, weights = mock_choices.call_args[0]
         assert weights[candidates.index(Direction.DOWN)] == pytest.approx(1.45)
@@ -171,9 +194,7 @@ class TestBiases:
         ai = create_enemy_ai(tank_type=TankType.FAST, base_position=BASE_POSITION)
         ai.tank.direction = Direction.UP
         ai.direction_timer = ai.direction_change_interval + 1
-        ai.target_position = (400.0, 0.0)
-
-        ai.update(0.01)
+        ai.update(0.01, (400.0, 0.0))
 
         candidates, weights = mock_choices.call_args[0]
         assert weights[candidates.index(Direction.RIGHT)] >= 1.0 + 0.3
@@ -184,9 +205,7 @@ class TestBiases:
         ai = create_enemy_ai(difficulty=Difficulty.EASY, base_position=BASE_POSITION)
         ai.tank.direction = Direction.LEFT
         ai.direction_timer = ai.direction_change_interval + 1
-        ai.target_position = (400.0, 400.0)
-
-        ai.update(0.01)
+        ai.update(0.01, (400.0, 400.0))
 
         mock_choices.assert_not_called()
 
@@ -198,7 +217,7 @@ class TestBiases:
         with patch(
             "src.core.enemy_ai.random.choices", return_value=[Direction.DOWN]
         ) as mock_choices:
-            ai.update(0.01)
+            ai.update(0.01, None)
 
         candidates, weights = mock_choices.call_args[0]
         assert weights[candidates.index(Direction.DOWN)] == pytest.approx(1.45)
@@ -210,9 +229,7 @@ class TestAlignedShooting:
         ai = create_enemy_ai(x=100)
         ai.tank.direction = Direction.DOWN
         ai.shoot_timer = ai.shoot_interval * 0.5 + 0.01
-        ai.target_position = (100.0, 300.0)
-
-        ai.update(0.01)
+        ai.update(0.01, (100.0, 300.0))
 
         assert ai.consume_shoot() is True
 
@@ -220,9 +237,7 @@ class TestAlignedShooting:
         ai = create_enemy_ai(x=100)
         ai.tank.direction = Direction.LEFT
         ai.shoot_timer = ai.shoot_interval * 0.5 + 0.01
-        ai.target_position = (100.0, 300.0)
-
-        ai.update(0.01)
+        ai.update(0.01, (100.0, 300.0))
 
         assert ai.consume_shoot() is False
 

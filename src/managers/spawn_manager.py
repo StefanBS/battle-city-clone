@@ -11,6 +11,7 @@ from src.core.enemy_tank import EnemyTank
 from src.core.map import Map
 from src.core.player_tank import PlayerTank
 from src.managers.effect_manager import EffectManager
+from src.managers.tank_stepper import TankStepper
 from src.managers.texture_manager import TextureManager
 from src.utils.constants import (
     Difficulty,
@@ -230,22 +231,41 @@ class SpawnManager:
         self.enemy_tanks.append(enemy)
         self._enemy_ais[enemy.enemy_id] = ai
 
-    def ai_for(self, enemy: EnemyTank) -> EnemyAI:
-        """The EnemyAI paired with ``enemy``.
-
-        Raises:
-            KeyError: If ``enemy`` was not added through add_enemy().
-        """
-        return self._enemy_ais[enemy.enemy_id]
-
     def freeze(self, duration: float) -> None:
-        """Freeze enemy AI updates for the given duration (clock power-up)."""
+        """Make every Enemy Frozen for ``duration`` seconds (Clock Power-Up)."""
         self._freeze_timer = duration
 
     @property
     def enemies_frozen(self) -> bool:
-        """Whether enemy AI updates are currently suppressed."""
+        """Whether the Enemies are Frozen, so step_enemies leaves them be."""
         return self._freeze_timer > 0
+
+    def step_enemies(
+        self, dt: float, stepper: TankStepper, players: list[PlayerTank]
+    ) -> bool:
+        """Step every Enemy through the frame, driven by its Enemy AI.
+
+        Args:
+            dt: Time step in seconds.
+            stepper: Steps each tank and owns the bullets it fires.
+            players: The live Players; each Enemy steers toward the nearest.
+
+        Returns:
+            Whether any Enemy fired, so the caller can play the sound.
+        """
+        if self.enemies_frozen:
+            return False
+        fired = False
+        for enemy in self.enemy_tanks:
+            nearest = min(
+                players,
+                key=lambda p: abs(p.x - enemy.x) + abs(p.y - enemy.y),
+                default=None,
+            )
+            ai = self._enemy_ais[enemy.enemy_id]
+            ai.update(dt, (nearest.x, nearest.y) if nearest is not None else None)
+            fired = stepper.step(enemy, ai, dt).fired or fired
+        return fired
 
     def update(self, dt: float, player_tanks: list[PlayerTank], game_map: Map) -> None:
         """Update spawn timer and attempt to spawn enemies.

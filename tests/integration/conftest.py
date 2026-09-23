@@ -103,7 +103,17 @@ def clear_tiles(game_map, positions):
                 game_map.place_tile(gx, gy, Tile(TileType.EMPTY, gx, gy, SUB_TILE_SIZE))
 
 
-def spawn_enemy_at(
+def spawn_enemy_at(game, grid_x, grid_y, *args, **kwargs):
+    """Spawn a single EnemyTank, paired with its EnemyAI, at a sub-tile grid position.
+
+    Takes the same arguments as ``spawn_enemy_with_ai`` and returns the new
+    EnemyTank so callers can tweak attributes (speed, shoot, etc.).
+    """
+    enemy, _ = spawn_enemy_with_ai(game, grid_x, grid_y, *args, **kwargs)
+    return enemy
+
+
+def spawn_enemy_with_ai(
     game,
     grid_x,
     grid_y,
@@ -111,15 +121,17 @@ def spawn_enemy_at(
     direction=None,
     replace=True,
     difficulty=Difficulty.NORMAL,
+    fires=True,
+    turns=True,
     **enemy_kwargs,
 ):
-    """Spawn a single EnemyTank, paired with its EnemyAI, at a sub-tile grid position.
+    """Spawn a single EnemyTank at a sub-tile grid position and return (enemy, ai).
 
     If replace=True (default), replaces any existing enemies with just this one.
     Otherwise, appends to the existing list. ``difficulty`` goes to the EnemyAI;
-    extra kwargs (e.g. is_carrier=...) are forwarded to EnemyTank. Returns the
-    new EnemyTank so callers can tweak attributes (speed, shoot, etc.); reach
-    its AI with ``game.spawn_manager.ai_for(enemy)``.
+    ``fires=False`` makes it never shoot and ``turns=False`` makes it never turn
+    on its own timer (it still turns away when blocked). Extra kwargs (e.g.
+    is_carrier=...) are forwarded to EnemyTank.
     """
     map_w_px = game.map.width * SUB_TILE_SIZE
     map_h_px = game.map.height * SUB_TILE_SIZE
@@ -138,10 +150,14 @@ def spawn_enemy_at(
     if replace:
         game.spawn_manager.enemy_tanks = []
     ai = EnemyAI(
-        enemy, difficulty=difficulty, base_position=game.spawn_manager.base_position
+        enemy,
+        difficulty=difficulty,
+        base_position=game.spawn_manager.base_position,
+        shoot_interval=None if fires else float("inf"),
+        direction_change_interval=None if turns else float("inf"),
     )
     game.spawn_manager.add_enemy(enemy, ai)
-    return enemy
+    return enemy, ai
 
 
 class _FireInPlace:

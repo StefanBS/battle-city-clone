@@ -15,7 +15,7 @@ from src.utils.constants import (
 from tests.integration.conftest import (
     first_player,
     place_player_at,
-    spawn_enemy_at,
+    spawn_enemy_with_ai,
     tick,
 )
 
@@ -215,19 +215,16 @@ class TestEnemyIceSlide:
     @pytest.fixture
     def enemy_on_ice(self, game):
         _place_ice_patch(game, 4, 4, width=8, height=8)
-        enemy = spawn_enemy_at(game, 6, 6, direction=Direction.RIGHT)
-        ai = game.spawn_manager.ai_for(enemy)
-        ai.shoot_interval = 999
-        ai.direction_change_interval = 999
-        return enemy
+        return spawn_enemy_with_ai(
+            game, 6, 6, direction=Direction.RIGHT, fires=False, turns=False
+        )
 
     def test_turn_on_arrival_frame_slides(self, game, enemy_on_ice):
         """The ice flag comes from where the Enemy stands, not last frame."""
-        enemy = enemy_on_ice
+        enemy, ai = enemy_on_ice
         # It drove onto this ice: this is its first frame here.
         enemy._moving_this_frame = True
         # A turn falls due this frame, and only DOWN is open.
-        ai = game.spawn_manager.ai_for(enemy)
         ai.direction_timer = ai.direction_change_interval
         ai._blocked_directions = {Direction.UP, Direction.RIGHT}
 
@@ -237,9 +234,8 @@ class TestEnemyIceSlide:
         assert enemy._slide_direction == Direction.RIGHT
 
     def test_turns_once_the_slide_ends(self, game, enemy_on_ice):
-        enemy = enemy_on_ice
+        enemy, ai = enemy_on_ice
         enemy._moving_this_frame = True
-        ai = game.spawn_manager.ai_for(enemy)
         ai.direction_timer = ai.direction_change_interval
         ai._blocked_directions = {Direction.UP, Direction.RIGHT}
         x_before = enemy.x
@@ -255,7 +251,7 @@ class TestEnemyIceSlide:
 
     def test_turn_after_hitting_a_wall_does_not_slide(self, game, enemy_on_ice):
         """A tank that has just run into something turns without sliding."""
-        enemy = enemy_on_ice
+        enemy, _ = enemy_on_ice
         _steel_wall_right_of(game, enemy)
 
         slid = False

@@ -1,9 +1,11 @@
 import pytest
 import pygame
-from unittest.mock import patch, MagicMock
+from unittest.mock import ANY, MagicMock, call, patch
 from src.states.game_state import GameState
 from src.states.game_mode import GameMode
 from src.core.enemy_tank import EnemyTank
+from src.core.player_tank import PlayerTank
+from src.managers.player_manager import PlayerManager
 from src.utils.constants import (
     Difficulty,
     MAX_STAGE,
@@ -264,6 +266,23 @@ class TestGameManagerSoundWiring:
         gm._quit_game()
         gm.sound_manager.stop_loops.assert_called_once()
         assert gm.state == GameState.EXIT
+
+    @pytest.mark.parametrize("enemy_fired", [True, False])
+    def test_enemy_shot_plays_the_shoot_sound(self, gm_with_mock_sound, enemy_fired):
+        gm = gm_with_mock_sound
+        gm.state = GameState.RUNNING
+        active_players = [MagicMock(spec=PlayerTank)]
+        gm.player_manager = MagicMock(spec=PlayerManager)
+        gm.player_manager.get_active_players.return_value = active_players
+
+        with patch.object(
+            gm.spawn_manager, "step_enemies", return_value=enemy_fired
+        ) as step_enemies:
+            gm.update()
+
+        step_enemies.assert_called_once_with(ANY, gm.tank_stepper, active_players)
+        shoot = call("shoot")
+        assert (shoot in gm.sound_manager.play.call_args_list) is enemy_fired
 
     def test_handle_title_input_plays_menu_select(self, game_manager_at_title):
         gm = game_manager_at_title

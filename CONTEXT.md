@@ -48,6 +48,10 @@ _Avoid_: Flashing tank, bonus tank
 **Enemy AI**:
 The behaviour that drives an Enemy's movement and shooting. Never used for the CPU Partner.
 
+**Frozen**:
+The state of every Enemy while a Clock is in effect: it neither moves, turns, fires nor Slides, but its bullets already in flight keep going and it can still be destroyed. Enemies that appear during it are Frozen too.
+_Avoid_: Paused, stopped
+
 ### Battlefield
 
 **Base**:
