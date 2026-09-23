@@ -1,4 +1,7 @@
 import json
+
+import pytest
+
 from src.managers.settings_manager import SettingsManager
 from src.utils.constants import Difficulty
 
@@ -32,19 +35,13 @@ class TestSettingsManager:
         sm = SettingsManager(path=path)
         assert sm.master_volume == 1.0
 
-    def test_volume_clamped_high(self, tmp_path):
+    @pytest.mark.parametrize("stored, expected", [(5.0, 1.0), (-0.5, 0.0)])
+    def test_loaded_volume_clamped(self, tmp_path, stored, expected):
         path = str(tmp_path / "settings.json")
         with open(path, "w") as f:
-            json.dump({"master_volume": 5.0}, f)
+            json.dump({"master_volume": stored}, f)
         sm = SettingsManager(path=path)
-        assert sm.master_volume == 1.0
-
-    def test_volume_clamped_low(self, tmp_path):
-        path = str(tmp_path / "settings.json")
-        with open(path, "w") as f:
-            json.dump({"master_volume": -0.5}, f)
-        sm = SettingsManager(path=path)
-        assert sm.master_volume == 0.0
+        assert sm.master_volume == expected
 
     def test_missing_key_uses_default(self, tmp_path):
         path = str(tmp_path / "settings.json")
@@ -59,17 +56,14 @@ class TestSettingsManager:
         sm.adjust_volume(0.1)
         assert sm.master_volume == 0.6
 
-    def test_adjust_volume_clamps_at_zero(self, tmp_path):
+    @pytest.mark.parametrize(
+        "start, delta, expected", [(0.0, -0.1, 0.0), (1.0, 0.1, 1.0)]
+    )
+    def test_adjust_volume_clamps(self, tmp_path, start, delta, expected):
         sm = SettingsManager(path=str(tmp_path / "settings.json"))
-        sm.master_volume = 0.0
-        sm.adjust_volume(-0.1)
-        assert sm.master_volume == 0.0
-
-    def test_adjust_volume_clamps_at_one(self, tmp_path):
-        sm = SettingsManager(path=str(tmp_path / "settings.json"))
-        sm.master_volume = 1.0
-        sm.adjust_volume(0.1)
-        assert sm.master_volume == 1.0
+        sm.master_volume = start
+        sm.adjust_volume(delta)
+        assert sm.master_volume == expected
 
     def test_cycle_difficulty_forward_wraps(self, tmp_path):
         sm = SettingsManager(path=str(tmp_path / "settings.json"))
