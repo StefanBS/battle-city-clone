@@ -121,7 +121,9 @@ class TestPlayerManagerCreation:
         assert player.x == expected_x
         assert player.y == expected_y
 
-    @pytest.mark.parametrize("controller_instance_ids", [[], [7]])
+    @pytest.mark.parametrize(
+        "controller_instance_ids", [[], [7]], ids=["no_controller", "controller"]
+    )
     def test_1p_is_combined_input(
         self, make_player_manager, mock_game_map, controller_instance_ids
     ) -> None:

@@ -46,7 +46,7 @@ class TestControllerInput:
         ci.handle_event(ctrl_button_down_event(pygame.CONTROLLER_BUTTON_DPAD_UP))
         assert ci.get_movement_direction() == (-1, -1)
 
-    def test_axis_inside_deadzone_is_zero(self, ci, ctrl_axis_event) -> None:
+    def test_neutral_axis_with_nothing_held_is_noop(self, ci, ctrl_axis_event) -> None:
         """A neutral axis event with no direction held changes nothing."""
         ci.handle_event(ctrl_axis_event(pygame.CONTROLLER_AXIS_LEFTX, 0.3))
         assert ci.get_movement_direction() == (0, 0)
@@ -270,18 +270,19 @@ class TestHumanInputsIgnoreWorldView:
         assert human_input.consume_shoot() is True
 
 
-# AXIS_DEADZONE = 0.5 of AXIS_MAX, so 0.49 is inside it and 0.51 outside.
-@pytest.mark.parametrize(
-    ("raw_value", "state"),
-    [
-        (0, AxisState.NEUTRAL),
-        (int(0.49 * AXIS_MAX), AxisState.NEUTRAL),
-        (int(-0.49 * AXIS_MAX), AxisState.NEUTRAL),
-        (int(0.51 * AXIS_MAX), AxisState.POSITIVE),
-        (int(-0.51 * AXIS_MAX), AxisState.NEGATIVE),
-        (AXIS_MAX, AxisState.POSITIVE),
-        (-AXIS_MAX, AxisState.NEGATIVE),
-    ],
-)
-def test_classify_axis(raw_value: int, state: AxisState) -> None:
-    assert classify_axis(raw_value) is state
+class TestClassifyAxis:
+    # AXIS_DEADZONE = 0.5 of AXIS_MAX, so 0.49 is inside it and 0.51 outside.
+    @pytest.mark.parametrize(
+        ("raw_value", "state"),
+        [
+            (0, AxisState.NEUTRAL),
+            (int(0.49 * AXIS_MAX), AxisState.NEUTRAL),
+            (int(-0.49 * AXIS_MAX), AxisState.NEUTRAL),
+            (int(0.51 * AXIS_MAX), AxisState.POSITIVE),
+            (int(-0.51 * AXIS_MAX), AxisState.NEGATIVE),
+            (AXIS_MAX, AxisState.POSITIVE),
+            (-AXIS_MAX, AxisState.NEGATIVE),
+        ],
+    )
+    def test_classify_axis(self, raw_value: int, state: AxisState) -> None:
+        assert classify_axis(raw_value) is state

@@ -165,32 +165,52 @@ def _button(button: int) -> pygame.event.Event:
     return pygame.event.Event(pygame.CONTROLLERBUTTONDOWN, button=button, instance_id=0)
 
 
-@pytest.mark.parametrize(
-    ("event", "action"),
-    [
-        (_key(pygame.K_UP), MenuAction.UP),
-        (_key(pygame.K_DOWN), MenuAction.DOWN),
-        (_key(pygame.K_LEFT), MenuAction.LEFT),
-        (_key(pygame.K_RIGHT), MenuAction.RIGHT),
-        (_key(pygame.K_RETURN), MenuAction.CONFIRM),
-        (_key(pygame.K_r), MenuAction.CONFIRM),
-        (_button(pygame.CONTROLLER_BUTTON_DPAD_UP), MenuAction.UP),
-        (_button(pygame.CONTROLLER_BUTTON_DPAD_DOWN), MenuAction.DOWN),
-        (_button(pygame.CONTROLLER_BUTTON_DPAD_LEFT), MenuAction.LEFT),
-        (_button(pygame.CONTROLLER_BUTTON_DPAD_RIGHT), MenuAction.RIGHT),
-        (_button(pygame.CONTROLLER_BUTTON_A), MenuAction.CONFIRM),
-        (_button(pygame.CONTROLLER_BUTTON_B), MenuAction.BACK),
-    ],
-)
-def test_key_or_button_produces_menu_action(
-    handler: InputHandler, event: pygame.event.Event, action: MenuAction
-) -> None:
-    handler.handle_event(event)
-    assert handler.consume_menu_actions() == [action]
+class TestMenuActionMaps:
+    """Each mapped key and controller button produces one menu action."""
+
+    @pytest.mark.parametrize(
+        ("event", "action"),
+        [
+            pytest.param(_key(pygame.K_UP), MenuAction.UP, id="k_up"),
+            pytest.param(_key(pygame.K_DOWN), MenuAction.DOWN, id="k_down"),
+            pytest.param(_key(pygame.K_LEFT), MenuAction.LEFT, id="k_left"),
+            pytest.param(_key(pygame.K_RIGHT), MenuAction.RIGHT, id="k_right"),
+            pytest.param(_key(pygame.K_RETURN), MenuAction.CONFIRM, id="k_return"),
+            pytest.param(_key(pygame.K_r), MenuAction.CONFIRM, id="k_r"),
+            pytest.param(
+                _button(pygame.CONTROLLER_BUTTON_DPAD_UP), MenuAction.UP, id="dpad_up"
+            ),
+            pytest.param(
+                _button(pygame.CONTROLLER_BUTTON_DPAD_DOWN),
+                MenuAction.DOWN,
+                id="dpad_down",
+            ),
+            pytest.param(
+                _button(pygame.CONTROLLER_BUTTON_DPAD_LEFT),
+                MenuAction.LEFT,
+                id="dpad_left",
+            ),
+            pytest.param(
+                _button(pygame.CONTROLLER_BUTTON_DPAD_RIGHT),
+                MenuAction.RIGHT,
+                id="dpad_right",
+            ),
+            pytest.param(
+                _button(pygame.CONTROLLER_BUTTON_A), MenuAction.CONFIRM, id="a"
+            ),
+            pytest.param(_button(pygame.CONTROLLER_BUTTON_B), MenuAction.BACK, id="b"),
+        ],
+    )
+    def test_key_or_button_produces_menu_action(
+        self, handler: InputHandler, event: pygame.event.Event, action: MenuAction
+    ) -> None:
+        """A mapped key or button produces exactly its menu action."""
+        handler.handle_event(event)
+        assert handler.consume_menu_actions() == [action]
 
 
-class TestMenuActionsKeyboard:
-    """Tests for keyboard menu action production."""
+class TestMenuActionQueue:
+    """Tests for queueing, consuming and resetting menu actions."""
 
     def test_consume_clears_list(self, handler, key_down_event) -> None:
         handler.handle_event(key_down_event(pygame.K_UP))
