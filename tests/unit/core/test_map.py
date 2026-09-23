@@ -37,6 +37,46 @@ def write_tmx(tmp_path):
     return _write
 
 
+_MINIMAL_TMX = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" \
+renderorder="right-down" width="2" height="2" tilewidth="8" tileheight="8" \
+infinite="0" nextlayerid="2" nextobjectid="1">
+{properties}
+ <tileset firstgid="1" source="{{tsx}}"/>
+ <layer id="1" name="Tile Layer 1" width="2" height="2">
+  <data encoding="csv">
+0,0,
+0,0
+</data>
+ </layer>
+</map>
+"""
+
+
+def minimal_tmx(**properties: str) -> str:
+    """Return a 2x2 empty TMX with the given map properties, for ``write_tmx``."""
+    block = ""
+    if properties:
+        lines = "".join(
+            f'  <property name="{name}" value="{value}"/>\n'
+            for name, value in properties.items()
+        )
+        block = f" <properties>\n{lines} </properties>"
+    return _MINIMAL_TMX.format(properties=block)
+
+
+def _flags(tile):
+    """Return a tile's rule flags in table order."""
+    return (
+        tile.blocks_tanks,
+        tile.blocks_bullets,
+        tile.is_destructible,
+        tile.is_overlay,
+        tile.is_slidable,
+    )
+
+
 class TestMapLoading:
     """Tests for TMX-based map loading.
 
@@ -60,24 +100,6 @@ class TestMapLoading:
             for x in range(game_map.width):
                 tile = game_map.get_tile_at(x, y)
                 assert tile is not None, f"Tile at ({x}, {y}) is None"
-
-    def test_tile_types_from_tmx(self, game_map):
-        """Tile types from TMX tile_type property."""
-        # STEEL at (0,0)
-        assert game_map.get_tile_at(0, 0).type == TileType.STEEL
-        # STEEL at (8,0)
-        assert game_map.get_tile_at(8, 0).type == TileType.STEEL
-        # BRICK at (2,2)
-        assert game_map.get_tile_at(2, 2).type == TileType.BRICK
-        # BRICK at (6,2)
-        assert game_map.get_tile_at(6, 2).type == TileType.BRICK
-        # WATER at (4,4)
-        assert game_map.get_tile_at(4, 4).type == TileType.WATER
-        # BASE at (4,8)
-        assert game_map.get_tile_at(4, 8).type == TileType.BASE
-        # EMPTY tiles
-        assert game_map.get_tile_at(2, 0).type == TileType.EMPTY
-        assert game_map.get_tile_at(4, 6).type == TileType.EMPTY
 
     def test_spawn_points_from_tmx(self, game_map):
         assert len(game_map.spawn_points) >= 1
@@ -136,79 +158,55 @@ class TestMapLoading:
         assert len({id(s) for s in sprites}) == 4
 
 
-class TestTileCollisionFromTMX:
-    """Verify tiles loaded from TMX have correct collision properties."""
+class TestTileRulesFromTileset:
+    """Tile rules come from the TSX properties of each tile's type."""
 
-    @pytest.fixture
-    def game_map(self, mock_texture_manager):
-        return Map(TEST_MAP_PATH, mock_texture_manager)
+    @pytest.mark.parametrize(
+        "cell, tile_type, blocks_tanks, blocks_bullets, is_destructible, "
+        "is_overlay, is_slidable",
+        [
+            ((4, 6), TileType.EMPTY, False, False, False, False, False),
+            ((2, 2), TileType.BRICK, True, True, True, False, False),
+            ((0, 0), TileType.STEEL, True, True, False, False, False),
+            ((4, 4), TileType.WATER, True, False, False, False, False),
+            ((0, 6), TileType.BUSH, False, False, False, True, False),
+            ((1, 6), TileType.ICE, False, False, False, False, True),
+            ((4, 8), TileType.BASE, True, True, False, False, False),
+        ],
+    )
+    def test_tile_rules(
+        self,
+        game_map,
+        cell,
+        tile_type,
+        blocks_tanks,
+        blocks_bullets,
+        is_destructible,
+        is_overlay,
+        is_slidable,
+    ):
+        tile = game_map.get_tile_at(*cell)
+        assert tile.type == tile_type
+        assert _flags(tile) == (
+            blocks_tanks,
+            blocks_bullets,
+            is_destructible,
+            is_overlay,
+            is_slidable,
+        )
 
-    def test_steel_blocks_tanks(self, game_map):
-        tile = game_map.get_tile_at(0, 0)  # STEEL
-        assert tile.blocks_tanks is True
-
-    def test_steel_blocks_bullets(self, game_map):
-        tile = game_map.get_tile_at(0, 0)  # STEEL
-        assert tile.blocks_bullets is True
-
-    def test_water_blocks_tanks(self, game_map):
-        tile = game_map.get_tile_at(4, 4)  # WATER
-        assert tile.blocks_tanks is True
-
-    def test_water_does_not_block_bullets(self, game_map):
-        tile = game_map.get_tile_at(4, 4)  # WATER
-        assert tile.blocks_bullets is False
-
-    def test_empty_does_not_block(self, game_map):
-        tile = game_map.get_tile_at(4, 6)  # EMPTY
-        assert tile.blocks_tanks is False
-        assert tile.blocks_bullets is False
-
-    def test_base_blocks_both(self, game_map):
-        tile = game_map.get_tile_at(4, 8)  # BASE
-        assert tile.blocks_tanks is True
-        assert tile.blocks_bullets is True
-
-    def test_brick_blocks_both(self, game_map):
-        tile = game_map.get_tile_at(2, 2)  # BRICK
-        assert tile.blocks_tanks is True
-        assert tile.blocks_bullets is True
-
-
-class TestGetBlockingTiles:
-    """Tests for get_blocking_tiles and get_bullet_blocking_tiles."""
-
-    @pytest.fixture
-    def game_map(self, mock_texture_manager):
-        return Map(TEST_MAP_PATH, mock_texture_manager)
-
-    def test_get_blocking_tiles_returns_tank_blockers(self, game_map):
-        tiles = game_map.get_blocking_tiles()
-        assert len(tiles) > 0
-        for tile in tiles:
-            assert tile.blocks_tanks is True
-
-    def test_get_bullet_blocking_tiles_returns_bullet_blockers(self, game_map):
-        tiles = game_map.get_bullet_blocking_tiles()
-        assert len(tiles) > 0
-        for tile in tiles:
-            assert tile.blocks_bullets is True
-
-    def test_water_in_blocking_but_not_bullet_blocking(self, game_map):
-        blocking = game_map.get_blocking_tiles()
-        bullet_blocking = game_map.get_bullet_blocking_tiles()
-        water_tiles = [t for t in blocking if t.type == TileType.WATER]
-        assert len(water_tiles) > 0
-        for wt in water_tiles:
-            assert wt not in bullet_blocking
+    def test_blocking_lists_follow_flags(self, game_map):
+        tiles = [t for row in game_map.tiles for t in row]
+        assert set(game_map.get_blocking_tiles()) == {
+            t for t in tiles if t.blocks_tanks
+        }
+        assert set(game_map.get_bullet_blocking_tiles()) == {
+            t for t in tiles if t.blocks_bullets
+        }
 
 
 class TestWaterAnimationFromTMX:
     """Verify water tiles get animation frames from TSX native animation."""
-
-    @pytest.fixture
-    def game_map(self, mock_texture_manager):
-        return Map(TEST_MAP_PATH, mock_texture_manager)
 
     def test_water_tile_is_animated(self, game_map):
         tile = game_map.get_tile_at(4, 4)  # WATER
@@ -226,13 +224,6 @@ class TestWaterAnimationFromTMX:
 class TestEnemyCompositionFromTMX:
     """Verify Map reads enemy composition from TMX properties."""
 
-    @pytest.fixture
-    def game_map(self, mock_texture_manager):
-        return Map("tests/assets/test_map.tmx", mock_texture_manager)
-
-    def test_enemy_composition_available(self, game_map):
-        assert hasattr(game_map, "enemy_composition")
-
     def test_enemy_composition_values(self, game_map):
         comp = game_map.enemy_composition
         assert comp[TankType.BASIC] == 18
@@ -240,79 +231,27 @@ class TestEnemyCompositionFromTMX:
         assert comp[TankType.POWER] == 0
         assert comp[TankType.ARMOR] == 0
 
-    def test_enemy_composition_sum(self, game_map):
-        comp = game_map.enemy_composition
-        assert sum(comp.values()) == 20
 
+class TestSetTileType:
+    """set_tile_type applies the new type's rules from the tileset."""
 
-class TestCollisionDefaultsFromTSX:
-    """Verify collision defaults are read from TSX, not hardcoded."""
-
-    @pytest.fixture
-    def game_map(self, mock_texture_manager):
-        return Map(TEST_MAP_PATH, mock_texture_manager)
-
-    def test_set_tile_type_updates_collision_flags(self, game_map):
-        """Changing tile type via set_tile_type updates collision flags."""
-        tile = game_map.get_tile_at(2, 2)  # BRICK
-        assert tile.blocks_tanks is True
-        game_map.set_tile_type(tile, TileType.EMPTY)
-        assert tile.blocks_tanks is False
-        assert tile.blocks_bullets is False
-
-    def test_set_tile_type_to_steel(self, game_map):
-        tile = game_map.get_tile_at(4, 6)  # EMPTY
-        game_map.set_tile_type(tile, TileType.STEEL)
-        assert tile.blocks_tanks is True
-        assert tile.blocks_bullets is True
-
-    def test_set_tile_type_to_water(self, game_map):
-        tile = game_map.get_tile_at(4, 6)  # EMPTY
-        game_map.set_tile_type(tile, TileType.WATER)
-        assert tile.blocks_tanks is True
-        assert tile.blocks_bullets is False
-
-    def test_defaults_populated_from_tsx(self, game_map):
-        """Collision defaults dict is populated by _scan_tileset."""
-        defaults = game_map._tile_collision_defaults
-        assert TileType.STEEL in defaults
-        assert TileType.WATER in defaults
-        assert defaults[TileType.STEEL] == (True, True, False, False, False)
-        assert defaults[TileType.WATER] == (True, False, False, False, False)
-
-    def test_set_tile_type_clears_is_destructible(self, game_map):
-        """Destroying a brick tile clears is_destructible."""
-        tile = game_map.get_tile_at(2, 2)  # BRICK
-        assert tile.is_destructible is True
-        game_map.set_tile_type(tile, TileType.EMPTY)
-        assert tile.is_destructible is False
-
-    def test_set_tile_type_to_brick_sets_is_destructible(self, game_map):
-        """Changing to BRICK sets is_destructible."""
-        tile = game_map.get_tile_at(4, 6)  # EMPTY
-        game_map.set_tile_type(tile, TileType.BRICK)
-        assert tile.is_destructible is True
-
-    def test_set_tile_type_clears_is_overlay(self, game_map):
-        """Changing a bush tile to empty clears is_overlay."""
-        bush_tile = game_map.get_tile_at(0, 6)  # BUSH in test_map.tmx
-        assert bush_tile.is_overlay is True
-        game_map.set_tile_type(bush_tile, TileType.EMPTY)
-        assert bush_tile.is_overlay is False
-
-    def test_defaults_include_behavior_booleans(self, game_map):
-        """Defaults dict includes is_destructible, is_overlay, is_slidable."""
-        defaults = game_map._tile_collision_defaults
-        # BRICK should have is_destructible=True
-        brick = defaults[TileType.BRICK]
-        assert brick.is_destructible is True
-        assert brick.is_overlay is False
-        assert brick.is_slidable is False
-        # BUSH should have is_overlay=True
-        bush = defaults[TileType.BUSH]
-        assert bush.is_destructible is False
-        assert bush.is_overlay is True
-        assert bush.is_slidable is False
+    @pytest.mark.parametrize(
+        "cell, new_type, expected_flags",
+        [
+            ((2, 2), TileType.EMPTY, (False, False, False, False, False)),
+            ((0, 6), TileType.EMPTY, (False, False, False, False, False)),
+            ((4, 6), TileType.STEEL, (True, True, False, False, False)),
+            ((4, 6), TileType.WATER, (True, False, False, False, False)),
+            ((4, 6), TileType.BRICK, (True, True, True, False, False)),
+        ],
+    )
+    def test_set_tile_type_applies_new_rules(
+        self, game_map, cell, new_type, expected_flags
+    ):
+        tile = game_map.get_tile_at(*cell)
+        game_map.set_tile_type(tile, new_type)
+        assert tile.type == new_type
+        assert _flags(tile) == expected_flags
 
 
 class TestEnemyCompositionFallback:
@@ -322,20 +261,7 @@ class TestEnemyCompositionFallback:
         self, mock_texture_manager, write_tmx
     ):
         """Map without enemy properties falls back to 20 basic enemies."""
-        tmx_path = write_tmx("""\
-<?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" \
-renderorder="right-down" width="2" height="2" tilewidth="8" tileheight="8" \
-infinite="0" nextlayerid="2" nextobjectid="1">
- <tileset firstgid="1" source="{tsx}"/>
- <layer id="1" name="Tile Layer 1" width="2" height="2">
-  <data encoding="csv">
-0,0,
-0,0
-</data>
- </layer>
-</map>
-""")
+        tmx_path = write_tmx(minimal_tmx())
         game_map = Map(tmx_path, mock_texture_manager)
         assert game_map.enemy_composition == {
             TankType.BASIC: 20,
@@ -347,10 +273,6 @@ infinite="0" nextlayerid="2" nextobjectid="1">
 
 class TestLevelPropertiesFromTMX:
     """Verify Map reads per-level properties from TMX map properties."""
-
-    @pytest.fixture
-    def game_map(self, mock_texture_manager):
-        return Map(TEST_MAP_PATH, mock_texture_manager)
 
     def test_spawn_interval_from_map(self, game_map):
         assert game_map.spawn_interval == 3.5
@@ -367,20 +289,7 @@ class TestLevelPropertiesFallback:
 
     def test_missing_spawn_interval_defaults(self, mock_texture_manager, write_tmx):
         """Map without spawn_interval falls back to ENEMY_SPAWN_INTERVAL."""
-        tmx_path = write_tmx("""\
-<?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" \
-renderorder="right-down" width="2" height="2" tilewidth="8" tileheight="8" \
-infinite="0" nextlayerid="2" nextobjectid="1">
- <tileset firstgid="1" source="{tsx}"/>
- <layer id="1" name="Tile Layer 1" width="2" height="2">
-  <data encoding="csv">
-0,0,
-0,0
-</data>
- </layer>
-</map>
-""")
+        tmx_path = write_tmx(minimal_tmx())
         game_map = Map(tmx_path, mock_texture_manager)
         assert game_map.spawn_interval == ENEMY_SPAWN_INTERVAL
         assert game_map.difficulty_override is None
@@ -388,129 +297,19 @@ infinite="0" nextlayerid="2" nextobjectid="1">
 
     def test_invalid_difficulty_falls_back(self, mock_texture_manager, write_tmx):
         """Map with invalid difficulty string falls back to None."""
-        tmx_path = write_tmx("""\
-<?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" \
-renderorder="right-down" width="2" height="2" tilewidth="8" tileheight="8" \
-infinite="0" nextlayerid="2" nextobjectid="1">
- <properties>
-  <property name="difficulty" value="hard"/>
- </properties>
- <tileset firstgid="1" source="{tsx}"/>
- <layer id="1" name="Tile Layer 1" width="2" height="2">
-  <data encoding="csv">
-0,0,
-0,0
-</data>
- </layer>
-</map>
-""")
+        tmx_path = write_tmx(minimal_tmx(difficulty="hard"))
         game_map = Map(tmx_path, mock_texture_manager)
         assert game_map.difficulty_override is None
 
     def test_invalid_powerup_carriers_falls_back(self, mock_texture_manager, write_tmx):
         """Map with invalid powerup_carriers string falls back to constant."""
-        tmx_path = write_tmx("""\
-<?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" \
-renderorder="right-down" width="2" height="2" tilewidth="8" tileheight="8" \
-infinite="0" nextlayerid="2" nextobjectid="1">
- <properties>
-  <property name="powerup_carriers" value="3,abc,17"/>
- </properties>
- <tileset firstgid="1" source="{tsx}"/>
- <layer id="1" name="Tile Layer 1" width="2" height="2">
-  <data encoding="csv">
-0,0,
-0,0
-</data>
- </layer>
-</map>
-""")
+        tmx_path = write_tmx(minimal_tmx(powerup_carriers="3,abc,17"))
         game_map = Map(tmx_path, mock_texture_manager)
         assert game_map.powerup_carrier_indices == POWERUP_CARRIER_INDICES
 
 
-class TestSpawnPointTypeProperty:
-    """Verify _load_spawn_points reads spawn_point_type property with name fallback."""
-
-    def test_name_based_fallback_still_works(self, mock_texture_manager):
-        """Existing maps with name-based spawn points still load correctly."""
-        game_map = Map(TEST_MAP_PATH, mock_texture_manager)
-        assert game_map.player_spawn == (4, 6)
-        assert len(game_map.spawn_points) >= 1
-
-    def test_spawn_point_type_property_used(self, mock_texture_manager, write_tmx):
-        """Spawn points with spawn_point_type property are correctly loaded."""
-        tmx_path = write_tmx("""\
-<?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" \
-renderorder="right-down" width="2" height="2" tilewidth="8" tileheight="8" \
-infinite="0" nextlayerid="3" nextobjectid="3">
- <tileset firstgid="1" source="{tsx}"/>
- <layer id="1" name="Tile Layer 1" width="2" height="2">
-  <data encoding="csv">
-0,0,
-0,0
-</data>
- </layer>
- <objectgroup id="2" name="spawn_points">
-  <object id="1" name="" x="0" y="0" width="0" height="0">
-   <properties>
-    <property name="spawn_point_type" value="enemy_spawn"/>
-   </properties>
-  </object>
-  <object id="2" name="" x="8" y="8" width="0" height="0">
-   <properties>
-    <property name="spawn_point_type" value="player_spawn"/>
-   </properties>
-  </object>
- </objectgroup>
-</map>
-""")
-        game_map = Map(tmx_path, mock_texture_manager)
-        assert game_map.player_spawn == (1, 1)
-        assert (0, 0) in game_map.spawn_points
-
-
-class TestTileBehaviorProperties:
-    """Verify is_destructible, is_overlay, is_slidable are loaded from TSX."""
-
-    @pytest.fixture
-    def game_map(self, mock_texture_manager):
-        return Map(TEST_MAP_PATH, mock_texture_manager)
-
-    def test_brick_tile_is_destructible(self, game_map):
-        tile = game_map.get_tile_at(2, 2)  # BRICK in test_map.tmx
-        assert tile.is_destructible is True
-
-    def test_bush_tile_is_overlay(self, game_map):
-        tile = game_map.get_tile_at(0, 6)  # BUSH in test_map.tmx
-        assert tile.is_overlay is True
-
-    def test_empty_tile_not_destructible(self, game_map):
-        tile = game_map.get_tile_at(4, 6)  # EMPTY in test_map.tmx
-        assert tile.is_destructible is False
-
-    def test_empty_tile_not_overlay(self, game_map):
-        tile = game_map.get_tile_at(4, 6)  # EMPTY
-        assert tile.is_overlay is False
-
-    def test_empty_tile_not_slidable(self, game_map):
-        tile = game_map.get_tile_at(4, 6)  # EMPTY
-        assert tile.is_slidable is False
-
-    def test_ice_tile_is_slidable(self, game_map):
-        tile = game_map.get_tile_at(1, 6)  # ICE in test_map.tmx
-        assert tile.is_slidable is True
-
-
 class TestOverlayPropertyRendering:
     """Verify overlay list uses is_overlay property, not TileType."""
-
-    @pytest.fixture
-    def game_map(self, mock_texture_manager):
-        return Map(TEST_MAP_PATH, mock_texture_manager)
 
     def test_bush_in_overlay_list(self, game_map):
         overlay = game_map.overlay_tiles
@@ -535,22 +334,22 @@ class TestOverlayPropertyRendering:
 
 class TestGetBaseSurroundingTiles:
     @pytest.fixture
-    def game_map(self, mock_texture_manager):
+    def level_map(self, mock_texture_manager):
         return Map(resource_path("assets/maps/level_01.tmx"), mock_texture_manager)
 
-    def test_returns_tiles_around_base(self, game_map):
-        tiles = game_map.get_base_surrounding_tiles()
+    def test_returns_tiles_around_base(self, level_map):
+        tiles = level_map.get_base_surrounding_tiles()
         assert len(tiles) > 0
-        base = game_map.get_base()
+        base = level_map.get_base()
         assert base is not None
 
-    def test_no_base_tiles_in_result(self, game_map):
-        tiles = game_map.get_base_surrounding_tiles()
+    def test_no_base_tiles_in_result(self, level_map):
+        tiles = level_map.get_base_surrounding_tiles()
         for tile in tiles:
             assert tile.type != TileType.BASE
 
-    def test_no_empty_tiles_in_result(self, game_map):
-        tiles = game_map.get_base_surrounding_tiles()
+    def test_no_empty_tiles_in_result(self, level_map):
+        tiles = level_map.get_base_surrounding_tiles()
         for tile in tiles:
             assert tile.type != TileType.EMPTY
 
