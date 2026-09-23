@@ -1,4 +1,3 @@
-import os
 import sys
 from pathlib import Path
 from unittest.mock import patch
@@ -25,7 +24,7 @@ class TestResourcePath:
         fake_meipass = "/tmp/fake_meipass"
         with patch.object(sys, "_MEIPASS", fake_meipass, create=True):
             result = resource_path("assets/sprites/sprites.png")
-            assert result == os.path.join(fake_meipass, "assets/sprites/sprites.png")
+            assert result == str(Path(fake_meipass) / "assets/sprites/sprites.png")
 
 
 class TestGetLogPath:
@@ -56,4 +55,4 @@ class TestGetLogPath:
 
         mock_dir.assert_called_once_with("BattleCity", appauthor=False)
         mock_mkdir.assert_called_once_with(parents=True, exist_ok=True)
-        assert result == os.path.join(fake_log_dir, "game.log")
+        assert result == str(Path(fake_log_dir) / "game.log")
