@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import TYPE_CHECKING
@@ -51,10 +52,11 @@ class PlayerSlot:
 
 @dataclass(frozen=True)
 class CarriedProgress:
-    """What a Player keeps from one stage to the next, besides its score."""
+    """What a Player takes from one Battle into the next."""
 
     lives: int
     star_level: int
+    score: int = 0
 
 
 class PlayerManager:
@@ -64,32 +66,36 @@ class PlayerManager:
     - Create one slot per Player, with its tank at the map's spawn point.
     - Forward pygame events to every slot's input.
     - Each update: step every live player through TankStepper with its input.
-    - Track each Player's score and carry lives and Stars between stages.
+    - Track each Player's score, and hand lives, Stars and score to the next
+      Battle as carried progress.
+
+    Lasts one Battle: each Battle builds its own from the carried progress.
     """
 
     def __init__(
-        self, texture_manager: TextureManager, sound_manager: SoundManager
+        self,
+        texture_manager: TextureManager,
+        sound_manager: SoundManager,
+        game_map: Map,
+        controller_instance_ids: list[int],
+        mode: GameMode = GameMode.ONE_PLAYER,
+        carried: Mapping[int, CarriedProgress] | None = None,
     ) -> None:
-        """Initialize PlayerManager.
+        """Create one slot per Player, with its tank at the map's spawn point.
 
         Args:
             texture_manager: Texture atlas used when creating player tanks.
             sound_manager: Sound manager used to play audio cues.
+            game_map: The map whose spawn points the tanks start on.
+            controller_instance_ids: Open SDL game controllers. Must come from
+                InputHandler, the single source of truth for which are open.
+            mode: Which slots exist and who drives each one.
+            carried: Each Player's progress from the previous Battle, by player
+                id. Players without an entry start fresh.
         """
         self._texture_manager = texture_manager
         self._sound_manager = sound_manager
-        self._slots: list[PlayerSlot] = []
-        self._carried: dict[int, CarriedProgress] = {}
-
-    def create_players(
-        self,
-        game_map: Map,
-        controller_instance_ids: list[int],
-        mode: GameMode = GameMode.ONE_PLAYER,
-    ) -> None:
-        # controller_instance_ids must come from InputHandler — it's the single
-        # source of truth for which SDL game controllers are currently open.
-        previous_scores = {slot.player_id: slot.score for slot in self._slots}
+        carried = carried or {}
 
         map_width_px = game_map.width * game_map.tile_size
         map_height_px = game_map.height * game_map.tile_size
@@ -128,15 +134,17 @@ class PlayerManager:
                     (CpuPartnerInput(), PlayerKind.CPU_PARTNER),
                 ]
 
-        self._slots = [
-            PlayerSlot(
-                tank=tank,
-                input=player_input,
-                kind=kind,
-                score=previous_scores.get(tank.player_id, 0),
-            )
+        self._slots: list[PlayerSlot] = [
+            PlayerSlot(tank=tank, input=player_input, kind=kind)
             for tank, (player_input, kind) in zip(tanks, drivers, strict=True)
         ]
+        for slot in self._slots:
+            progress = carried.get(slot.player_id)
+            if progress is not None:
+                slot.score = progress.score
+                slot.tank.lives = progress.lives
+                if progress.star_level > 0:
+                    slot.tank.restore_star_level(progress.star_level)
 
     @staticmethod
     def _one_player_inputs() -> list[PlayerInput]:
@@ -246,23 +254,17 @@ class PlayerManager:
     def _find_slot(self, player_id: int) -> PlayerSlot | None:
         return next((s for s in self._slots if s.player_id == player_id), None)
 
-    def preserve_state(self) -> None:
-        """Save each Player's lives and Stars before a stage transition."""
-        self._carried = {
+    @property
+    def carried_progress(self) -> dict[int, CarriedProgress]:
+        """What each Player takes into the next Battle, by player id."""
+        return {
             slot.player_id: CarriedProgress(
-                lives=slot.tank.lives, star_level=slot.tank.star_level
+                lives=slot.tank.lives,
+                star_level=slot.tank.star_level,
+                score=slot.score,
             )
             for slot in self._slots
         }
-
-    def restore_state(self) -> None:
-        """Put the saved lives and Stars back onto the newly created tanks."""
-        for slot in self._slots:
-            progress = self._carried.get(slot.player_id)
-            if progress is not None:
-                slot.tank.lives = progress.lives
-                if progress.star_level > 0:
-                    slot.tank.restore_star_level(progress.star_level)
 
     def handle_player_death(self, player: PlayerTank) -> None:
         """Respawn a destroyed Player and reset its input, if it has lives left.
@@ -299,8 +301,3 @@ class PlayerManager:
             for slot in self._slots
             if slot.kind is PlayerKind.HUMAN
         )
-
-    def reset(self) -> None:
-        """Full reset for starting a new game."""
-        self._slots = []
-        self._carried = {}

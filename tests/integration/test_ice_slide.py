@@ -26,14 +26,14 @@ def _place_ice_patch(game, grid_x, grid_y, width=4, height=4):
     """Place a patch of ice tiles at the given sub-tile grid position."""
     for dy in range(height):
         for dx in range(width):
-            tile = game.map.get_tile_at(grid_x + dx, grid_y + dy)
+            tile = game.battle.map.get_tile_at(grid_x + dx, grid_y + dy)
             if tile is not None:
-                game.map.set_tile_type(tile, TileType.ICE)
+                game.battle.map.set_tile_type(tile, TileType.ICE)
 
 
 def _set_input(game, direction):
     """Simulate holding exactly one direction key (or none)."""
-    player_manager = game.player_manager
+    player_manager = game.battle.player_manager
     for key in _DIRECTION_TO_KEY.values():
         player_manager.handle_event(pygame.event.Event(pygame.KEYUP, key=key))
     if direction is not None:
@@ -52,17 +52,17 @@ def _steel_wall_right_of(game, tank):
     wall_x = int(tank.x // SUB_TILE_SIZE) + 3
     wall_y = int(tank.y // SUB_TILE_SIZE)
     for dy in range(2):
-        game.map.set_tile_type(
-            game.map.get_tile_at(wall_x, wall_y + dy), TileType.STEEL
+        game.battle.map.set_tile_type(
+            game.battle.map.get_tile_at(wall_x, wall_y + dy), TileType.STEEL
         )
 
 
 @pytest.fixture
 def game(game_manager_fixture):
     gm = game_manager_fixture
-    gm.spawn_manager.enemy_tanks.clear()
-    gm.spawn_manager._pending_spawns.clear()
-    gm.spawn_manager._spawn_queue.clear()
+    gm.battle.spawn_manager.enemy_tanks.clear()
+    gm.battle.spawn_manager._pending_spawns.clear()
+    gm.battle.spawn_manager._spawn_queue.clear()
     return gm
 
 
@@ -156,9 +156,9 @@ class TestPlayerIceSlide:
         wall_grid_x = int(px // SUB_TILE_SIZE) + 2
         wall_grid_y = int(py // SUB_TILE_SIZE)
         for dy in range(2):
-            tile = game.map.get_tile_at(wall_grid_x, wall_grid_y + dy)
+            tile = game.battle.map.get_tile_at(wall_grid_x, wall_grid_y + dy)
             if tile is not None:
-                game.map.set_tile_type(tile, TileType.BRICK)
+                game.battle.map.set_tile_type(tile, TileType.BRICK)
 
         first_player(game).direction = Direction.RIGHT
         _set_input(game, Direction.RIGHT)

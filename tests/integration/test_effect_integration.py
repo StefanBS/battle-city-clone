@@ -19,9 +19,9 @@ class TestEffectLifecycle:
         gm = game_manager_fixture
         dt = 1.0 / FPS
 
-        steel_tiles = gm.map.get_tiles_by_type([TileType.STEEL])
+        steel_tiles = gm.battle.map.get_tiles_by_type([TileType.STEEL])
         if not steel_tiles:
-            steel_tiles = gm.map.get_tiles_by_type([TileType.BRICK])
+            steel_tiles = gm.battle.map.get_tiles_by_type([TileType.BRICK])
         assert steel_tiles, "Need at least one destructible/steel tile"
         target = steel_tiles[0]
 
@@ -31,28 +31,28 @@ class TestEffectLifecycle:
         player.rect.topleft = (round(player.x), round(player.y))
 
         # Clear enemies so they don't interfere (e.g., shoot the player instead).
-        gm.spawn_manager.enemy_tanks.clear()
+        gm.battle.spawn_manager.enemy_tanks.clear()
 
         fire_bullet_from(gm, player)
 
         effect_spawned = False
         for _ in range(30):
             gm.update()
-            if gm.effect_manager.effects:
+            if gm.battle.effect_manager.effects:
                 effect_spawned = True
                 break
 
         assert effect_spawned, (
             "Expected an explosion effect after bullet-tile collision"
         )
-        assert len(gm.effect_manager.effects) >= 1
+        assert len(gm.battle.effect_manager.effects) >= 1
 
         for _ in range(60):
-            gm.effect_manager.update(dt)
-            if not gm.effect_manager.effects:
+            gm.battle.effect_manager.update(dt)
+            if not gm.battle.effect_manager.effects:
                 break
 
-        assert len(gm.effect_manager.effects) == 0, (
+        assert len(gm.battle.effect_manager.effects) == 0, (
             "Effect should have expired after playing through all frames"
         )
 
@@ -60,9 +60,9 @@ class TestEffectLifecycle:
         """Resetting the game creates a fresh EffectManager."""
         gm = game_manager_fixture
 
-        gm.effect_manager.spawn(EffectType.SMALL_EXPLOSION, 100.0, 100.0)
-        old_effect_manager = gm.effect_manager
+        gm.battle.effect_manager.spawn(EffectType.SMALL_EXPLOSION, 100.0, 100.0)
+        old_effect_manager = gm.battle.effect_manager
 
         gm._reset_game()
 
-        assert gm.effect_manager is not old_effect_manager
+        assert gm.battle.effect_manager is not old_effect_manager

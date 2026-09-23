@@ -26,24 +26,24 @@ class TestPowerUpIntegration:
     def test_destroying_carrier_spawns_power_up(self, game, carrier):
         """Killing a carrier enemy should spawn a power-up on the map."""
         carrier.health = 0
-        game.spawn_manager.remove_enemy(carrier)
-        game.power_up_manager.spawn_power_up(
-            [first_player(game), *game.spawn_manager.enemy_tanks]
+        game.battle.spawn_manager.remove_enemy(carrier)
+        game.battle.power_up_manager.spawn_power_up(
+            [first_player(game), *game.battle.spawn_manager.enemy_tanks]
         )
-        assert len(game.power_up_manager.active_power_ups) == 1
+        assert len(game.battle.power_up_manager.active_power_ups) == 1
 
     def test_power_up_timeout(self, game, carrier):
         """Power-up should disappear after timeout."""
         carrier.health = 0
-        game.spawn_manager.remove_enemy(carrier)
-        game.power_up_manager.spawn_power_up(
-            [first_player(game), *game.spawn_manager.enemy_tanks]
+        game.battle.spawn_manager.remove_enemy(carrier)
+        game.battle.power_up_manager.spawn_power_up(
+            [first_player(game), *game.battle.spawn_manager.enemy_tanks]
         )
-        game.power_up_manager.update(POWERUP_TIMEOUT + 0.1)
-        assert len(game.power_up_manager.active_power_ups) == 0
+        game.battle.power_up_manager.update(POWERUP_TIMEOUT + 0.1)
+        assert len(game.battle.power_up_manager.active_power_ups) == 0
 
     def test_carrier_spawning_clears_power_up(self, game):
         """A new carrier appearing removes the power-up on the battlefield."""
-        game.power_up_manager.spawn_power_up([first_player(game)])
+        game.battle.power_up_manager.spawn_power_up([first_player(game)])
         spawn_carrier(game)
-        assert game.power_up_manager.active_power_ups == []
+        assert game.battle.power_up_manager.active_power_ups == []

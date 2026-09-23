@@ -24,14 +24,14 @@ class TestPowerUpEffectsIntegration:
         """Spawn a carrier, destroy it, spawn a specific power-up, collect it."""
         carrier = spawn_carrier(game)
         carrier.health = 0
-        game.spawn_manager.remove_enemy(carrier)
-        game.power_up_manager.spawn_power_up(
-            [first_player(game), *game.spawn_manager.enemy_tanks],
+        game.battle.spawn_manager.remove_enemy(carrier)
+        game.battle.power_up_manager.spawn_power_up(
+            [first_player(game), *game.battle.spawn_manager.enemy_tanks],
             power_up_type=power_up_type,
         )
-        assert len(game.power_up_manager.active_power_ups) == 1
+        assert len(game.battle.power_up_manager.active_power_ups) == 1
         # Move player to power-up location to trigger collision
-        pu = game.power_up_manager.active_power_ups[0]
+        pu = game.battle.power_up_manager.active_power_ups[0]
         first_player(game).set_position(pu.x, pu.y)
         first_player(game).rect.topleft = (round(pu.x), round(pu.y))
 
@@ -51,11 +51,11 @@ class TestPowerUpEffectsIntegration:
 
     def test_bomb_effect(self, game):
         flush_pending_spawns(game)
-        enemies_before = len(game.spawn_manager.enemy_tanks)
+        enemies_before = len(game.battle.spawn_manager.enemy_tanks)
         assert enemies_before > 0
         self._collect_power_up(game, PowerUpType.BOMB)
         game.update()
-        assert len(game.spawn_manager.enemy_tanks) == 0
+        assert len(game.battle.spawn_manager.enemy_tanks) == 0
 
 
 class TestRemainingPowerUpEffects:
@@ -64,18 +64,24 @@ class TestRemainingPowerUpEffects:
         return game_manager_fixture
 
     def test_clock_effect(self, game):
-        game._apply_outcomes([PowerUpCollected(PowerUpType.CLOCK, first_player(game))])
-        assert game.spawn_manager.enemies_frozen is True
+        game.battle.apply_outcomes(
+            [PowerUpCollected(PowerUpType.CLOCK, first_player(game))]
+        )
+        assert game.battle.spawn_manager.enemies_frozen is True
 
     def test_shovel_effect(self, game):
-        game._apply_outcomes([PowerUpCollected(PowerUpType.SHOVEL, first_player(game))])
-        assert game.power_up_manager.shovel_timer > 0
-        tiles = game.map.get_base_surrounding_tiles()
+        game.battle.apply_outcomes(
+            [PowerUpCollected(PowerUpType.SHOVEL, first_player(game))]
+        )
+        assert game.battle.power_up_manager.shovel_timer > 0
+        tiles = game.battle.map.get_base_surrounding_tiles()
         steel_tiles = [t for t in tiles if t.type == TileType.STEEL]
         assert len(steel_tiles) > 0
 
     def test_star_effect(self, game):
-        game._apply_outcomes([PowerUpCollected(PowerUpType.STAR, first_player(game))])
+        game.battle.apply_outcomes(
+            [PowerUpCollected(PowerUpType.STAR, first_player(game))]
+        )
         assert first_player(game).star_level == 1
         expected_speed = BULLET_SPEED * STAR_BULLET_SPEED_MULTIPLIER
         assert first_player(game).bullet_speed == expected_speed

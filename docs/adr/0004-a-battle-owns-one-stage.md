@@ -8,5 +8,5 @@
 
 ## Consequences
 
-- `step(dt)` returns the Battle's outcome (`GAME_OVER`, `VICTORY` or `None`). Stepping a Battle that has ended does nothing, so Game Over is still decided once and still beats Victory. After it ends, `GameManager` stops stepping it but keeps rendering it (Victory pause, Game Over rise).
+- `step(dt)` returns a `BattleResult` (`GAME_OVER` or `VICTORY`), or `None` while the Battle goes on. It's called a result, not an outcome, so it isn't confused with the collision outcomes of ADR 0003. Stepping a Battle that has ended does nothing, so Game Over is still decided once and still beats Victory. After it ends, `GameManager` stops stepping it but keeps rendering it (Victory pause, Game Over rise).
 - File I/O stays outside: `GameManager` finds the Stage's map file (falling back to `level_01`) and rebuilds the `Renderer`. The Battle applies the map's difficulty override itself, because that is a Stage rule.

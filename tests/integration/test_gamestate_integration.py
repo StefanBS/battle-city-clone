@@ -32,17 +32,17 @@ def test_initial_game_state(game_manager_fixture):
     )
 
     # Spawn animation may still be running, so count pending spawns too.
-    total_enemies = len(game_manager.spawn_manager.enemy_tanks) + len(
-        game_manager.spawn_manager._pending_spawns
+    total_enemies = len(game_manager.battle.spawn_manager.enemy_tanks) + len(
+        game_manager.battle.spawn_manager._pending_spawns
     )
     assert total_enemies == 1, (
         f"Expected 1 initial enemy (active or pending), got {total_enemies}"
     )
 
-    spawns = game_manager.spawn_manager.total_enemy_spawns
+    spawns = game_manager.battle.spawn_manager.total_enemy_spawns
     assert spawns == 1, f"Expected initial total_enemy_spawns 1, got {spawns}"
 
-    game_map = game_manager.map
+    game_map = game_manager.battle.map
     base_tile = game_map.get_base()
     assert base_tile is not None, "Base tile not found in initial map."
     assert base_tile.type == TileType.BASE, "Base tile type is not BASE."
@@ -64,7 +64,7 @@ def test_player_bullet_hits_base(game_manager_fixture):
     """Test that a player bullet hitting the base destroys it and causes game over."""
     game_manager = game_manager_fixture
     player_tank = first_player(game_manager)
-    game_map = game_manager.map
+    game_map = game_manager.battle.map
 
     base_tile = game_map.get_base()
     assert base_tile is not None, "Base tile not found in the map."
@@ -136,7 +136,7 @@ def test_player_bullet_hits_base(game_manager_fixture):
 def test_enemy_bullet_destroys_base_game_over(game_manager_fixture):
     """Test enemy bullet hitting the base destroys it and causes game over."""
     game_manager = game_manager_fixture
-    game_map = game_manager.map
+    game_map = game_manager.battle.map
 
     base_tile = game_map.get_base()
     assert base_tile is not None, "Base tile not found in the map."
@@ -149,8 +149,8 @@ def test_enemy_bullet_destroys_base_game_over(game_manager_fixture):
     enemy_y_grid = base_y_grid - 6
 
     if not (
-        0 <= enemy_y_grid < game_manager.map.height
-        and 0 <= enemy_x_grid < game_manager.map.width
+        0 <= enemy_y_grid < game_manager.battle.map.height
+        and 0 <= enemy_x_grid < game_manager.battle.map.width
     ):
         pytest.skip(
             f"Calculated enemy position ({enemy_x_grid}, {enemy_y_grid}) "
@@ -217,8 +217,8 @@ def test_victory_condition(game_manager_fixture):
     game_manager = game_manager_fixture
 
     clear_enemies(game_manager, reset_total=False)
-    game_manager.spawn_manager.total_enemy_spawns = (
-        game_manager.spawn_manager.max_enemy_spawns
+    game_manager.battle.spawn_manager.total_enemy_spawns = (
+        game_manager.battle.spawn_manager.max_enemy_spawns
     )
 
     assert game_manager.state == GameState.RUNNING, (
@@ -235,14 +235,14 @@ def test_victory_condition(game_manager_fixture):
 def test_score_accumulates_on_enemy_kill(game_manager_fixture):
     """Test that score increases when the player destroys an enemy."""
     gm = game_manager_fixture
-    assert gm.player_manager.score == 0
+    assert gm.battle.player_manager.score == 0
 
     for _ in range(60):
         gm.update()
-        if gm.spawn_manager.enemy_tanks:
+        if gm.battle.spawn_manager.enemy_tanks:
             break
 
-    enemy = gm.spawn_manager.enemy_tanks[0]
+    enemy = gm.battle.spawn_manager.enemy_tanks[0]
     tank_type = enemy.tank_type
     expected_points = ENEMY_POINTS.get(tank_type, 0)
 
@@ -252,8 +252,8 @@ def test_score_accumulates_on_enemy_kill(game_manager_fixture):
 
     fire_bullet_from(gm, player)
 
-    gm.spawn_manager.enemy_tanks = [enemy]
-    gm.spawn_manager._pending_spawns = []
+    gm.battle.spawn_manager.enemy_tanks = [enemy]
+    gm.battle.spawn_manager._pending_spawns = []
 
     # Enemy AI chooses random directions; freeze it so it can't dodge the bullet.
     enemy.health = 1
@@ -261,10 +261,10 @@ def test_score_accumulates_on_enemy_kill(game_manager_fixture):
 
     for _ in range(60):
         gm.update()
-        if enemy not in gm.spawn_manager.enemy_tanks:
+        if enemy not in gm.battle.spawn_manager.enemy_tanks:
             break
 
-    assert gm.player_manager.score == expected_points, (
+    assert gm.battle.player_manager.score == expected_points, (
         f"Expected score {expected_points} after killing {tank_type} enemy, "
-        f"got {gm.player_manager.score}"
+        f"got {gm.battle.player_manager.score}"
     )

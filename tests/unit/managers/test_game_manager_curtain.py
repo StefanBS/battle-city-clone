@@ -1,5 +1,6 @@
 import pytest
 import pygame
+from unittest.mock import MagicMock
 from src.managers.game_manager import GameManager
 from src.states.game_state import GameState
 from src.utils.constants import (
@@ -13,7 +14,7 @@ from src.utils.constants import (
 )
 
 
-class TestNewGameAndLoadStage:
+class TestNewGameAndNextStage:
     @pytest.fixture
     def game(self):
         gm = GameManager()
@@ -22,27 +23,24 @@ class TestNewGameAndLoadStage:
 
     def test_new_game_resets_stage_and_score(self, game):
         assert game.current_stage == 1
-        assert game.player_manager.score == 0
+        assert game.battle.player_manager.score == 0
 
-    def test_load_stage_preserves_score(self, game):
-        game.player_manager.add_score(500)
-        game._load_stage()
-        assert game.player_manager.score == 500
+    def test_next_stage_keeps_score(self, game):
+        game.battle.player_manager.add_score(500)
+        game._on_victory_finished()
+        assert game.battle.player_manager.score == 500
 
-    def test_load_stage_preserves_lives(self, game):
-        players = game.player_manager.get_active_players()
-        players[0].lives = 5
-        game._load_stage()
-        new_players = game.player_manager.get_active_players()
-        assert new_players[0].lives == 5
+    def test_next_stage_keeps_lives(self, game):
+        game.battle.player_manager.players[0].lives = 5
+        game._on_victory_finished()
+        assert game.battle.player_manager.players[0].lives == 5
 
-    def test_load_stage_preserves_star_level(self, game):
-        players = game.player_manager.get_active_players()
-        players[0].apply_star()
-        players[0].apply_star()
-        game._load_stage()
-        new_players = game.player_manager.get_active_players()
-        assert new_players[0].star_level == 2
+    def test_next_stage_keeps_star_level(self, game):
+        player = game.battle.player_manager.players[0]
+        player.apply_star()
+        player.apply_star()
+        game._on_victory_finished()
+        assert game.battle.player_manager.players[0].star_level == 2
 
 
 class TestCurtainTransitions:
@@ -163,11 +161,9 @@ class TestGameOverAnimation:
         """During animation, game subsystems should not update."""
         game.state = GameState.GAME_OVER_ANIMATION
         game._state_timer = 0.0
-        players = game.player_manager.get_active_players()
-        initial_pos = (players[0].x, players[0].y)
+        game.battle.step = MagicMock()
         game.update()
-        new_players = game.player_manager.get_active_players()
-        assert (new_players[0].x, new_players[0].y) == initial_pos
+        game.battle.step.assert_not_called()
 
     def test_r_key_does_nothing_during_animation(self, game):
         """R key should not work during the rising text animation."""

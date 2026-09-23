@@ -1,11 +1,8 @@
 import os
 import pygame
-from collections import deque
 from collections.abc import Callable
 from loguru import logger
-from src.core.enemy_tank import EnemyTank
 from src.core.map import Map
-from src.core.tile import Tile
 from src.states.game_mode import GameMode
 from src.states.game_state import GameState
 from src.utils.constants import (
@@ -17,10 +14,6 @@ from src.utils.constants import (
     WINDOW_HEIGHT,
     LOGICAL_WIDTH,
     LOGICAL_HEIGHT,
-    EffectType,
-    ENEMY_POINTS,
-    POWERUP_COLLECT_POINTS,
-    SPAWN_INVINCIBILITY_DURATION,
     CURTAIN_CLOSE_DURATION,
     CURTAIN_OPEN_DURATION,
     CURTAIN_STAGE_DISPLAY,
@@ -30,28 +23,14 @@ from src.utils.constants import (
     MAX_STAGE,
     MenuAction,
 )
-from src.managers.collision_manager import CollisionManager
-from src.managers.collision_response_handler import CollisionResponseHandler
-from src.managers.effect_manager import EffectManager
+from src.managers.battle import Battle, BattleResult
+from src.managers.player_manager import CarriedProgress
 from src.managers.texture_manager import TextureManager
 from src.managers.input_handler import InputHandler
 from src.managers.menu_controller import MenuController, MenuItem
-from src.managers.outcomes import (
-    BaseDestroyed,
-    CarrierHit,
-    CollisionOutcome,
-    EnemyDestroyed,
-    PlayerDestroyed,
-    PowerUpCollected,
-)
 from src.managers.player_input import CTRL_START_BUTTON
-from src.managers.spawn_manager import SpawnManager
 from src.managers.renderer import Renderer
-from src.managers.power_up_manager import PowerUpManager
-from src.managers.player_manager import PlayerManager
 from src.managers.sound_manager import SoundManager
-from src.managers.tank_stepper import TankStepper
-from src.managers.world_view import WorldView, build_world_view
 from src.managers.settings_manager import SettingsManager
 from src.utils.paths import resource_path
 
@@ -80,9 +59,9 @@ class GameManager:
         self.sound_manager: SoundManager = SoundManager(
             master_volume=self.settings_manager.master_volume
         )
-        self.player_manager: PlayerManager = PlayerManager(
-            self.texture_manager, self.sound_manager
-        )
+        # The Battle being fought, or the last one; None before the first game.
+        self.battle: Battle | None = None
+        self.current_stage: int = 1
 
         self.state: GameState = GameState.TITLE_SCREEN
         self._options_from_pause: bool = False
@@ -111,7 +90,7 @@ class GameManager:
             ),
         }
 
-        # Renderer for title screen (recreated with map dims in _load_stage)
+        # Renderer for title screen (recreated with map dims in _start_battle)
         self.renderer: Renderer = Renderer(
             self.screen,
             LOGICAL_WIDTH,
@@ -182,8 +161,7 @@ class GameManager:
         """Full reset for starting a new game. Does not set state."""
         self.current_stage = 1
         self._state_timer = 0.0
-        self.player_manager.reset()
-        self._load_stage()
+        self._start_battle(carried={})
 
     @property
     def _curtain_progress(self) -> float:
@@ -194,18 +172,8 @@ class GameManager:
             return max(0.0, 1.0 - self._state_timer / CURTAIN_OPEN_DURATION)
         return 0.0
 
-    def _load_stage(self) -> None:
-        """Load/reload a stage. Preserves score, current_stage, and player progress."""
-        logger.info(f"Loading stage {self.current_stage}...")
-
-        self.input_handler.reset()
-
-        # Preserve player progress across stages
-        self.player_manager.preserve_state()
-
-        self.collision_manager = CollisionManager()
-
-        # Map
+    def _load_stage_map(self) -> Map:
+        """Load the current Stage's map, falling back to level_01 if missing."""
         map_name = f"level_{self.current_stage:02d}.tmx"
         map_path = resource_path(f"assets/maps/{map_name}")
         if not os.path.exists(map_path):
@@ -213,29 +181,22 @@ class GameManager:
                 f"Map file not found: {map_name}; falling back to level_01.tmx"
             )
             map_path = resource_path("assets/maps/level_01.tmx")
-        self.map = Map(map_path, self.texture_manager)
+        return Map(map_path, self.texture_manager)
 
-        map_width_px = self.map.width_px
-        map_height_px = self.map.height_px
+    def _start_battle(self, carried: dict[int, CarriedProgress]) -> None:
+        """Start a Battle for the current Stage with the Players' progress."""
+        logger.info(f"Loading stage {self.current_stage}...")
 
-        # Effect manager
-        self.effect_manager = EffectManager(self.texture_manager)
-
-        # Power-up manager (must be created before CollisionResponseHandler)
-        self.power_up_manager = PowerUpManager(self.texture_manager, self.map)
-
-        # Collision response handler
-        self.collision_response_handler = CollisionResponseHandler(
-            game_map=self.map,
-            effect_manager=self.effect_manager,
-            power_up_manager=self.power_up_manager,
-            sound_manager=self.sound_manager,
-        )
-
-        self.player_manager.create_players(
-            self.map,
-            controller_instance_ids=self.input_handler.controller_instance_ids,
+        self.input_handler.reset()
+        game_map = self._load_stage_map()
+        self.battle = Battle(
+            game_map,
             mode=self._game_mode,
+            carried=carried,
+            difficulty=self.settings_manager.difficulty,
+            controller_instance_ids=self.input_handler.controller_instance_ids,
+            texture_manager=self.texture_manager,
+            sound=self.sound_manager,
         )
 
         # Renderer (fixed logical surface with map centered inside)
@@ -243,37 +204,9 @@ class GameManager:
             self.screen,
             LOGICAL_WIDTH,
             LOGICAL_HEIGHT,
-            map_width_px,
-            map_height_px,
+            game_map.width_px,
+            game_map.height_px,
         )
-
-        # SpawnManager
-        effective_difficulty = (
-            self.map.difficulty_override
-            if self.map.difficulty_override is not None
-            else self.settings_manager.difficulty
-        )
-        self.spawn_manager = SpawnManager(
-            texture_manager=self.texture_manager,
-            game_map=self.map,
-            enemy_composition=self.map.enemy_composition,
-            spawn_interval=self.map.spawn_interval,
-            player_tanks=self.player_manager.get_active_players(),
-            effect_manager=self.effect_manager,
-            difficulty=effective_difficulty,
-            powerup_carrier_indices=self.map.powerup_carrier_indices,
-            on_carrier_spawned=self.power_up_manager.clear,
-        )
-
-        # Steps every tank; recreated per stage so no bullet outlives it.
-        self.tank_stepper = TankStepper(self.map)
-
-        # Restore player progress
-        self.player_manager.restore_state()
-
-        # Grant spawn invincibility (after progress restoration)
-        for player in self.player_manager.get_active_players():
-            player.activate_invincibility(SPAWN_INVINCIBILITY_DURATION)
 
         logger.info("Stage load complete.")
 
@@ -291,7 +224,8 @@ class GameManager:
                     self._handle_escape()
 
             self.input_handler.handle_event(event)
-            self.player_manager.handle_event(event)
+            if self.battle is not None:
+                self.battle.handle_event(event)
 
         if self.state != GameState.RUNNING:
             self._process_menu_actions()
@@ -343,7 +277,8 @@ class GameManager:
         """
         logger.info("Game resumed.")
         self.state = GameState.RUNNING
-        self.player_manager.clear_pending_shoot()
+        if self.battle is not None:
+            self.battle.clear_pending_shoot()
 
     def _exit_options(self) -> None:
         """Save settings and return to the screen that opened options."""
@@ -396,137 +331,21 @@ class GameManager:
                 self._state_timer = 0.0
             return
 
-        if self.state != GameState.RUNNING:
+        if self.state != GameState.RUNNING or self.battle is None:
             return
 
-        self.map.update(dt)
-        self.player_manager.observe(self._world_view())
-        self.player_manager.update(dt, self.tank_stepper)
-
-        active_players = self.player_manager.get_active_players()
-
-        if self.spawn_manager.step_enemies(dt, self.tank_stepper, active_players):
-            self.sound_manager.play("shoot")
-
-        # Engine sound: plays when any tank is moving
-        any_moving = any(p.is_moving for p in active_players) or any(
-            e.is_moving for e in self.spawn_manager.enemy_tanks
-        )
-        self.sound_manager.update_engine(any_moving)
-
-        self.tank_stepper.update_bullets(dt)
-
-        self.spawn_manager.update(dt, active_players, self.map)
-        self.power_up_manager.update(dt)
-
-        # --- Prepare data for Collision Manager ---
-        # Built AFTER updates so newly fired bullets are included
-        tank_blocking_tiles: list[Tile] = self.map.get_blocking_tiles()
-        bullet_blocking_tiles: list[Tile] = self.map.get_bullet_blocking_tiles()
-        player_base: Tile | None = self.map.get_base()
-
-        active_power_ups = self.power_up_manager.active_power_ups
-
-        self.collision_manager.check_collisions(
-            player_tanks=active_players,
-            enemy_tanks=self.spawn_manager.enemy_tanks,
-            bullets=self.tank_stepper.bullets,
-            tank_blocking_tiles=tank_blocking_tiles,
-            bullet_blocking_tiles=bullet_blocking_tiles,
-            player_base=player_base,
-            power_ups=active_power_ups,
-        )
-
-        events = self.collision_manager.get_collision_events()
-        self._apply_outcomes(self.collision_response_handler.process_collisions(events))
-
-        # Powerup blink sound: plays when any powerup is active
-        self.sound_manager.update_powerup_blink(
-            bool(self.power_up_manager.active_power_ups)
-        )
-
-        self.effect_manager.update(dt)
-
-        # The only place Game Over is decided; it wins over Victory.
-        if self.map.is_base_destroyed or self.player_manager.is_game_over():
-            logger.info("Game over.")
-            self._set_game_state(GameState.GAME_OVER)
-        elif self.spawn_manager.all_enemies_defeated():
-            logger.info("All enemies defeated. Victory!")
-            self._set_game_state(GameState.VICTORY)
-
-    def _apply_outcomes(self, outcomes: list[CollisionOutcome]) -> None:
-        """Apply a frame's outcomes, and the outcomes they cause, in order."""
-        queue = deque(outcomes)
-        while queue:
-            match queue.popleft():
-                case CarrierHit(enemy=enemy):
-                    self._drop_carrier_power_up(enemy)
-                case EnemyDestroyed(enemy=enemy, by=by):
-                    # A bullet and a Grenade can both destroy it in one frame.
-                    if enemy not in self.spawn_manager.enemy_tanks:
-                        continue
-                    self.spawn_manager.remove_enemy(enemy)
-                    self.effect_manager.spawn_at_rect(
-                        EffectType.LARGE_EXPLOSION, enemy.rect
-                    )
-                    self.sound_manager.play("explosion")
-                    if by is not None:
-                        self.player_manager.add_score(
-                            ENEMY_POINTS.get(enemy.tank_type, 0),
-                            player_id=by.player_id,
-                        )
-                    # A Grenade kill is a Carrier's only drop without a hit.
-                    self._drop_carrier_power_up(enemy)
-                case PlayerDestroyed(player=player):
-                    # Before handle_player_death moves it to its spawn point.
-                    self.effect_manager.spawn_at_rect(
-                        EffectType.LARGE_EXPLOSION, player.rect
-                    )
-                    self.sound_manager.play("explosion")
-                    self.player_manager.handle_player_death(player)
-                case BaseDestroyed():
-                    pass  # Game Over is decided once all outcomes are applied.
-                case PowerUpCollected(power_up_type=power_up_type, player=player):
-                    self.player_manager.add_score(
-                        POWERUP_COLLECT_POINTS, player_id=player.player_id
-                    )
-                    self.sound_manager.play("powerup")
-                    queue.extend(
-                        self.power_up_manager.apply(
-                            power_up_type, player, self.spawn_manager
-                        )
-                    )
-
-    def _drop_carrier_power_up(self, enemy: EnemyTank) -> None:
-        """Make a Carrier's Power-Up appear; a Carrier drops only once."""
-        if not enemy.is_carrier:
-            return
-        enemy.stop_carrying()
-        self.power_up_manager.spawn_power_up(
-            [
-                *self.player_manager.get_active_players(),
-                *self.spawn_manager.enemy_tanks,
-            ]
-        )
-
-    def _world_view(self) -> WorldView:
-        """Snapshot the current battlefield for the Players' inputs."""
-        return build_world_view(
-            self.map,
-            players=self.player_manager.players,
-            enemies=self.spawn_manager.enemy_tanks,
-            enemies_frozen=self.spawn_manager.enemies_frozen,
-            power_ups=self.power_up_manager.active_power_ups,
-            bullets=self.tank_stepper.bullets,
-        )
+        match self.battle.step(dt):
+            case BattleResult.GAME_OVER:
+                self._set_game_state(GameState.GAME_OVER)
+            case BattleResult.VICTORY:
+                self._set_game_state(GameState.VICTORY)
 
     def _on_victory_finished(self) -> None:
         if self.current_stage >= MAX_STAGE:
             self._set_game_state(GameState.GAME_COMPLETE)
             return
         self.current_stage += 1
-        self._load_stage()
+        self._start_battle(self.battle.carried_progress)
         self.state = GameState.STAGE_CURTAIN_CLOSE
         self.sound_manager.play("stage_start")
 
@@ -600,17 +419,20 @@ class GameManager:
                 1.0, self._state_timer / GAME_OVER_RISE_DURATION
             )
 
+        battle = self.battle
+        if battle is None:
+            return
         self.renderer.render(
-            self.map,
-            self.player_manager.players,
-            self.spawn_manager.enemy_tanks,
-            self.tank_stepper.bullets,
-            self.effect_manager,
+            battle.map,
+            battle.player_manager.players,
+            battle.spawn_manager.enemy_tanks,
+            battle.tank_stepper.bullets,
+            battle.effect_manager,
             self.state,
-            self.player_manager.scores,
-            power_ups=self.power_up_manager.active_power_ups,
+            battle.player_manager.scores,
+            power_ups=battle.power_up_manager.active_power_ups,
             game_over_rise_progress=game_over_rise_progress,
-            cpu_partner_ids=self.player_manager.cpu_partner_ids,
+            cpu_partner_ids=battle.player_manager.cpu_partner_ids,
         )
 
     def run(self) -> None:

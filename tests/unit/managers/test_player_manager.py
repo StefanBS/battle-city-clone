@@ -15,7 +15,7 @@ from src.managers.player_input import (
     KeyboardInput,
 )
 from src.managers.cpu_partner import CpuPartnerInput
-from src.managers.player_manager import PlayerKind, PlayerManager
+from src.managers.player_manager import CarriedProgress, PlayerKind, PlayerManager
 from src.managers.sound_manager import SoundManager
 from src.managers.tank_stepper import TankStepper
 from src.managers.world_view import EnemyView, PlayerView, WorldView
@@ -41,9 +41,30 @@ def mock_sound_manager():
 
 
 @pytest.fixture
-def player_manager(mock_texture_manager, mock_sound_manager):
-    """PlayerManager with mock dependencies."""
-    return PlayerManager(mock_texture_manager, mock_sound_manager)
+def make_player_manager(mock_texture_manager, mock_sound_manager, mock_game_map):
+    """Build a PlayerManager on the mock map, after any spawn tweaks a test makes."""
+
+    def _make(
+        controller_instance_ids=(),
+        mode=GameMode.ONE_PLAYER,
+        carried=None,
+    ):
+        return PlayerManager(
+            mock_texture_manager,
+            mock_sound_manager,
+            mock_game_map,
+            controller_instance_ids=list(controller_instance_ids),
+            mode=mode,
+            carried=carried,
+        )
+
+    return _make
+
+
+@pytest.fixture
+def player_manager(make_player_manager):
+    """A 1-player PlayerManager with mock dependencies."""
+    return make_player_manager()
 
 
 @pytest.fixture
@@ -70,28 +91,24 @@ def mock_game_map():
 
 
 class TestPlayerManagerCreation:
-    def test_initial_players_empty(self, player_manager):
-        """No players exist before create_players() is called."""
-        assert player_manager.get_active_players() == []
-
-    def test_create_players_single_player(
-        self, player_manager, mock_game_map, mock_texture_manager
+    def test_creates_single_player(
+        self, make_player_manager, mock_game_map, mock_texture_manager
     ):
-        """create_players() produces exactly one active player."""
-        player_manager.create_players(mock_game_map, controller_instance_ids=[])
+        """1P mode produces exactly one active player."""
+        player_manager = make_player_manager(controller_instance_ids=[])
 
         players = player_manager.get_active_players()
         assert len(players) == 1
         assert isinstance(players[0], PlayerTank)
 
-    def test_create_players_sets_correct_position(
-        self, player_manager, mock_game_map, mock_texture_manager
+    def test_player_starts_at_spawn_point(
+        self, make_player_manager, mock_game_map, mock_texture_manager
     ):
         """Player tank is placed at the map's player_spawn coordinates."""
         mock_game_map.player_spawn = (3, 22)
         mock_game_map.tile_size = TILE_SIZE
 
-        player_manager.create_players(mock_game_map, controller_instance_ids=[])
+        player_manager = make_player_manager(controller_instance_ids=[])
 
         player = player_manager.get_active_players()[0]
         expected_x = 3 * TILE_SIZE
@@ -99,15 +116,13 @@ class TestPlayerManagerCreation:
         assert player.x == expected_x
         assert player.y == expected_y
 
-    def test_create_players_1p_is_combined_input(
-        self, player_manager, mock_game_map
-    ) -> None:
+    def test_1p_is_combined_input(self, make_player_manager, mock_game_map) -> None:
         """1P always wraps keyboard + non-filtering controller in CombinedInput.
 
         Uses ControllerInput(instance_id=None) regardless of whether a
         controller is currently plugged in, so hot-plugging Just Works.
         """
-        player_manager.create_players(mock_game_map, controller_instance_ids=[])
+        player_manager = make_player_manager(controller_instance_ids=[])
         pi = player_manager.slots[0].input
         assert isinstance(pi, CombinedInput)
         assert len(pi._inputs) == 2
@@ -115,26 +130,19 @@ class TestPlayerManagerCreation:
         assert isinstance(pi._inputs[1], ControllerInput)
         assert pi._inputs[1].instance_id is None
 
-    def test_create_players_1p_combined_ignores_instance_ids(
-        self, player_manager, mock_game_map
+    def test_1p_combined_ignores_instance_ids(
+        self, make_player_manager, mock_game_map
     ) -> None:
-        player_manager.create_players(mock_game_map, controller_instance_ids=[7])
+        player_manager = make_player_manager(controller_instance_ids=[7])
         pi = player_manager.slots[0].input
         assert isinstance(pi, CombinedInput)
         assert pi._inputs[1].instance_id is None
 
-    def test_create_players_clears_previous_state(self, player_manager, mock_game_map):
-        """Calling create_players() twice replaces the players and inputs."""
-        player_manager.create_players(mock_game_map, controller_instance_ids=[])
-        first = player_manager.players[0]
-        player_manager.create_players(mock_game_map, controller_instance_ids=[])
-
-        assert len(player_manager.players) == 1
-        assert player_manager.players[0] is not first
-
-    def test_get_active_players_returns_living(self, player_manager, mock_game_map):
+    def test_get_active_players_returns_living(
+        self, make_player_manager, mock_game_map
+    ):
         """get_active_players() filters out dead tanks."""
-        player_manager.create_players(mock_game_map, controller_instance_ids=[])
+        player_manager = make_player_manager(controller_instance_ids=[])
 
         player_manager.players[0].health = 0
         assert player_manager.get_active_players() == []
@@ -157,9 +165,9 @@ class TestPlayerManagerUpdate:
     DT = 1.0 / 60
 
     @pytest.fixture(autouse=True)
-    def setup(self, player_manager, mock_game_map):
+    def setup(self, make_player_manager, mock_game_map):
         """Create a single player and a stepper before each test in this class."""
-        player_manager.create_players(mock_game_map, controller_instance_ids=[])
+        player_manager = make_player_manager(controller_instance_ids=[])
         self.pm = player_manager
         self.game_map = mock_game_map
         self.stepper = TankStepper(mock_game_map)
@@ -204,11 +212,11 @@ class TestPlayerManagerUpdate:
         self.pm._sound_manager.play.assert_called_once_with("ice_slide")
 
     def test_two_players_each_follow_their_own_input(
-        self, player_manager, mock_game_map
+        self, make_player_manager, mock_game_map
     ):
         mock_game_map.player_spawn_2 = (16, 24)
-        player_manager.create_players(
-            mock_game_map, controller_instance_ids=[3], mode=GameMode.TWO_PLAYERS
+        player_manager = make_player_manager(
+            controller_instance_ids=[3], mode=GameMode.TWO_PLAYERS
         )
         p1, p2 = player_manager.players
         p1_y, p2_y = p1.y, p2.y
@@ -227,13 +235,13 @@ class TestPlayerManagerUpdate:
 
 class TestPlayerManagerHandleEvent:
     def test_handle_event_reaches_every_players_input(
-        self, player_manager, mock_game_map
+        self, make_player_manager, mock_game_map
     ):
         """handle_event() forwards the event to each slot's input."""
         mock_game_map.player_spawn_2 = (16, 24)
         # No controllers: both Players fall back to the keyboard.
-        player_manager.create_players(
-            mock_game_map, controller_instance_ids=[], mode=GameMode.TWO_PLAYERS
+        player_manager = make_player_manager(
+            controller_instance_ids=[], mode=GameMode.TWO_PLAYERS
         )
         p1, p2 = player_manager.players
         p1_y, p2_y = p1.y, p2.y
@@ -255,15 +263,15 @@ class TestPlayerManagerScore:
         """Score is 0 immediately after construction."""
         assert player_manager.score == 0
 
-    def test_add_score_increments(self, player_manager, mock_game_map):
+    def test_add_score_increments(self, make_player_manager, mock_game_map):
         """add_score(100) raises the score to 100."""
-        player_manager.create_players(mock_game_map, controller_instance_ids=[])
+        player_manager = make_player_manager(controller_instance_ids=[])
         player_manager.add_score(100)
         assert player_manager.score == 100
 
-    def test_add_score_accumulates(self, player_manager, mock_game_map):
+    def test_add_score_accumulates(self, make_player_manager, mock_game_map):
         """Multiple add_score() calls accumulate correctly."""
-        player_manager.create_players(mock_game_map, controller_instance_ids=[])
+        player_manager = make_player_manager(controller_instance_ids=[])
         player_manager.add_score(200)
         player_manager.add_score(300)
         assert player_manager.score == 500
@@ -272,70 +280,62 @@ class TestPlayerManagerScore:
         with pytest.raises(KeyError):
             player_manager.add_score(100, player_id=2)
 
-    def test_score_carries_over_to_the_next_stage(self, player_manager, mock_game_map):
-        """create_players() for a new stage keeps each slot's score."""
+    def test_score_comes_from_carried_progress(
+        self, make_player_manager, mock_game_map
+    ):
+        """Each slot starts with the score it carried from the previous Battle."""
         mock_game_map.player_spawn_2 = (16, 24)
-        player_manager.create_players(
-            mock_game_map, controller_instance_ids=[0], mode=GameMode.TWO_PLAYERS
-        )
-        player_manager.add_score(100, player_id=1)
-        player_manager.add_score(200, player_id=2)
-
-        player_manager.create_players(
-            mock_game_map, controller_instance_ids=[0], mode=GameMode.TWO_PLAYERS
+        player_manager = make_player_manager(
+            controller_instance_ids=[0],
+            mode=GameMode.TWO_PLAYERS,
+            carried={
+                1: CarriedProgress(lives=3, star_level=0, score=100),
+                2: CarriedProgress(lives=3, star_level=0, score=200),
+            },
         )
 
         assert player_manager.scores == {1: 100, 2: 200}
 
 
 # ---------------------------------------------------------------------------
-# TestPlayerManagerStatePreservation
+# TestPlayerManagerCarriedProgress
 # ---------------------------------------------------------------------------
 
 
-class TestPlayerManagerStatePreservation:
-    def test_preserve_and_restore_lives(
-        self, player_manager, mock_game_map, mock_texture_manager
-    ):
-        """Preserved lives are restored onto a new player tank."""
-        player_manager.create_players(mock_game_map, controller_instance_ids=[])
-
-        player_manager.players[0].lives = 5
-        player_manager.preserve_state()
-
-        # Simulate stage transition: create fresh tanks
-        player_manager.create_players(mock_game_map, controller_instance_ids=[])
-
-        player_manager.restore_state()
+class TestPlayerManagerCarriedProgress:
+    def test_carried_lives_and_stars_go_onto_the_new_tanks(self, make_player_manager):
+        player_manager = make_player_manager(
+            carried={1: CarriedProgress(lives=5, star_level=2, score=0)}
+        )
 
         assert player_manager.players[0].lives == 5
-
-    def test_preserve_and_restore_star_level(
-        self, player_manager, mock_game_map, mock_texture_manager
-    ):
-        """Preserved star_level is restored onto a new player tank."""
-        player_manager.create_players(mock_game_map, controller_instance_ids=[])
-
-        player_manager.players[0].restore_star_level(2)
-        player_manager.preserve_state()
-
-        player_manager.create_players(mock_game_map, controller_instance_ids=[])
-
-        player_manager.restore_state()
-
         assert player_manager.players[0].star_level == 2
 
-    def test_restore_with_no_preserved_state(
-        self, player_manager, mock_game_map, mock_texture_manager
+    def test_players_without_carried_progress_start_fresh(self, make_player_manager):
+        player_manager = make_player_manager(carried={})
+
+        player = player_manager.players[0]
+        assert player.lives == INITIAL_PLAYER_LIVES
+        assert player.star_level == 0
+        assert player_manager.score == 0
+
+    def test_carried_progress_reports_each_slot(
+        self, make_player_manager, mock_game_map
     ):
-        """restore_state() with empty preserved state does not crash."""
-        player_manager.create_players(mock_game_map, controller_instance_ids=[])
+        mock_game_map.player_spawn_2 = (16, 24)
+        player_manager = make_player_manager(
+            controller_instance_ids=[0], mode=GameMode.TWO_PLAYERS
+        )
+        p1, p2 = player_manager.players
+        p1.lives = 5
+        p1.restore_star_level(2)
+        p2.lives = 1
+        player_manager.add_score(300, player_id=2)
 
-        # Nothing preserved yet — should not raise
-        player_manager.restore_state()
-
-        # Player remains in default state
-        assert player_manager.players[0].lives >= 0
+        assert player_manager.carried_progress == {
+            1: CarriedProgress(lives=5, star_level=2, score=0),
+            2: CarriedProgress(lives=1, star_level=0, score=300),
+        }
 
 
 # ---------------------------------------------------------------------------
@@ -364,9 +364,9 @@ class TestPlayerManagerDeathHandling:
         player.respawn.assert_not_called()
 
     def test_game_over_when_last_player_eliminated(
-        self, player_manager, mock_game_map, mock_texture_manager
+        self, make_player_manager, mock_game_map, mock_texture_manager
     ):
-        player_manager.create_players(mock_game_map, controller_instance_ids=[])
+        player_manager = make_player_manager(controller_instance_ids=[])
 
         player = player_manager.players[0]
         player.lives = 0
@@ -375,10 +375,10 @@ class TestPlayerManagerDeathHandling:
         assert player_manager.is_game_over() is True
 
     def test_no_game_over_with_no_lives_but_health_positive(
-        self, player_manager, mock_game_map, mock_texture_manager
+        self, make_player_manager, mock_game_map, mock_texture_manager
     ):
         """Edge case: lives = 0 but health > 0 — is_game_over returns False."""
-        player_manager.create_players(mock_game_map, controller_instance_ids=[])
+        player_manager = make_player_manager(controller_instance_ids=[])
 
         player = player_manager.players[0]
         player.lives = 0
@@ -394,10 +394,10 @@ class TestPlayerManagerDeathHandling:
 
 class TestPlayerManagerGameOver:
     def test_not_game_over_when_alive(
-        self, player_manager, mock_game_map, mock_texture_manager
+        self, make_player_manager, mock_game_map, mock_texture_manager
     ):
         """is_game_over() returns False when the player is still alive."""
-        player_manager.create_players(mock_game_map, controller_instance_ids=[])
+        player_manager = make_player_manager(controller_instance_ids=[])
 
         player = player_manager.players[0]
         player.health = 1
@@ -406,10 +406,10 @@ class TestPlayerManagerGameOver:
         assert player_manager.is_game_over() is False
 
     def test_game_over_when_dead_no_lives(
-        self, player_manager, mock_game_map, mock_texture_manager
+        self, make_player_manager, mock_game_map, mock_texture_manager
     ):
         """is_game_over() returns True when the player is dead with no lives."""
-        player_manager.create_players(mock_game_map, controller_instance_ids=[])
+        player_manager = make_player_manager(controller_instance_ids=[])
 
         player = player_manager.players[0]
         player.health = 0
@@ -418,10 +418,10 @@ class TestPlayerManagerGameOver:
         assert player_manager.is_game_over() is True
 
     def test_not_game_over_when_has_lives(
-        self, player_manager, mock_game_map, mock_texture_manager
+        self, make_player_manager, mock_game_map, mock_texture_manager
     ):
         """is_game_over() returns False when the player is dead but has lives left."""
-        player_manager.create_players(mock_game_map, controller_instance_ids=[])
+        player_manager = make_player_manager(controller_instance_ids=[])
 
         player = player_manager.players[0]
         player.health = 0
@@ -431,80 +431,56 @@ class TestPlayerManagerGameOver:
 
 
 # ---------------------------------------------------------------------------
-# TestPlayerManagerReset
-# ---------------------------------------------------------------------------
-
-
-class TestPlayerManagerReset:
-    def test_reset_clears_all_state(
-        self, player_manager, mock_game_map, mock_texture_manager
-    ):
-        """reset() clears players, inputs, score, and preserved state."""
-        player_manager.create_players(mock_game_map, controller_instance_ids=[])
-
-        player_manager.add_score(500)
-        player_manager.players[0].lives = 5
-        player_manager.preserve_state()
-
-        player_manager.reset()
-
-        assert player_manager.slots == ()
-        assert player_manager.score == 0
-        player_manager.create_players(mock_game_map, controller_instance_ids=[])
-        player_manager.restore_state()
-        assert player_manager.score == 0
-        assert player_manager.players[0].lives == INITIAL_PLAYER_LIVES
-
-
-# ---------------------------------------------------------------------------
 # TestPlayerManagerTwoPlayerCreation
 # ---------------------------------------------------------------------------
 
 
 class TestPlayerManagerTwoPlayerCreation:
-    def test_create_two_players(self, player_manager, mock_game_map):
-        """create_players(mode=GameMode.TWO_PLAYERS) produces two active players."""
+    def test_create_two_players(self, make_player_manager, mock_game_map):
+        """2P mode produces two active players."""
         mock_game_map.player_spawn_2 = (16, 24)
-        player_manager.create_players(
-            mock_game_map, controller_instance_ids=[0], mode=GameMode.TWO_PLAYERS
+        player_manager = make_player_manager(
+            controller_instance_ids=[0], mode=GameMode.TWO_PLAYERS
         )
         players = player_manager.get_active_players()
         assert len(players) == 2
 
-    def test_player2_has_player_id_2(self, player_manager, mock_game_map):
+    def test_player2_has_player_id_2(self, make_player_manager, mock_game_map):
         """Second player has player_id=2."""
         mock_game_map.player_spawn_2 = (16, 24)
-        player_manager.create_players(
-            mock_game_map, controller_instance_ids=[0], mode=GameMode.TWO_PLAYERS
+        player_manager = make_player_manager(
+            controller_instance_ids=[0], mode=GameMode.TWO_PLAYERS
         )
         assert player_manager.players[0].player_id == 1
         assert player_manager.players[1].player_id == 2
 
-    def test_player2_at_spawn_2_position(self, player_manager, mock_game_map):
+    def test_player2_at_spawn_2_position(self, make_player_manager, mock_game_map):
         """Player 2 spawns at player_spawn_2 coordinates."""
         mock_game_map.player_spawn_2 = (16, 24)
-        player_manager.create_players(
-            mock_game_map, controller_instance_ids=[0], mode=GameMode.TWO_PLAYERS
+        player_manager = make_player_manager(
+            controller_instance_ids=[0], mode=GameMode.TWO_PLAYERS
         )
         p2 = player_manager.players[1]
         assert p2.x == 16 * TILE_SIZE
         assert p2.y == 24 * TILE_SIZE
 
-    def test_2p_one_controller_input(self, player_manager, mock_game_map):
+    def test_2p_one_controller_input(self, make_player_manager, mock_game_map):
         """2P + 1 controller: P1=keyboard, P2=controller bound by instance_id."""
         mock_game_map.player_spawn_2 = (16, 24)
-        player_manager.create_players(
-            mock_game_map, controller_instance_ids=[4], mode=GameMode.TWO_PLAYERS
+        player_manager = make_player_manager(
+            controller_instance_ids=[4], mode=GameMode.TWO_PLAYERS
         )
         assert isinstance(player_manager.slots[0].input, KeyboardInput)
         assert isinstance(player_manager.slots[1].input, ControllerInput)
         assert player_manager.slots[1].input.instance_id == 4
 
-    def test_2p_two_controllers_both_controller(self, player_manager, mock_game_map):
+    def test_2p_two_controllers_both_controller(
+        self, make_player_manager, mock_game_map
+    ):
         """2P + 2 controllers: each player bound to its own instance_id."""
         mock_game_map.player_spawn_2 = (16, 24)
-        player_manager.create_players(
-            mock_game_map, controller_instance_ids=[8, 12], mode=GameMode.TWO_PLAYERS
+        player_manager = make_player_manager(
+            controller_instance_ids=[8, 12], mode=GameMode.TWO_PLAYERS
         )
         assert isinstance(player_manager.slots[0].input, ControllerInput)
         assert player_manager.slots[0].input.instance_id == 8
@@ -512,7 +488,7 @@ class TestPlayerManagerTwoPlayerCreation:
         assert player_manager.slots[1].input.instance_id == 12
 
     def test_2p_two_controllers_non_sequential_instance_ids(
-        self, player_manager, mock_game_map
+        self, make_player_manager, mock_game_map
     ):
         """Regression: non-sequential instance_ids (e.g. 0 and 5) route correctly.
 
@@ -521,28 +497,30 @@ class TestPlayerManagerTwoPlayerCreation:
         instance_id wasn't 1 broke per-player routing.
         """
         mock_game_map.player_spawn_2 = (16, 24)
-        player_manager.create_players(
-            mock_game_map, controller_instance_ids=[0, 5], mode=GameMode.TWO_PLAYERS
+        player_manager = make_player_manager(
+            controller_instance_ids=[0, 5], mode=GameMode.TWO_PLAYERS
         )
         assert player_manager.slots[0].input.instance_id == 0
         assert player_manager.slots[1].input.instance_id == 5
 
-    def test_2p_fallback_spawn_when_no_spawn_2(self, player_manager, mock_game_map):
+    def test_2p_fallback_spawn_when_no_spawn_2(
+        self, make_player_manager, mock_game_map
+    ):
         """When player_spawn_2 is absent, derive P2 position from P1."""
         mock_game_map.player_spawn_2 = None
         mock_game_map.player_spawn = (8, 24)
-        player_manager.create_players(
-            mock_game_map, controller_instance_ids=[0], mode=GameMode.TWO_PLAYERS
+        player_manager = make_player_manager(
+            controller_instance_ids=[0], mode=GameMode.TWO_PLAYERS
         )
         p2 = player_manager.players[1]
         assert p2.x == (8 + 8) * TILE_SIZE
         assert p2.y == 24 * TILE_SIZE
 
-    def test_2p_per_player_scores(self, player_manager, mock_game_map):
+    def test_2p_per_player_scores(self, make_player_manager, mock_game_map):
         """Per-player scores start at 0 and accumulate independently."""
         mock_game_map.player_spawn_2 = (16, 24)
-        player_manager.create_players(
-            mock_game_map, controller_instance_ids=[0], mode=GameMode.TWO_PLAYERS
+        player_manager = make_player_manager(
+            controller_instance_ids=[0], mode=GameMode.TWO_PLAYERS
         )
         player_manager.add_score(100, player_id=1)
         player_manager.add_score(200, player_id=2)
@@ -550,21 +528,21 @@ class TestPlayerManagerTwoPlayerCreation:
         assert player_manager.get_score(2) == 200
         assert player_manager.score == 300
 
-    def test_1p_add_score_backward_compatible(self, player_manager, mock_game_map):
+    def test_1p_add_score_backward_compatible(self, make_player_manager, mock_game_map):
         """add_score() without player_id works for 1P."""
-        player_manager.create_players(mock_game_map, controller_instance_ids=[])
+        player_manager = make_player_manager(controller_instance_ids=[])
         player_manager.add_score(100)
         assert player_manager.score == 100
 
-    def test_2p_no_controllers_both_keyboard(self, player_manager, mock_game_map):
+    def test_2p_no_controllers_both_keyboard(self, make_player_manager, mock_game_map):
         """2P + 0 controllers: both players fall back to keyboard (degenerate).
 
         This mode is not playable (P1 and P2 both fight for arrow keys) but
         must not crash; the UI guards against entering it.
         """
         mock_game_map.player_spawn_2 = (16, 24)
-        player_manager.create_players(
-            mock_game_map, controller_instance_ids=[], mode=GameMode.TWO_PLAYERS
+        player_manager = make_player_manager(
+            controller_instance_ids=[], mode=GameMode.TWO_PLAYERS
         )
 
         assert isinstance(player_manager.slots[0].input, KeyboardInput)
@@ -580,11 +558,11 @@ class TestPlayerManagerCpuPartner:
     DT = 1.0 / 60
 
     @pytest.fixture
-    def cpu_pm(self, player_manager, mock_game_map):
+    def cpu_pm(self, make_player_manager, mock_game_map):
         """PlayerManager in 1 Player + CPU mode."""
         mock_game_map.player_spawn_2 = (16, 24)
-        player_manager.create_players(
-            mock_game_map, controller_instance_ids=[3], mode=GameMode.ONE_PLAYER_CPU
+        player_manager = make_player_manager(
+            controller_instance_ids=[3], mode=GameMode.ONE_PLAYER_CPU
         )
         return player_manager
 
@@ -653,11 +631,11 @@ class TestPlayerManagerCpuPartner:
 
 class TestPlayerManagerTwoPlayerDeath:
     @pytest.fixture
-    def two_player_pm(self, player_manager, mock_game_map):
+    def two_player_pm(self, make_player_manager, mock_game_map):
         """Create a 2P PlayerManager."""
         mock_game_map.player_spawn_2 = (16, 24)
-        player_manager.create_players(
-            mock_game_map, controller_instance_ids=[0], mode=GameMode.TWO_PLAYERS
+        player_manager = make_player_manager(
+            controller_instance_ids=[0], mode=GameMode.TWO_PLAYERS
         )
         return player_manager
 
