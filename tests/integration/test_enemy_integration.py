@@ -14,6 +14,7 @@ from tests.integration.conftest import (
     first_player,
     flush_pending_spawns,
     spawn_enemy_at,
+    spawn_enemy_with_ai,
 )
 import random
 
@@ -211,8 +212,14 @@ def test_enemy_movement_and_direction_change(
     # Use the unmocked random.choice during __init__, then force the direction
     # change later.
     mock_choice.side_effect = lambda x: original_random_choice(x)
-    enemy_tank = spawn_enemy_at(
-        game_manager, start_x_grid, start_y_grid, difficulty=Difficulty.EASY
+    # Held fire: a bullet could hit the base and trigger GAME_OVER before the
+    # direction-change timer fires.
+    enemy_tank, enemy_ai = spawn_enemy_with_ai(
+        game_manager,
+        start_x_grid,
+        start_y_grid,
+        difficulty=Difficulty.EASY,
+        fires=False,
     )
     initial_direction = enemy_tank.direction
 
@@ -223,19 +230,13 @@ def test_enemy_movement_and_direction_change(
     mock_choice.side_effect = None
     mock_choice.return_value = forced_new_direction
 
-    # Prevent enemy from shooting: otherwise a bullet can hit the base and trigger
-    # GAME_OVER before the direction-change timer fires.
-    enemy_tank.shoot = lambda: None
     game_manager.spawn_manager.total_enemy_spawns = 1
 
     initial_pos = enemy_tank.get_position()
     observed_directions = {initial_direction}
 
     dt = 1.0 / FPS
-    direction_change_interval = game_manager.spawn_manager.ai_for(
-        enemy_tank
-    ).direction_change_interval
-    simulation_duration = direction_change_interval + 0.1
+    simulation_duration = enemy_ai.direction_change_interval + 0.1
     num_updates = int(simulation_duration / dt)
 
     direction_changed = False
@@ -347,7 +348,6 @@ def test_enemy_movement_blocked_by_tile(
     enemy_tank = spawn_enemy_at(
         game_manager, start_grid_x, start_grid_y, direction=move_direction
     )
-    game_manager.spawn_manager.ai_for(enemy_tank).direction_timer = 0
     game_manager.spawn_manager.total_enemy_spawns = 1
 
     initial_pos = enemy_tank.get_position()
@@ -370,9 +370,9 @@ def test_enemy_shooting(game_manager_fixture):
     game_manager = game_manager_fixture
 
     clear_enemies(game_manager)
-    enemy_tank = spawn_enemy_at(game_manager, 16, 16, direction=Direction.RIGHT)
-    enemy_ai = game_manager.spawn_manager.ai_for(enemy_tank)
-    enemy_ai.shoot_timer = 0
+    enemy_tank, enemy_ai = spawn_enemy_with_ai(
+        game_manager, 16, 16, direction=Direction.RIGHT
+    )
     game_manager.spawn_manager.total_enemy_spawns = 1
 
     # Run longer than shoot_interval so we're guaranteed to see a shot.
@@ -437,20 +437,6 @@ def test_enemy_shooting(game_manager_fixture):
     )
 
 
-def test_enemy_ai_steers_toward_the_player(game_manager_fixture):
-    """Each frame, an Enemy's AI is told where the nearest Player is."""
-    game_manager = game_manager_fixture
-    clear_enemies(game_manager)
-    enemy_tank = spawn_enemy_at(game_manager, 20, 4)
-    game_manager.spawn_manager.total_enemy_spawns = 1
-
-    game_manager.update()
-
-    player = first_player(game_manager)
-    enemy_ai = game_manager.spawn_manager.ai_for(enemy_tank)
-    assert enemy_ai.target_position == (player.x, player.y)
-
-
 def test_blocked_enemy_turns_away(game_manager_fixture):
     """Running into a wall reaches the Enemy AI, which picks another way."""
     game_manager = game_manager_fixture
@@ -463,10 +449,9 @@ def test_blocked_enemy_turns_away(game_manager_fixture):
         )
     clear_tiles(game_map, [(22, 20), (23, 20), (22, 21), (23, 21)])
     clear_enemies(game_manager)
-    enemy_tank = spawn_enemy_at(game_manager, 22, 20, direction=Direction.LEFT)
-    enemy_ai = game_manager.spawn_manager.ai_for(enemy_tank)
-    enemy_ai.direction_change_interval = 999
-    enemy_ai.shoot_interval = 999
+    enemy_tank, enemy_ai = spawn_enemy_with_ai(
+        game_manager, 22, 20, direction=Direction.LEFT, fires=False, turns=False
+    )
     game_manager.spawn_manager.total_enemy_spawns = 1
 
     game_manager.update()

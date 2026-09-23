@@ -29,6 +29,8 @@ class EnemyAI:
         *,
         difficulty: Difficulty = Difficulty.NORMAL,
         base_position: tuple[float, float] | None = None,
+        shoot_interval: float | None = None,
+        direction_change_interval: float | None = None,
     ) -> None:
         """
         Initialize the AI and listen for its tank being blocked.
@@ -38,18 +40,27 @@ class EnemyAI:
             difficulty: Scales how strongly the AI steers toward the base
                 and the Player, and how eagerly it fires when aligned.
             base_position: Centre of the base, steered toward and fired at.
+            shoot_interval: Seconds between shots; None uses the tank type's.
+            direction_change_interval: Seconds between turns; None uses the
+                tank type's.
         """
         config = get_enemy_config()
         props = config[tank.tank_type]
 
         self.tank = tank
         self.base_position = base_position
-        # Set by GameManager before each step: the Player the AI steers toward.
-        self.target_position: tuple[float, float] | None = None
+        # This frame's target, from update(); a blocked turn steers by it too.
+        self._target_position: tuple[float, float] | None = None
         self.direction_timer: float = 0
-        self.direction_change_interval: float = props["direction_change_interval"]
+        self.direction_change_interval: float = (
+            direction_change_interval
+            if direction_change_interval is not None
+            else props["direction_change_interval"]
+        )
         self.shoot_timer: float = 0
-        self.shoot_interval: float = props["shoot_interval"]
+        self.shoot_interval: float = (
+            shoot_interval if shoot_interval is not None else props["shoot_interval"]
+        )
         self._wants_to_shoot: bool = False
         self._blocked_directions: set[Direction] = set()
         # A turn the AI wants but TankStepper hasn't made yet; None means
@@ -109,8 +120,8 @@ class EnemyAI:
                 if self.base_position is not None:
                     if self._direction_moves_toward(d, self.base_position):
                         weights[i] += self.effective_base_bias
-                if self.target_position is not None:
-                    if self._direction_moves_toward(d, self.target_position):
+                if self._target_position is not None:
+                    if self._direction_moves_toward(d, self._target_position):
                         weights[i] += self.effective_player_bias
             new_direction = random.choices(candidates, weights)[0]
         else:
@@ -157,7 +168,7 @@ class EnemyAI:
         self._change_direction()
         self.direction_timer = 0
 
-    def update(self, dt: float) -> None:
+    def update(self, dt: float, target_position: tuple[float, float] | None) -> None:
         """
         Advance timers and decide where to go and whether to shoot.
 
@@ -165,7 +176,10 @@ class EnemyAI:
 
         Args:
             dt: Time elapsed since last update in seconds
+            target_position: The Player to steer and fire toward this frame,
+                or None when there is no live Player.
         """
+        self._target_position = target_position
         if self._turn_to is self.tank.direction:
             self._turn_to = None
         # Clear blocked directions once the tank successfully moved,
@@ -197,8 +211,8 @@ class EnemyAI:
             aligned = False
             if self.base_position is not None:
                 aligned = self._is_aligned_with(self.base_position)
-            if not aligned and self.target_position is not None:
-                aligned = self._is_aligned_with(self.target_position)
+            if not aligned and self._target_position is not None:
+                aligned = self._is_aligned_with(self._target_position)
             if aligned:
                 logger.trace(
                     f"EnemyAI ({self.tank.tank_type}) aligned shoot triggered."
