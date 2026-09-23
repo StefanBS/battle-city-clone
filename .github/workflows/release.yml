@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: read
+
 jobs:
   build-windows:
     runs-on: windows-latest
@@ -23,13 +26,13 @@ jobs:
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
 
       - name: Install dependencies
-        run: uv pip install -e ".[dev,build]" --system
+        run: uv sync --locked --extra dev --extra build
 
       - name: Run tests
-        run: pytest
+        run: uv run --no-sync pytest
 
       - name: Build with PyInstaller
-        run: pyinstaller battle-city.spec --noconfirm
+        run: uv run --no-sync pyinstaller battle-city.spec --noconfirm
 
       - name: Build installer with Inno Setup
         uses: Minionguyjpro/Inno-Setup-Action@36abc9fdddc244a69f4895566fa5b2d8d5854e43  # v1.2.7
@@ -57,10 +60,10 @@ jobs:
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
 
       - name: Install dependencies
-        run: uv pip install -e ".[dev]" --system
+        run: uv sync --locked --extra dev
 
       - name: Run tests
-        run: pytest
+        run: uv run --no-sync pytest
 
   build-linux:
     needs: test-linux
