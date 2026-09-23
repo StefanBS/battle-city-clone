@@ -11,6 +11,7 @@ from src.utils.constants import (
     PowerUpType,
 )
 from src.core.tile import TileType
+from src.managers.outcomes import PowerUpCollected
 from tests.integration.conftest import first_player, flush_pending_spawns, spawn_carrier
 
 
@@ -25,8 +26,7 @@ class TestPowerUpEffectsIntegration:
         carrier.health = 0
         game.spawn_manager.remove_enemy(carrier)
         game.power_up_manager.spawn_power_up(
-            first_player(game),
-            game.spawn_manager.enemy_tanks,
+            [first_player(game), *game.spawn_manager.enemy_tanks],
             power_up_type=power_up_type,
         )
         assert len(game.power_up_manager.active_power_ups) == 1
@@ -64,18 +64,18 @@ class TestRemainingPowerUpEffects:
         return game_manager_fixture
 
     def test_clock_effect(self, game):
-        game._apply_power_up(PowerUpType.CLOCK)
+        game._apply_outcomes([PowerUpCollected(PowerUpType.CLOCK, first_player(game))])
         assert game.spawn_manager.enemies_frozen is True
 
     def test_shovel_effect(self, game):
-        game._apply_power_up(PowerUpType.SHOVEL)
+        game._apply_outcomes([PowerUpCollected(PowerUpType.SHOVEL, first_player(game))])
         assert game.power_up_manager.shovel_timer > 0
         tiles = game.map.get_base_surrounding_tiles()
         steel_tiles = [t for t in tiles if t.type == TileType.STEEL]
         assert len(steel_tiles) > 0
 
     def test_star_effect(self, game):
-        game._apply_power_up(PowerUpType.STAR)
+        game._apply_outcomes([PowerUpCollected(PowerUpType.STAR, first_player(game))])
         assert first_player(game).star_level == 1
         expected_speed = BULLET_SPEED * STAR_BULLET_SPEED_MULTIPLIER
         assert first_player(game).bullet_speed == expected_speed

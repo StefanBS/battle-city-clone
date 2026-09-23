@@ -315,44 +315,46 @@ class TestPlayerManagerStatePreservation:
 
 class TestPlayerManagerDeathHandling:
     def test_handle_death_with_lives_respawns(self, player_manager, mock_game_map):
-        """handle_player_death calls respawn() and returns False when lives remain."""
+        """handle_player_death calls respawn() when lives remain."""
         player = MagicMock(spec=PlayerTank)
         player.lives = 2
         player.health = 0
 
-        result = player_manager.handle_player_death(player)
+        player_manager.handle_player_death(player)
 
         player.respawn.assert_called_once()
-        assert result is False
 
-    def test_handle_death_no_lives_returns_game_over(
-        self, player_manager, mock_game_map, mock_texture_manager
-    ):
-        """handle_player_death returns True when the last player is eliminated."""
-        player_manager.create_players(mock_game_map, controller_instance_ids=[])
-
-        player = player_manager._players[0]
+    def test_handle_death_no_lives_does_not_respawn(self, player_manager):
+        player = MagicMock(spec=PlayerTank)
         player.lives = 0
         player.health = 0
 
-        result = player_manager.handle_player_death(player)
+        player_manager.handle_player_death(player)
 
-        assert result is True
+        player.respawn.assert_not_called()
 
-    def test_handle_death_no_lives_but_health_positive(
+    def test_game_over_when_last_player_eliminated(
+        self, player_manager, mock_game_map, mock_texture_manager
+    ):
+        player_manager.create_players(mock_game_map, controller_instance_ids=[])
+
+        player = player_manager.players[0]
+        player.lives = 0
+        player.health = 0
+
+        assert player_manager.is_game_over() is True
+
+    def test_no_game_over_with_no_lives_but_health_positive(
         self, player_manager, mock_game_map, mock_texture_manager
     ):
         """Edge case: lives = 0 but health > 0 — is_game_over returns False."""
         player_manager.create_players(mock_game_map, controller_instance_ids=[])
 
-        player = player_manager._players[0]
+        player = player_manager.players[0]
         player.lives = 0
         player.health = 1  # unusual state: out of lives but not fully dead
 
-        result = player_manager.handle_player_death(player)
-
-        # health > 0 means is_game_over() returns False
-        assert result is False
+        assert player_manager.is_game_over() is False
 
 
 # ---------------------------------------------------------------------------
@@ -599,14 +601,14 @@ class TestPlayerManagerCpuPartner:
         p1.health = 0
         p2.lives = 3
 
-        assert cpu_pm.handle_player_death(p1) is True
+        assert cpu_pm.is_game_over() is True
 
     def test_cpu_partner_out_does_not_end_game_while_human_alive(self, cpu_pm):
         p1, p2 = cpu_pm.players
         p2.lives = 0
         p2.health = 0
 
-        assert cpu_pm.handle_player_death(p2) is False
+        assert cpu_pm.is_game_over() is False
 
 
 class TestPlayerManagerTwoPlayerDeath:
@@ -627,9 +629,9 @@ class TestPlayerManagerTwoPlayerDeath:
         p1.health = 0
         p2.lives = 3
 
-        result = two_player_pm.handle_player_death(p1)
+        two_player_pm.handle_player_death(p1)
 
-        assert result is False  # game continues because p2 is still alive
+        assert two_player_pm.is_game_over() is False  # p2 is still alive
         assert p2.lives == 3  # untouched
         assert p1.lives == 0  # stays dead
 
@@ -642,7 +644,9 @@ class TestPlayerManagerTwoPlayerDeath:
         p2.lives = 0
         p2.health = 0
 
-        assert two_player_pm.handle_player_death(p2) is True
+        two_player_pm.handle_player_death(p2)
+
+        assert two_player_pm.is_game_over() is True
 
     def test_game_over_only_when_both_eliminated(self, two_player_pm):
         """is_game_over() is True only when both players are dead with 0 lives."""

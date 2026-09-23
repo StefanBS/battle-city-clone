@@ -214,24 +214,18 @@ class PlayerManager:
                 if state["star_level"] > 0:
                     player.restore_star_level(state["star_level"])
 
-    def handle_player_death(self, player: PlayerTank) -> bool:
-        """Handle a player's destruction. Returns True if game should end.
+    def handle_player_death(self, player: PlayerTank) -> None:
+        """Respawn a destroyed Player and reset its input, if it has lives left.
 
         Args:
             player: The PlayerTank that was just destroyed.
-
-        Returns:
-            True if the game should end (every Human Player eliminated),
-            False otherwise.
         """
-        if player.lives > 0:
-            player.respawn()
-            for owner, player_input in zip(self._players, self._player_inputs):
-                if owner is player:
-                    player_input.reset()
-            return False
-
-        return self.is_game_over()
+        if player.lives <= 0:
+            return
+        player.respawn()
+        for owner, player_input in zip(self._players, self._player_inputs):
+            if owner is player:
+                player_input.reset()
 
     @property
     def cpu_partner_ids(self) -> frozenset[int]:

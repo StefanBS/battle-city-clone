@@ -3,20 +3,20 @@
 from __future__ import annotations
 
 import random
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 import pygame
 from loguru import logger
 
-from src.core.enemy_tank import EnemyTank
 from src.core.player_tank import PlayerTank
 from src.core.power_up import PowerUp
 from src.core.map import Map
+from src.core.tank import Tank
 from src.managers.texture_manager import TextureManager
 from src.utils.animation import is_blink_visible
 from src.utils.constants import (
     CLOCK_FREEZE_DURATION,
-    EffectType,
     HELMET_INVINCIBILITY_DURATION,
     PowerUpType,
     SHOVEL_DURATION,
@@ -26,8 +26,9 @@ from src.utils.constants import (
 )
 from src.core.tile import BrickVariant, Tile, TileType
 
+from src.managers.outcomes import CollisionOutcome, EnemyDestroyed
+
 if TYPE_CHECKING:
-    from src.managers.effect_manager import EffectManager
     from src.managers.spawn_manager import SpawnManager
 
 
@@ -49,15 +50,15 @@ class PowerUpManager:
 
     def spawn_power_up(
         self,
-        player_tank: PlayerTank | None = None,
-        enemy_tanks: list[EnemyTank] | None = None,
+        tanks: Sequence[Tank] = (),
         power_up_type: PowerUpType | None = None,
         position: tuple[int, int] | None = None,
     ) -> None:
         """Spawn a power-up, appending it to the active list.
 
         If ``position`` is given, spawn there directly without searching.
-        Otherwise, find a random walkable position not occupied by any tank.
+        Otherwise, find a random walkable position not occupied by any of
+        ``tanks``.
         """
         if power_up_type is None:
             power_up_type = random.choice(list(PowerUpType))
@@ -65,9 +66,7 @@ class PowerUpManager:
         if position is not None:
             x, y = position
         else:
-            pos = self._find_spawn_position(
-                player_tank, enemy_tanks if enemy_tanks is not None else []
-            )
+            pos = self._find_spawn_position(tanks)
             if pos is None:
                 logger.warning("No valid position for power-up spawn.")
                 return
@@ -89,23 +88,29 @@ class PowerUpManager:
         power_up_type: PowerUpType,
         player: PlayerTank,
         spawn_manager: SpawnManager,
-        effect_manager: EffectManager,
-    ) -> None:
+    ) -> list[CollisionOutcome]:
         """Dispatch a power-up effect.
 
         Args:
             power_up_type: The collected power-up type.
             player: The collecting player (recipient for player-targeted effects).
             spawn_manager: Used by BOMB and CLOCK to affect enemies.
-            effect_manager: Used by BOMB to spawn explosion effects.
+
+        Returns:
+            The outcomes the effect causes: an ``EnemyDestroyed`` with no
+            Player for every Enemy a Grenade destroys, otherwise nothing.
         """
+        outcomes: list[CollisionOutcome] = []
         match power_up_type:
             case PowerUpType.HELMET:
                 player.activate_invincibility(HELMET_INVINCIBILITY_DURATION)
             case PowerUpType.EXTRA_LIFE:
                 player.lives += 1
             case PowerUpType.BOMB:
-                self._detonate_bomb(spawn_manager, effect_manager)
+                outcomes = [
+                    EnemyDestroyed(enemy, by=None)
+                    for enemy in spawn_manager.enemy_tanks
+                ]
             case PowerUpType.CLOCK:
                 spawn_manager.freeze(CLOCK_FREEZE_DURATION)
             case PowerUpType.SHOVEL:
@@ -114,16 +119,9 @@ class PowerUpManager:
                 player.apply_star()
             case _:
                 logger.warning(f"Unhandled power-up type: {power_up_type}")
-                return
+                return outcomes
         logger.info(f"Power-up applied: {power_up_type}")
-
-    @staticmethod
-    def _detonate_bomb(
-        spawn_manager: SpawnManager, effect_manager: EffectManager
-    ) -> None:
-        for enemy in list(spawn_manager.enemy_tanks):
-            effect_manager.spawn_at_rect(EffectType.LARGE_EXPLOSION, enemy.rect)
-            spawn_manager.remove_enemy(enemy)
+        return outcomes
 
     def apply_shovel(self) -> None:
         """Fortify base walls with steel, restoring destroyed bricks first."""
@@ -180,11 +178,7 @@ class PowerUpManager:
         self.active_power_ups.remove(power_up)
         return power_up_type
 
-    def _find_spawn_position(
-        self,
-        player_tank: PlayerTank | None,
-        enemy_tanks: list[EnemyTank],
-    ) -> tuple[int, int] | None:
+    def _find_spawn_position(self, tanks: Sequence[Tank]) -> tuple[int, int] | None:
         """Find a random walkable tile position not occupied by any tank."""
         walkable = []
         grid = self._game_map.tiles
@@ -212,8 +206,7 @@ class PowerUpManager:
             return None
 
         # Filter out positions occupied by tanks
-        occupied_rects = [player_tank.rect] if player_tank else []
-        occupied_rects.extend(t.rect for t in enemy_tanks)
+        occupied_rects = [t.rect for t in tanks]
 
         available = []
         for px, py in walkable:

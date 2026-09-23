@@ -39,16 +39,16 @@ class TestPowerUpManager:
         assert manager.active_power_ups == []
 
     def test_spawn_creates_power_up(self, manager, mock_player_tank):
-        manager.spawn_power_up(mock_player_tank, [])
+        manager.spawn_power_up([mock_player_tank])
         assert len(manager.active_power_ups) == 1
 
     def test_spawn_multiple_allowed(self, manager, mock_player_tank):
-        manager.spawn_power_up(mock_player_tank, [])
-        manager.spawn_power_up(mock_player_tank, [])
+        manager.spawn_power_up([mock_player_tank])
+        manager.spawn_power_up([mock_player_tank])
         assert len(manager.active_power_ups) == 2
 
     def test_spawn_with_specific_type(self, manager, mock_player_tank):
-        manager.spawn_power_up(mock_player_tank, [], power_up_type=PowerUpType.BOMB)
+        manager.spawn_power_up([mock_player_tank], power_up_type=PowerUpType.BOMB)
         assert manager.active_power_ups[0].power_up_type == PowerUpType.BOMB
 
     def test_spawn_at_explicit_position(self, manager):
@@ -59,7 +59,7 @@ class TestPowerUpManager:
         assert pu.power_up_type == PowerUpType.STAR
 
     def test_collect_specific_power_up(self, manager, mock_player_tank):
-        manager.spawn_power_up(mock_player_tank, [], power_up_type=PowerUpType.CLOCK)
+        manager.spawn_power_up([mock_player_tank], power_up_type=PowerUpType.CLOCK)
         pu = manager.active_power_ups[0]
         result = manager.collect_power_up(pu)
         assert result == PowerUpType.CLOCK
@@ -73,26 +73,26 @@ class TestPowerUpManager:
         assert result is None
 
     def test_collect_removes_only_specified(self, manager, mock_player_tank):
-        manager.spawn_power_up(mock_player_tank, [], power_up_type=PowerUpType.CLOCK)
-        manager.spawn_power_up(mock_player_tank, [], power_up_type=PowerUpType.BOMB)
+        manager.spawn_power_up([mock_player_tank], power_up_type=PowerUpType.CLOCK)
+        manager.spawn_power_up([mock_player_tank], power_up_type=PowerUpType.BOMB)
         pu_clock = manager.active_power_ups[0]
         manager.collect_power_up(pu_clock)
         assert len(manager.active_power_ups) == 1
         assert manager.active_power_ups[0].power_up_type == PowerUpType.BOMB
 
     def test_update_clears_timed_out_power_up(self, manager, mock_player_tank):
-        manager.spawn_power_up(mock_player_tank, [])
+        manager.spawn_power_up([mock_player_tank])
         manager.update(POWERUP_TIMEOUT + 0.1)
         assert len(manager.active_power_ups) == 0
 
     def test_update_keeps_active_power_up(self, manager, mock_player_tank):
-        manager.spawn_power_up(mock_player_tank, [])
+        manager.spawn_power_up([mock_player_tank])
         manager.update(1.0)
         assert len(manager.active_power_ups) == 1
 
     def test_update_removes_only_timed_out(self, manager, mock_player_tank):
-        manager.spawn_power_up(mock_player_tank, [], power_up_type=PowerUpType.CLOCK)
-        manager.spawn_power_up(mock_player_tank, [], power_up_type=PowerUpType.BOMB)
+        manager.spawn_power_up([mock_player_tank], power_up_type=PowerUpType.CLOCK)
+        manager.spawn_power_up([mock_player_tank], power_up_type=PowerUpType.BOMB)
         # advance past timeout for one
         manager.active_power_ups[0].update(POWERUP_TIMEOUT + 0.1)
         manager.update(0.0)
@@ -100,7 +100,7 @@ class TestPowerUpManager:
 
     def test_spawn_avoids_occupied_positions(self, manager, mock_player_tank):
         mock_player_tank.rect = pygame.Rect(0, 0, TILE_SIZE, TILE_SIZE)
-        manager.spawn_power_up(mock_player_tank, [])
+        manager.spawn_power_up([mock_player_tank])
         assert len(manager.active_power_ups) == 1
         pu_rect = manager.active_power_ups[0].rect
         assert not pu_rect.colliderect(mock_player_tank.rect)
@@ -118,7 +118,7 @@ class TestPowerUpManager:
         manager = PowerUpManager(mock_texture_manager, game_map)
         player = MagicMock()
         player.rect = pygame.Rect(0, 0, TILE_SIZE, TILE_SIZE)
-        manager.spawn_power_up(player, [])
+        manager.spawn_power_up([player])
         assert len(manager.active_power_ups) == 0
 
 
