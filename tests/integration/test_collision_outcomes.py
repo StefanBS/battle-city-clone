@@ -31,7 +31,7 @@ def game(game_manager_fixture):
 def _enemy_bullet_on(game, target_rect, owner):
     """An Enemy bullet sitting in the middle of ``target_rect``."""
     bullet = Bullet(target_rect.centerx, target_rect.centery, Direction.DOWN, owner)
-    game.tank_stepper.bullets.append(bullet)
+    game.battle.tank_stepper.bullets.append(bullet)
     return bullet
 
 
@@ -45,7 +45,9 @@ def _idle_enemy(game):
 def _stop_spawning(game):
     """No Enemies left to spawn, so the stage can be won."""
     clear_enemies(game, reset_total=False)
-    game.spawn_manager.total_enemy_spawns = game.spawn_manager.max_enemy_spawns
+    game.battle.spawn_manager.total_enemy_spawns = (
+        game.battle.spawn_manager.max_enemy_spawns
+    )
 
 
 class TestPowerUps:
@@ -60,27 +62,27 @@ class TestPowerUps:
             bullet = Bullet(
                 carrier.rect.centerx, carrier.rect.centery, Direction.UP, player
             )
-            game.tank_stepper.bullets.append(bullet)
+            game.battle.tank_stepper.bullets.append(bullet)
             game.update()
 
-        assert carrier in game.spawn_manager.enemy_tanks
+        assert carrier in game.battle.spawn_manager.enemy_tanks
         assert not carrier.is_carrier
-        assert len(game.power_up_manager.active_power_ups) == 1
+        assert len(game.battle.power_up_manager.active_power_ups) == 1
 
     def test_grenade_kill_on_carrier_drops_a_power_up(self, game):
         carrier = spawn_carrier(game)
         carrier.speed = 0
         player = first_player(game)
-        game.power_up_manager.spawn_power_up(
+        game.battle.power_up_manager.spawn_power_up(
             power_up_type=PowerUpType.BOMB, position=(int(player.x), int(player.y))
         )
 
         game.update()
 
-        assert carrier not in game.spawn_manager.enemy_tanks
-        assert len(game.power_up_manager.active_power_ups) == 1
+        assert carrier not in game.battle.spawn_manager.enemy_tanks
+        assert len(game.battle.power_up_manager.active_power_ups) == 1
         # The Grenade kill scores nothing; only the pickup does.
-        assert game.player_manager.get_score(1) == POWERUP_COLLECT_POINTS
+        assert game.battle.player_manager.get_score(1) == POWERUP_COLLECT_POINTS
 
 
 class TestPlayerDestroyed:
@@ -110,13 +112,13 @@ class TestPlayerDestroyed:
 class TestBaseDestroyed:
     def test_game_over_wins_over_victory_in_the_same_frame(self, game):
         _stop_spawning(game)
-        base_rect = game.map.get_base().rect
+        base_rect = game.battle.map.get_base().rect
         # The bullet's owner is not on the battlefield, so no Enemies remain.
         _enemy_bullet_on(game, base_rect, spawn_enemy_at(game, 0, 0))
         clear_enemies(game, reset_total=False)
 
         game.update()
 
-        assert game.map.is_base_destroyed
-        assert game.spawn_manager.all_enemies_defeated()
+        assert game.battle.map.is_base_destroyed
+        assert game.battle.spawn_manager.all_enemies_defeated()
         assert game.state == GameState.GAME_OVER_ANIMATION

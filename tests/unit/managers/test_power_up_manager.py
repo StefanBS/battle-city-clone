@@ -1,9 +1,13 @@
 import pytest
 import pygame
 from unittest.mock import MagicMock
+from src.core.map import Map
+from src.managers.outcomes import EnemyDestroyed
 from src.managers.power_up_manager import PowerUpManager
 from src.core.tile import BrickVariant, TileType
 from src.utils.constants import (
+    CLOCK_FREEZE_DURATION,
+    HELMET_INVINCIBILITY_DURATION,
     POWERUP_TIMEOUT,
     PowerUpType,
     SHOVEL_DURATION,
@@ -160,3 +164,70 @@ class TestShovelEffect:
         assert manager._shovel_flash_showing_steel is False
         last_call = manager._game_map.set_tile_type.call_args_list[-1]
         assert last_call.args[1] == TileType.BRICK
+
+
+class TestPowerUpManagerApply:
+    """Power-up effect dispatch lives on PowerUpManager.apply()."""
+
+    @pytest.fixture
+    def player(self):
+        p = MagicMock()
+        p.lives = 3
+        p.is_invincible = False
+        return p
+
+    @pytest.fixture
+    def spawn_manager(self):
+        sm = MagicMock()
+        sm.enemy_tanks = []
+        return sm
+
+    @pytest.fixture
+    def manager(self, mock_texture_manager):
+        """Real PowerUpManager with mocked deps.
+
+        ``apply_shovel`` is stubbed because the SHOVEL test only verifies
+        that ``apply()`` delegates — the shovel side-effects on the map
+        are covered elsewhere.
+        """
+        m = PowerUpManager(mock_texture_manager, MagicMock(spec=Map))
+        m.apply_shovel = MagicMock()
+        return m
+
+    def test_helmet_grants_invincibility(self, manager, player, spawn_manager):
+        manager.apply(PowerUpType.HELMET, player, spawn_manager)
+        player.activate_invincibility.assert_called_once_with(
+            HELMET_INVINCIBILITY_DURATION
+        )
+
+    def test_extra_life_increments_lives(self, manager, player, spawn_manager):
+        manager.apply(PowerUpType.EXTRA_LIFE, player, spawn_manager)
+        assert player.lives == 4
+
+    def test_bomb_destroys_every_enemy(self, manager, player, spawn_manager):
+        enemies = [MagicMock(), MagicMock(), MagicMock()]
+        spawn_manager.enemy_tanks = list(enemies)
+        outcomes = manager.apply(PowerUpType.BOMB, player, spawn_manager)
+        assert outcomes == [EnemyDestroyed(e, by=None) for e in enemies]
+        spawn_manager.remove_enemy.assert_not_called()
+
+    def test_clock_freezes_enemies(self, manager, player, spawn_manager):
+        manager.apply(PowerUpType.CLOCK, player, spawn_manager)
+        spawn_manager.freeze.assert_called_once_with(CLOCK_FREEZE_DURATION)
+
+    def test_shovel_delegates_to_apply_shovel(self, manager, player, spawn_manager):
+        manager.apply(PowerUpType.SHOVEL, player, spawn_manager)
+        manager.apply_shovel.assert_called_once_with()
+
+    def test_star_applies_to_player(self, manager, player, spawn_manager):
+        manager.apply(PowerUpType.STAR, player, spawn_manager)
+        player.apply_star.assert_called_once_with()
+
+    def test_helmet_overrides_respawn_invincibility(
+        self, manager, player, spawn_manager
+    ):
+        player.is_invincible = True
+        manager.apply(PowerUpType.HELMET, player, spawn_manager)
+        player.activate_invincibility.assert_called_once_with(
+            HELMET_INVINCIBILITY_DURATION
+        )

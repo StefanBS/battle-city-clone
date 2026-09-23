@@ -40,7 +40,7 @@ def first_player(game):
     Most integration tests are single-player and just want \"the\" player;
     this centralises the get_active_players()[0] lookup.
     """
-    return game.player_manager.get_active_players()[0]
+    return game.battle.player_manager.get_active_players()[0]
 
 
 def flush_pending_spawns(game, max_ticks=120):
@@ -55,8 +55,8 @@ def flush_pending_spawns(game, max_ticks=120):
     change, this helper must be updated accordingly.
     """
     dt = 1.0 / FPS
-    sm = game.spawn_manager
-    em = game.effect_manager
+    sm = game.battle.spawn_manager
+    em = game.battle.effect_manager
     for _ in range(max_ticks):
         if not sm._pending_spawns:
             break
@@ -81,15 +81,15 @@ def spawn_carrier(game):
     first_carrier_index = POWERUP_CARRIER_INDICES[0]
     max_attempts = first_carrier_index + 2
     for _ in range(max_attempts):
-        if game.spawn_manager.total_enemy_spawns > first_carrier_index:
+        if game.battle.spawn_manager.total_enemy_spawns > first_carrier_index:
             break
-        game.spawn_manager.enemy_tanks = []
-        game.spawn_manager._pending_spawns = []
-        game.spawn_manager.spawn_enemy(
-            game.player_manager.get_active_players(), game.map
+        game.battle.spawn_manager.enemy_tanks = []
+        game.battle.spawn_manager._pending_spawns = []
+        game.battle.spawn_manager.spawn_enemy(
+            game.battle.player_manager.get_active_players(), game.battle.map
         )
         flush_pending_spawns(game)
-    carriers = [e for e in game.spawn_manager.enemy_tanks if e.is_carrier]
+    carriers = [e for e in game.battle.spawn_manager.enemy_tanks if e.is_carrier]
     assert carriers, "No carrier found"
     return carriers[0]
 
@@ -133,8 +133,8 @@ def spawn_enemy_with_ai(
     on its own timer (it still turns away when blocked). Extra kwargs (e.g.
     is_carrier=...) are forwarded to EnemyTank.
     """
-    map_w_px = game.map.width * SUB_TILE_SIZE
-    map_h_px = game.map.height * SUB_TILE_SIZE
+    map_w_px = game.battle.map.width * SUB_TILE_SIZE
+    map_h_px = game.battle.map.height * SUB_TILE_SIZE
     enemy = EnemyTank(
         grid_x * SUB_TILE_SIZE,
         grid_y * SUB_TILE_SIZE,
@@ -148,15 +148,15 @@ def spawn_enemy_with_ai(
     if direction is not None:
         enemy.direction = direction
     if replace:
-        game.spawn_manager.enemy_tanks = []
+        game.battle.spawn_manager.enemy_tanks = []
     ai = EnemyAI(
         enemy,
         difficulty=difficulty,
-        base_position=game.spawn_manager.base_position,
+        base_position=game.battle.spawn_manager.base_position,
         shoot_interval=None if fires else float("inf"),
         direction_change_interval=None if turns else float("inf"),
     )
-    game.spawn_manager.add_enemy(enemy, ai)
+    game.battle.spawn_manager.add_enemy(enemy, ai)
     return enemy, ai
 
 
@@ -176,8 +176,8 @@ def fire_bullet_from(game, tank):
     The shot respects the Bullet Cap, so at the cap this returns the bullet
     already in flight.
     """
-    game.tank_stepper.step(tank, _FireInPlace(), 1.0 / FPS)
-    return next(b for b in game.tank_stepper.bullets if b.owner is tank)
+    game.battle.tank_stepper.step(tank, _FireInPlace(), 1.0 / FPS)
+    return next(b for b in game.battle.tank_stepper.bullets if b.owner is tank)
 
 
 def place_player_at(game, x, y, player=None):
@@ -190,10 +190,10 @@ def place_player_at(game, x, y, player=None):
 
 def clear_enemies(game, reset_total=True):
     """Reset enemy_tanks, _pending_spawns, and optionally total_enemy_spawns."""
-    game.spawn_manager.enemy_tanks = []
-    game.spawn_manager._pending_spawns = []
+    game.battle.spawn_manager.enemy_tanks = []
+    game.battle.spawn_manager._pending_spawns = []
     if reset_total:
-        game.spawn_manager.total_enemy_spawns = 0
+        game.battle.spawn_manager.total_enemy_spawns = 0
 
 
 def tick(game, n=1):
@@ -210,4 +210,4 @@ def tick_for(game, seconds):
 def send_event(game, event):
     """Dispatch an event to both the input handler and the player manager."""
     game.input_handler.handle_event(event)
-    game.player_manager.handle_event(event)
+    game.battle.player_manager.handle_event(event)

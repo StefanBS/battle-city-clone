@@ -1,16 +1,12 @@
 import pytest
 import pygame
-from unittest.mock import ANY, MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 from src.states.game_state import GameState
 from src.states.game_mode import GameMode
-from src.core.enemy_tank import EnemyTank
-from src.core.player_tank import PlayerTank
-from src.managers.player_manager import PlayerManager
 from src.utils.constants import (
     Difficulty,
     MAX_STAGE,
     MenuAction,
-    TankType,
     VICTORY_PAUSE_DURATION,
     VOLUME_ADJUSTMENT_STEP,
 )
@@ -126,12 +122,14 @@ class TestGameManager:
         game_manager.handle_events()
         assert game_manager.state == initial_state
 
-    def test_restart_after_game_over_resets_lives(self, game_manager):
-        """Test that restarting after game over restores default lives."""
+    def test_restart_after_game_over_starts_a_fresh_battle(
+        self, game_manager, _mock_game_deps
+    ):
+        """Restarting after game over builds a Battle with no carried progress."""
         game_manager.state = GameState.GAME_OVER
+        _mock_game_deps.reset_mock()
         game_manager._reset_game()
-        players = game_manager.player_manager.get_active_players()
-        assert players[0].lives == 3
+        assert _mock_game_deps.call_args.kwargs["carried"] == {}
 
     # --- Game State Tests --- #
 
@@ -140,22 +138,16 @@ class TestGameManager:
         assert game_manager.current_stage == 1
 
     def test_update_stops_when_not_running(self, game_manager):
-        """Test that update method does nothing if state is not RUNNING."""
+        """The Battle is not stepped unless the game is RUNNING."""
         game_manager.state = GameState.GAME_OVER
-        game_manager.player_manager = MagicMock()
-        # Use a real list for enemy_tanks for the update loop check
-        mock_enemy = MagicMock(spec=EnemyTank)
-        mock_enemy.tank_type = TankType.BASIC
-        game_manager.spawn_manager.enemy_tanks = [mock_enemy]
-        game_manager.spawn_manager = MagicMock()
-        game_manager.collision_response_handler = MagicMock()
-
         game_manager.update()
+        game_manager.battle.step.assert_not_called()
 
-        game_manager.player_manager.update.assert_not_called()
-        mock_enemy.update.assert_not_called()
-        game_manager.spawn_manager.update.assert_not_called()
-        game_manager.collision_response_handler.process_collisions.assert_not_called()
+    def test_events_are_passed_to_the_battle(self, game_manager, key_down_event):
+        event = key_down_event(pygame.K_UP)
+        with patch("pygame.event.get", return_value=[event]):
+            game_manager.handle_events()
+        game_manager.battle.handle_event.assert_called_once_with(event)
 
     class TestMenuActionHandlers:
         """Tests for menu handlers accepting MenuAction."""
@@ -267,23 +259,6 @@ class TestGameManagerSoundWiring:
         gm.sound_manager.stop_loops.assert_called_once()
         assert gm.state == GameState.EXIT
 
-    @pytest.mark.parametrize("enemy_fired", [True, False])
-    def test_enemy_shot_plays_the_shoot_sound(self, gm_with_mock_sound, enemy_fired):
-        gm = gm_with_mock_sound
-        gm.state = GameState.RUNNING
-        active_players = [MagicMock(spec=PlayerTank)]
-        gm.player_manager = MagicMock(spec=PlayerManager)
-        gm.player_manager.get_active_players.return_value = active_players
-
-        with patch.object(
-            gm.spawn_manager, "step_enemies", return_value=enemy_fired
-        ) as step_enemies:
-            gm.update()
-
-        step_enemies.assert_called_once_with(ANY, gm.tank_stepper, active_players)
-        shoot = call("shoot")
-        assert (shoot in gm.sound_manager.play.call_args_list) is enemy_fired
-
     def test_handle_title_input_plays_menu_select(self, game_manager_at_title):
         gm = game_manager_at_title
         gm.sound_manager = MagicMock()
@@ -292,21 +267,19 @@ class TestGameManagerSoundWiring:
 
 
 class TestStageProgression:
-    def test_load_stage_uses_current_stage_for_map_name(self, game_manager):
+    def test_stage_map_uses_current_stage_for_map_name(self, game_manager):
         game_manager.current_stage = 5
         with patch("src.managers.game_manager.os.path.exists", return_value=True):
             with patch("src.managers.game_manager.Map") as MockMap:
-                MockMap.return_value = game_manager.map
-                game_manager._load_stage()
+                game_manager._load_stage_map()
         call_args = MockMap.call_args[0][0]
         assert "level_05.tmx" in call_args
 
-    def test_load_stage_falls_back_to_level_01_when_missing(self, game_manager):
+    def test_stage_map_falls_back_to_level_01_when_missing(self, game_manager):
         game_manager.current_stage = 99
         with patch("src.managers.game_manager.os.path.exists", return_value=False):
             with patch("src.managers.game_manager.Map") as MockMap:
-                MockMap.return_value = game_manager.map
-                game_manager._load_stage()
+                game_manager._load_stage_map()
         call_args = MockMap.call_args[0][0]
         assert "level_01.tmx" in call_args
 
@@ -551,7 +524,7 @@ class TestPauseAndOptionsStateMachine:
         gm._pause_menu.selection = 0
         gm._pause_menu.handle_action(MenuAction.CONFIRM)
         assert gm.state == GameState.RUNNING
-        gm.player_manager.clear_pending_shoot.assert_called_once()
+        gm.battle.clear_pending_shoot.assert_called_once()
 
     def test_pause_navigation_up_down(self, game_manager, key_down_event):
         """UP/DOWN navigation wraps through 4 pause items."""
@@ -672,17 +645,15 @@ class TestPauseAndOptionsStateMachine:
         """Update does not process game logic when PAUSED."""
         gm = game_manager
         gm.state = GameState.PAUSED
-        gm.player_manager = MagicMock()
         gm.update()
-        gm.player_manager.update.assert_not_called()
+        gm.battle.step.assert_not_called()
 
     def test_update_does_nothing_when_in_options(self, game_manager):
         """Update does not process game logic when in OPTIONS_MENU."""
         gm = game_manager
         gm.state = GameState.OPTIONS_MENU
-        gm.player_manager = MagicMock()
         gm.update()
-        gm.player_manager.update.assert_not_called()
+        gm.battle.step.assert_not_called()
 
     # --- Render routing ---
 

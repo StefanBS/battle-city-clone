@@ -32,7 +32,7 @@ def test_player_movement(
     """Test player tank movement and direction in all four directions."""
     game_manager = game_manager_fixture
     player_tank = first_player(game_manager)
-    game_map = game_manager.map
+    game_map = game_manager.battle.map
 
     start_grid_x, start_grid_y = 16, 16
     new_x = start_grid_x * SUB_TILE_SIZE
@@ -92,7 +92,7 @@ def test_player_movement_blocked_by_tile(
     """Test player tank movement is blocked by specific tile types."""
     game_manager = game_manager_fixture
     player_tank = first_player(game_manager)
-    game_map = game_manager.map
+    game_map = game_manager.battle.map
 
     # Target location (14,14) is clear of default map obstacles.
     target_x_grid = 14
@@ -219,17 +219,17 @@ def test_player_shooting(game_manager_fixture):
     game_manager = game_manager_fixture
     player_tank = first_player(game_manager)
 
-    assert len(game_manager.tank_stepper.bullets) == 0, (
+    assert len(game_manager.battle.tank_stepper.bullets) == 0, (
         "No bullets should exist initially."
     )
 
     player_tank.direction = Direction.RIGHT
     fire_bullet_from(game_manager, player_tank)
 
-    assert len(game_manager.tank_stepper.bullets) == 1, (
+    assert len(game_manager.battle.tank_stepper.bullets) == 1, (
         "One bullet should exist after shooting."
     )
-    bullet = game_manager.tank_stepper.bullets[0]
+    bullet = game_manager.battle.tank_stepper.bullets[0]
     assert bullet.active, "Bullet should be active after shooting."
     assert bullet.direction == Direction.RIGHT, "Bullet direction is incorrect."
     assert bullet.owner_type == OwnerType.PLAYER, "Bullet owner type is incorrect."
@@ -246,10 +246,10 @@ def test_player_shooting(game_manager_fixture):
     # One-bullet-per-tank limit: firing again while the first is active is a no-op.
     fire_bullet_from(game_manager, player_tank)
 
-    assert len(game_manager.tank_stepper.bullets) == 1, (
+    assert len(game_manager.battle.tank_stepper.bullets) == 1, (
         "Firing again should not create a new bullet while the first is active."
     )
-    assert game_manager.tank_stepper.bullets[0] is bullet, (
+    assert game_manager.battle.tank_stepper.bullets[0] is bullet, (
         "Original bullet should still be present."
     )
     assert bullet.active, "Original bullet should still be active."
@@ -274,9 +274,9 @@ def test_player_bullet_movement(
     player_tank.direction = direction
     fire_bullet_from(game_manager, player_tank)
 
-    assert len(game_manager.tank_stepper.bullets) == 1, "Bullet failed to spawn."
+    assert len(game_manager.battle.tank_stepper.bullets) == 1, "Bullet failed to spawn."
     bullet = next(
-        b for b in game_manager.tank_stepper.bullets if b.owner is player_tank
+        b for b in game_manager.battle.tank_stepper.bullets if b.owner is player_tank
     )
     assert bullet.active, "Bullet spawned but is not active."
     assert bullet.direction == direction, "Bullet has wrong direction."

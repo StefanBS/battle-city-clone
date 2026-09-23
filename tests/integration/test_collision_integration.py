@@ -29,7 +29,7 @@ def test_player_bullet_vs_tile(
     """Test player bullet interaction with various tile types."""
     game_manager = game_manager_fixture
     player_tank = first_player(game_manager)
-    game_map = game_manager.map
+    game_map = game_manager.battle.map
 
     target_x_grid = 14
     target_y_grid = 20
@@ -116,14 +116,14 @@ def test_player_bullet_destroys_enemy_tank(game_manager_fixture, mocker):
 
     # Clear enemy + player (2 sub-tiles each = 4 total) across 2 columns.
     clear_tiles(
-        game_manager.map,
+        game_manager.battle.map,
         [(enemy_x_grid + dx, enemy_y_grid + dy) for dy in range(4) for dx in range(2)],
     )
 
     enemy_tank = spawn_enemy_at(game_manager, enemy_x_grid, enemy_y_grid)
     # Prevent enemy shooting so its bullets don't interfere with the player bullet.
     enemy_tank.shoot = lambda: None
-    initial_enemy_count = len(game_manager.spawn_manager.enemy_tanks)
+    initial_enemy_count = len(game_manager.battle.spawn_manager.enemy_tanks)
 
     # Player below enemy (2 sub-tiles = 1 tank height).
     place_player_at(
@@ -146,22 +146,22 @@ def test_player_bullet_destroys_enemy_tank(game_manager_fixture, mocker):
         if not bullet.active:
             bullet_became_inactive_during_loop = True
             break
-        if enemy_tank not in game_manager.spawn_manager.enemy_tanks:
+        if enemy_tank not in game_manager.battle.spawn_manager.enemy_tanks:
             if not bullet.active:
                 bullet_became_inactive_during_loop = True
             break
 
-    if enemy_tank in game_manager.spawn_manager.enemy_tanks:
+    if enemy_tank in game_manager.battle.spawn_manager.enemy_tanks:
         assert bullet_became_inactive_during_loop, (
             "Bullet remained active but enemy was not destroyed."
         )
 
-    assert enemy_tank not in game_manager.spawn_manager.enemy_tanks, (
+    assert enemy_tank not in game_manager.battle.spawn_manager.enemy_tanks, (
         "Enemy tank was not removed after being hit."
     )
-    assert len(game_manager.spawn_manager.enemy_tanks) == initial_enemy_count - 1, (
-        "Enemy count did not decrease by one."
-    )
+    assert (
+        len(game_manager.battle.spawn_manager.enemy_tanks) == initial_enemy_count - 1
+    ), "Enemy count did not decrease by one."
 
 
 @pytest.mark.parametrize(
@@ -198,8 +198,8 @@ def test_enemy_bullet_hits_player_tank(
     enemy_y_grid = player_y_grid - 4
 
     if not (
-        0 <= enemy_y_grid < game_manager.map.height
-        and 0 <= enemy_x_grid < game_manager.map.width
+        0 <= enemy_y_grid < game_manager.battle.map.height
+        and 0 <= enemy_x_grid < game_manager.battle.map.width
     ):
         pytest.skip(
             f"Calculated enemy position ({enemy_x_grid}, {enemy_y_grid}) "
@@ -207,7 +207,7 @@ def test_enemy_bullet_hits_player_tank(
         )
 
     clear_tiles(
-        game_manager.map,
+        game_manager.battle.map,
         [
             (enemy_x_grid + dx, y)
             for y in range(enemy_y_grid, player_y_grid + 2)
@@ -311,7 +311,7 @@ def test_enemy_bullet_hits_other_enemy(game_manager_fixture, mocker):
     enemy2_x_grid, enemy2_y_grid = 16, 20
 
     clear_tiles(
-        game_manager.map,
+        game_manager.battle.map,
         [(16 + dx, y) for y in range(16, 22) for dx in range(2)],
     )
 
@@ -320,7 +320,7 @@ def test_enemy_bullet_hits_other_enemy(game_manager_fixture, mocker):
     )
     enemy2 = spawn_enemy_at(game_manager, enemy2_x_grid, enemy2_y_grid, replace=False)
 
-    initial_enemy_count = len(game_manager.spawn_manager.enemy_tanks)
+    initial_enemy_count = len(game_manager.battle.spawn_manager.enemy_tanks)
     initial_enemy2_health = enemy2.health
 
     bullet = fire_bullet_from(game_manager, enemy1)
@@ -345,13 +345,13 @@ def test_enemy_bullet_hits_other_enemy(game_manager_fixture, mocker):
         f"Got: {enemy2.health}"
     )
 
-    assert enemy2 in game_manager.spawn_manager.enemy_tanks, (
+    assert enemy2 in game_manager.battle.spawn_manager.enemy_tanks, (
         "Enemy2 was removed from the list."
     )
 
-    assert len(game_manager.spawn_manager.enemy_tanks) == initial_enemy_count, (
+    assert len(game_manager.battle.spawn_manager.enemy_tanks) == initial_enemy_count, (
         f"Enemy count changed. Expected: {initial_enemy_count}, "
-        f"Got: {len(game_manager.spawn_manager.enemy_tanks)}"
+        f"Got: {len(game_manager.battle.spawn_manager.enemy_tanks)}"
     )
 
 
@@ -368,7 +368,7 @@ def test_player_tank_vs_enemy_tank_no_overlap(game_manager_fixture, mocker):
     enemy_y_grid = player_y_grid - 2
 
     clear_tiles(
-        game_manager.map,
+        game_manager.battle.map,
         [
             (enemy_x_grid + dx, y)
             for y in range(enemy_y_grid, player_y_grid + 2)
@@ -388,7 +388,7 @@ def test_player_tank_vs_enemy_tank_no_overlap(game_manager_fixture, mocker):
         player_tank.move(0, -1, dt)
         enemy_tank.update(dt)
 
-        game_manager.collision_manager.check_collisions(
+        game_manager.battle.collision_manager.check_collisions(
             player_tanks=[player_tank],
             enemy_tanks=[enemy_tank],
             bullets=[],
@@ -396,8 +396,8 @@ def test_player_tank_vs_enemy_tank_no_overlap(game_manager_fixture, mocker):
             bullet_blocking_tiles=[],
             player_base=None,
         )
-        events = game_manager.collision_manager.get_collision_events()
-        game_manager.collision_response_handler.process_collisions(events)
+        events = game_manager.battle.collision_manager.get_collision_events()
+        game_manager.battle.collision_response_handler.process_collisions(events)
 
     assert not player_tank.rect.colliderect(enemy_tank.rect), (
         f"Player rect {player_tank.rect} overlaps enemy rect {enemy_tank.rect}"
@@ -417,7 +417,7 @@ def test_enemy_bullets_collide(game_manager_fixture, mocker):
     enemy2_x_grid, enemy2_y_grid = 8, 16
 
     clear_tiles(
-        game_manager.map,
+        game_manager.battle.map,
         [(x, 16 + dy) for x in range(2, 10) for dy in range(2)],
     )
 
