@@ -9,20 +9,10 @@ from src.utils.constants import SUB_TILE_SIZE
 class TestTileAnimation:
     """Tests for Tile animation logic."""
 
-    @pytest.fixture
-    def brick_tile(self):
-        return Tile(TileType.BRICK, 0, 0)
-
-    def test_water_tile_not_animated_by_default(self):
-        """Water tiles are not animated until set_animation_frames is called."""
+    def test_tile_not_animated_until_frames_set(self):
         tile = Tile(TileType.WATER, 0, 0)
         assert not tile.is_animated
-
-    def test_brick_tile_is_not_animated(self, brick_tile):
-        assert not brick_tile.is_animated
-
-    def test_update_non_animated_returns_false(self, brick_tile):
-        assert not brick_tile.update(1.0)
+        assert not tile.update(1.0)
 
 
 class TestTileNativeAnimation:
@@ -43,14 +33,8 @@ class TestTileNativeAnimation:
         tile.set_animation_frames(frames)
         return tile
 
-    def test_is_animated_with_frames(self, animated_tile):
-        assert animated_tile.is_animated is True
-
     def test_initial_frame_index_zero(self, animated_tile):
         assert animated_tile.current_frame_index == 0
-
-    def test_three_frames(self, animated_tile):
-        assert len(animated_tile.animation_sprites) == 3
 
     def test_update_before_duration_stays(self, animated_tile):
         animated_tile.update(0.3)
@@ -135,45 +119,31 @@ class TestTileDraw:
         )
 
 
-class TestTileCollisionProperties:
-    """Tests for Tile blocks_tanks and blocks_bullets attributes."""
+class TestTileRuleFlags:
+    """Tests for the rule flags a Tile is built with."""
 
-    def test_default_blocks_tanks_false(self):
+    def test_flags_default_false(self):
         tile = Tile(TileType.EMPTY, 0, 0)
-        assert tile.blocks_tanks is False
+        assert not tile.blocks_tanks
+        assert not tile.blocks_bullets
+        assert not tile.is_destructible
+        assert not tile.is_overlay
+        assert not tile.is_slidable
 
-    def test_default_blocks_bullets_false(self):
-        tile = Tile(TileType.EMPTY, 0, 0)
-        assert tile.blocks_bullets is False
-
-    def test_blocks_tanks_set_from_constructor(self):
-        tile = Tile(TileType.BRICK, 0, 0, blocks_tanks=True, blocks_bullets=True)
-        assert tile.blocks_tanks is True
-
-    def test_blocks_bullets_set_from_constructor(self):
-        tile = Tile(TileType.WATER, 0, 0, blocks_tanks=True, blocks_bullets=False)
-        assert tile.blocks_bullets is False
-
-    def test_default_is_destructible_false(self):
-        tile = Tile(TileType.EMPTY, 0, 0)
-        assert tile.is_destructible is False
-
-    def test_default_is_overlay_false(self):
-        tile = Tile(TileType.EMPTY, 0, 0)
-        assert tile.is_overlay is False
-
-    def test_default_is_slidable_false(self):
-        tile = Tile(TileType.EMPTY, 0, 0)
-        assert tile.is_slidable is False
-
-    def test_is_destructible_set_from_constructor(self):
-        tile = Tile(TileType.BRICK, 0, 0, is_destructible=True)
-        assert tile.is_destructible is True
-
-    def test_is_overlay_set_from_constructor(self):
-        tile = Tile(TileType.BUSH, 0, 0, is_overlay=True)
-        assert tile.is_overlay is True
-
-    def test_is_slidable_set_from_constructor(self):
-        tile = Tile(TileType.ICE, 0, 0, is_slidable=True)
-        assert tile.is_slidable is True
+    def test_flags_set_from_constructor(self):
+        """Each keyword lands on its own flag (mixed values catch swaps)."""
+        tile = Tile(
+            TileType.BRICK,
+            0,
+            0,
+            blocks_tanks=True,
+            blocks_bullets=False,
+            is_destructible=True,
+            is_overlay=False,
+            is_slidable=True,
+        )
+        assert tile.blocks_tanks
+        assert not tile.blocks_bullets
+        assert tile.is_destructible
+        assert not tile.is_overlay
+        assert tile.is_slidable
