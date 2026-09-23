@@ -126,42 +126,48 @@ stateDiagram-v2
 
 ## 3. Engaging an Enemy (Defend and Hunt)
 
-Both Goals that target an Enemy run the same per-frame logic. Nothing here is
-stored between frames except the refused-shot count, the given-up sides and
-the Cut Off list, so "states" are what it finds each frame.
+Both Goals that target an Enemy go through the checks below every frame,
+starting from the top. Only three things carry over from one frame to the
+next: how long it has held fire, which sides of each Enemy it has given up,
+and which Enemies are Cut Off.
 
 ```mermaid
-stateDiagram-v2
-    state "Approach a Firing Position" as Approach
-    state "Turn to face the Enemy" as Turn
-    state "Aim" as Aim
-    state "Fire" as Fire
-    state "Hold fire" as Hold
-    state "Give up this side" as GiveUpSide
-    state "Cut Off (Goal abandoned)" as CutOff
-    state sides <<choice>>
+flowchart TD
+    Start(["Each frame, with a Defend or Hunt target"])
+    Q1{"Lined up on the Enemy<br/>from a Firing Position<br/>on a side it hasn't given up?"}
+    Q2{"Facing the Enemy?"}
+    Q3{"Line of Fire safe, and<br/>the Enemy can't slip away?"}
+    Q4{"Held fire on this Enemy<br/>for 1 s without a break?"}
+    Q5{"A Firing Position left<br/>on another side?"}
+    QP{"Path to a Firing Position<br/>on a side it hasn't given up?"}
+    Step["<b>Approach</b><br/>take the next step,<br/>shooting a brick in the way"]
+    Turn["<b>Turn</b> toward the Enemy"]
+    Fire["<b>Fire</b><br/>unless it hesitates"]
+    Hold["<b>Hold fire</b> this frame"]
+    GiveUp["<b>Give up this side</b><br/>approaches another side next frame"]
+    CutOff["<b>Cut Off</b><br/>Goal abandoned"]
 
-    [*] --> Approach
-    Approach --> Turn : lined up from a Firing Position on an open side
-    Approach --> CutOff : no path to any Firing Position
-    Turn --> Aim : facing the Enemy
-    Aim --> Fire : Line of Fire safe and the Enemy can't slip away
-    Aim --> Hold : unsafe, or the Enemy can slip away
-    Fire --> Aim : next frame
-    Hold --> Aim : next frame
-    Hold --> GiveUpSide : held for 1 s without a break
-    GiveUpSide --> sides
-    sides --> Approach : a Firing Position left on another side
-    sides --> CutOff : none left
-    Aim --> Approach : Enemy moved out of line
-    CutOff --> [*]
+    Start --> Q1
+    Q1 -- no --> QP
+    QP -- yes --> Step
+    QP -- no --> CutOff
+    Q1 -- yes --> Q2
+    Q2 -- no --> Turn
+    Q2 -- yes --> Q3
+    Q3 -- yes --> Fire
+    Q3 -- no --> Q4
+    Q4 -- no --> Hold
+    Q4 -- yes --> Q5
+    Q5 -- yes --> GiveUp
+    Q5 -- no --> CutOff
 ```
 
 - **Approach**: A* to the cheapest Firing Position on a side it hasn't given
   up. It shoots a brick that blocks the next step once it faces it, but only
   when that shot is safe. When it has been stuck for `CPU_PARTNER_STUCK_TIME`,
-  it routes around the tanks right ahead of it until they move. If only the
-  Human Player is in the way, it waits and never pushes.
+  it routes around the tanks right ahead of it until they move. If the only
+  thing in the way is the Human Player, it waits and never pushes, and the
+  Enemy isn't Cut Off.
 - **Lined up** means the centers are within half a sub-tile
   (`CPU_PARTNER_ALIGN_TOLERANCE`) on the cross axis, and the Line of Fire
   from there counts as a Firing Position for the target.
