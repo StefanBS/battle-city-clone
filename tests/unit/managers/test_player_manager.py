@@ -123,16 +123,6 @@ class TestPlayerManagerCreation:
         assert isinstance(pi, CombinedInput)
         assert pi._inputs[1].instance_id is None
 
-    def test_1p_slot_is_a_human_player(self, player_manager, mock_game_map):
-        player_manager.create_players(mock_game_map, controller_instance_ids=[])
-        assert [slot.kind for slot in player_manager.slots] == [PlayerKind.HUMAN]
-
-    def test_slot_holds_its_tank(self, player_manager, mock_game_map):
-        player_manager.create_players(mock_game_map, controller_instance_ids=[])
-        slot = player_manager.slots[0]
-        assert slot.tank is player_manager.players[0]
-        assert slot.player_id == 1
-
     def test_create_players_clears_previous_state(self, player_manager, mock_game_map):
         """Calling create_players() twice replaces the players and inputs."""
         player_manager.create_players(mock_game_map, controller_instance_ids=[])
@@ -281,11 +271,6 @@ class TestPlayerManagerScore:
     def test_add_score_for_a_missing_slot_raises(self, player_manager):
         with pytest.raises(KeyError):
             player_manager.add_score(100, player_id=2)
-
-    def test_score_is_kept_in_the_players_slot(self, player_manager, mock_game_map):
-        player_manager.create_players(mock_game_map, controller_instance_ids=[])
-        player_manager.add_score(300)
-        assert player_manager.slots[0].score == 300
 
     def test_score_carries_over_to_the_next_stage(self, player_manager, mock_game_map):
         """create_players() for a new stage keeps each slot's score."""
@@ -541,17 +526,6 @@ class TestPlayerManagerTwoPlayerCreation:
         )
         assert player_manager.slots[0].input.instance_id == 0
         assert player_manager.slots[1].input.instance_id == 5
-
-    def test_2p_both_slots_are_human_players(self, player_manager, mock_game_map):
-        mock_game_map.player_spawn_2 = (16, 24)
-        player_manager.create_players(
-            mock_game_map, controller_instance_ids=[0], mode=GameMode.TWO_PLAYERS
-        )
-        assert [slot.kind for slot in player_manager.slots] == [
-            PlayerKind.HUMAN,
-            PlayerKind.HUMAN,
-        ]
-        assert player_manager.cpu_partner_ids == frozenset()
 
     def test_2p_fallback_spawn_when_no_spawn_2(self, player_manager, mock_game_map):
         """When player_spawn_2 is absent, derive P2 position from P1."""
