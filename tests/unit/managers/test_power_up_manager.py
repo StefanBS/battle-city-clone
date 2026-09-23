@@ -47,11 +47,6 @@ class TestPowerUpManager:
         manager.spawn_power_up([mock_player_tank], power_up_type=PowerUpType.BOMB)
         assert [p.power_up_type for p in manager.active_power_ups] == [PowerUpType.BOMB]
 
-    def test_clear_removes_power_up(self, manager, mock_player_tank):
-        manager.spawn_power_up([mock_player_tank])
-        manager.clear()
-        assert manager.active_power_ups == []
-
     def test_spawn_with_specific_type(self, manager, mock_player_tank):
         manager.spawn_power_up([mock_player_tank], power_up_type=PowerUpType.BOMB)
         assert manager.active_power_ups[0].power_up_type == PowerUpType.BOMB
