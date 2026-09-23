@@ -418,6 +418,7 @@ class TestExplosionEffects:
             (TileType.STEEL, False),
             (TileType.BASE, False),
         ],
+        ids=["brick", "steel", "base"],
     )
     def test_bullet_vs_tile_spawns_small_explosion(
         self, handler, make_bullet, mock_effect_manager, tile_type, is_destructible
