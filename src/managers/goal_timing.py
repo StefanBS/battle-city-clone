@@ -34,9 +34,11 @@ class GoalTiming:
     its Goal's target is gone. It keeps its Goal until another has been
     preferred for ``stickiness_frames``, unless its Goal's target is gone;
     Ambush, just waiting, gives way at once. Stickiness counts the time it
-    has preferred any other Goal, even if that Goal changes meanwhile. Once
-    it decides on a new Goal, it keeps acting on the old one for the Reaction
-    Delay (``reaction_frames``).
+    has preferred any other Goal, even if that Goal changes meanwhile:
+    counting only one particular Goal would never let it switch while its
+    preference keeps changing (e.g. two Base Threats taking turns as the one
+    nearest the Base). Once it decides on a new Goal, it keeps acting on the
+    old one for the Reaction Delay (``reaction_frames``).
     """
 
     def __init__(
