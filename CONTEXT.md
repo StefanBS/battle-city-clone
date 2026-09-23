@@ -28,7 +28,7 @@ A spot in a target's row or column from which a Player's Line of Fire reaches th
 The moment the CPU Partner takes before acting on a new Goal. Until it passes, it keeps acting on its previous Goal.
 
 **Cut Off**:
-An Enemy the CPU Partner found it can't reach from where the Enemy stands. It is left out of the CPU Partner's Goals until it moves.
+An Enemy the CPU Partner has no Firing Position left to use against from where the Enemy stands: it found none it can reach, or it has given up firing from every side. It is left out of the CPU Partner's Goals until it moves.
 
 **Co-op**:
 A game with two Players, where P2 is either a second Human Player or a CPU Partner.

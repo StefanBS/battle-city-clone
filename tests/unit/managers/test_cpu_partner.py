@@ -959,6 +959,54 @@ class TestCpuPartnerUnreachableThreat:
         assert leaves_decoy(cpu) is True
 
 
+# A steel pocket, open only at the bottom, around the Enemy at (8, 12), near
+# the mid-field Base: it can only be shot from below.
+POCKETED = (8, 12)
+POCKET = {(x, 11): TileType.STEEL for x in range(7, 11)} | {
+    (x, y): TileType.STEEL for x in (7, 10) for y in (12, 13)
+}
+
+
+def pocket_view(near_base: bool) -> WorldView:
+    """The CPU Partner below POCKETED, the Human Player in its lane, and FAR_ENEMY.
+
+    With ``near_base``, the mid-field Base makes POCKETED a Base Threat.
+    """
+    view = make_view(
+        own=(8, 20, Direction.UP),
+        enemies=[POCKETED, FAR_ENEMY],
+        human=(9, 16),
+        tiles=POCKET | (base_tiles() if near_base else {}),
+        base_cells=BASE if near_base else frozenset(),
+        base_wall_cells=BASE_WALL if near_base else frozenset(),
+    )
+    assert (view.enemies[0] in view.base_threats) is near_base
+    return view
+
+
+class TestCpuPartnerNoFiringPositionLeft:
+    @pytest.mark.parametrize("near_base", [True, False])
+    def test_leaves_an_enemy_with_every_side_given_up_at_once(
+        self, cpu, near_base
+    ) -> None:
+        view = pocket_view(near_base)
+        observe_refused(cpu, view)
+        # It gives up the only side POCKETED can be shot from, so it has no
+        # Firing Position left and goes after FAR_ENEMY straight away.
+        cpu.observe(view)
+        assert cpu.get_movement_direction() != (0, 0)
+        assert cpu.consume_shoot() is False
+
+    @pytest.mark.parametrize("near_base", [True, False])
+    def test_does_not_come_back_while_it_stays_put(self, cpu, near_base) -> None:
+        view = pocket_view(near_base)
+        observe_refused(cpu, view)
+        own = walk(cpu, view)
+        # It lines up on FAR_ENEMY rather than come back to POCKETED.
+        assert own.x == cell(FAR_ENEMY[0])
+        assert cpu.consume_shoot() is True
+
+
 def with_power_up(
     view: WorldView, at: Cell, power_up_type: PowerUpType = PowerUpType.STAR
 ) -> WorldView:
@@ -1053,6 +1101,14 @@ class TestCpuPartnerAmbush:
     def test_hunts_rather_than_ambush(self, cpu) -> None:
         cpu.observe(with_spawns(LINED_UP, (24, 12)))
         assert cpu.consume_shoot() is True
+
+    def test_ambushes_at_once_when_no_enemy_can_be_shot(self, cpu) -> None:
+        # The only Enemy is sealed in steel: it has no Firing Position.
+        view = make_view(
+            own=(20, 12, Direction.UP), enemies=[(7, 11)], tiles=STEEL_RING
+        )
+        cpu.observe(with_spawns(view, (12, 0)))
+        assert cpu.get_movement_direction() == Direction.LEFT.delta
 
     def test_covers_the_spawn_point_nearest_by_path(self, cpu) -> None:
         # (12, 2) is nearer as the crow flies, but steel walls it off; (24, 12)
