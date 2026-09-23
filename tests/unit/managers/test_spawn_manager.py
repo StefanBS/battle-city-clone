@@ -7,6 +7,8 @@ from src.managers.spawn_manager import SpawnManager
 from src.managers.effect_manager import EffectManager
 from src.core.effect import Effect
 from src.core.enemy_tank import EnemyTank
+from src.core.map import Map
+from src.core.player_tank import PlayerTank
 from src.utils.constants import (
     EffectType,
     TILE_SIZE,
@@ -28,7 +30,7 @@ SPAWN_POINTS = [(3, 1), (8, 1), (12, 1)]
 @pytest.fixture
 def mock_player_tank():
     """Create a mock player tank positioned away from spawn points."""
-    player = MagicMock()
+    player = MagicMock(spec=PlayerTank)
     # Place player at the bottom of the map, far from spawn points
     player.rect = pygame.Rect(7 * TILE_SIZE, 14 * TILE_SIZE, TILE_SIZE, TILE_SIZE)
     return player
@@ -37,7 +39,7 @@ def mock_player_tank():
 @pytest.fixture
 def mock_game_map():
     """Create a mock game map with no collidable tiles."""
-    game_map = MagicMock()
+    game_map = MagicMock(spec=Map)
     game_map.get_collidable_tiles.return_value = []
     game_map.spawn_points = SPAWN_POINTS
     game_map.width_px = 16 * TILE_SIZE
@@ -223,7 +225,7 @@ class TestSpawnManager:
             enemies += manager.update(0.0, [mock_player_tank], mock_game_map)
             manager.spawn_enemy([mock_player_tank], mock_game_map)
 
-        assert manager.max_enemy_spawns == 20
+        assert manager.max_enemy_spawns == sum(composition.values())
         assert Counter(e.tank_type for e in enemies) == composition
         assert manager.is_exhausted
 
