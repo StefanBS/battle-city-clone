@@ -62,3 +62,14 @@ replace = 'version = "{new_version}"'
 filename = "installer/windows/battle-city.iss"
 search = '#define MyAppVersion "{current_version}"'
 replace = '#define MyAppVersion "{new_version}"'
+
+[[tool.bumpversion.files]]
+filename = "uv.lock"
+search = '''
+name = "battle-city-clone"
+version = "{current_version}"
+'''
+replace = '''
+name = "battle-city-clone"
+version = "{new_version}"
+'''
