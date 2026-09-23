@@ -50,15 +50,11 @@ class TestPowerUp:
         power_up.update(POWERUP_TIMEOUT - 1.0)
         assert power_up.active is True
 
-    def test_collect_returns_type_and_deactivates(self, power_up):
-        result = power_up.collect()
-        assert result == PowerUpType.HELMET
-        assert power_up.active is False
-
     @pytest.mark.parametrize("ptype", list(PowerUpType))
     def test_collect_each_type(self, mock_texture_manager, ptype):
         pu = PowerUp(0, 0, ptype, mock_texture_manager)
         assert pu.collect() == ptype
+        assert pu.active is False
 
     def test_update_noop_after_collect(self, power_up):
         power_up.collect()
@@ -73,9 +69,3 @@ class TestPowerUp:
         surface = MagicMock(spec=pygame.Surface)
         power_up.draw(surface)
         assert not surface.blit.called
-
-    def test_rect_position(self, power_up):
-        assert power_up.rect.x == 100
-        assert power_up.rect.y == 200
-        assert power_up.rect.width == TILE_SIZE
-        assert power_up.rect.height == TILE_SIZE

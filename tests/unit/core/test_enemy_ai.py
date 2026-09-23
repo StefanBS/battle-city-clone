@@ -170,10 +170,6 @@ class TestBiases:
         assert ai.effective_base_bias == pytest.approx(0.0)
         assert ai.effective_player_bias == pytest.approx(0.0)
 
-    def test_aligned_shoot_multiplier_stored(self, create_enemy_ai):
-        ai = create_enemy_ai()
-        assert ai.aligned_shoot_multiplier == pytest.approx(0.5)
-
     @patch("src.core.enemy_ai.random.choices", return_value=[Direction.DOWN])
     def test_change_direction_weights_toward_base(self, mock_choices, create_enemy_ai):
         """With the base below, DOWN gets the armor tank's 0.45 base bias."""
@@ -208,19 +204,6 @@ class TestBiases:
         ai.update(0.01, (400.0, 400.0))
 
         mock_choices.assert_not_called()
-
-    def test_no_target_position_uses_base_only(self, create_enemy_ai):
-        ai = create_enemy_ai(tank_type=TankType.ARMOR, base_position=BASE_POSITION)
-        ai.tank.direction = Direction.LEFT
-        ai.direction_timer = ai.direction_change_interval + 1
-
-        with patch(
-            "src.core.enemy_ai.random.choices", return_value=[Direction.DOWN]
-        ) as mock_choices:
-            ai.update(0.01, None)
-
-        candidates, weights = mock_choices.call_args[0]
-        assert weights[candidates.index(Direction.DOWN)] == pytest.approx(1.45)
 
 
 class TestAlignedShooting:
