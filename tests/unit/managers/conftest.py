@@ -13,9 +13,7 @@ def _mock_game_deps():
     Used by the `game_manager` / `game_manager_at_title` fixtures below. The
     Battle is mocked as a whole: its frame rules are covered in
     test_battle.py. Yields the mocked Battle class so tests can check how
-    each Battle was built. Classes that construct GameManager differently
-    (e.g. the curtain tests) build their own instances and do not depend on
-    this fixture.
+    each Battle was built.
     """
     with (
         patch("pygame.display.set_mode"),
