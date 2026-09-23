@@ -116,7 +116,6 @@ class PlayerView:
     x: float
     y: float
     direction: Direction
-    alive: bool = True
     frozen: bool = False
     size: int = TILE_SIZE
     bullet_speed: float = BULLET_SPEED
@@ -167,6 +166,7 @@ class WorldView:
     copied from each tile's own flags: the cells that stop tanks, those that
     stop bullets, and those a bullet can destroy. ``half_brick_cells`` are
     BRICK cells already shot down to half, which a bullet may slip past.
+    ``players`` holds only live Players: one missing from it is dead.
     """
 
     tile_size: int
@@ -187,7 +187,7 @@ class WorldView:
 
     @property
     def own_player(self) -> PlayerView | None:
-        """The Player whose input is reading this view, if any."""
+        """The Player whose input is reading this view, or None while it's dead."""
         for player in self.players:
             if player.player_id == self.own_player_id:
                 return player
@@ -366,7 +366,10 @@ def build_world_view(
     power_ups: Iterable[PowerUp],
     bullets: Iterable[Bullet],
 ) -> WorldView:
-    """Snapshot the live game objects into a WorldView."""
+    """Snapshot the live game objects into a WorldView.
+
+    ``players`` must be the live Players only.
+    """
     tiles = tuple(
         tuple(tile.type if tile is not None else TileType.EMPTY for tile in row)
         for row in game_map.tiles
@@ -419,7 +422,6 @@ def build_world_view(
                 x=p.x,
                 y=p.y,
                 direction=p.direction,
-                alive=p.health > 0,
                 frozen=p.is_frozen,
                 size=p.width,
                 bullet_speed=p.bullet_speed,

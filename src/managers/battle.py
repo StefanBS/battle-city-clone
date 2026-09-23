@@ -154,7 +154,7 @@ class Battle:
         """Snapshot the current battlefield for the Players' inputs."""
         return build_world_view(
             self.map,
-            players=self.player_manager.players,
+            players=self.player_manager.get_active_players(),
             enemies=self.enemy_manager.enemies,
             enemies_frozen=self.enemy_manager.enemies_frozen,
             power_ups=self.power_up_manager.active_power_ups,

@@ -31,16 +31,16 @@ class TestNewGameAndNextStage:
         assert game.battle.player_manager.score == 500
 
     def test_next_stage_keeps_lives(self, game):
-        game.battle.player_manager.players[0].lives = 5
+        game.battle.player_manager.get_active_players()[0].lives = 5
         game._on_victory_finished()
-        assert game.battle.player_manager.players[0].lives == 5
+        assert game.battle.player_manager.get_active_players()[0].lives == 5
 
     def test_next_stage_keeps_star_level(self, game):
-        player = game.battle.player_manager.players[0]
+        player = game.battle.player_manager.get_active_players()[0]
         player.apply_star()
         player.apply_star()
         game._on_victory_finished()
-        assert game.battle.player_manager.players[0].star_level == 2
+        assert game.battle.player_manager.get_active_players()[0].star_level == 2
 
 
 class TestCurtainTransitions:
