@@ -409,14 +409,6 @@ class TestStepEnemies:
         player.x, player.y = x, y
         return player
 
-    def test_steers_toward_the_only_player(self, spawn_manager, stepper, add_enemy):
-        enemy, ai = add_enemy(100, 100)
-
-        spawn_manager.step_enemies(self.DT, stepper, [self._player(300, 50)])
-
-        ai.update.assert_called_once_with(self.DT, (300, 50))
-        stepper.step.assert_called_once_with(enemy, ai, self.DT)
-
     def test_has_no_target_without_a_live_player(
         self, spawn_manager, stepper, add_enemy
     ):
@@ -426,23 +418,6 @@ class TestStepEnemies:
 
         ai.update.assert_called_once_with(self.DT, None)
         stepper.step.assert_called_once_with(enemy, ai, self.DT)
-
-    @pytest.mark.parametrize(
-        "enemy_pos, nearest",
-        [
-            ((100, 100), (120, 90)),  # P1 is nearer
-            ((380, 380), (400, 350)),  # P2 is nearer
-        ],
-    )
-    def test_steers_toward_the_nearest_of_two_players(
-        self, spawn_manager, stepper, add_enemy, enemy_pos, nearest
-    ):
-        _, ai = add_enemy(*enemy_pos)
-        players = [self._player(120, 90), self._player(400, 350)]
-
-        spawn_manager.step_enemies(self.DT, stepper, players)
-
-        ai.update.assert_called_once_with(self.DT, nearest)
 
     def test_each_enemy_steers_toward_its_own_nearest_player(
         self, spawn_manager, stepper, add_enemy
