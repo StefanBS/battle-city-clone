@@ -29,17 +29,15 @@ class TestSteeringStuck:
 
     def test_routes_around_no_one_until_stuck_long_enough(self, steering) -> None:
         stuck(steering, 3)
-        assert steering.detour({ENEMY: {(9, 10)}}, ahead_of) == {}
+        assert steering.detour({ENEMY: {(9, 10)}}, ahead_of, None) == {}
 
-    def test_routes_around_the_tank_ahead_once_stuck(self, steering) -> None:
-        stuck(steering, 4)
+    @pytest.mark.parametrize("pushing, in_the_way", [(LEFT, ENEMY), (RIGHT, HUMAN)])
+    def test_routes_around_the_tank_ahead_the_way_it_kept_pushing(
+        self, steering, pushing, in_the_way
+    ) -> None:
+        stuck(steering, 4, pushing)
         tanks = {ENEMY: {(9, 10)}, HUMAN: {(11, 10)}}
-        assert steering.detour(tanks, ahead_of) == {ENEMY: {(9, 10)}}
-
-    def test_looks_ahead_the_way_it_kept_pushing(self, steering) -> None:
-        stuck(steering, 4, RIGHT)
-        tanks = {ENEMY: {(9, 10)}, HUMAN: {(11, 10)}}
-        assert steering.detour(tanks, ahead_of) == {HUMAN: {(11, 10)}}
+        assert steering.detour(tanks, ahead_of, None) == {in_the_way: tanks[in_the_way]}
 
     def test_does_not_route_around_its_target(self, steering) -> None:
         stuck(steering, 4)
@@ -49,19 +47,19 @@ class TestSteeringStuck:
         stuck(steering, 3)
         steering.track((9.0, 10.0), LEFT)
         stuck(steering, 3)
-        assert steering.detour({ENEMY: {(9, 10)}}, ahead_of) == {}
+        assert steering.detour({ENEMY: {(9, 10)}}, ahead_of, None) == {}
 
     def test_standing_still_on_purpose_is_not_being_stuck(self, steering) -> None:
         stuck(steering, 3)
         steering.track((10.0, 10.0), (0, 0))
         stuck(steering, 2)
-        assert steering.detour({ENEMY: {(9, 10)}}, ahead_of) == {}
+        assert steering.detour({ENEMY: {(9, 10)}}, ahead_of, None) == {}
 
     def test_counts_afresh_after_picking_a_detour(self, steering) -> None:
         stuck(steering, 4)
-        steering.detour({}, ahead_of)
+        steering.detour({}, ahead_of, None)
         stuck(steering, 1)
-        assert steering.detour({ENEMY: {(9, 10)}}, ahead_of) == {}
+        assert steering.detour({ENEMY: {(9, 10)}}, ahead_of, None) == {}
 
 
 @pytest.fixture
@@ -69,26 +67,28 @@ def detouring() -> Steering:
     """Steering routing around the Enemy standing on (9, 10)."""
     steering = Steering(stuck_frames=1)
     stuck(steering, 2)
-    assert steering.detour({ENEMY: {(9, 10)}}, ahead_of) == {ENEMY: {(9, 10)}}
+    assert steering.detour({ENEMY: {(9, 10)}}, ahead_of, None) == {ENEMY: {(9, 10)}}
     steering.track((10.0, 10.0), (0, 0))
     return steering
 
 
 class TestSteeringDetourExpiry:
     def test_keeps_the_detour_while_the_tank_stays(self, detouring) -> None:
-        assert detouring.detour({ENEMY: {(9, 10)}}, ahead_of) == {ENEMY: {(9, 10)}}
+        assert detouring.detour({ENEMY: {(9, 10)}}, ahead_of, None) == {
+            ENEMY: {(9, 10)}
+        }
 
     def test_keeps_the_detour_while_the_tank_still_covers_a_cell_it_blocked(
         self, detouring
     ) -> None:
         shuffled = {(9, 10), (8, 10)}
-        assert detouring.detour({ENEMY: shuffled}, ahead_of) == {ENEMY: shuffled}
+        assert detouring.detour({ENEMY: shuffled}, ahead_of, None) == {ENEMY: shuffled}
 
     def test_drops_the_detour_once_the_tank_moves_off(self, detouring) -> None:
-        assert detouring.detour({ENEMY: {(9, 14)}}, ahead_of) == {}
+        assert detouring.detour({ENEMY: {(9, 14)}}, ahead_of, None) == {}
         # Even if it comes back later.
-        assert detouring.detour({ENEMY: {(9, 10)}}, ahead_of) == {}
+        assert detouring.detour({ENEMY: {(9, 10)}}, ahead_of, None) == {}
 
     def test_drops_the_detour_once_the_tank_is_gone(self, detouring) -> None:
-        assert detouring.detour({}, ahead_of) == {}
-        assert detouring.detour({ENEMY: {(9, 10)}}, ahead_of) == {}
+        assert detouring.detour({}, ahead_of, None) == {}
+        assert detouring.detour({ENEMY: {(9, 10)}}, ahead_of, None) == {}

@@ -18,7 +18,7 @@ class Steering:
     """
 
     def __init__(self, stuck_frames: int) -> None:
-        self._stuck_frames = stuck_frames
+        self._stuck_limit = stuck_frames
         self._last_position: tuple[float, float] | None = None
         self._frames_stuck: int = 0
         # The direction it keeps trying to move in while stuck.
@@ -45,7 +45,7 @@ class Steering:
         self,
         tanks: Mapping[TankKey, set[Cell]],
         cells_ahead: Callable[[tuple[int, int]], set[Cell]],
-        target: TankKey | None = None,
+        target: TankKey | None,
     ) -> dict[TankKey, set[Cell]]:
         """Update which tanks to route around and return them with their cells.
 
@@ -53,7 +53,7 @@ class Steering:
         ``cells_ahead`` gives the cells it would cover one cell further in a
         direction. Its ``target`` is never routed around.
         """
-        if self._frames_stuck >= self._stuck_frames:
+        if self._frames_stuck >= self._stuck_limit:
             self._frames_stuck = 0
             ahead = cells_ahead(self._pushing)
             self._detour_around = {
