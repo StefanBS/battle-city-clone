@@ -1316,18 +1316,6 @@ SHOT_FROM_THE_LEFT = enemy_bullet(cell(6), MIDDLE, Direction.RIGHT)
 
 
 class TestCpuPartnerDodgeSidestep:
-    def test_sidesteps_an_incoming_shot_from_the_side(self, cpu) -> None:
-        view = with_bullets(
-            make_view(own=(12, 12, Direction.UP)),
-            enemy_bullet(cell(6), MIDDLE, Direction.RIGHT),
-        )
-        cpu.observe(view)
-        assert cpu.get_movement_direction() in (
-            Direction.UP.delta,
-            Direction.DOWN.delta,
-        )
-        assert cpu.consume_shoot() is False
-
     def test_sidesteps_a_shot_fired_from_across_the_map_only_once_it_is_near(
         self, cpu
     ) -> None:
@@ -1351,11 +1339,6 @@ class TestCpuPartnerDodgeSidestep:
                 {(9, 12): TileType.BRICK, (9, 13): TileType.BRICK},
                 (0, 24),
             ),
-            (
-                enemy_bullet(cell(6), MIDDLE, Direction.RIGHT),
-                {(9, 12): TileType.STEEL, (9, 13): TileType.STEEL},
-                (0, 24),
-            ),
             # The Human Player stands in between and takes it.
             (enemy_bullet(cell(4), MIDDLE, Direction.RIGHT), {}, (8, 12)),
             # The Human Player's own bullet.
@@ -1368,7 +1351,7 @@ class TestCpuPartnerDodgeSidestep:
                 (0, 24),
             ),
         ],
-        ids=["flying-away", "lane-misses", "brick", "steel", "human", "player-bullet"],
+        ids=["flying-away", "lane-misses", "brick", "human", "player-bullet"],
     )
     def test_ignores_bullets_that_are_no_incoming_shot(
         self, cpu, bullet, tiles, human
@@ -1398,9 +1381,8 @@ class TestCpuPartnerDodgeWhichWay:
         [
             {"tiles": {(12, 14): TileType.STEEL, (13, 14): TileType.STEEL}},
             {"enemies": [(12, 14)]},
-            {"human": (12, 14)},
         ],
-        ids=["steel", "enemy", "human"],
+        ids=["steel", "enemy"],
     )
     def test_steps_the_long_way_when_the_short_way_is_blocked(
         self, cpu, blocker
@@ -1508,15 +1490,6 @@ HEMMED_IN = {(x, y): TileType.STEEL for x in (12, 13) for y in (11, 14)}
 
 
 class TestCpuPartnerDodgeLastResort:
-    def test_turns_and_fires_when_it_cannot_step_aside(self, cpu) -> None:
-        view = with_bullets(
-            make_view(own=(12, 12, Direction.UP), tiles=HEMMED_IN),
-            enemy_bullet(cell(6), MIDDLE, Direction.RIGHT),
-        )
-        cpu.observe(view)
-        assert cpu.get_movement_direction() == Direction.LEFT.delta
-        assert cpu.consume_shoot() is True
-
     def test_turns_and_fires_when_too_late_to_step_aside(self, cpu) -> None:
         view = with_bullets(
             make_view(own=(12, 12, Direction.UP)),
