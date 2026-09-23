@@ -94,33 +94,38 @@ More on each Goal:
 
 ## 2. Switching Goals: stickiness and Reaction Delay
 
-`GoalTiming` keeps two Goals: the one it has **decided** on and the one it is
-**acting** on. They differ only during the Reaction Delay.
+Preferring a new Goal (diagram 1) doesn't make the CPU Partner switch to it
+straight away. `GoalTiming` keeps two Goals: the one it has **decided** on and
+the one it is **acting** on. A switch runs through three steps, left to right:
 
 ```mermaid
 stateDiagram-v2
-    state "Acting on its Goal" as Acting
-    state "Preferring another Goal" as Wavering
-    state "Reacting (still acts on the old Goal)" as Reacting
+    direction LR
+    Settled : <b>Settled</b><br/>acts on its Goal
+    Tempted : <b>Tempted</b><br/>prefers another Goal,<br/>keeps its own for now
+    Reacting : <b>Reacting</b><br/>has decided on the new Goal,<br/>still acts on the old one
 
-    [*] --> Acting
-    Acting --> Acting : tick, still prefers its Goal
-    Acting --> Wavering : tick, prefers another Goal
-    Wavering --> Acting : tick, prefers its Goal again (count reset)
-    Wavering --> Reacting : another Goal preferred for 0.5 s
-    Acting --> Reacting : target gone, or Ambushing (gives way at once)
-    Reacting --> Reacting : decides on yet another Goal (delay restarts)
-    Reacting --> Acting : Reaction Delay (0.25 s) passed
+    [*] --> Settled
+    Settled --> Tempted : prefers another Goal
+    Tempted --> Settled : prefers its own Goal again
+    Tempted --> Reacting : has preferred other Goals for 0.5 s
+    Settled --> Reacting : its target is gone, or it was Ambushing
+    Reacting --> Settled : 0.25 s passed, now acts on the new Goal
 ```
+
+It checks what it prefers only at a decision (every 0.25 s), so Tempted lasts
+at least one decision.
 
 - **Stickiness** (`CPU_PARTNER_GOAL_STICKINESS`, 0.5 s) counts the time it
   has preferred *any* other Goal, even if that Goal changes along the way. If
   only one particular Goal counted, it could never switch while its preference
   kept changing, for example when two Base Threats take turns being nearest
   the Base.
-- **Ambush** is only waiting, so it gives way to any other Goal at once.
+- **Straight to Reacting**: when its Goal's target is gone (from Settled or
+  Tempted), or when it was only Ambushing, which is just waiting.
 - **Reaction Delay** (`CPU_PARTNER_REACTION_DELAY`, 0.25 s): after deciding
-  on a new Goal, it keeps acting on the old one until the delay passes.
+  on a new Goal, it keeps acting on the old one until the delay passes. If
+  it decides on yet another Goal meanwhile, the delay starts over.
 - **Abandoning** a Goal (its target can't be reached) drops the Goal it is
   acting on. A newer Goal it has decided on but not yet reacted to is kept.
 
