@@ -59,7 +59,7 @@ jobs:
         if: steps.bump-type.outputs.type != 'none'
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
 
-      - name: Install bump-my-version
+      - name: Install build tools (bump-my-version)
         if: steps.bump-type.outputs.type != 'none'
         run: uv sync --locked --no-install-project --extra build
 
