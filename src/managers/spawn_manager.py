@@ -1,4 +1,5 @@
 import random
+from collections.abc import Callable
 from dataclasses import dataclass
 
 import pygame
@@ -45,6 +46,7 @@ class SpawnManager:
         effect_manager: EffectManager | None = None,
         difficulty: Difficulty = Difficulty.NORMAL,
         powerup_carrier_indices: tuple[int, ...] | None = None,
+        on_carrier_spawned: Callable[[], None] | None = None,
     ) -> None:
         """Initialize the SpawnManager.
 
@@ -58,6 +60,7 @@ class SpawnManager:
             difficulty: AI difficulty level for spawned enemies.
             powerup_carrier_indices: Tuple of spawn indices that carry powerups.
                 Falls back to POWERUP_CARRIER_INDICES constant when not provided.
+            on_carrier_spawned: Called each time a carrier materializes.
         """
         self.tile_size = TILE_SIZE
         self._difficulty = difficulty
@@ -79,6 +82,7 @@ class SpawnManager:
             else POWERUP_CARRIER_INDICES
         )
         self._pending_spawns: list[_PendingSpawn] = []
+        self._on_carrier_spawned = on_carrier_spawned
 
         # Set class-level base position for AI targeting
         base_tile = game_map.get_base()
@@ -206,6 +210,8 @@ class SpawnManager:
             f"Enemy materialized at ({x}, {y}) type={tank_type}"
             f"{' [CARRIER]' if is_carrier else ''}"
         )
+        if is_carrier and self._on_carrier_spawned is not None:
+            self._on_carrier_spawned()
 
     def freeze(self, duration: float) -> None:
         """Freeze enemy AI updates for the given duration (clock power-up)."""

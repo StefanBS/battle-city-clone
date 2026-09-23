@@ -262,6 +262,7 @@ class GameManager:
             effect_manager=self.effect_manager,
             difficulty=effective_difficulty,
             powerup_carrier_indices=self.map.powerup_carrier_indices,
+            on_carrier_spawned=self.power_up_manager.clear,
         )
 
         # Steps every tank; recreated per stage so no bullet outlives it.

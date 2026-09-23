@@ -4,7 +4,7 @@ Uses real objects (no mocks) with SDL_VIDEODRIVER=dummy for headless execution.
 """
 
 import pytest
-from src.utils.constants import POWERUP_TIMEOUT
+from src.utils.constants import POWERUP_TIMEOUT, PowerUpType
 from tests.integration.conftest import first_player, spawn_carrier
 
 
@@ -42,14 +42,19 @@ class TestPowerUpIntegration:
         game.power_up_manager.update(POWERUP_TIMEOUT + 0.1)
         assert len(game.power_up_manager.active_power_ups) == 0
 
-    def test_multiple_power_ups_allowed(self, game, carrier):
-        """Multiple spawn calls should accumulate power-ups."""
-        carrier.health = 0
-        game.spawn_manager.remove_enemy(carrier)
+    def test_new_power_up_replaces_existing(self, game, carrier):
+        """Only one power-up is on the battlefield at a time."""
         game.power_up_manager.spawn_power_up(
-            [first_player(game), *game.spawn_manager.enemy_tanks]
+            [first_player(game)], power_up_type=PowerUpType.CLOCK
         )
         game.power_up_manager.spawn_power_up(
-            [first_player(game), *game.spawn_manager.enemy_tanks]
+            [first_player(game)], power_up_type=PowerUpType.BOMB
         )
-        assert len(game.power_up_manager.active_power_ups) == 2
+        types = [p.power_up_type for p in game.power_up_manager.active_power_ups]
+        assert types == [PowerUpType.BOMB]
+
+    def test_carrier_spawning_clears_power_up(self, game):
+        """A new carrier appearing removes the power-up on the battlefield."""
+        game.power_up_manager.spawn_power_up([first_player(game)])
+        spawn_carrier(game)
+        assert game.power_up_manager.active_power_ups == []

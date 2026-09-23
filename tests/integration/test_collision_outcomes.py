@@ -8,7 +8,6 @@ from src.core.bullet import Bullet
 from src.states.game_state import GameState
 from src.utils.constants import (
     Direction,
-    HELMET_INVINCIBILITY_DURATION,
     POWERUP_COLLECT_POINTS,
     TILE_SIZE,
     PowerUpType,
@@ -52,21 +51,6 @@ def _stop_spawning(game):
 
 
 class TestPowerUps:
-    def test_two_power_ups_in_one_frame_both_applied(self, game):
-        player = first_player(game)
-        place_player_at(game, 4 * TILE_SIZE, 6 * TILE_SIZE)
-        lives_before = player.lives
-        for power_up_type in (PowerUpType.EXTRA_LIFE, PowerUpType.HELMET):
-            game.power_up_manager.spawn_power_up(
-                power_up_type=power_up_type, position=(int(player.x), int(player.y))
-            )
-
-        game.update()
-
-        assert player.lives == lives_before + 1
-        assert player.invincibility_duration == HELMET_INVINCIBILITY_DURATION
-        assert game.player_manager.get_score(1) == 2 * POWERUP_COLLECT_POINTS
-
     def test_first_hit_on_armored_carrier_drops_its_power_up(self, game):
         carrier = spawn_enemy_at(game, 0, 0, TankType.ARMOR, is_carrier=True)
         carrier.speed = 0
