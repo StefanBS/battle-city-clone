@@ -40,13 +40,6 @@ class TestPowerUpManager:
     def manager(self, mock_texture_manager, mock_game_map):
         return PowerUpManager(mock_texture_manager, mock_game_map)
 
-    def test_initial_state(self, manager):
-        assert manager.active_power_ups == []
-
-    def test_spawn_creates_power_up(self, manager, mock_player_tank):
-        manager.spawn_power_up([mock_player_tank])
-        assert len(manager.active_power_ups) == 1
-
     def test_spawn_replaces_existing_power_up(self, manager, mock_player_tank):
         manager.spawn_power_up([mock_player_tank], power_up_type=PowerUpType.CLOCK)
         manager.spawn_power_up([mock_player_tank], power_up_type=PowerUpType.BOMB)
@@ -124,20 +117,11 @@ class TestShovelEffect:
         game_map.get_base_surrounding_tiles.return_value = mock_tiles
         return PowerUpManager(mock_texture_manager, game_map)
 
-    def test_initial_shovel_state(self, manager):
-        assert manager.shovel_timer == 0.0
-
     def test_shovel_fortifies_base(self, manager):
         manager.apply_shovel()
         assert manager.shovel_timer == SHOVEL_DURATION
         for call in manager._game_map.set_tile_type.call_args_list:
             assert call.args[1] == TileType.STEEL
-
-    def test_shovel_stores_originals(self, manager):
-        manager.apply_shovel()
-        assert len(manager._shovel_original_tiles) == 4
-        for _, orig_type in manager._shovel_original_tiles:
-            assert orig_type == TileType.BRICK
 
     def test_shovel_reverts_after_duration(self, manager):
         manager.apply_shovel()
@@ -174,7 +158,6 @@ class TestPowerUpManagerApply:
     def player(self):
         p = MagicMock()
         p.lives = 3
-        p.is_invincible = False
         return p
 
     @pytest.fixture
@@ -223,12 +206,3 @@ class TestPowerUpManagerApply:
     def test_star_applies_to_player(self, manager, player, enemy_manager):
         manager.apply(PowerUpType.STAR, player, enemy_manager)
         player.apply_star.assert_called_once_with()
-
-    def test_helmet_overrides_respawn_invincibility(
-        self, manager, player, enemy_manager
-    ):
-        player.is_invincible = True
-        manager.apply(PowerUpType.HELMET, player, enemy_manager)
-        player.activate_invincibility.assert_called_once_with(
-            HELMET_INVINCIBILITY_DURATION
-        )

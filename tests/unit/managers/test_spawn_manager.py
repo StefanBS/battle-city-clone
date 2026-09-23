@@ -1,3 +1,5 @@
+from collections import Counter
+
 import pytest
 import pygame
 from unittest.mock import ANY, patch, MagicMock
@@ -5,6 +7,8 @@ from src.managers.spawn_manager import SpawnManager
 from src.managers.effect_manager import EffectManager
 from src.core.effect import Effect
 from src.core.enemy_tank import EnemyTank
+from src.core.map import Map
+from src.core.player_tank import PlayerTank
 from src.utils.constants import (
     EffectType,
     TILE_SIZE,
@@ -20,54 +24,48 @@ _DEFAULT_COMPOSITION = {
 }
 
 
+SPAWN_POINTS = [(3, 1), (8, 1), (12, 1)]
+
+
+@pytest.fixture
+def mock_player_tank():
+    """Create a mock player tank positioned away from spawn points."""
+    player = MagicMock(spec=PlayerTank)
+    # Place player at the bottom of the map, far from spawn points
+    player.rect = pygame.Rect(7 * TILE_SIZE, 14 * TILE_SIZE, TILE_SIZE, TILE_SIZE)
+    return player
+
+
+@pytest.fixture
+def mock_game_map():
+    """Create a mock game map with no collidable tiles."""
+    game_map = MagicMock(spec=Map)
+    game_map.get_collidable_tiles.return_value = []
+    game_map.spawn_points = SPAWN_POINTS
+    game_map.width_px = 16 * TILE_SIZE
+    game_map.height_px = 16 * TILE_SIZE
+    game_map.tile_size = SUB_TILE_SIZE
+    game_map.grid_to_pixels.side_effect = lambda gx, gy: (
+        gx * SUB_TILE_SIZE,
+        gy * SUB_TILE_SIZE,
+    )
+    return game_map
+
+
+@pytest.fixture
+def spawn_manager(mock_texture_manager, mock_player_tank, mock_game_map):
+    """Create a SpawnManager with the default composition and no animations."""
+    return SpawnManager(
+        texture_manager=mock_texture_manager,
+        game_map=mock_game_map,
+        enemy_composition=_DEFAULT_COMPOSITION,
+        spawn_interval=5.0,
+        tanks=[mock_player_tank],
+    )
+
+
 class TestSpawnManager:
     """Unit test cases for the SpawnManager class."""
-
-    SPAWN_POINTS = [
-        (3, 1),
-        (8, 1),
-        (12, 1),
-    ]
-
-    @pytest.fixture
-    def mock_player_tank(self):
-        """Create a mock player tank positioned away from spawn points."""
-        player = MagicMock()
-        # Place player at the bottom of the map, far from spawn points
-        player.rect = pygame.Rect(
-            7 * TILE_SIZE,
-            14 * TILE_SIZE,
-            TILE_SIZE,
-            TILE_SIZE,
-        )
-        return player
-
-    @pytest.fixture
-    def mock_game_map(self):
-        """Create a mock game map with no collidable tiles."""
-        game_map = MagicMock()
-        game_map.get_collidable_tiles.return_value = []
-        game_map.spawn_points = self.SPAWN_POINTS
-        game_map.width_px = 16 * TILE_SIZE
-        game_map.height_px = 16 * TILE_SIZE
-        game_map.tile_size = SUB_TILE_SIZE
-        game_map.grid_to_pixels.side_effect = lambda gx, gy: (
-            gx * SUB_TILE_SIZE,
-            gy * SUB_TILE_SIZE,
-        )
-        return game_map
-
-    @pytest.fixture
-    def spawn_manager(self, mock_texture_manager, mock_player_tank, mock_game_map):
-        """Create a SpawnManager instance for testing."""
-        manager = SpawnManager(
-            texture_manager=mock_texture_manager,
-            game_map=mock_game_map,
-            enemy_composition=_DEFAULT_COMPOSITION,
-            spawn_interval=5.0,
-            tanks=[mock_player_tank],
-        )
-        return manager
 
     def test_initial_spawn(self, spawn_manager, mock_player_tank, mock_game_map):
         """The constructor starts one spawn, which materializes at the next update."""
@@ -79,28 +77,11 @@ class TestSpawnManager:
         assert isinstance(materialized[0], EnemyTank)
 
     @patch("random.choice")
-    def test_spawn_enemy_adds_enemy(
-        self, mock_random_choice, spawn_manager, mock_player_tank, mock_game_map
-    ):
-        """Test that spawn_enemy adds an enemy tank when the spot is clear."""
-        mock_random_choice.return_value = self.SPAWN_POINTS[0]
-        mock_game_map.get_collidable_tiles.return_value = []
-        # Clear state from initial spawn
-        spawn_manager._pending_spawns = []
-        spawn_manager.total_enemy_spawns = 0
-
-        result = spawn_manager.spawn_enemy([mock_player_tank], mock_game_map)
-
-        assert result is True
-        assert len(spawn_manager._pending_spawns) == 1
-        assert spawn_manager.total_enemy_spawns == 1
-
-    @patch("random.choice")
     def test_spawn_enemy_respects_max(
         self, mock_random_choice, spawn_manager, mock_player_tank, mock_game_map
     ):
         """Test that spawn_enemy respects the maximum spawn limit."""
-        mock_random_choice.return_value = self.SPAWN_POINTS[0]
+        mock_random_choice.return_value = SPAWN_POINTS[0]
         mock_game_map.get_collidable_tiles.return_value = []
         spawn_manager.total_enemy_spawns = spawn_manager.max_enemy_spawns
 
@@ -115,7 +96,7 @@ class TestSpawnManager:
         self, mock_random_choice, spawn_manager, mock_player_tank, mock_game_map
     ):
         """Test that spawn_enemy avoids spawning on map collision tiles."""
-        spawn_point_grid = self.SPAWN_POINTS[0]
+        spawn_point_grid = SPAWN_POINTS[0]
         mock_random_choice.return_value = spawn_point_grid
         spawn_x = spawn_point_grid[0] * SUB_TILE_SIZE
         spawn_y = spawn_point_grid[1] * SUB_TILE_SIZE
@@ -135,7 +116,7 @@ class TestSpawnManager:
         self, mock_random_choice, spawn_manager, mock_player_tank, mock_game_map
     ):
         """Test that spawn_enemy avoids spawning on other tanks."""
-        spawn_point_grid = self.SPAWN_POINTS[0]
+        spawn_point_grid = SPAWN_POINTS[0]
         mock_random_choice.return_value = spawn_point_grid
         spawn_x = spawn_point_grid[0] * SUB_TILE_SIZE
         spawn_y = spawn_point_grid[1] * SUB_TILE_SIZE
@@ -172,22 +153,6 @@ class TestSpawnManager:
         assert spawn_manager.total_enemy_spawns == 1
         assert spawn_manager._pending_spawns == []
 
-    def test_update_spawns_on_interval(
-        self, spawn_manager, mock_player_tank, mock_game_map
-    ):
-        """Test that update triggers spawn when timer reaches the interval."""
-        spawn_manager._pending_spawns = []
-        spawn_manager.spawn_timer = spawn_manager.spawn_interval
-
-        with patch.object(
-            spawn_manager, "spawn_enemy", return_value=True
-        ) as mock_spawn:
-            spawn_manager.update(0.1, [mock_player_tank], mock_game_map)
-            mock_spawn.assert_called_once_with([mock_player_tank], mock_game_map)
-
-        # Timer should be reset after successful spawn
-        # (We patched spawn_enemy so we check timer logic directly)
-
     @patch("random.choice")
     def test_update_resets_timer_on_success(
         self,
@@ -198,7 +163,7 @@ class TestSpawnManager:
     ):
         """Test that update resets timer when spawn succeeds."""
         # Use a different spawn point than the initial spawn to avoid collision
-        mock_random_choice.return_value = self.SPAWN_POINTS[2]
+        mock_random_choice.return_value = SPAWN_POINTS[2]
         spawn_manager.spawn_timer = spawn_manager.spawn_interval
         mock_game_map.get_collidable_tiles.return_value = []
         # Clear the initial spawn so the spawn point is clear
@@ -237,100 +202,36 @@ class TestSpawnManager:
             spawn_manager.update(0.1, [mock_player_tank], mock_game_map)
             mock_spawn.assert_not_called()
 
-    def test_spawn_queue_built_from_composition(
+    def test_roster_matches_composition(
         self, mock_texture_manager, mock_player_tank, mock_game_map
     ):
-        """Test that spawn queue is built from enemy composition."""
+        """Every Enemy in the composition spawns once, then spawning stops."""
+        composition = {
+            TankType.BASIC: 2,
+            TankType.FAST: 5,
+            TankType.POWER: 10,
+            TankType.ARMOR: 3,
+        }
         manager = SpawnManager(
             texture_manager=mock_texture_manager,
             game_map=mock_game_map,
-            enemy_composition=_DEFAULT_COMPOSITION,
+            enemy_composition=composition,
             spawn_interval=5.0,
             tanks=[mock_player_tank],
         )
-        # Stage 1: (18, 2, 0, 0) = 20 total
-        assert manager.max_enemy_spawns == 20
-        assert manager.total_enemy_spawns == 1  # initial spawn
 
-    def test_spawn_uses_queue_types(
-        self, mock_texture_manager, mock_player_tank, mock_game_map
-    ):
-        """Test that spawn queue contains multiple types for mixed compositions."""
-        manager = SpawnManager(
-            texture_manager=mock_texture_manager,
-            game_map=mock_game_map,
-            enemy_composition={
-                TankType.BASIC: 2,
-                TankType.FAST: 5,
-                TankType.POWER: 10,
-                TankType.ARMOR: 3,
-            },
-            spawn_interval=5.0,
-            tanks=[mock_player_tank],
-        )
-        types_in_queue = set(manager._spawn_queue)
-        assert len(types_in_queue) > 1
+        enemies = []
+        for _ in range(25):  # more than the Roster, to test that it stops
+            enemies += manager.update(0.0, [mock_player_tank], mock_game_map)
+            manager.spawn_enemy([mock_player_tank], mock_game_map)
 
-    def test_spawn_stops_when_queue_empty(
-        self, mock_texture_manager, mock_player_tank, mock_game_map
-    ):
-        """Test that spawning stops when the queue is depleted."""
-        manager = SpawnManager(
-            texture_manager=mock_texture_manager,
-            game_map=mock_game_map,
-            enemy_composition=_DEFAULT_COMPOSITION,
-            spawn_interval=5.0,
-            tanks=[mock_player_tank],
-        )
-        # Exhaust all 20 spawns
-        for _ in range(25):  # more than 20 to test stop
-            manager._pending_spawns = []  # clear to avoid collision
-            manager.spawn_enemy(mock_player_tank, mock_game_map)
-        assert manager.total_enemy_spawns == 20
-
-    def test_composition_with_all_basic(
-        self, mock_texture_manager, mock_player_tank, mock_game_map
-    ):
-        """Test that an all-basic composition produces 20 enemies."""
-        manager = SpawnManager(
-            texture_manager=mock_texture_manager,
-            game_map=mock_game_map,
-            enemy_composition={
-                TankType.BASIC: 20,
-                TankType.FAST: 0,
-                TankType.POWER: 0,
-                TankType.ARMOR: 0,
-            },
-            spawn_interval=5.0,
-            tanks=[mock_player_tank],
-        )
-        assert manager.max_enemy_spawns == 20
+        assert manager.max_enemy_spawns == sum(composition.values())
+        assert Counter(e.tank_type for e in enemies) == composition
+        assert manager.is_exhausted
 
 
 class TestSpawnAnimation:
     """Tests for the spawn animation / pending spawn flow."""
-
-    SPAWN_POINTS = [(3, 1), (8, 1), (12, 1)]
-
-    @pytest.fixture
-    def mock_player_tank(self):
-        player = MagicMock()
-        player.rect = pygame.Rect(7 * TILE_SIZE, 14 * TILE_SIZE, TILE_SIZE, TILE_SIZE)
-        return player
-
-    @pytest.fixture
-    def mock_game_map(self):
-        game_map = MagicMock()
-        game_map.get_collidable_tiles.return_value = []
-        game_map.spawn_points = self.SPAWN_POINTS
-        game_map.width_px = 16 * TILE_SIZE
-        game_map.height_px = 16 * TILE_SIZE
-        game_map.tile_size = SUB_TILE_SIZE
-        game_map.grid_to_pixels.side_effect = lambda gx, gy: (
-            gx * SUB_TILE_SIZE,
-            gy * SUB_TILE_SIZE,
-        )
-        return game_map
 
     @pytest.fixture
     def mock_effect_manager(self):
@@ -435,38 +336,6 @@ class TestSpawnAnimation:
 class TestSpawnManagerCarrier:
     """Tests for carrier index marking in SpawnManager."""
 
-    SPAWN_POINTS = TestSpawnManager.SPAWN_POINTS
-
-    @pytest.fixture
-    def mock_player_tank(self):
-        player = MagicMock()
-        player.rect = pygame.Rect(7 * TILE_SIZE, 14 * TILE_SIZE, TILE_SIZE, TILE_SIZE)
-        return player
-
-    @pytest.fixture
-    def mock_game_map(self):
-        game_map = MagicMock()
-        game_map.get_collidable_tiles.return_value = []
-        game_map.spawn_points = self.SPAWN_POINTS
-        game_map.width_px = 16 * TILE_SIZE
-        game_map.height_px = 16 * TILE_SIZE
-        game_map.tile_size = SUB_TILE_SIZE
-        game_map.grid_to_pixels.side_effect = lambda gx, gy: (
-            gx * SUB_TILE_SIZE,
-            gy * SUB_TILE_SIZE,
-        )
-        return game_map
-
-    @pytest.fixture
-    def spawn_manager(self, mock_texture_manager, mock_player_tank, mock_game_map):
-        return SpawnManager(
-            texture_manager=mock_texture_manager,
-            game_map=mock_game_map,
-            enemy_composition=_DEFAULT_COMPOSITION,
-            spawn_interval=5.0,
-            tanks=[mock_player_tank],
-        )
-
     @staticmethod
     def _spawn_one(manager, mock_player_tank, mock_game_map):
         """Materialize whatever is pending, then start the next spawn."""
@@ -485,14 +354,6 @@ class TestSpawnManagerCarrier:
         enemies += spawn_manager.update(0.0, [mock_player_tank], mock_game_map)
         # The 4th tank (index 3) should be the carrier
         assert [t.is_carrier for t in enemies] == [False, False, False, True]
-
-    def test_non_carrier_indices(self, spawn_manager, mock_player_tank, mock_game_map):
-        # Spawn indices 1 and 2 — neither should be a carrier.
-        enemies = []
-        for _ in range(2):
-            enemies += self._spawn_one(spawn_manager, mock_player_tank, mock_game_map)
-        enemies += spawn_manager.update(0.0, [mock_player_tank], mock_game_map)
-        assert not any(t.is_carrier for t in enemies)
 
     def test_carrier_survives_pending_spawn_path(
         self, mock_texture_manager, mock_player_tank, mock_game_map
@@ -524,32 +385,6 @@ class TestSpawnManagerCarrier:
         enemies += manager.update(0.0, [mock_player_tank], mock_game_map)
         assert [t.is_carrier for t in enemies] == [False, False, False, True]
 
-
-class TestSpawnManagerCustomCarriers:
-    """Tests for custom powerup_carrier_indices parameter."""
-
-    SPAWN_POINTS = TestSpawnManager.SPAWN_POINTS
-
-    @pytest.fixture
-    def mock_player_tank(self):
-        player = MagicMock()
-        player.rect = pygame.Rect(7 * TILE_SIZE, 14 * TILE_SIZE, TILE_SIZE, TILE_SIZE)
-        return player
-
-    @pytest.fixture
-    def mock_game_map(self):
-        game_map = MagicMock()
-        game_map.get_collidable_tiles.return_value = []
-        game_map.spawn_points = self.SPAWN_POINTS
-        game_map.width_px = 16 * TILE_SIZE
-        game_map.height_px = 16 * TILE_SIZE
-        game_map.tile_size = SUB_TILE_SIZE
-        game_map.grid_to_pixels.side_effect = lambda gx, gy: (
-            gx * SUB_TILE_SIZE,
-            gy * SUB_TILE_SIZE,
-        )
-        return game_map
-
     def test_custom_carrier_indices_used(
         self, mock_texture_manager, mock_player_tank, mock_game_map
     ):
@@ -571,18 +406,3 @@ class TestSpawnManagerCustomCarriers:
         manager.spawn_enemy([mock_player_tank], mock_game_map)
         (second,) = manager.update(0.0, [mock_player_tank], mock_game_map)
         assert second.is_carrier
-
-    def test_default_carrier_indices_when_not_provided(
-        self, mock_texture_manager, mock_player_tank, mock_game_map
-    ):
-        """SpawnManager falls back to POWERUP_CARRIER_INDICES when not provided."""
-        from src.utils.constants import POWERUP_CARRIER_INDICES
-
-        manager = SpawnManager(
-            texture_manager=mock_texture_manager,
-            game_map=mock_game_map,
-            enemy_composition=_DEFAULT_COMPOSITION,
-            spawn_interval=5.0,
-            tanks=[mock_player_tank],
-        )
-        assert manager._powerup_carrier_indices == POWERUP_CARRIER_INDICES

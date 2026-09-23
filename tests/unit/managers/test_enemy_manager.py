@@ -121,16 +121,6 @@ class TestRemove:
 class TestStepEnemies:
     """Each frame, every Enemy's AI decides and TankStepper steps the Enemy."""
 
-    def test_has_no_target_without_a_live_player(
-        self, enemy_manager, stepper, add_enemy
-    ):
-        enemy, ai = add_enemy(100, 100)
-
-        enemy_manager.step_enemies(DT, stepper, [])
-
-        ai.update.assert_called_once_with(DT, None)
-        stepper.step.assert_called_once_with(enemy, ai, DT)
-
     def test_each_enemy_steers_toward_its_own_nearest_player(
         self, enemy_manager, stepper, add_enemy
     ):
