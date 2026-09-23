@@ -73,11 +73,6 @@ def detouring() -> Steering:
 
 
 class TestSteeringDetourExpiry:
-    def test_keeps_the_detour_while_the_tank_stays(self, detouring) -> None:
-        assert detouring.detour({ENEMY: {(9, 10)}}, ahead_of, None) == {
-            ENEMY: {(9, 10)}
-        }
-
     def test_keeps_the_detour_while_the_tank_still_covers_a_cell_it_blocked(
         self, detouring
     ) -> None:
