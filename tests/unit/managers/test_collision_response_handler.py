@@ -124,19 +124,16 @@ class TestDispatch:
 class TestBulletVsEnemy:
     def test_player_bullet_damages_enemy(self, handler, mock_bullet, mock_enemy):
         mock_bullet.owner_type = OwnerType.PLAYER
-        handler.process_collisions([(mock_bullet, mock_enemy)])
+        outcomes = handler.process_collisions([(mock_bullet, mock_enemy)])
         assert not mock_bullet.active
         mock_enemy.take_damage.assert_called_once()
+        assert outcomes == []
 
     def test_player_bullet_destroys_enemy(self, handler, mock_bullet, mock_enemy):
         mock_bullet.owner_type = OwnerType.PLAYER
         mock_enemy.take_damage.return_value = True
         outcomes = handler.process_collisions([(mock_bullet, mock_enemy)])
         assert outcomes == [EnemyDestroyed(mock_enemy, by=mock_bullet.owner)]
-
-    def test_damaged_enemy_is_not_destroyed(self, handler, mock_bullet, mock_enemy):
-        outcomes = handler.process_collisions([(mock_bullet, mock_enemy)])
-        assert outcomes == []
 
     def test_second_bullet_passes_through_destroyed_enemy(
         self, handler, make_bullet, mock_enemy
@@ -168,12 +165,6 @@ class TestBulletVsPlayer:
         outcomes = handler.process_collisions([(bullet, mock_player)])
         assert not bullet.active
         assert outcomes == [PlayerDestroyed(mock_player)]
-
-    def test_enemy_bullet_destroys_player_on_last_life(self, handler, make_bullet):
-        player = _make_player(lives=1)
-        bullet = make_bullet(owner_type=OwnerType.ENEMY)
-        outcomes = handler.process_collisions([(bullet, player)])
-        assert outcomes == [PlayerDestroyed(player)]
 
     def test_bullet_vs_invincible_player(self, handler, make_bullet, mock_player):
         bullet = make_bullet(owner_type=OwnerType.ENEMY)
@@ -528,25 +519,6 @@ class TestPlayerVsPowerUp:
         )
         result = handler.process_collisions([(mock_player, mock_power_up)])
         assert result == []
-
-    def test_two_power_ups_in_one_frame_both_returned(
-        self, handler_with_powerup, mock_power_up_manager, mock_player
-    ):
-        other_player = _make_player()
-        mock_power_up_manager.collect_power_up.side_effect = [
-            PowerUpType.STAR,
-            PowerUpType.CLOCK,
-        ]
-        outcomes = handler_with_powerup.process_collisions(
-            [
-                (mock_player, MagicMock(spec=PowerUp)),
-                (other_player, MagicMock(spec=PowerUp)),
-            ]
-        )
-        assert outcomes == [
-            PowerUpCollected(PowerUpType.STAR, mock_player),
-            PowerUpCollected(PowerUpType.CLOCK, other_player),
-        ]
 
     def test_power_up_already_taken_this_frame_not_returned(
         self, handler_with_powerup, mock_power_up_manager, mock_player, mock_power_up

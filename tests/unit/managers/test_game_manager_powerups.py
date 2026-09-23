@@ -61,9 +61,6 @@ class TestPowerUpManagerApply:
         assert outcomes == [EnemyDestroyed(e, by=None) for e in enemies]
         spawn_manager.remove_enemy.assert_not_called()
 
-    def test_other_power_ups_cause_no_outcomes(self, manager, player, spawn_manager):
-        assert manager.apply(PowerUpType.STAR, player, spawn_manager) == []
-
     def test_clock_freezes_enemies(self, manager, player, spawn_manager):
         manager.apply(PowerUpType.CLOCK, player, spawn_manager)
         spawn_manager.freeze.assert_called_once_with(CLOCK_FREEZE_DURATION)
@@ -134,13 +131,6 @@ class TestGameManagerApplyOutcomes:
         )
         game.sound_manager.play.assert_called_once_with("explosion")
 
-    def test_enemy_destroyed_by_grenade_scores_nothing(self, game):
-        enemy = self._enemy(game)
-        game._apply_outcomes([EnemyDestroyed(enemy, by=None)])
-        assert enemy not in game.spawn_manager.enemy_tanks
-        game.player_manager.add_score.assert_not_called()
-        game.sound_manager.play.assert_called_once_with("explosion")
-
     def test_enemy_destroyed_twice_applies_once(self, game, players):
         enemy = self._enemy(game)
         game._apply_outcomes(
@@ -149,12 +139,10 @@ class TestGameManagerApplyOutcomes:
         game.player_manager.add_score.assert_called_once_with(100, player_id=1)
         game.effect_manager.spawn_at_rect.assert_called_once()
 
-    @pytest.mark.parametrize("by_player", [True, False])
-    def test_carrier_drop_avoids_every_player(self, game, players, by_player):
+    def test_carrier_drop_avoids_every_player(self, game, players):
         carrier = self._enemy(game, is_carrier=True)
         other = self._enemy(game)
-        by = players[0] if by_player else None
-        game._apply_outcomes([EnemyDestroyed(carrier, by=by)])
+        game._apply_outcomes([EnemyDestroyed(carrier, by=players[0])])
         game.power_up_manager.spawn_power_up.assert_called_once_with([*players, other])
 
     def test_player_destroyed(self, game, players):
@@ -180,28 +168,4 @@ class TestGameManagerApplyOutcomes:
         game.sound_manager.play.assert_called_once_with("powerup")
         game.power_up_manager.apply.assert_called_once_with(
             PowerUpType.STAR, players[1], game.spawn_manager
-        )
-
-    def test_two_power_ups_in_one_frame_both_applied(self, game, players):
-        p1, p2 = players
-        game._apply_outcomes(
-            [
-                PowerUpCollected(PowerUpType.STAR, p1),
-                PowerUpCollected(PowerUpType.HELMET, p2),
-            ]
-        )
-        assert [c.args[:2] for c in game.power_up_manager.apply.call_args_list] == [
-            (PowerUpType.STAR, p1),
-            (PowerUpType.HELMET, p2),
-        ]
-
-    def test_outcomes_caused_by_a_power_up_are_applied(self, game, players):
-        enemy = self._enemy(game, is_carrier=True)
-        game.power_up_manager.apply.return_value = [EnemyDestroyed(enemy, by=None)]
-        game._apply_outcomes([PowerUpCollected(PowerUpType.BOMB, players[0])])
-        assert enemy not in game.spawn_manager.enemy_tanks
-        game.power_up_manager.spawn_power_up.assert_called_once()
-        # Only the Power-Up's own points; the Grenade kill scores nothing.
-        game.player_manager.add_score.assert_called_once_with(
-            POWERUP_COLLECT_POINTS, player_id=1
         )

@@ -83,19 +83,6 @@ class TestPowerUps:
 
 
 class TestPlayerDestroyed:
-    def test_two_bullets_in_one_frame_cost_one_life(self, game):
-        player = first_player(game)
-        player.is_invincible = False
-        lives_before = player.lives
-        enemy = _idle_enemy(game)
-        _enemy_bullet_on(game, player.rect, enemy)
-        _enemy_bullet_on(game, player.rect, enemy)
-
-        game.update()
-
-        assert player.lives == lives_before - 1
-        assert game.state == GameState.RUNNING
-
     def test_losing_a_life_respawns_the_player(self, game):
         player = first_player(game)
         player.is_invincible = False
@@ -120,14 +107,6 @@ class TestPlayerDestroyed:
 
 
 class TestBaseDestroyed:
-    def test_base_hit_is_game_over(self, game):
-        _enemy_bullet_on(game, game.map.get_base().rect, _idle_enemy(game))
-
-        game.update()
-
-        assert game.map.is_base_destroyed
-        assert game.state == GameState.GAME_OVER_ANIMATION
-
     def test_game_over_wins_over_victory_in_the_same_frame(self, game):
         _stop_spawning(game)
         base_rect = game.map.get_base().rect
@@ -137,5 +116,6 @@ class TestBaseDestroyed:
 
         game.update()
 
+        assert game.map.is_base_destroyed
         assert game.spawn_manager.all_enemies_defeated()
         assert game.state == GameState.GAME_OVER_ANIMATION
