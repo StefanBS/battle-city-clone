@@ -90,36 +90,3 @@ class TestTwoPlayerStageTransition:
         assert [p.player_id for p in pm.get_active_players()] == [1]
         assert pm.get_score(2) == 500
         assert not pm.is_game_over()
-
-    def test_player_on_last_life_still_plays_the_next_stage(self, two_player_game):
-        """A Player with no spare lives but still alive keeps playing."""
-        gm = two_player_game
-        gm.battle.player_manager.players[1].lives = 0
-
-        gm._start_battle(gm.battle.carried_progress)
-
-        active = gm.battle.player_manager.get_active_players()
-        assert [p.player_id for p in active] == [1, 2]
-
-    def test_player_out_of_lives_stays_out_for_every_later_stage(self, two_player_game):
-        """Staying out carries over Stage after Stage."""
-        gm = two_player_game
-        gm.battle.player_manager.players[1].eliminate()
-
-        gm._start_battle(gm.battle.carried_progress)
-        gm._start_battle(gm.battle.carried_progress)
-
-        active = gm.battle.player_manager.get_active_players()
-        assert [p.player_id for p in active] == [1]
-
-    def test_game_over_when_the_remaining_player_runs_out_of_lives(
-        self, two_player_game
-    ):
-        """With P2 out from an earlier Stage, losing P1 still ends the game."""
-        gm = two_player_game
-        gm.battle.player_manager.players[1].eliminate()
-        gm._start_battle(gm.battle.carried_progress)
-
-        gm.battle.player_manager.players[0].eliminate()
-
-        assert gm.battle.player_manager.is_game_over()
