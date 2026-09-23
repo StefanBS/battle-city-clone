@@ -581,6 +581,11 @@ class Map:
         tile = self.get_tile_at(grid_x, grid_y)
         return tile is not None and tile.is_slidable
 
+    @property
+    def is_base_destroyed(self) -> bool:
+        """Whether the Base has been destroyed."""
+        return bool(self.get_tiles_by_type([TileType.BASE_DESTROYED]))
+
     def get_base(self) -> Tile | None:
         """Find and return a player base tile, if it exists."""
         self._ensure_cache()

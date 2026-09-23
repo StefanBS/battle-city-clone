@@ -28,7 +28,7 @@ class TestPowerUpIntegration:
         carrier.health = 0
         game.spawn_manager.remove_enemy(carrier)
         game.power_up_manager.spawn_power_up(
-            first_player(game), game.spawn_manager.enemy_tanks
+            [first_player(game), *game.spawn_manager.enemy_tanks]
         )
         assert len(game.power_up_manager.active_power_ups) == 1
 
@@ -37,7 +37,7 @@ class TestPowerUpIntegration:
         carrier.health = 0
         game.spawn_manager.remove_enemy(carrier)
         game.power_up_manager.spawn_power_up(
-            first_player(game), game.spawn_manager.enemy_tanks
+            [first_player(game), *game.spawn_manager.enemy_tanks]
         )
         game.power_up_manager.update(POWERUP_TIMEOUT + 0.1)
         assert len(game.power_up_manager.active_power_ups) == 0
@@ -47,9 +47,9 @@ class TestPowerUpIntegration:
         carrier.health = 0
         game.spawn_manager.remove_enemy(carrier)
         game.power_up_manager.spawn_power_up(
-            first_player(game), game.spawn_manager.enemy_tanks
+            [first_player(game), *game.spawn_manager.enemy_tanks]
         )
         game.power_up_manager.spawn_power_up(
-            first_player(game), game.spawn_manager.enemy_tanks
+            [first_player(game), *game.spawn_manager.enemy_tanks]
         )
         assert len(game.power_up_manager.active_power_ups) == 2

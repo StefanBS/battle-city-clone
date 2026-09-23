@@ -9,7 +9,12 @@ from src.core.enemy_tank import EnemyTank
 from src.core.tile import Tile, TileType
 from src.core.map import Map
 from src.core.power_up import PowerUp
-from src.states.game_state import GameState
+from src.managers.outcomes import (
+    BaseDestroyed,
+    EnemyDestroyed,
+    PlayerDestroyed,
+    PowerUpCollected,
+)
 from src.utils.constants import (
     Direction,
     EffectType,
@@ -18,7 +23,6 @@ from src.utils.constants import (
     TankType,
     TILE_SIZE,
     PowerUpType,
-    POWERUP_COLLECT_POINTS,
 )
 
 
@@ -35,18 +39,10 @@ def mock_effect_manager():
 
 
 @pytest.fixture
-def mock_add_score():
-    return MagicMock()
-
-
-@pytest.fixture
-def handler(mock_map, mock_effect_manager, mock_add_score):
-    set_state = MagicMock()
+def handler(mock_map, mock_effect_manager):
     return CollisionResponseHandler(
         game_map=mock_map,
-        set_game_state=set_state,
         effect_manager=mock_effect_manager,
-        add_score=mock_add_score,
     )
 
 
@@ -67,16 +63,26 @@ def mock_enemy():
     return e
 
 
-@pytest.fixture
-def mock_player():
+def _make_player(lives=3):
+    """A mock Player whose take_damage loses a life, as Tank.take_damage does."""
     p = MagicMock(spec=PlayerTank)
     p.owner_type = OwnerType.PLAYER
     p.is_invincible = False
-    p.take_damage = MagicMock(return_value=False)
-    p.respawn = MagicMock()
+    p.lives = lives
+
+    def take_damage():
+        p.lives -= 1
+        return p.lives <= 0
+
+    p.take_damage = MagicMock(side_effect=take_damage)
     p.revert_move = MagicMock()
     p.rect = pygame.Rect(0, 0, 32, 32)
     return p
+
+
+@pytest.fixture
+def mock_player():
+    return _make_player()
 
 
 @pytest.fixture
@@ -118,15 +124,30 @@ class TestDispatch:
 class TestBulletVsEnemy:
     def test_player_bullet_damages_enemy(self, handler, mock_bullet, mock_enemy):
         mock_bullet.owner_type = OwnerType.PLAYER
-        handler.process_collisions([(mock_bullet, mock_enemy)])
+        outcomes = handler.process_collisions([(mock_bullet, mock_enemy)])
         assert not mock_bullet.active
         mock_enemy.take_damage.assert_called_once()
+        assert outcomes == []
 
     def test_player_bullet_destroys_enemy(self, handler, mock_bullet, mock_enemy):
         mock_bullet.owner_type = OwnerType.PLAYER
         mock_enemy.take_damage.return_value = True
-        enemies = handler.process_collisions([(mock_bullet, mock_enemy)])
-        assert mock_enemy in enemies
+        outcomes = handler.process_collisions([(mock_bullet, mock_enemy)])
+        assert outcomes == [EnemyDestroyed(mock_enemy, by=mock_bullet.owner)]
+
+    def test_second_bullet_passes_through_destroyed_enemy(
+        self, handler, make_bullet, mock_enemy
+    ):
+        """Two bullets on one Enemy in a frame: the first gets the credit."""
+        first = make_bullet()
+        second = make_bullet()
+        mock_enemy.take_damage.return_value = True
+        outcomes = handler.process_collisions(
+            [(first, mock_enemy), (second, mock_enemy)]
+        )
+        assert outcomes == [EnemyDestroyed(mock_enemy, by=first.owner)]
+        mock_enemy.take_damage.assert_called_once()
+        assert second.active
 
     def test_enemy_bullet_does_not_damage_enemy(self, handler, make_bullet, mock_enemy):
         """Friendly fire — enemy bullet should not damage enemy."""
@@ -137,69 +158,34 @@ class TestBulletVsEnemy:
 
 
 class TestBulletVsPlayer:
-    def test_enemy_bullet_damages_player(self, handler, make_bullet, mock_player):
+    def test_enemy_bullet_destroys_player_with_lives_left(
+        self, handler, make_bullet, mock_player
+    ):
         bullet = make_bullet(owner_type=OwnerType.ENEMY)
-        handler.process_collisions([(bullet, mock_player)])
+        outcomes = handler.process_collisions([(bullet, mock_player)])
         assert not bullet.active
-        mock_player.take_damage.assert_called_once()
-        mock_player.respawn.assert_called_once()
-
-    def test_enemy_bullet_kills_player(self, handler, make_bullet, mock_player):
-        bullet = make_bullet(owner_type=OwnerType.ENEMY)
-        mock_player.take_damage.return_value = True
-        handler.process_collisions([(bullet, mock_player)])
-        handler._set_game_state.assert_called_with(GameState.GAME_OVER)
-        mock_player.respawn.assert_not_called()
+        assert outcomes == [PlayerDestroyed(mock_player)]
 
     def test_bullet_vs_invincible_player(self, handler, make_bullet, mock_player):
         bullet = make_bullet(owner_type=OwnerType.ENEMY)
         mock_player.is_invincible = True
-        handler.process_collisions([(bullet, mock_player)])
+        outcomes = handler.process_collisions([(bullet, mock_player)])
         assert not bullet.active
         mock_player.take_damage.assert_not_called()
+        assert outcomes == []
 
-    def test_on_player_death_callback_decides_game_over(
-        self, mock_map, mock_effect_manager, mock_add_score, make_bullet, mock_player
+    def test_second_bullet_passes_through_destroyed_player(
+        self, handler, make_bullet, mock_player
     ):
-        """When on_player_death is wired, it gates the GAME_OVER transition."""
-        on_death = MagicMock(return_value=True)
-        set_state = MagicMock()
-        h = CollisionResponseHandler(
-            game_map=mock_map,
-            set_game_state=set_state,
-            effect_manager=mock_effect_manager,
-            add_score=mock_add_score,
-            on_player_death=on_death,
+        """A Player hit by two bullets in one frame loses only one life."""
+        first = make_bullet(owner_type=OwnerType.ENEMY)
+        second = make_bullet(owner_type=OwnerType.ENEMY)
+        outcomes = handler.process_collisions(
+            [(first, mock_player), (second, mock_player)]
         )
-        bullet = make_bullet(owner_type=OwnerType.ENEMY)
-        mock_player.take_damage.return_value = True
-
-        h.process_collisions([(bullet, mock_player)])
-
-        on_death.assert_called_once_with(mock_player)
-        set_state.assert_called_with(GameState.GAME_OVER)
-        mock_player.respawn.assert_not_called()
-
-    def test_on_player_death_callback_false_keeps_game_running(
-        self, mock_map, mock_effect_manager, mock_add_score, make_bullet, mock_player
-    ):
-        """If on_player_death returns False (lives remain), no GAME_OVER fires."""
-        on_death = MagicMock(return_value=False)
-        set_state = MagicMock()
-        h = CollisionResponseHandler(
-            game_map=mock_map,
-            set_game_state=set_state,
-            effect_manager=mock_effect_manager,
-            add_score=mock_add_score,
-            on_player_death=on_death,
-        )
-        bullet = make_bullet(owner_type=OwnerType.ENEMY)
-        mock_player.take_damage.return_value = True
-
-        h.process_collisions([(bullet, mock_player)])
-
-        on_death.assert_called_once_with(mock_player)
-        set_state.assert_not_called()
+        assert outcomes == [PlayerDestroyed(mock_player)]
+        assert mock_player.lives == 2
+        assert second.active
 
 
 class TestBulletVsTile:
@@ -225,17 +211,17 @@ class TestBulletVsTile:
         mock_map.damage_brick.assert_called_once_with(tile, "right", bullet.rect)
 
     def test_bullet_destroys_base(self, handler, make_bullet, mock_map):
-        """Bullet hitting base triggers destroy_base and GAME_OVER."""
+        """Bullet hitting base destroys it and returns BaseDestroyed."""
         bullet = make_bullet(rect=pygame.Rect(0, 0, 4, 4), direction=Direction.DOWN)
         tile = MagicMock(spec=Tile)
         tile.type = TileType.BASE
         tile.blocks_bullets = True
         tile.is_destructible = False
         tile.x, tile.y = 0, 0
-        handler.process_collisions([(bullet, tile)])
+        outcomes = handler.process_collisions([(bullet, tile)])
         assert not bullet.active
         mock_map.destroy_base.assert_called_once()
-        handler._set_game_state.assert_called_with(GameState.GAME_OVER)
+        assert outcomes == [BaseDestroyed()]
 
     # -- Non-brick tiles --
 
@@ -339,29 +325,32 @@ class TestTankVsTank:
         assert (e1.x, e1.y) == e1_pos_after_move
         assert (e2.x, e2.y) == e2_pos_after_move
 
-    def test_pre_existing_overlap_no_blocked_directions(
+    def test_pre_existing_overlap_does_not_block_movement(
         self, handler, create_enemy_tank
     ):
-        """Pre-existing overlap should not add blocked directions,
+        """Pre-existing overlap should not report blocked movement,
         so tanks don't get permanently stuck."""
         e1 = create_enemy_tank(x=100, y=100)
         e2 = create_enemy_tank(x=100, y=100)
         e1.prev_x, e1.prev_y = e1.x, e1.y
         e2.prev_x, e2.prev_y = e2.x, e2.y
+        e1.on_movement_blocked = MagicMock()
+        e2.on_movement_blocked = MagicMock()
         handler.process_collisions([(e1, e2)])
-        assert len(e1._blocked_directions) == 0
-        assert len(e2._blocked_directions) == 0
+        e1.on_movement_blocked.assert_not_called()
+        e2.on_movement_blocked.assert_not_called()
 
-    def test_cornered_enemy_blocked_direction_recorded(
+    def test_cornered_enemy_movement_blocked(
         self, handler, create_player_tank, create_enemy_tank, mock_tile
     ):
-        """When a cornered enemy gets tile + tank collisions, its
-        blocked direction is recorded from the tile hit."""
+        """When a cornered enemy gets tile + tank collisions, it is
+        told that its movement was blocked."""
         mock_tile.type = TileType.STEEL
         mock_tile.rect = pygame.Rect(68, 100, TILE_SIZE, TILE_SIZE)
         enemy = create_enemy_tank(x=100, y=100)
         enemy.direction = Direction.LEFT
         enemy.prev_x, enemy.prev_y = enemy.x, enemy.y
+        enemy.on_movement_blocked = MagicMock()
         pusher = create_player_tank(x=130, y=100)
         self._simulate_move(pusher, -1, 0)
         handler.process_collisions(
@@ -370,8 +359,7 @@ class TestTankVsTank:
                 (pusher, enemy),
             ]
         )
-        # Enemy's LEFT direction should be recorded as blocked
-        assert Direction.LEFT in enemy._blocked_directions
+        enemy.on_movement_blocked.assert_called()
 
 
 class TestTankVsTile:
@@ -480,20 +468,6 @@ class TestExplosionEffects:
             EffectType.SMALL_EXPLOSION, bullet.rect
         )
 
-    def test_enemy_destroyed_spawns_large_explosion(
-        self, handler, make_bullet, mock_effect_manager
-    ):
-        bullet = make_bullet(rect=pygame.Rect(50, 50, 2, 2))
-        enemy = MagicMock(spec=EnemyTank)
-        enemy.owner_type = OwnerType.ENEMY
-        enemy.tank_type = TankType.BASIC
-        enemy.take_damage = MagicMock(return_value=True)
-        enemy.rect = pygame.Rect(100, 100, 32, 32)
-        handler.process_collisions([(bullet, enemy)])
-        mock_effect_manager.spawn_at_rect.assert_called_once_with(
-            EffectType.LARGE_EXPLOSION, enemy.rect
-        )
-
     def test_bullet_vs_bullet_no_explosion(
         self, handler, make_bullet, mock_effect_manager
     ):
@@ -502,52 +476,6 @@ class TestExplosionEffects:
         handler.process_collisions([(b1, b2)])
         mock_effect_manager.spawn.assert_not_called()
         mock_effect_manager.spawn_at_rect.assert_not_called()
-
-    def test_player_destroyed_spawns_large_explosion(
-        self, handler, make_bullet, mock_player, mock_effect_manager
-    ):
-        bullet = make_bullet(owner_type=OwnerType.ENEMY, rect=pygame.Rect(50, 50, 2, 2))
-        mock_player.take_damage.return_value = True
-        mock_player.rect = pygame.Rect(100, 100, 32, 32)
-        handler.process_collisions([(bullet, mock_player)])
-        mock_effect_manager.spawn_at_rect.assert_called_once_with(
-            EffectType.LARGE_EXPLOSION, mock_player.rect
-        )
-
-
-class TestScoring:
-    @pytest.mark.parametrize(
-        "tank_type,expected_points",
-        [
-            (TankType.BASIC, 100),
-            (TankType.FAST, 200),
-            (TankType.POWER, 300),
-            (TankType.ARMOR, 400),
-        ],
-    )
-    def test_enemy_destroyed_awards_points(
-        self,
-        handler,
-        mock_bullet,
-        mock_enemy,
-        mock_add_score,
-        tank_type,
-        expected_points,
-    ):
-        """Destroying an enemy awards points based on tank type."""
-        mock_enemy.tank_type = tank_type
-        mock_enemy.take_damage.return_value = True
-        mock_bullet.owner.player_id = 1
-        handler.process_collisions([(mock_bullet, mock_enemy)])
-        mock_add_score.assert_called_once_with(expected_points, player_id=1)
-
-    def test_enemy_damaged_not_destroyed_no_points(
-        self, handler, mock_bullet, mock_enemy, mock_add_score
-    ):
-        """Damaging but not destroying an enemy awards no points."""
-        mock_enemy.take_damage.return_value = False
-        handler.process_collisions([(mock_bullet, mock_enemy)])
-        mock_add_score.assert_not_called()
 
 
 class TestPlayerVsPowerUp:
@@ -563,74 +491,58 @@ class TestPlayerVsPowerUp:
     def handler_with_powerup(
         self, mock_map, mock_effect_manager, mock_power_up_manager
     ):
-        score_tracker = {"score": 0}
-
-        def add_score(pts, **kwargs):
-            score_tracker["score"] += pts
-
-        h = CollisionResponseHandler(
+        return CollisionResponseHandler(
             game_map=mock_map,
-            set_game_state=MagicMock(),
             effect_manager=mock_effect_manager,
-            add_score=add_score,
             power_up_manager=mock_power_up_manager,
         )
-        return h, score_tracker, mock_power_up_manager
-
-    @pytest.fixture
-    def mock_player(self):
-        player = MagicMock(spec=PlayerTank)
-        player.player_id = 1
-        return player
 
     @pytest.fixture
     def mock_power_up(self):
         return MagicMock(spec=PowerUp)
 
     def test_player_collects_power_up(
-        self, handler_with_powerup, mock_player, mock_power_up
+        self, handler_with_powerup, mock_power_up_manager, mock_player, mock_power_up
     ):
-        handler, score_tracker, pu_manager = handler_with_powerup
-        handler.process_collisions([(mock_player, mock_power_up)])
-        pu_manager.collect_power_up.assert_called_once_with(mock_power_up)
-        assert score_tracker["score"] == POWERUP_COLLECT_POINTS
+        outcomes = handler_with_powerup.process_collisions(
+            [(mock_player, mock_power_up)]
+        )
+        mock_power_up_manager.collect_power_up.assert_called_once_with(mock_power_up)
+        assert outcomes == [PowerUpCollected(PowerUpType.HELMET, mock_player)]
 
     def test_power_up_not_collected_without_manager(
         self, mock_map, mock_effect_manager, mock_player, mock_power_up
     ):
         handler = CollisionResponseHandler(
             game_map=mock_map,
-            set_game_state=MagicMock(),
             effect_manager=mock_effect_manager,
         )
         result = handler.process_collisions([(mock_player, mock_power_up)])
         assert result == []
 
-    def test_collected_type_stored(
-        self, handler_with_powerup, mock_player, mock_power_up
+    def test_power_up_already_taken_this_frame_not_returned(
+        self, handler_with_powerup, mock_power_up_manager, mock_player, mock_power_up
     ):
-        handler, score_tracker, pu_manager = handler_with_powerup
-        handler.process_collisions([(mock_player, mock_power_up)])
-        power_up_type, collecting_player = handler.consume_collected_power_up()
-        assert power_up_type == PowerUpType.HELMET
-        assert collecting_player is mock_player
+        mock_power_up_manager.collect_power_up.return_value = None
+        outcomes = handler_with_powerup.process_collisions(
+            [(mock_player, mock_power_up)]
+        )
+        assert outcomes == []
 
-    def test_consume_clears_stored_type(
-        self, handler_with_powerup, mock_player, mock_power_up
+    def test_destroyed_player_cannot_collect(
+        self,
+        handler_with_powerup,
+        mock_power_up_manager,
+        mock_player,
+        mock_power_up,
+        make_bullet,
     ):
-        handler, score_tracker, pu_manager = handler_with_powerup
-        handler.process_collisions([(mock_player, mock_power_up)])
-        power_up_type, collecting_player = handler.consume_collected_power_up()
-        assert power_up_type == PowerUpType.HELMET
-        result_type, result_player = handler.consume_collected_power_up()
-        assert result_type is None
-        assert result_player is None
-
-    def test_consume_returns_none_when_empty(self, handler_with_powerup):
-        handler, score_tracker, pu_manager = handler_with_powerup
-        result_type, result_player = handler.consume_collected_power_up()
-        assert result_type is None
-        assert result_player is None
+        bullet = make_bullet(owner_type=OwnerType.ENEMY)
+        outcomes = handler_with_powerup.process_collisions(
+            [(bullet, mock_player), (mock_player, mock_power_up)]
+        )
+        assert outcomes == [PlayerDestroyed(mock_player)]
+        mock_power_up_manager.collect_power_up.assert_not_called()
 
 
 class TestPowerBulletVsSteel:
@@ -691,109 +603,44 @@ class TestFriendlyFire:
     def test_player_bullet_freezes_other_player(self, handler, make_bullet):
         """Player bullet hitting another player freezes instead of damaging."""
         bullet = make_bullet(owner=MagicMock(spec=PlayerTank))
+        target = _make_player()
 
-        target = MagicMock(spec=PlayerTank)
-        target.is_invincible = False
+        outcomes = handler.process_collisions([(bullet, target)])
 
-        result = handler._handle_bullet_vs_player(bullet, target, [])
-
-        assert result is True
         assert bullet.active is False
         target.freeze.assert_called_once_with(FRIENDLY_FIRE_FREEZE_DURATION)
         target.take_damage.assert_not_called()
+        assert outcomes == []
 
     def test_player_bullet_does_not_freeze_invincible_player(
         self, handler, make_bullet
     ):
         """Friendly fire on invincible player deactivates bullet but doesn't freeze."""
         bullet = make_bullet()
-
-        target = MagicMock(spec=PlayerTank)
+        target = _make_player()
         target.is_invincible = True
 
-        result = handler._handle_bullet_vs_player(bullet, target, [])
+        handler.process_collisions([(bullet, target)])
 
-        assert result is True
         assert bullet.active is False
         target.freeze.assert_not_called()
 
     def test_player_bullet_does_not_hit_self(self, handler, make_bullet):
         """A player's own bullet cannot hit themselves (self-hit guard)."""
-        player = MagicMock(spec=PlayerTank)
-        player.is_invincible = False
-
+        player = _make_player()
         bullet = make_bullet(owner=player)
 
-        result = handler._handle_bullet_vs_player(bullet, player, [])
+        handler.process_collisions([(bullet, player)])
 
-        assert result is False
         assert bullet.active is True
         player.freeze.assert_not_called()
 
-    def test_enemy_bullet_still_damages_player(self, handler, make_bullet):
-        """Enemy bullets still damage the player (unchanged behavior)."""
-        rect = MagicMock()
-        rect.centerx = 100
-        rect.centery = 100
-        bullet = make_bullet(owner_type=OwnerType.ENEMY, rect=rect)
-
-        target = MagicMock(spec=PlayerTank)
-        target.is_invincible = False
-        target.take_damage.return_value = False
-
-        result = handler._handle_bullet_vs_player(bullet, target, [])
-
-        assert result is True
-        target.take_damage.assert_called_once()
-
     def test_enemy_bullet_hits_frozen_player(self, handler, make_bullet):
         """A frozen player can still be hit by enemy bullets (real damage)."""
-        rect = MagicMock()
-        rect.centerx = 100
-        rect.centery = 100
-        bullet = make_bullet(owner_type=OwnerType.ENEMY, rect=rect)
-
-        target = MagicMock(spec=PlayerTank)
-        target.is_invincible = False
+        bullet = make_bullet(owner_type=OwnerType.ENEMY)
+        target = _make_player()
         target.is_frozen = True
-        target.take_damage.return_value = False
 
-        result = handler._handle_bullet_vs_player(bullet, target, [])
+        outcomes = handler.process_collisions([(bullet, target)])
 
-        assert result is True
-        target.take_damage.assert_called_once()
-
-
-class TestPerPlayerScoring:
-    def test_enemy_kill_awards_score_to_owner(
-        self, make_bullet, mock_map, mock_effect_manager
-    ):
-        """Score is routed to the player who fired the killing bullet."""
-        scores_received = []
-
-        def track_score(points, player_id=1):
-            scores_received.append((points, player_id))
-
-        handler = CollisionResponseHandler(
-            game_map=mock_map,
-            set_game_state=MagicMock(),
-            effect_manager=mock_effect_manager,
-            add_score=track_score,
-        )
-
-        owner = MagicMock(spec=PlayerTank)
-        owner.player_id = 2
-        bullet = make_bullet(owner=owner)
-
-        enemy = MagicMock(spec=EnemyTank)
-        enemy.tank_type = TankType.BASIC
-        enemy.take_damage.return_value = True
-        enemy.rect = MagicMock()
-        enemy.rect.centerx = 100
-        enemy.rect.centery = 100
-        enemy.is_carrier = False
-
-        handler._handle_bullet_vs_enemy(bullet, enemy, [])
-
-        assert len(scores_received) == 1
-        assert scores_received[0][1] == 2  # awarded to player 2
+        assert outcomes == [PlayerDestroyed(target)]

@@ -1,9 +1,9 @@
 import os
 import pygame
+from collections import deque
 from collections.abc import Callable
 from loguru import logger
 from src.core.map import Map
-from src.core.player_tank import PlayerTank
 from src.core.tile import Tile
 from src.states.game_mode import GameMode
 from src.states.game_state import GameState
@@ -16,7 +16,9 @@ from src.utils.constants import (
     WINDOW_HEIGHT,
     LOGICAL_WIDTH,
     LOGICAL_HEIGHT,
-    PowerUpType,
+    EffectType,
+    ENEMY_POINTS,
+    POWERUP_COLLECT_POINTS,
     SPAWN_INVINCIBILITY_DURATION,
     CURTAIN_CLOSE_DURATION,
     CURTAIN_OPEN_DURATION,
@@ -33,6 +35,13 @@ from src.managers.effect_manager import EffectManager
 from src.managers.texture_manager import TextureManager
 from src.managers.input_handler import InputHandler
 from src.managers.menu_controller import MenuController, MenuItem
+from src.managers.outcomes import (
+    BaseDestroyed,
+    CollisionOutcome,
+    EnemyDestroyed,
+    PlayerDestroyed,
+    PowerUpCollected,
+)
 from src.managers.player_input import CTRL_START_BUTTON
 from src.managers.spawn_manager import SpawnManager
 from src.managers.renderer import Renderer
@@ -216,12 +225,9 @@ class GameManager:
         # Collision response handler
         self.collision_response_handler = CollisionResponseHandler(
             game_map=self.map,
-            set_game_state=self._set_game_state,
             effect_manager=self.effect_manager,
-            add_score=self.player_manager.add_score,
             power_up_manager=self.power_up_manager,
             sound_manager=self.sound_manager,
-            on_player_death=self.player_manager.handle_player_death,
         )
 
         self.player_manager.create_players(
@@ -449,31 +455,66 @@ class GameManager:
         )
 
         events = self.collision_manager.get_collision_events()
-        enemies_to_remove = self.collision_response_handler.process_collisions(events)
-        for enemy in enemies_to_remove:
-            self.spawn_manager.remove_enemy(enemy)
-            if enemy.is_carrier:
-                self.power_up_manager.spawn_power_up(
-                    active_players[0] if active_players else None,
-                    self.spawn_manager.enemy_tanks,
-                )
-
-        # Apply deferred power-up effect
-        collected_type, collected_player = (
-            self.collision_response_handler.consume_collected_power_up()
-        )
-        if collected_type is not None:
-            self._apply_power_up(collected_type, collected_player)
+        self._apply_outcomes(self.collision_response_handler.process_collisions(events))
 
         # Powerup blink sound: plays when any powerup is active
         self.sound_manager.update_powerup_blink(bool(active_power_ups))
 
         self.effect_manager.update(dt)
 
-        if self.state == GameState.RUNNING:
-            if self.spawn_manager.all_enemies_defeated():
-                logger.info("All enemies defeated. Victory!")
-                self._set_game_state(GameState.VICTORY)
+        # The only place Game Over is decided; it wins over Victory.
+        if self.map.is_base_destroyed or self.player_manager.is_game_over():
+            logger.info("Game over.")
+            self._set_game_state(GameState.GAME_OVER)
+        elif self.spawn_manager.all_enemies_defeated():
+            logger.info("All enemies defeated. Victory!")
+            self._set_game_state(GameState.VICTORY)
+
+    def _apply_outcomes(self, outcomes: list[CollisionOutcome]) -> None:
+        """Apply a frame's outcomes, and the outcomes they cause, in order."""
+        queue = deque(outcomes)
+        while queue:
+            match queue.popleft():
+                case EnemyDestroyed(enemy=enemy, by=by):
+                    # A bullet and a Grenade can both destroy it in one frame.
+                    if enemy not in self.spawn_manager.enemy_tanks:
+                        continue
+                    self.spawn_manager.remove_enemy(enemy)
+                    self.effect_manager.spawn_at_rect(
+                        EffectType.LARGE_EXPLOSION, enemy.rect
+                    )
+                    self.sound_manager.play("explosion")
+                    if by is not None:
+                        self.player_manager.add_score(
+                            ENEMY_POINTS.get(enemy.tank_type, 0),
+                            player_id=by.player_id,
+                        )
+                    if enemy.is_carrier:
+                        self.power_up_manager.spawn_power_up(
+                            [
+                                *self.player_manager.get_active_players(),
+                                *self.spawn_manager.enemy_tanks,
+                            ]
+                        )
+                case PlayerDestroyed(player=player):
+                    # Before handle_player_death moves it to its spawn point.
+                    self.effect_manager.spawn_at_rect(
+                        EffectType.LARGE_EXPLOSION, player.rect
+                    )
+                    self.sound_manager.play("explosion")
+                    self.player_manager.handle_player_death(player)
+                case BaseDestroyed():
+                    pass  # Game Over is decided once all outcomes are applied.
+                case PowerUpCollected(power_up_type=power_up_type, player=player):
+                    self.player_manager.add_score(
+                        POWERUP_COLLECT_POINTS, player_id=player.player_id
+                    )
+                    self.sound_manager.play("powerup")
+                    queue.extend(
+                        self.power_up_manager.apply(
+                            power_up_type, player, self.spawn_manager
+                        )
+                    )
 
     def _world_view(self) -> WorldView:
         """Snapshot the current battlefield for the Players' inputs."""
@@ -521,21 +562,6 @@ class GameManager:
             self._state_timer = 0.0
             self.sound_manager.play("victory")
         self.state = state
-
-    def _apply_power_up(
-        self, power_up_type: PowerUpType, player: PlayerTank | None = None
-    ) -> None:
-        """Resolve the recipient and forward to PowerUpManager.apply."""
-        if self.state != GameState.RUNNING:
-            return
-        if player is None:
-            active = self.player_manager.get_active_players()
-            player = active[0] if active else None
-        if player is None:
-            return
-        self.power_up_manager.apply(
-            power_up_type, player, self.spawn_manager, self.effect_manager
-        )
 
     def render(self) -> None:
         """Render the game state."""

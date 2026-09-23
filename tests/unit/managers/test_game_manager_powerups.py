@@ -9,8 +9,10 @@ from src.utils.constants import (
     CLOCK_FREEZE_DURATION,
     TankType,
     EffectType,
+    POWERUP_COLLECT_POINTS,
     TILE_SIZE,
 )
+from src.managers.outcomes import EnemyDestroyed, PlayerDestroyed, PowerUpCollected
 from src.states.game_state import GameState
 
 
@@ -31,10 +33,6 @@ class TestPowerUpManagerApply:
         return sm
 
     @pytest.fixture
-    def effect_manager(self):
-        return MagicMock()
-
-    @pytest.fixture
     def manager(self, mock_texture_manager):
         """Real PowerUpManager with mocked deps.
 
@@ -46,126 +44,128 @@ class TestPowerUpManagerApply:
         m.apply_shovel = MagicMock()
         return m
 
-    def test_helmet_grants_invincibility(
-        self, manager, player, spawn_manager, effect_manager
-    ):
-        manager.apply(PowerUpType.HELMET, player, spawn_manager, effect_manager)
+    def test_helmet_grants_invincibility(self, manager, player, spawn_manager):
+        manager.apply(PowerUpType.HELMET, player, spawn_manager)
         player.activate_invincibility.assert_called_once_with(
             HELMET_INVINCIBILITY_DURATION
         )
 
-    def test_extra_life_increments_lives(
-        self, manager, player, spawn_manager, effect_manager
-    ):
-        manager.apply(PowerUpType.EXTRA_LIFE, player, spawn_manager, effect_manager)
+    def test_extra_life_increments_lives(self, manager, player, spawn_manager):
+        manager.apply(PowerUpType.EXTRA_LIFE, player, spawn_manager)
         assert player.lives == 4
 
-    def test_bomb_destroys_all_enemies(
-        self, manager, player, spawn_manager, effect_manager
-    ):
-        enemies = []
-        for tt in [TankType.BASIC, TankType.FAST, TankType.POWER]:
-            e = MagicMock()
-            e.tank_type = tt
-            e.rect = pygame.Rect(100, 100, TILE_SIZE, TILE_SIZE)
-            enemies.append(e)
+    def test_bomb_destroys_every_enemy(self, manager, player, spawn_manager):
+        enemies = [MagicMock(), MagicMock(), MagicMock()]
         spawn_manager.enemy_tanks = list(enemies)
-        manager.apply(PowerUpType.BOMB, player, spawn_manager, effect_manager)
-        assert spawn_manager.remove_enemy.call_count == 3
+        outcomes = manager.apply(PowerUpType.BOMB, player, spawn_manager)
+        assert outcomes == [EnemyDestroyed(e, by=None) for e in enemies]
+        spawn_manager.remove_enemy.assert_not_called()
 
-    def test_bomb_spawns_explosions(
-        self, manager, player, spawn_manager, effect_manager
-    ):
-        enemy = MagicMock()
-        enemy.tank_type = TankType.BASIC
-        enemy.rect = pygame.Rect(100, 100, TILE_SIZE, TILE_SIZE)
-        spawn_manager.enemy_tanks = [enemy]
-        manager.apply(PowerUpType.BOMB, player, spawn_manager, effect_manager)
-        effect_manager.spawn_at_rect.assert_called_once_with(
-            EffectType.LARGE_EXPLOSION, enemy.rect
-        )
-
-    def test_bomb_does_not_trigger_carrier_powerup(
-        self, manager, player, spawn_manager, effect_manager
-    ):
-        carrier = MagicMock()
-        carrier.tank_type = TankType.BASIC
-        carrier.is_carrier = True
-        carrier.rect = pygame.Rect(100, 100, TILE_SIZE, TILE_SIZE)
-        spawn_manager.enemy_tanks = [carrier]
-        manager.apply(PowerUpType.BOMB, player, spawn_manager, effect_manager)
-        spawn_manager.remove_enemy.assert_called_once_with(carrier)
-        # The bomb path goes through spawn_manager.remove_enemy directly,
-        # bypassing the carrier-drops-powerup behaviour (which lives in
-        # GameManager's collision-response path, not in apply()).
-
-    def test_clock_freezes_enemies(
-        self, manager, player, spawn_manager, effect_manager
-    ):
-        manager.apply(PowerUpType.CLOCK, player, spawn_manager, effect_manager)
+    def test_clock_freezes_enemies(self, manager, player, spawn_manager):
+        manager.apply(PowerUpType.CLOCK, player, spawn_manager)
         spawn_manager.freeze.assert_called_once_with(CLOCK_FREEZE_DURATION)
 
-    def test_shovel_delegates_to_apply_shovel(
-        self, manager, player, spawn_manager, effect_manager
-    ):
-        manager.apply(PowerUpType.SHOVEL, player, spawn_manager, effect_manager)
+    def test_shovel_delegates_to_apply_shovel(self, manager, player, spawn_manager):
+        manager.apply(PowerUpType.SHOVEL, player, spawn_manager)
         manager.apply_shovel.assert_called_once_with()
 
-    def test_star_applies_to_player(
-        self, manager, player, spawn_manager, effect_manager
-    ):
-        manager.apply(PowerUpType.STAR, player, spawn_manager, effect_manager)
+    def test_star_applies_to_player(self, manager, player, spawn_manager):
+        manager.apply(PowerUpType.STAR, player, spawn_manager)
         player.apply_star.assert_called_once_with()
 
     def test_helmet_overrides_respawn_invincibility(
-        self, manager, player, spawn_manager, effect_manager
+        self, manager, player, spawn_manager
     ):
         player.is_invincible = True
-        manager.apply(PowerUpType.HELMET, player, spawn_manager, effect_manager)
+        manager.apply(PowerUpType.HELMET, player, spawn_manager)
         player.activate_invincibility.assert_called_once_with(
             HELMET_INVINCIBILITY_DURATION
         )
 
 
-class TestGameManagerApplyPowerUpDelegation:
-    """GameManager._apply_power_up resolves the recipient and delegates."""
+class TestGameManagerApplyOutcomes:
+    """GameManager._apply_outcomes is the one place outcomes take effect."""
 
     @pytest.fixture
     def game(self, game_manager):
-        """Real GameManager from the shared fixture with power_up_manager
-        swapped for a mock we can assert on. State is forced to RUNNING
-        because `_reset_game` leaves the manager mid-transition."""
         game_manager.state = GameState.RUNNING
-        game_manager.power_up_manager = MagicMock()
+        game_manager.power_up_manager = MagicMock(spec=PowerUpManager)
+        game_manager.power_up_manager.apply.return_value = []
+        game_manager.sound_manager = MagicMock()
+        game_manager.effect_manager = MagicMock()
+        game_manager.player_manager = MagicMock()
+        game_manager.spawn_manager = MagicMock()
+        enemies = game_manager.spawn_manager.enemy_tanks = []
+        game_manager.spawn_manager.remove_enemy.side_effect = enemies.remove
         return game_manager
 
     @pytest.fixture
-    def player(self, game):
-        p = MagicMock()
-        p.lives = 3
-        game.player_manager.get_active_players.return_value = [p]
-        return p
+    def players(self, game):
+        p1, p2 = MagicMock(player_id=1), MagicMock(player_id=2)
+        game.player_manager.get_active_players.return_value = [p1, p2]
+        return p1, p2
 
-    def test_delegates_to_power_up_manager(self, game, player):
-        game._apply_power_up(PowerUpType.EXTRA_LIFE)
-        game.power_up_manager.apply.assert_called_once_with(
-            PowerUpType.EXTRA_LIFE,
-            player,
-            game.spawn_manager,
-            game.effect_manager,
+    @staticmethod
+    def _enemy(game, tank_type=TankType.BASIC, is_carrier=False):
+        enemy = MagicMock(tank_type=tank_type, is_carrier=is_carrier)
+        enemy.rect = pygame.Rect(0, 0, TILE_SIZE, TILE_SIZE)
+        game.spawn_manager.enemy_tanks.append(enemy)
+        return enemy
+
+    @pytest.mark.parametrize(
+        "tank_type,points",
+        [
+            (TankType.BASIC, 100),
+            (TankType.FAST, 200),
+            (TankType.POWER, 300),
+            (TankType.ARMOR, 400),
+        ],
+    )
+    def test_enemy_destroyed_by_player(self, game, players, tank_type, points):
+        enemy = self._enemy(game, tank_type)
+        game._apply_outcomes([EnemyDestroyed(enemy, by=players[1])])
+        assert enemy not in game.spawn_manager.enemy_tanks
+        game.player_manager.add_score.assert_called_once_with(points, player_id=2)
+        game.effect_manager.spawn_at_rect.assert_called_once_with(
+            EffectType.LARGE_EXPLOSION, enemy.rect
         )
+        game.sound_manager.play.assert_called_once_with("explosion")
 
-    def test_skipped_when_not_running(self, game, player):
-        game.state = GameState.GAME_OVER
-        game._apply_power_up(PowerUpType.EXTRA_LIFE)
-        game.power_up_manager.apply.assert_not_called()
+    def test_enemy_destroyed_twice_applies_once(self, game, players):
+        enemy = self._enemy(game)
+        game._apply_outcomes(
+            [EnemyDestroyed(enemy, by=players[0]), EnemyDestroyed(enemy, by=None)]
+        )
+        game.player_manager.add_score.assert_called_once_with(100, player_id=1)
+        game.effect_manager.spawn_at_rect.assert_called_once()
 
-    def test_falls_back_to_first_active_player(self, game, player):
-        game._apply_power_up(PowerUpType.HELMET)
-        args = game.power_up_manager.apply.call_args.args
-        assert args[1] is player
+    def test_carrier_drop_avoids_every_player(self, game, players):
+        carrier = self._enemy(game, is_carrier=True)
+        other = self._enemy(game)
+        game._apply_outcomes([EnemyDestroyed(carrier, by=players[0])])
+        game.power_up_manager.spawn_power_up.assert_called_once_with([*players, other])
 
-    def test_noop_when_no_active_players(self, game):
-        game.player_manager.get_active_players.return_value = []
-        game._apply_power_up(PowerUpType.HELMET)
-        game.power_up_manager.apply.assert_not_called()
+    def test_player_destroyed(self, game, players):
+        p1 = players[0]
+        p1.rect = pygame.Rect(64, 64, TILE_SIZE, TILE_SIZE)
+        explosion_at = []
+        game.player_manager.handle_player_death.side_effect = lambda p: (
+            explosion_at.append(
+                game.effect_manager.spawn_at_rect.call_args.args[1].copy()
+            )
+        )
+        game._apply_outcomes([PlayerDestroyed(p1)])
+        game.player_manager.handle_player_death.assert_called_once_with(p1)
+        game.sound_manager.play.assert_called_once_with("explosion")
+        # The explosion is placed before the respawn moves the tank.
+        assert explosion_at == [pygame.Rect(64, 64, TILE_SIZE, TILE_SIZE)]
+
+    def test_power_up_collected(self, game, players):
+        game._apply_outcomes([PowerUpCollected(PowerUpType.STAR, players[1])])
+        game.player_manager.add_score.assert_called_once_with(
+            POWERUP_COLLECT_POINTS, player_id=2
+        )
+        game.sound_manager.play.assert_called_once_with("powerup")
+        game.power_up_manager.apply.assert_called_once_with(
+            PowerUpType.STAR, players[1], game.spawn_manager
+        )

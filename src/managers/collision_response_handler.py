@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 from collections.abc import Callable
+from dataclasses import dataclass, field
 
 if TYPE_CHECKING:
     from src.managers.power_up_manager import PowerUpManager
@@ -14,41 +15,50 @@ from src.core.enemy_tank import EnemyTank
 from src.core.tile import Tile, TileType
 from src.utils.constants import (
     EffectType,
-    ENEMY_POINTS,
     FRIENDLY_FIRE_FREEZE_DURATION,
     OwnerType,
-    POWERUP_COLLECT_POINTS,
-    PowerUpType,
 )
 from src.core.map import Map
 from src.managers.effect_manager import EffectManager
-from src.states.game_state import GameState
+from src.managers.outcomes import (
+    BaseDestroyed,
+    CollisionOutcome,
+    EnemyDestroyed,
+    PlayerDestroyed,
+    PowerUpCollected,
+)
+
+
+@dataclass
+class _Frame:
+    """What one ``process_collisions`` call has produced so far."""
+
+    outcomes: list[CollisionOutcome] = field(default_factory=list)
+    # Tanks destroyed earlier in the frame: bullets pass through them.
+    destroyed: set[Tank] = field(default_factory=set)
 
 
 class CollisionResponseHandler:
-    """Handles collision responses using a type-pair handler registry."""
+    """Handles collision responses using a type-pair handler registry.
+
+    Physics that later events in the same frame depend on (bullets, reverts,
+    tiles, damage) is applied immediately; game-level consequences are
+    returned as outcomes for ``GameManager`` to apply.
+    """
 
     def __init__(
         self,
         game_map: Map,
-        set_game_state: Callable[[GameState], None],
         effect_manager: EffectManager,
-        add_score: Callable[..., None] = lambda *args, **kwargs: None,
         power_up_manager: PowerUpManager | None = None,
         sound_manager: SoundManager | None = None,
-        on_player_death: Callable[[PlayerTank], bool] | None = None,
     ) -> None:
         self._map = game_map
-        self._set_game_state = set_game_state
         self._effect_manager = effect_manager
-        self._add_score = add_score
         self._power_up_manager = power_up_manager
         self._sound_manager = sound_manager
-        self._on_player_death = on_player_death
-        self._collected_power_up_type: PowerUpType | None = None
-        self._collected_power_up_player: PlayerTank | None = None
 
-        self._handlers: dict[tuple[type, type], Callable[[Any, Any, list], bool]] = {
+        self._handlers: dict[tuple[type, type], Callable[[Any, Any, _Frame], bool]] = {
             (Bullet, EnemyTank): self._handle_bullet_vs_enemy,
             (Bullet, PlayerTank): self._handle_bullet_vs_player,
             (Bullet, Tile): self._handle_bullet_vs_tile,
@@ -65,14 +75,16 @@ class CollisionResponseHandler:
         if self._sound_manager is not None:
             self._sound_manager.play(name)
 
-    def process_collisions(self, events: list[tuple[Any, Any]]) -> list[EnemyTank]:
-        """Process collision events and return list of enemies to remove."""
+    def process_collisions(
+        self, events: list[tuple[Any, Any]]
+    ) -> list[CollisionOutcome]:
+        """Process collision events and return their outcomes in event order."""
         if not events:
             return []
 
         processed_bullets: set = set()
         reverted_tanks: set = set()
-        enemies_to_remove: list[EnemyTank] = []
+        frame = _Frame()
 
         for obj_a, obj_b in events:
             handler, a, b = self._lookup(obj_a, obj_b)
@@ -95,7 +107,7 @@ class CollisionResponseHandler:
                 ):
                     continue
 
-                result = handler(a, b, enemies_to_remove)
+                result = handler(a, b, frame)
                 if result:
                     processed_bullets.add(bullet)
                     if isinstance(other, Bullet):
@@ -105,24 +117,24 @@ class CollisionResponseHandler:
 
             # Must be before tank block — PlayerTank is a Tank subclass
             if isinstance(a, PowerUp) or isinstance(b, PowerUp):
-                handler(a, b, enemies_to_remove)
+                handler(a, b, frame)
                 continue
 
             # Tank collisions
             if isinstance(a, Tank) and isinstance(b, Tank):
                 if (a not in reverted_tanks or b not in reverted_tanks) and handler(
-                    a, b, enemies_to_remove
+                    a, b, frame
                 ):
                     reverted_tanks.add(a)
                     reverted_tanks.add(b)
             elif isinstance(a, Tank):
-                if a not in reverted_tanks and handler(a, b, enemies_to_remove):
+                if a not in reverted_tanks and handler(a, b, frame):
                     reverted_tanks.add(a)
             elif isinstance(b, Tank):
-                if b not in reverted_tanks and handler(a, b, enemies_to_remove):
+                if b not in reverted_tanks and handler(a, b, frame):
                     reverted_tanks.add(b)
 
-        return enemies_to_remove
+        return frame.outcomes
 
     def _lookup(self, obj_a: Any, obj_b: Any) -> tuple[Any, Any, Any]:
         """Look up handler for type pair, trying both orderings.
@@ -148,31 +160,25 @@ class CollisionResponseHandler:
         self,
         bullet: Bullet,
         enemy: EnemyTank,
-        enemies_to_remove: list[EnemyTank],
+        frame: _Frame,
     ) -> bool:
-        if bullet.owner_type != OwnerType.PLAYER:
+        if bullet.owner_type != OwnerType.PLAYER or enemy in frame.destroyed:
             return False
         logger.debug(f"Player bullet hit enemy tank (type: {enemy.tank_type})")
         bullet.active = False
-        destroyed = enemy.take_damage()
-        if destroyed:
+        if enemy.take_damage():
             logger.info(f"Enemy tank (type: {enemy.tank_type}) destroyed.")
-            enemies_to_remove.append(enemy)
-            self._add_score(
-                ENEMY_POINTS.get(enemy.tank_type, 0),
-                player_id=bullet.owner.player_id,
-            )
-            self._effect_manager.spawn_at_rect(EffectType.LARGE_EXPLOSION, enemy.rect)
-            self._play("explosion")
+            frame.destroyed.add(enemy)
+            frame.outcomes.append(EnemyDestroyed(enemy, by=bullet.owner))
         return True
 
     def _handle_bullet_vs_player(
         self,
         bullet: Bullet,
         player: PlayerTank,
-        enemies_to_remove: list[EnemyTank],
+        frame: _Frame,
     ) -> bool:
-        if getattr(bullet, "owner", None) is player:
+        if getattr(bullet, "owner", None) is player or player in frame.destroyed:
             return False
 
         if bullet.owner_type == OwnerType.PLAYER:
@@ -187,27 +193,21 @@ class CollisionResponseHandler:
         logger.debug("Enemy bullet hit player tank.")
         bullet.active = False
         if not player.is_invincible:
-            destroyed = player.take_damage()
-            if destroyed:
+            lives_before = player.lives
+            player.take_damage()
+            # take_damage returns True only on the last life; losing any
+            # life means the tank was destroyed.
+            if player.lives < lives_before:
                 logger.info("Player tank destroyed.")
-                self._effect_manager.spawn_at_rect(
-                    EffectType.LARGE_EXPLOSION, player.rect
-                )
-                self._play("explosion")
-                if self._on_player_death is not None:
-                    if self._on_player_death(player):
-                        self._set_game_state(GameState.GAME_OVER)
-                else:
-                    self._set_game_state(GameState.GAME_OVER)
-            else:
-                player.respawn()
+                frame.destroyed.add(player)
+                frame.outcomes.append(PlayerDestroyed(player))
         return True
 
     def _handle_bullet_vs_tile(
         self,
         bullet: Bullet,
         tile: Tile,
-        enemies_to_remove: list[EnemyTank],
+        frame: _Frame,
     ) -> bool:
         if not tile.blocks_bullets:
             return False
@@ -229,14 +229,14 @@ class CollisionResponseHandler:
             self._map.damage_brick(tile, bullet.direction, bullet.rect)
         elif tile.type == TileType.BASE:
             self._map.destroy_base()
-            self._set_game_state(GameState.GAME_OVER)
+            frame.outcomes.append(BaseDestroyed())
         return True
 
     def _handle_bullet_vs_bullet(
         self,
         bullet_a: Bullet,
         bullet_b: Bullet,
-        enemies_to_remove: list[EnemyTank],
+        frame: _Frame,
     ) -> bool:
         logger.debug("Bullet hit bullet. Both deactivated.")
         bullet_a.active = False
@@ -248,33 +248,15 @@ class CollisionResponseHandler:
         self,
         player: PlayerTank,
         power_up: PowerUp,
-        enemies_to_remove: list[EnemyTank],
+        frame: _Frame,
     ) -> bool:
-        if self._power_up_manager is None:
+        if self._power_up_manager is None or player in frame.destroyed:
             return False
         power_up_type = self._power_up_manager.collect_power_up(power_up)
         if power_up_type is not None:
-            self._add_score(POWERUP_COLLECT_POINTS, player_id=player.player_id)
-            self._play("powerup")
             logger.info(f"Player collected power-up: {power_up_type}")
-            self._collected_power_up_type = power_up_type
-            self._collected_power_up_player = player
+            frame.outcomes.append(PowerUpCollected(power_up_type, player))
         return True
-
-    def consume_collected_power_up(
-        self,
-    ) -> tuple[PowerUpType | None, PlayerTank | None]:
-        """Return and clear the collected power-up type and player (one-shot read).
-
-        Returns:
-            Tuple of (power_up_type, collecting_player). Both None when nothing
-            was collected.
-        """
-        result_type = self._collected_power_up_type
-        result_player = self._collected_power_up_player
-        self._collected_power_up_type = None
-        self._collected_power_up_player = None
-        return result_type, result_player
 
     @staticmethod
     def _caused_collision(mover: Tank, other: Tank) -> bool:
@@ -290,7 +272,7 @@ class CollisionResponseHandler:
         self,
         tank_a: Tank,
         tank_b: Tank,
-        enemies_to_remove: list[EnemyTank],
+        frame: _Frame,
     ) -> bool:
         a_caused = self._caused_collision(tank_a, tank_b)
         b_caused = self._caused_collision(tank_b, tank_a)
@@ -313,7 +295,7 @@ class CollisionResponseHandler:
         self,
         tank: Tank,
         tile: Tile,
-        enemies_to_remove: list[EnemyTank],
+        frame: _Frame,
     ) -> bool:
         if tile.blocks_tanks:
             tank.revert_move(tile.rect)
