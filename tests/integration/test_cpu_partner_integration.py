@@ -12,7 +12,6 @@ import pygame
 
 from src.core.bullet import Bullet
 from src.core.tile import Tile, TileType
-from src.managers.cpu_partner import CpuPartnerInput
 from src.managers.game_manager import GameManager
 from src.states.game_mode import GameMode
 from src.states.game_state import GameState
@@ -378,8 +377,21 @@ class TestCpuPartnerDefend:
         assert gm.battle.player_manager.get_score(2) > 0
 
 
+# The first roll under this seed is above the Dodge miss chance, and noticing
+# the shot is the only thing that rolls during the test: it doesn't miss it.
+NOTICES_THE_SHOT_SEED = 0
+
+
+@pytest.fixture
+def seeded_rng():
+    """Lets a test seed the RNG; restores its state after."""
+    state = random.getstate()
+    yield random.seed
+    random.setstate(state)
+
+
 class TestCpuPartnerDodge:
-    def test_steps_out_of_the_way_of_an_enemy_shot(self, cpu_game):
+    def test_steps_out_of_the_way_of_an_enemy_shot(self, cpu_game, seeded_rng):
         gm = cpu_game
         open_field(gm)
         clear_enemies(gm)
@@ -387,8 +399,6 @@ class TestCpuPartnerDodge:
         # No Enemy Spawn Point to Ambush at: it stands still until the shot.
         gm.battle.map.spawn_points = []
         p1, p2 = gm.battle.player_manager.get_active_players()
-        # A CPU Partner that never misses a shot, so the test is certain.
-        gm.battle.player_manager._slots[1].input = CpuPartnerInput(dodge_miss_chance=0)
         place_player_at(gm, 0, 0, player=p1)
         place_player_at(gm, 16 * SUB_TILE_SIZE, 10 * SUB_TILE_SIZE, player=p2)
         p2.is_invincible = False
@@ -397,6 +407,7 @@ class TestCpuPartnerDodge:
         bullet = fire_bullet_from(gm, enemy)
         clear_enemies(gm)
         lives = p2.lives
+        seeded_rng(NOTICES_THE_SHOT_SEED)
 
         for _ in range(3 * FPS):
             tick(gm)

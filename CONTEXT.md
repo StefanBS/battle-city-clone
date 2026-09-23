@@ -61,7 +61,7 @@ _Avoid_: Flashing tank, bonus tank
 The behaviour that drives an Enemy's movement and shooting. Never used for the CPU Partner.
 
 **Frozen**:
-The state of every Enemy while a Clock is in effect: it neither moves, turns, fires nor Slides, but its bullets already in flight keep going and it can still be destroyed. Enemies that appear during it are Frozen too.
+The state of a tank that for a while neither moves, turns nor fires, though its bullets already in flight keep going and it can still be destroyed. Every Enemy is Frozen while a Clock is in effect: it doesn't Slide either, and Enemies that appear during it are Frozen too. A Player is Frozen for a moment when the other Player's bullet hits it.
 _Avoid_: Paused, stopped
 
 ### Battlefield
