@@ -121,26 +121,25 @@ class TestPlayerManagerCreation:
         assert player.x == expected_x
         assert player.y == expected_y
 
-    def test_1p_is_combined_input(self, make_player_manager, mock_game_map) -> None:
+    @pytest.mark.parametrize(
+        "controller_instance_ids", [[], [7]], ids=["no_controller", "controller"]
+    )
+    def test_1p_is_combined_input(
+        self, make_player_manager, mock_game_map, controller_instance_ids
+    ) -> None:
         """1P always wraps keyboard + non-filtering controller in CombinedInput.
 
-        Uses ControllerInput(instance_id=None) regardless of whether a
-        controller is currently plugged in, so hot-plugging Just Works.
+        Uses ControllerInput(instance_id=None) whatever controllers are
+        plugged in, so hot-plugging Just Works.
         """
-        player_manager = make_player_manager(controller_instance_ids=[])
+        player_manager = make_player_manager(
+            controller_instance_ids=controller_instance_ids
+        )
         pi = player_manager._slots[0].input
         assert isinstance(pi, CombinedInput)
         assert len(pi._inputs) == 2
         assert isinstance(pi._inputs[0], KeyboardInput)
         assert isinstance(pi._inputs[1], ControllerInput)
-        assert pi._inputs[1].instance_id is None
-
-    def test_1p_combined_ignores_instance_ids(
-        self, make_player_manager, mock_game_map
-    ) -> None:
-        player_manager = make_player_manager(controller_instance_ids=[7])
-        pi = player_manager._slots[0].input
-        assert isinstance(pi, CombinedInput)
         assert pi._inputs[1].instance_id is None
 
     def test_get_active_players_returns_living(
@@ -264,16 +263,6 @@ class TestPlayerManagerHandleEvent:
 
 
 class TestPlayerManagerScore:
-    def test_initial_score_zero(self, player_manager):
-        """Score is 0 immediately after construction."""
-        assert player_manager.score == 0
-
-    def test_add_score_increments(self, make_player_manager, mock_game_map):
-        """add_score(100) raises the score to 100."""
-        player_manager = make_player_manager(controller_instance_ids=[])
-        player_manager.add_score(100)
-        assert player_manager.score == 100
-
     def test_add_score_accumulates(self, make_player_manager, mock_game_map):
         """Multiple add_score() calls accumulate correctly."""
         player_manager = make_player_manager(controller_instance_ids=[])
@@ -437,17 +426,6 @@ class TestPlayerManagerDeathHandling:
 
         player.respawn.assert_not_called()
 
-    def test_game_over_when_last_player_eliminated(
-        self, make_player_manager, mock_game_map, mock_texture_manager
-    ):
-        player_manager = make_player_manager(controller_instance_ids=[])
-
-        player = player_manager.get_active_players()[0]
-        player.lives = 0
-        player.health = 0
-
-        assert player_manager.is_game_over() is True
-
     def test_no_game_over_with_no_lives_but_health_positive(
         self, make_player_manager, mock_game_map, mock_texture_manager
     ):
@@ -511,22 +489,13 @@ class TestPlayerManagerGameOver:
 
 class TestPlayerManagerTwoPlayerCreation:
     def test_create_two_players(self, make_player_manager, mock_game_map):
-        """2P mode produces two active players."""
+        """2P mode produces two active players, with player_ids 1 and 2."""
         mock_game_map.player_spawn_2 = (16, 24)
         player_manager = make_player_manager(
             controller_instance_ids=[0], mode=GameMode.TWO_PLAYERS
         )
         players = player_manager.get_active_players()
-        assert len(players) == 2
-
-    def test_player2_has_player_id_2(self, make_player_manager, mock_game_map):
-        """Second player has player_id=2."""
-        mock_game_map.player_spawn_2 = (16, 24)
-        player_manager = make_player_manager(
-            controller_instance_ids=[0], mode=GameMode.TWO_PLAYERS
-        )
-        assert player_manager.get_active_players()[0].player_id == 1
-        assert player_manager.get_active_players()[1].player_id == 2
+        assert [p.player_id for p in players] == [1, 2]
 
     def test_player2_at_spawn_2_position(self, make_player_manager, mock_game_map):
         """Player 2 spawns at player_spawn_2 coordinates."""
@@ -551,7 +520,13 @@ class TestPlayerManagerTwoPlayerCreation:
     def test_2p_two_controllers_both_controller(
         self, make_player_manager, mock_game_map
     ):
-        """2P + 2 controllers: each player bound to its own instance_id."""
+        """2P + 2 controllers: each player bound to its own instance_id.
+
+        Regression: the ids are non-sequential on purpose. Previously
+        PlayerInput stored a device index that assumed 0-based sequential
+        IDs, so plugging a second controller later whose SDL instance_id
+        wasn't 1 broke per-player routing.
+        """
         mock_game_map.player_spawn_2 = (16, 24)
         player_manager = make_player_manager(
             controller_instance_ids=[8, 12], mode=GameMode.TWO_PLAYERS
@@ -560,22 +535,6 @@ class TestPlayerManagerTwoPlayerCreation:
         assert player_manager._slots[0].input.instance_id == 8
         assert isinstance(player_manager._slots[1].input, ControllerInput)
         assert player_manager._slots[1].input.instance_id == 12
-
-    def test_2p_two_controllers_non_sequential_instance_ids(
-        self, make_player_manager, mock_game_map
-    ):
-        """Regression: non-sequential instance_ids (e.g. 0 and 5) route correctly.
-
-        Previously PlayerInput stored a device index that assumed 0-based
-        sequential IDs, so plugging a second controller later whose SDL
-        instance_id wasn't 1 broke per-player routing.
-        """
-        mock_game_map.player_spawn_2 = (16, 24)
-        player_manager = make_player_manager(
-            controller_instance_ids=[0, 5], mode=GameMode.TWO_PLAYERS
-        )
-        assert player_manager._slots[0].input.instance_id == 0
-        assert player_manager._slots[1].input.instance_id == 5
 
     def test_2p_fallback_spawn_when_no_spawn_2(
         self, make_player_manager, mock_game_map
@@ -601,12 +560,6 @@ class TestPlayerManagerTwoPlayerCreation:
         assert player_manager.get_score(1) == 100
         assert player_manager.get_score(2) == 200
         assert player_manager.score == 300
-
-    def test_1p_add_score_backward_compatible(self, make_player_manager, mock_game_map):
-        """add_score() without player_id works for 1P."""
-        player_manager = make_player_manager(controller_instance_ids=[])
-        player_manager.add_score(100)
-        assert player_manager.score == 100
 
     def test_2p_no_controllers_both_keyboard(self, make_player_manager, mock_game_map):
         """2P + 0 controllers: both players fall back to keyboard (degenerate).
@@ -723,19 +676,6 @@ class TestPlayerManagerTwoPlayerDeath:
         assert two_player_pm.is_game_over() is False  # p2 is still alive
         assert p2.lives == 3  # untouched
         assert p1.lives == 0  # stays dead
-
-    def test_game_over_when_last_player_dies(self, two_player_pm):
-        """Game ends when the surviving player loses their last life."""
-        p1 = two_player_pm.get_active_players()[0]
-        p2 = two_player_pm.get_active_players()[1]
-        p1.lives = 0
-        p1.health = 0
-        p2.lives = 0
-        p2.health = 0
-
-        two_player_pm.handle_player_death(p2)
-
-        assert two_player_pm.is_game_over() is True
 
     def test_game_over_only_when_both_eliminated(self, two_player_pm):
         """is_game_over() is True only when both players are dead with 0 lives."""
