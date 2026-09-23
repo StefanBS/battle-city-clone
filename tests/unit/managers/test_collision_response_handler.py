@@ -100,12 +100,6 @@ def mock_tile():
 
 
 class TestDispatch:
-    def test_lookup_forward_order(self, handler, mock_bullet, mock_enemy):
-        """Test registry finds handler with (Bullet, EnemyTank) order."""
-        mock_bullet.owner_type = OwnerType.PLAYER
-        handler.process_collisions([(mock_bullet, mock_enemy)])
-        assert not mock_bullet.active
-
     def test_lookup_swapped_order(self, handler, mock_bullet, mock_enemy):
         """Test registry finds handler with (EnemyTank, Bullet) order."""
         mock_bullet.owner_type = OwnerType.PLAYER
@@ -229,18 +223,6 @@ class TestBulletVsTile:
         assert not bullet.active
         mock_map.destroy_base.assert_called_once()
         assert outcomes == [BaseDestroyed()]
-
-    # -- Non-brick tiles --
-
-    def test_bullet_stops_at_steel(self, handler, make_bullet, mock_map):
-        bullet = make_bullet()
-        tile = MagicMock(spec=Tile)
-        tile.type = TileType.STEEL
-        tile.blocks_bullets = True
-        tile.x, tile.y = 0, 0
-        handler.process_collisions([(bullet, tile)])
-        assert not bullet.active
-        mock_map.set_tile_type.assert_not_called()
 
 
 class TestBulletVsBullet:
@@ -429,46 +411,23 @@ class TestTracking:
 
 
 class TestExplosionEffects:
-    def test_bullet_vs_brick_spawns_small_explosion(
-        self, handler, make_bullet, mock_map, mock_effect_manager
-    ):
-        tile = Tile(
-            TileType.BRICK,
-            4,
-            4,
-            blocks_tanks=True,
-            blocks_bullets=True,
-            is_destructible=True,
-        )
-        mock_map.get_tile_at.return_value = Tile(TileType.EMPTY, 4, 5)
-        bullet = make_bullet(direction=Direction.RIGHT, rect=pygame.Rect(64, 66, 2, 2))
-        handler.process_collisions([(bullet, tile)])
-        mock_effect_manager.spawn_at_rect.assert_called_once_with(
-            EffectType.SMALL_EXPLOSION, bullet.rect
-        )
-
-    def test_bullet_vs_steel_spawns_small_explosion(
-        self, handler, make_bullet, mock_effect_manager
+    @pytest.mark.parametrize(
+        "tile_type, is_destructible",
+        [
+            (TileType.BRICK, True),
+            (TileType.STEEL, False),
+            (TileType.BASE, False),
+        ],
+        ids=["brick", "steel", "base"],
+    )
+    def test_bullet_vs_tile_spawns_small_explosion(
+        self, handler, make_bullet, mock_effect_manager, tile_type, is_destructible
     ):
         bullet = make_bullet(rect=pygame.Rect(50, 50, 2, 2))
         tile = MagicMock(spec=Tile)
-        tile.type = TileType.STEEL
+        tile.type = tile_type
         tile.blocks_bullets = True
-        tile.is_destructible = False
-        tile.x, tile.y = 0, 0
-        handler.process_collisions([(bullet, tile)])
-        mock_effect_manager.spawn_at_rect.assert_called_once_with(
-            EffectType.SMALL_EXPLOSION, bullet.rect
-        )
-
-    def test_bullet_vs_base_spawns_small_explosion(
-        self, handler, make_bullet, mock_map, mock_effect_manager
-    ):
-        bullet = make_bullet(rect=pygame.Rect(50, 50, 2, 2))
-        tile = MagicMock(spec=Tile)
-        tile.type = TileType.BASE
-        tile.blocks_bullets = True
-        tile.is_destructible = False
+        tile.is_destructible = is_destructible
         tile.x, tile.y = 0, 0
         handler.process_collisions([(bullet, tile)])
         mock_effect_manager.spawn_at_rect.assert_called_once_with(
@@ -592,9 +551,8 @@ class TestPowerBulletVsSteel:
         mock_map.set_tile_type.assert_not_called()
         assert not normal_bullet.active
 
-    def test_power_bullet_does_not_change_base_behavior(
-        self, handler, power_bullet, mock_map
-    ):
+    def test_power_bullet_destroys_base(self, handler, power_bullet, mock_map):
+        """A power bullet destroys the Base the same way a normal bullet does."""
         base_tile = MagicMock(spec=Tile)
         base_tile.type = TileType.BASE
         base_tile.blocks_bullets = True
@@ -602,8 +560,10 @@ class TestPowerBulletVsSteel:
         base_tile.x = 8
         base_tile.y = 14
         base_tile.rect = pygame.Rect(128, 224, 16, 16)
-        handler.process_collisions([(power_bullet, base_tile)])
+        outcomes = handler.process_collisions([(power_bullet, base_tile)])
         assert not power_bullet.active
+        mock_map.destroy_base.assert_called_once()
+        assert outcomes == [BaseDestroyed()]
 
 
 class TestFriendlyFire:

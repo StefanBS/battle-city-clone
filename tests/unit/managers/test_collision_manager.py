@@ -79,10 +79,6 @@ class TestCollisionManager:
         assert len(events) == 1
         assert (obj_a, obj_b) in events or (obj_b, obj_a) in events
 
-    def test_initialization(self, collision_manager):
-        """Test CollisionManager initializes with empty events."""
-        assert collision_manager.get_collision_events() == []
-
     def test_no_collisions(self, collision_manager, mock_objects):
         """Test check_collisions when no objects overlap."""
         all_blocking = mock_objects["bricks"] + mock_objects["steel"]
@@ -107,8 +103,10 @@ class TestCollisionManager:
             enemy_tanks=[mock_objects["enemies"][0]],
         )
 
-    def test_player_bullet_vs_destructible_tile(self, collision_manager, mock_objects):
-        """Test collision between player bullet and brick tile."""
+    def test_player_bullet_vs_bullet_blocking_tile(
+        self, collision_manager, mock_objects
+    ):
+        """Test collision between player bullet and a bullet-blocking tile."""
         self._assert_single_collision(
             collision_manager,
             mock_objects["p_bullets"][0],
@@ -147,8 +145,10 @@ class TestCollisionManager:
             player_base=mock_objects["base"],
         )
 
-    def test_enemy_bullet_vs_destructible_tile(self, collision_manager, mock_objects):
-        """Test collision between enemy bullet and brick tile."""
+    def test_enemy_bullet_vs_bullet_blocking_tile(
+        self, collision_manager, mock_objects
+    ):
+        """Test collision between enemy bullet and a bullet-blocking tile."""
         self._assert_single_collision(
             collision_manager,
             mock_objects["e_bullets"][0],
@@ -258,30 +258,6 @@ class TestCollisionManager:
         )
         assert len(collision_manager.get_collision_events()) == 0
 
-    def test_player_bullet_vs_bullet_blocking_tile(
-        self, collision_manager, mock_objects
-    ):
-        """Test collision between player bullet and steel tile."""
-        self._assert_single_collision(
-            collision_manager,
-            mock_objects["p_bullets"][0],
-            mock_objects["steel"][0],
-            bullets=[mock_objects["p_bullets"][0]],
-            bullet_blocking_tiles=[mock_objects["steel"][0]],
-        )
-
-    def test_enemy_bullet_vs_bullet_blocking_tile(
-        self, collision_manager, mock_objects
-    ):
-        """Test collision between enemy bullet and steel tile."""
-        self._assert_single_collision(
-            collision_manager,
-            mock_objects["e_bullets"][0],
-            mock_objects["steel"][0],
-            bullets=[mock_objects["e_bullets"][0]],
-            bullet_blocking_tiles=[mock_objects["steel"][0]],
-        )
-
     def test_duplicate_brick_collision_deduplicated(
         self, collision_manager, mock_objects
     ):
@@ -342,10 +318,6 @@ class TestPowerUpCollision:
         power_up = MagicMock()
         power_up.rect = pygame.Rect(200, 200, 32, 32)
         events = self._check(cm, player, [power_up])
-        assert len(events) == 0
-
-    def test_no_collision_when_power_ups_empty(self, cm, player):
-        events = self._check(cm, player, [])
         assert len(events) == 0
 
     def test_multiple_powerups_collision(self, cm, player):
