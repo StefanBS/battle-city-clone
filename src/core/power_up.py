@@ -1,4 +1,4 @@
-"""Power-up entity that spawns when a carrier enemy is destroyed."""
+"""Power-up entity that a Carrier drops when first hit or destroyed by a Grenade."""
 
 import pygame
 

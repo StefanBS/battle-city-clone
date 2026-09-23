@@ -15,6 +15,13 @@ from src.utils.constants import PowerUpType
 
 
 @dataclass(frozen=True)
+class CarrierHit:
+    """A Player's bullet hit a Carrier, which now drops its Power-Up."""
+
+    enemy: EnemyTank
+
+
+@dataclass(frozen=True)
 class EnemyDestroyed:
     """An Enemy was destroyed, by a Player's bullet or (``by=None``) a Grenade."""
 
@@ -42,4 +49,6 @@ class PowerUpCollected:
     player: PlayerTank
 
 
-CollisionOutcome = EnemyDestroyed | PlayerDestroyed | BaseDestroyed | PowerUpCollected
+CollisionOutcome = (
+    CarrierHit | EnemyDestroyed | PlayerDestroyed | BaseDestroyed | PowerUpCollected
+)

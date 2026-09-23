@@ -11,6 +11,7 @@ from src.core.map import Map
 from src.core.power_up import PowerUp
 from src.managers.outcomes import (
     BaseDestroyed,
+    CarrierHit,
     EnemyDestroyed,
     PlayerDestroyed,
     PowerUpCollected,
@@ -56,6 +57,7 @@ def mock_enemy():
     e = MagicMock(spec=EnemyTank)
     e.owner_type = OwnerType.ENEMY
     e.tank_type = TankType.BASIC
+    e.is_carrier = False
     e.take_damage = MagicMock(return_value=False)
     e.on_movement_blocked = MagicMock()
     e.revert_move = MagicMock()
@@ -148,6 +150,21 @@ class TestBulletVsEnemy:
         assert outcomes == [EnemyDestroyed(mock_enemy, by=first.owner)]
         mock_enemy.take_damage.assert_called_once()
         assert second.active
+
+    def test_player_bullet_hits_carrier(self, handler, mock_bullet, mock_enemy):
+        mock_enemy.is_carrier = True
+        outcomes = handler.process_collisions([(mock_bullet, mock_enemy)])
+        assert outcomes == [CarrierHit(mock_enemy)]
+
+    def test_player_bullet_destroys_carrier(self, handler, mock_bullet, mock_enemy):
+        """The drop comes before the kill."""
+        mock_enemy.is_carrier = True
+        mock_enemy.take_damage.return_value = True
+        outcomes = handler.process_collisions([(mock_bullet, mock_enemy)])
+        assert outcomes == [
+            CarrierHit(mock_enemy),
+            EnemyDestroyed(mock_enemy, by=mock_bullet.owner),
+        ]
 
     def test_enemy_bullet_does_not_damage_enemy(self, handler, make_bullet, mock_enemy):
         """Friendly fire — enemy bullet should not damage enemy."""
