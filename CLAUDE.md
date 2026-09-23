@@ -6,6 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A Battle City (NES) clone built with Python 3.13 and Pygame. Uses `uv` as the package manager.
 
+- `CONTEXT.md` is the domain glossary (Player, CPU Partner, Goal, Roster, Battle, Frozen, ...). Use its terms in code, tests, docs and commit messages, and avoid the words it lists under _Avoid_.
+- `docs/adr/` holds the architecture decisions. Read the relevant ADR before changing a design it covers.
+- `docs/cpu-partner.md` explains how the CPU Partner decides, with state diagrams. Update it when its Goals, timing or engagement rules change.
+
 ## Common Commands
 
 ```bash
@@ -38,7 +42,7 @@ ruff format src/ tests/
 ```
 GameObject (base: position, rect, draw, update)
 ├── Tank (movement, shooting, health)
-│   ├── PlayerTank (keyboard input, respawn, lives)
+│   ├── PlayerTank (respawn, lives, Stars, shield; driven by a PlayerInput)
 │   └── EnemyTank (4 types: basic/fast/power/armor; driven by a paired EnemyAI)
 └── Bullet (directional movement, bounds checking)
 ```
@@ -49,15 +53,16 @@ GameObject (base: position, rect, draw, update)
 - **Detection, response, outcomes:** `CollisionManager` only detects collisions and queues events. `CollisionResponseHandler` applies the physics later events in the frame depend on (bullets, reverts, tile damage, `take_damage`) and returns game-level outcomes (`src/managers/outcomes.py`). `Battle.apply_outcomes()` applies them (score, removal, Carrier drops, respawn, Power-Up effects), then decides Game Over and Victory in one place. See `docs/adr/0003-collision-response-returns-outcomes.md`.
 - **Screen flow vs. Battle:** `GameManager` owns the screen flow (menus, pause, curtain, Game Over animation) and which Stage comes next. A `Battle` owns one Stage's collaborators (`Map`, `PlayerManager`, `EnemyManager`, `SpawnManager`, `PowerUpManager`, `EffectManager`, `TankStepper`, collision managers), runs the frame pipeline in `step(dt)` and returns a `BattleResult` when it ends. Each Battle is built from the previous one's `carried_progress` (lives, Stars, score). A Battle needs no window or `SettingsManager`, so frame rules are tested against it directly. See `docs/adr/0004-a-battle-owns-one-stage.md`.
 - **One stepping path:** `TankStepper` steps every tank, Player or Enemy, through a frame (timers, ice check, Slide or move, then fire within the Bullet Cap) and owns the only bullet list. `EnemyAI` (random direction changes, periodic shooting) and `PlayerInput` only supply intent. The owner of each kind of tank calls the stepper: `PlayerManager.update` for Players, `EnemyManager.step_enemies` for Enemies (pairs each with its `EnemyAI`, steers it toward the nearest Player, skips Frozen Enemies). `SpawnManager` only works through the Stage's Roster: `update()` returns the Enemies that materialized, and `Battle` hands them to `EnemyManager`. See `docs/adr/0002-one-stepping-path-for-all-tanks.md`.
+- **CPU Partner is a `PlayerInput`:** In 1 Player + CPU mode, `PlayerManager` pairs P2's ordinary `PlayerTank` with a `CpuPartnerInput`. Each frame `Battle` builds a read-only `WorldView`, and `PlayerManager.observe` hands each input its own view (Human inputs ignore it). The CPU Partner decides from the view alone, so it follows every Player rule with no special cases. Its helpers live next to it in `src/managers/` (`goal_timing`, `pathfinding`, `steering`, `refused_shots`, `enemy_memory`). See `docs/adr/0001-cpu-partner-as-player-input.md` and `docs/cpu-partner.md`.
 - **Logical vs. display surface:** `GameManager` renders to a `game_surface` (512x512) then scales up to the window (1024x1024) for a pixel-art effect.
 - **Fixed timestep:** `dt = 1.0 / fps` (constant, not measured from clock).
 - **No pygame.sprite.Group:** Entities are plain classes, managed via plain lists (tanks in `PlayerManager`/`EnemyManager`, bullets in `TankStepper`).
 
 ### Source Layout
 
-- `src/core/` — Game entities (`GameObject`, `Tank`, `PlayerTank`, `EnemyTank`, `Bullet`, `Tile`, `Map`) and `EnemyAI`
-- `src/managers/` — `GameManager` (main loop, screen flow), `Battle` (one Stage: frame pipeline, applying collision outcomes, Game Over / Victory), `CollisionResponseHandler`, `TankStepper` (per-frame tank stepping, bullet list), `EnemyManager` (Enemies on the battlefield, their AIs, Frozen), `SpawnManager` (the Roster, spawn timer and animations), `CollisionManager`, `TextureManager` (sprite atlas slicing), `InputHandler`
-- `src/states/` — `GameState` enum: RUNNING, GAME_OVER, VICTORY, EXIT
+- `src/core/` — Game entities (`GameObject`, `Tank`, `PlayerTank`, `EnemyTank`, `Bullet`, `Tile`, `Map`, `PowerUp`, `Effect`) and `EnemyAI`
+- `src/managers/` — `GameManager` (main loop, screen flow), `Battle` (one Stage: frame pipeline, applying collision outcomes, Game Over / Victory), `CollisionManager`, `CollisionResponseHandler` and its `outcomes`, `TankStepper` (per-frame tank stepping, bullet list), `PlayerManager` (player slots: tank, input, kind, score), `PlayerInput` (keyboard, controller), `WorldView`, `CpuPartnerInput` and its helpers, `EnemyManager` (Enemies on the battlefield, their AIs, Frozen), `SpawnManager` (the Roster, spawn timer and animations), `PowerUpManager`, `EffectManager`, `Renderer`, `TextureManager` (sprite atlas slicing), `SoundManager`, `SettingsManager`, `MenuController`, `InputHandler` (menu and system input)
+- `src/states/` — `GameState` enum (screen flow: TITLE_SCREEN, RUNNING, PAUSED, OPTIONS_MENU, STAGE_CURTAIN_CLOSE/OPEN, GAME_OVER, GAME_OVER_ANIMATION, VICTORY, GAME_COMPLETE, EXIT) and `GameMode` enum (ONE_PLAYER, TWO_PLAYERS, ONE_PLAYER_CPU)
 - `src/utils/constants.py` — All game constants (sizes, speeds, grid dimensions, colors)
 
 ### Map and Tiles
