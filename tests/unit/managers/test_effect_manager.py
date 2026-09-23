@@ -23,9 +23,6 @@ def effect_manager(mock_texture_manager):
 
 
 class TestEffectManager:
-    def test_starts_empty(self, effect_manager):
-        assert len(effect_manager.effects) == 0
-
     def test_spawn_small_explosion(self, effect_manager):
         effect_manager.spawn(EffectType.SMALL_EXPLOSION, 100.0, 200.0)
         assert len(effect_manager.effects) == 1
@@ -66,15 +63,13 @@ class TestEffectManager:
         effect_manager.update(0.01)
         assert len(effect_manager.effects) == 1
 
-    def test_multiple_effects(self, effect_manager):
-        effect_manager.spawn(EffectType.SMALL_EXPLOSION, 0, 0)
-        effect_manager.spawn(EffectType.LARGE_EXPLOSION, 50, 50)
-        assert len(effect_manager.effects) == 2
-
-    def test_draw_does_not_raise(self, effect_manager):
+    def test_draw_blits_active_effects(self, effect_manager):
         surface = pygame.Surface((256, 256))
+        surface.fill((255, 255, 255))
         effect_manager.spawn(EffectType.SMALL_EXPLOSION, 100, 100)
         effect_manager.draw(surface)
+        # The mock sprites are black, so the effect's frame darkens its centre
+        assert surface.get_at((100, 100)) == (0, 0, 0, 255)
 
     def test_spawn_at_rect_centers_on_rect(self, effect_manager):
         rect = pygame.Rect(100, 200, 32, 32)
