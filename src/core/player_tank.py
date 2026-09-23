@@ -145,6 +145,16 @@ class PlayerTank(Tank):
             return None
         return super().shoot()
 
+    @property
+    def is_eliminated(self) -> bool:
+        """Whether the player is destroyed with no lives left to respawn."""
+        return self.lives <= 0 and self.health <= 0
+
+    def eliminate(self) -> None:
+        """Take the player out of lives, so it no longer plays."""
+        self.lives = 0
+        self.health = 0
+
     def respawn(self) -> None:
         """Respawn the tank at its initial position."""
         if self.lives > 0:

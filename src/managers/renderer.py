@@ -190,8 +190,7 @@ class Renderer:
                 pid = player.player_id
                 player_score = scores.get(pid, 0)
                 name = "CPU" if pid in cpu_partner_ids else f"P{pid}"
-                eliminated = player.health <= 0 and player.lives <= 0
-                if eliminated:
+                if player.is_eliminated:
                     label = f"{name}: OUT"
                     color = GRAY
                 else:
