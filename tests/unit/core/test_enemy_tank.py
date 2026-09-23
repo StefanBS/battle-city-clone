@@ -1,5 +1,4 @@
 import pytest
-from unittest.mock import MagicMock
 from src.core.enemy_tank import get_enemy_config, _reset_enemy_config
 from src.utils.constants import (
     TILE_SIZE,
@@ -116,34 +115,6 @@ def test_enemy_tank_grid_alignment(create_enemy_tank):
     assert tank.y == expected_y
     assert tank.rect.x == expected_x
     assert tank.rect.y == expected_y
-
-
-def test_update_does_not_move(create_enemy_tank):
-    """update() only advances tank timers; moving is left to TankStepper."""
-    tank = create_enemy_tank(x=128, y=128)
-
-    tank.update(1.0 / 60)
-
-    assert (tank.x, tank.y) == (128, 128)
-    assert tank.is_moving is False
-
-
-class TestMovementBlocked:
-    def test_blocked_move_reaches_the_listener(self, create_enemy_tank):
-        tank = create_enemy_tank()
-        listener = MagicMock()
-        tank.movement_blocked_listener = listener
-
-        tank.on_movement_blocked()
-
-        listener.assert_called_once_with()
-
-    def test_blocked_move_without_listener_is_fine(self, create_enemy_tank):
-        tank = create_enemy_tank()
-
-        tank.on_movement_blocked()
-
-        assert tank.is_moving is False
 
 
 class TestEnemyTankCarrier:

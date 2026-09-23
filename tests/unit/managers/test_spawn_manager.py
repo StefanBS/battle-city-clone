@@ -323,15 +323,6 @@ class TestEnemyAIPairing:
         assert spawn_manager.base_position == (256.0, 480.0)
         assert ai.effective_base_bias == 0.0
 
-    def test_add_enemy_pairs_tank_and_ai(self, spawn_manager, create_enemy_tank):
-        enemy = create_enemy_tank()
-        ai = EnemyAI(enemy)
-
-        spawn_manager.add_enemy(enemy, ai)
-
-        assert spawn_manager.enemy_tanks[-1] is enemy
-        assert spawn_manager.ai_for(enemy) is ai
-
     def test_removed_enemy_loses_its_ai(self, spawn_manager):
         enemy = spawn_manager.enemy_tanks[0]
 

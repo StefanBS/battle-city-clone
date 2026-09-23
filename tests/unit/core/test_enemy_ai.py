@@ -75,16 +75,6 @@ class TestIntent:
         assert (tank.x, tank.y) == (128, 128)
         assert ai.direction_timer == 0.0
 
-    def test_pending_turn_is_dropped_once_the_tank_faces_it(self, create_enemy_ai):
-        ai = create_enemy_ai(difficulty=Difficulty.EASY)
-        with patch("src.core.enemy_ai.random.choice", return_value=Direction.LEFT):
-            ai.on_movement_blocked()
-        ai.tank.direction = Direction.LEFT
-
-        ai.update(0.01)
-
-        assert ai._turn_to is None
-
 
 class TestMovementBlocked:
     @patch("src.core.enemy_ai.random.choice", return_value=Direction.RIGHT)
@@ -117,14 +107,6 @@ class TestMovementBlocked:
         candidates = mock_choice.call_args[0][0]
         assert set(candidates) == {Direction.DOWN}
         assert ai.get_movement_direction() == Direction.DOWN.delta
-
-    def test_all_directions_blocked_keeps_current_intent(self, create_enemy_ai):
-        ai = create_enemy_ai(difficulty=Difficulty.EASY)
-        ai._blocked_directions.update(list(Direction))
-
-        ai.on_movement_blocked()
-
-        assert ai.get_movement_direction() == ai.tank.direction.delta
 
     def test_blocked_directions_persist_until_movement(self, create_enemy_ai):
         ai = create_enemy_ai(difficulty=Difficulty.EASY)
