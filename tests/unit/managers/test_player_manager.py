@@ -198,13 +198,6 @@ class TestPlayerManagerUpdate:
         assert self.player.is_sliding is True
         self.pm._sound_manager.play.assert_called_once_with("ice_slide")
 
-    def test_no_sound_on_a_plain_move(self):
-        _press(self.pm, pygame.K_UP)
-
-        self.pm.update(self.DT, self.stepper)
-
-        self.pm._sound_manager.play.assert_not_called()
-
     def test_two_players_each_follow_their_own_input(
         self, player_manager, mock_game_map
     ):

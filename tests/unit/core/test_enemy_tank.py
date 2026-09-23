@@ -235,15 +235,19 @@ def test_update_does_not_move(create_enemy_tank):
 def test_direction_timer_records_wanted_direction_without_turning(
     mock_uniform, create_enemy_tank
 ):
+    """Turning, and any Slide it causes on ice, is left to TankStepper."""
     tank = create_enemy_tank(x=128, y=128, difficulty=Difficulty.EASY)
     tank.direction = Direction.RIGHT
     tank.direction_timer = tank.direction_change_interval
+    tank.on_ice = True
+    tank._moving_this_frame = True
 
     with patch("src.core.enemy_tank.random.choice", return_value=Direction.UP):
         tank.update(1.0 / FPS)
 
     assert tank.get_movement_direction() == Direction.UP.delta
     assert tank.direction == Direction.RIGHT
+    assert tank.is_sliding is False
     assert tank.direction_timer == 0.0
 
 
@@ -330,15 +334,6 @@ class TestEnemyIceSlide:
     @pytest.fixture
     def enemy(self, create_enemy_tank):
         return create_enemy_tank(x=128, y=128, difficulty=Difficulty.EASY)
-
-    def test_direction_change_leaves_the_slide_to_the_stepper(self, enemy):
-        enemy._on_ice = True
-        enemy._was_moving = True
-        enemy.direction = Direction.RIGHT
-        with patch("src.core.enemy_tank.random.choice", return_value=Direction.UP):
-            enemy._change_direction()
-        assert enemy._sliding is False
-        assert enemy.direction == Direction.RIGHT
 
     def test_on_movement_blocked_cancels_slide(self, enemy):
         enemy._on_ice = True

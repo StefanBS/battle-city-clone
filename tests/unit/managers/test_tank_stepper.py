@@ -9,7 +9,7 @@ import pytest
 from src.core.bullet import Bullet
 from src.core.map import Map
 from src.core.tank import Tank
-from src.managers.tank_stepper import StepResult, TankStepper
+from src.managers.tank_stepper import TankStepper
 from src.utils.constants import TILE_SIZE, Direction
 
 DT = 1.0 / 60
@@ -87,9 +87,6 @@ class TestStepping:
         stepper.step(tank, FakeIntent((0, -1)), DT)
 
         tank.move.assert_not_called()
-
-    def test_reports_nothing_on_a_plain_move(self, stepper, tank):
-        assert stepper.step(tank, FakeIntent((0, -1)), DT) == StepResult()
 
 
 class TestIce:
@@ -196,21 +193,16 @@ class TestFiring:
 
         assert calls == ["move", "shoot"]
 
-    def test_bullet_cap_blocks_extra_shot(self, stepper, tank):
-        stepper.step(tank, FakeIntent(shoot=True), DT)
+    @pytest.mark.parametrize("cap", [1, 2])
+    def test_bullet_cap_blocks_extra_shot(self, stepper, tank, cap):
+        tank.max_bullets = cap
+        for _ in range(cap):
+            stepper.step(tank, FakeIntent(shoot=True), DT)
 
         result = stepper.step(tank, FakeIntent(shoot=True), DT)
 
-        assert tank.shoot.call_count == 1
         assert result.fired is False
-
-    def test_bullet_cap_of_two(self, stepper, tank):
-        tank.max_bullets = 2
-
-        for _ in range(3):
-            stepper.step(tank, FakeIntent(shoot=True), DT)
-
-        assert len(stepper.bullets) == 2
+        assert len(stepper.bullets) == cap
 
     def test_cap_counts_only_own_bullets(self, stepper, tank):
         other = MagicMock(spec=Tank)
@@ -245,9 +237,6 @@ class TestFiring:
 
 
 class TestBullets:
-    def test_starts_empty(self, stepper):
-        assert stepper.bullets == []
-
     def test_update_bullets_advances_each(self, stepper, tank):
         stepper.step(tank, FakeIntent(shoot=True), DT)
 

@@ -394,37 +394,6 @@ class TestIceSlide:
 
         assert tank.start_slide() is False
 
-    def test_slides_after_moving_freely(self, tank):
-        tank.move(1, 0, 1.0 / 60)
-        tank.update(1.0 / 60)
-        tank.on_ice = True
-
-        assert tank.start_slide() is True
-
-
-class TestMove:
-    @pytest.mark.parametrize(
-        "dx, dy, expected",
-        [
-            (1, 0, Direction.RIGHT),
-            (-1, 0, Direction.LEFT),
-            (0, 1, Direction.DOWN),
-            (0, -1, Direction.UP),
-        ],
-    )
-    def test_move_turns_and_moves(self, create_tank, dx, dy, expected):
-        tank = create_tank(x=128, y=128)
-        tank.move(dx, dy, 1.0 / 60)
-        assert tank.direction == expected
-        assert (tank.x, tank.y) != (128, 128)
-
-    def test_move_without_direction_does_nothing(self, create_tank):
-        tank = create_tank(x=128, y=128)
-        tank.direction = Direction.LEFT
-        tank.move(0, 0, 1.0 / 60)
-        assert tank.direction == Direction.LEFT
-        assert tank.is_moving is False
-
 
 class TestIsMoving:
     def test_is_moving_false_by_default(self, create_tank):

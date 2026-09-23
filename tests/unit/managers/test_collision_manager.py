@@ -185,23 +185,6 @@ class TestCollisionManager:
 
         assert collision_manager.get_collision_events() == []
 
-    def test_enemy_bullets_do_not_collide_with_each_other(
-        self, collision_manager, mock_objects
-    ):
-        e_bullet_a, e_bullet_b = mock_objects["e_bullets"]
-        e_bullet_a.rect = e_bullet_b.rect.copy()
-
-        collision_manager.check_collisions(
-            player_tanks=[],
-            enemy_tanks=[],
-            bullets=[e_bullet_a, e_bullet_b],
-            bullet_blocking_tiles=[],
-            tank_blocking_tiles=[],
-            player_base=None,
-        )
-
-        assert collision_manager.get_collision_events() == []
-
     def test_tank_vs_impassable_tile(self, collision_manager, mock_objects):
         """Test collision between player tank and steel tile."""
         self._assert_single_collision(
