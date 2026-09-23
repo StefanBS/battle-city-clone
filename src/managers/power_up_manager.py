@@ -54,7 +54,7 @@ class PowerUpManager:
         power_up_type: PowerUpType | None = None,
         position: tuple[int, int] | None = None,
     ) -> None:
-        """Spawn a power-up, appending it to the active list.
+        """Spawn a power-up, replacing any power-up already on the battlefield.
 
         If ``position`` is given, spawn there directly without searching.
         Otherwise, find a random walkable position not occupied by any of
@@ -73,8 +73,12 @@ class PowerUpManager:
             x, y = pos
 
         power_up = PowerUp(x, y, power_up_type, self._texture_manager)
-        self.active_power_ups.append(power_up)
+        self.active_power_ups = [power_up]
         logger.info(f"Power-up spawned: {power_up_type} at ({x}, {y})")
+
+    def clear(self) -> None:
+        """Remove the power-up on the battlefield, if any."""
+        self.active_power_ups = []
 
     def update(self, dt: float) -> None:
         """Update all active power-ups; remove any that have timed out."""

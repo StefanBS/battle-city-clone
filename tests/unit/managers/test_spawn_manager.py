@@ -494,6 +494,45 @@ class TestSpawnManagerCarrier:
         carrier_tanks = [t for t in manager.enemy_tanks if t.is_carrier]
         assert len(carrier_tanks) == 1
 
+    def test_on_carrier_spawned_not_called_for_non_carrier(
+        self, mock_texture_manager, mock_player_tank, mock_game_map
+    ):
+        on_carrier_spawned = MagicMock()
+        SpawnManager(
+            texture_manager=mock_texture_manager,
+            game_map=mock_game_map,
+            enemy_composition=_DEFAULT_COMPOSITION,
+            spawn_interval=5.0,
+            player_tanks=[mock_player_tank],
+            powerup_carrier_indices=(1,),
+            on_carrier_spawned=on_carrier_spawned,
+        )
+        on_carrier_spawned.assert_not_called()
+
+    def test_on_carrier_spawned_waits_for_spawn_animation(
+        self, mock_texture_manager, mock_player_tank, mock_game_map
+    ):
+        mock_effect_manager = MagicMock(spec=EffectManager)
+        mock_effect = MagicMock(spec=Effect)
+        mock_effect.active = True
+        mock_effect_manager.spawn.return_value = mock_effect
+        on_carrier_spawned = MagicMock()
+        manager = SpawnManager(
+            texture_manager=mock_texture_manager,
+            game_map=mock_game_map,
+            enemy_composition=_DEFAULT_COMPOSITION,
+            spawn_interval=5.0,
+            player_tanks=[mock_player_tank],
+            effect_manager=mock_effect_manager,
+            powerup_carrier_indices=(0,),
+            on_carrier_spawned=on_carrier_spawned,
+        )
+        on_carrier_spawned.assert_not_called()
+
+        mock_effect.active = False
+        manager.update(0.0, [mock_player_tank], mock_game_map)
+        on_carrier_spawned.assert_called_once()
+
 
 class TestSpawnManagerCustomCarriers:
     """Tests for custom powerup_carrier_indices parameter."""

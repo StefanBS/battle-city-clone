@@ -262,6 +262,7 @@ class GameManager:
             effect_manager=self.effect_manager,
             difficulty=effective_difficulty,
             powerup_carrier_indices=self.map.powerup_carrier_indices,
+            on_carrier_spawned=self.power_up_manager.clear,
         )
 
         # Steps every tank; recreated per stage so no bullet outlives it.
@@ -460,7 +461,9 @@ class GameManager:
         self._apply_outcomes(self.collision_response_handler.process_collisions(events))
 
         # Powerup blink sound: plays when any powerup is active
-        self.sound_manager.update_powerup_blink(bool(active_power_ups))
+        self.sound_manager.update_powerup_blink(
+            bool(self.power_up_manager.active_power_ups)
+        )
 
         self.effect_manager.update(dt)
 

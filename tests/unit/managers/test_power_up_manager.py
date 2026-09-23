@@ -42,10 +42,10 @@ class TestPowerUpManager:
         manager.spawn_power_up([mock_player_tank])
         assert len(manager.active_power_ups) == 1
 
-    def test_spawn_multiple_allowed(self, manager, mock_player_tank):
-        manager.spawn_power_up([mock_player_tank])
-        manager.spawn_power_up([mock_player_tank])
-        assert len(manager.active_power_ups) == 2
+    def test_spawn_replaces_existing_power_up(self, manager, mock_player_tank):
+        manager.spawn_power_up([mock_player_tank], power_up_type=PowerUpType.CLOCK)
+        manager.spawn_power_up([mock_player_tank], power_up_type=PowerUpType.BOMB)
+        assert [p.power_up_type for p in manager.active_power_ups] == [PowerUpType.BOMB]
 
     def test_spawn_with_specific_type(self, manager, mock_player_tank):
         manager.spawn_power_up([mock_player_tank], power_up_type=PowerUpType.BOMB)
@@ -72,14 +72,6 @@ class TestPowerUpManager:
         result = manager.collect_power_up(fake_pu)
         assert result is None
 
-    def test_collect_removes_only_specified(self, manager, mock_player_tank):
-        manager.spawn_power_up([mock_player_tank], power_up_type=PowerUpType.CLOCK)
-        manager.spawn_power_up([mock_player_tank], power_up_type=PowerUpType.BOMB)
-        pu_clock = manager.active_power_ups[0]
-        manager.collect_power_up(pu_clock)
-        assert len(manager.active_power_ups) == 1
-        assert manager.active_power_ups[0].power_up_type == PowerUpType.BOMB
-
     def test_update_clears_timed_out_power_up(self, manager, mock_player_tank):
         manager.spawn_power_up([mock_player_tank])
         manager.update(POWERUP_TIMEOUT + 0.1)
@@ -88,14 +80,6 @@ class TestPowerUpManager:
     def test_update_keeps_active_power_up(self, manager, mock_player_tank):
         manager.spawn_power_up([mock_player_tank])
         manager.update(1.0)
-        assert len(manager.active_power_ups) == 1
-
-    def test_update_removes_only_timed_out(self, manager, mock_player_tank):
-        manager.spawn_power_up([mock_player_tank], power_up_type=PowerUpType.CLOCK)
-        manager.spawn_power_up([mock_player_tank], power_up_type=PowerUpType.BOMB)
-        # advance past timeout for one
-        manager.active_power_ups[0].update(POWERUP_TIMEOUT + 0.1)
-        manager.update(0.0)
         assert len(manager.active_power_ups) == 1
 
     def test_spawn_avoids_occupied_positions(self, manager, mock_player_tank):

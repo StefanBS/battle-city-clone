@@ -42,14 +42,8 @@ class TestPowerUpIntegration:
         game.power_up_manager.update(POWERUP_TIMEOUT + 0.1)
         assert len(game.power_up_manager.active_power_ups) == 0
 
-    def test_multiple_power_ups_allowed(self, game, carrier):
-        """Multiple spawn calls should accumulate power-ups."""
-        carrier.health = 0
-        game.spawn_manager.remove_enemy(carrier)
-        game.power_up_manager.spawn_power_up(
-            [first_player(game), *game.spawn_manager.enemy_tanks]
-        )
-        game.power_up_manager.spawn_power_up(
-            [first_player(game), *game.spawn_manager.enemy_tanks]
-        )
-        assert len(game.power_up_manager.active_power_ups) == 2
+    def test_carrier_spawning_clears_power_up(self, game):
+        """A new carrier appearing removes the power-up on the battlefield."""
+        game.power_up_manager.spawn_power_up([first_player(game)])
+        spawn_carrier(game)
+        assert game.power_up_manager.active_power_ups == []
