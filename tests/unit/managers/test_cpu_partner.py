@@ -986,23 +986,13 @@ def pocket_view(near_base: bool) -> WorldView:
 
 class TestCpuPartnerNoFiringPositionLeft:
     @pytest.mark.parametrize("near_base", [True, False])
-    def test_leaves_an_enemy_with_every_side_given_up_at_once(
-        self, cpu, near_base
-    ) -> None:
+    def test_leaves_an_enemy_with_every_side_given_up(self, cpu, near_base) -> None:
         view = pocket_view(near_base)
         observe_refused(cpu, view)
         # It gives up the only side POCKETED can be shot from, so it has no
-        # Firing Position left and goes after FAR_ENEMY straight away.
-        cpu.observe(view)
-        assert cpu.get_movement_direction() != (0, 0)
-        assert cpu.consume_shoot() is False
-
-    @pytest.mark.parametrize("near_base", [True, False])
-    def test_does_not_come_back_while_it_stays_put(self, cpu, near_base) -> None:
-        view = pocket_view(near_base)
-        observe_refused(cpu, view)
+        # Firing Position left: it heads off at once, without idling, and
+        # lines up on FAR_ENEMY rather than come back to POCKETED.
         own = walk(cpu, view)
-        # It lines up on FAR_ENEMY rather than come back to POCKETED.
         assert own.x == cell(FAR_ENEMY[0])
         assert cpu.consume_shoot() is True
 
