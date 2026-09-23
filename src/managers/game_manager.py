@@ -461,7 +461,9 @@ class GameManager:
         self._apply_outcomes(self.collision_response_handler.process_collisions(events))
 
         # Powerup blink sound: plays when any powerup is active
-        self.sound_manager.update_powerup_blink(bool(active_power_ups))
+        self.sound_manager.update_powerup_blink(
+            bool(self.power_up_manager.active_power_ups)
+        )
 
         self.effect_manager.update(dt)
 

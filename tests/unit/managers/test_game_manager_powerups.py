@@ -1,6 +1,6 @@
 import pytest
 import pygame
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from src.core.enemy_tank import EnemyTank
 from src.core.map import Map
 from src.managers.power_up_manager import PowerUpManager
@@ -188,3 +188,20 @@ class TestGameManagerApplyOutcomes:
         game.power_up_manager.apply.assert_called_once_with(
             PowerUpType.STAR, players[1], game.spawn_manager
         )
+
+
+class TestPowerUpBlinkSound:
+    def test_blink_starts_in_the_frame_a_power_up_drops(self, game_manager):
+        game_manager.state = GameState.RUNNING
+        game_manager.sound_manager = MagicMock()
+        carrier = MagicMock(spec=EnemyTank, is_carrier=True)
+        game_manager.collision_response_handler = MagicMock()
+        game_manager.collision_response_handler.process_collisions.return_value = [
+            CarrierHit(carrier)
+        ]
+
+        # The mocked map has no walkable tiles to place the Power-Up on.
+        with patch.object(PowerUpManager, "_find_spawn_position", return_value=(0, 0)):
+            game_manager.update()
+
+        game_manager.sound_manager.update_powerup_blink.assert_called_with(True)
