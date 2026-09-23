@@ -84,5 +84,18 @@ A pickup that appears on the battlefield and gives the Player who collects it an
 The Power-Up that destroys every Enemy on the battlefield at once.
 _Avoid_: Bomb
 
+### Game flow
+
+**Stage**:
+One numbered level of the game: its map, its Enemy roster and its difficulty. Stages are played in order.
+_Avoid_: Level
+
+**Battle**:
+One playing of a Stage, from the moment its Players appear until it ends in Game Over or Victory. Players carry their lives, Stars and score from one Battle into the next.
+_Avoid_: Round, match
+
+**Victory**:
+The end of a Battle in which every Enemy in the Stage's roster has been destroyed. If Game Over happens at the same moment, Game Over wins.
+
 **Game Over**:
-The end of a game: the Base is destroyed, or every Human Player is out of lives. A CPU Partner that still has lives does not keep the game going.
+The end of a Battle, and of the game: the Base is destroyed, or every Human Player is out of lives. A CPU Partner that still has lives does not keep the game going.
