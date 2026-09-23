@@ -49,6 +49,13 @@ class PlayerSlot:
         """The slot's player id (1 for P1, 2 for P2)."""
         return self.tank.player_id
 
+    @property
+    def label(self) -> str:
+        """``P<id>``, or ``CPU`` for a CPU Partner."""
+        if self.kind is PlayerKind.CPU_PARTNER:
+            return "CPU"
+        return f"P{self.player_id}"
+
 
 @dataclass(frozen=True)
 class CarriedProgress:
@@ -61,6 +68,18 @@ class CarriedProgress:
     """Out of lives: the Player sits out every later Battle, keeping its score."""
 
 
+@dataclass(frozen=True)
+class PlayerHudEntry:
+    """What the HUD shows for one Player."""
+
+    label: str
+    """``P1`` / ``P2``, or ``CPU`` for a CPU Partner."""
+    lives: int
+    score: int
+    eliminated: bool = False
+    """Out of lives: the HUD shows ``OUT`` in place of the lives."""
+
+
 class PlayerManager:
     """Owns the player slots: each Player's tank, input, kind, and score.
 
@@ -70,6 +89,8 @@ class PlayerManager:
     - Each update: step every live player through TankStepper with its input.
     - Track each Player's score, and hand lives, Stars and score to the next
       Battle as carried progress.
+    - Keep eliminated Players' tanks to itself: callers get the live tanks,
+      and one HUD entry per Player.
 
     Lasts one Battle: each Battle builds its own from the carried progress.
     """
@@ -202,14 +223,17 @@ class PlayerManager:
                 self._sound_manager.play("shoot")
 
     @property
-    def slots(self) -> tuple[PlayerSlot, ...]:
-        """Every player slot, P1 first."""
-        return tuple(self._slots)
-
-    @property
-    def players(self) -> list[PlayerTank]:
-        """All player tanks, alive or not."""
-        return [slot.tank for slot in self._slots]
+    def hud_entries(self) -> tuple[PlayerHudEntry, ...]:
+        """What the HUD shows for each Player, P1 first, out Players included."""
+        return tuple(
+            PlayerHudEntry(
+                label=slot.label,
+                lives=slot.tank.lives,
+                score=slot.score,
+                eliminated=slot.tank.is_eliminated,
+            )
+            for slot in self._slots
+        )
 
     def get_active_players(self) -> list[PlayerTank]:
         """Return players that are still alive (health > 0).
@@ -238,11 +262,6 @@ class PlayerManager:
         if slot is None:
             raise KeyError(f"No player slot with id {player_id}")
         slot.score += points
-
-    @property
-    def scores(self) -> dict[int, int]:
-        """Per-player scores {player_id: score}."""
-        return {slot.player_id: slot.score for slot in self._slots}
 
     def get_score(self, player_id: int) -> int:
         """Get a specific player's score.
@@ -284,15 +303,6 @@ class PlayerManager:
         for slot in self._slots:
             if slot.tank is player:
                 slot.input.reset()
-
-    @property
-    def cpu_partner_ids(self) -> frozenset[int]:
-        """Player ids whose tank is driven by a CPU Partner."""
-        return frozenset(
-            slot.player_id
-            for slot in self._slots
-            if slot.kind is PlayerKind.CPU_PARTNER
-        )
 
     def is_game_over(self) -> bool:
         """Check if every Human Player is eliminated (0 lives and dead).

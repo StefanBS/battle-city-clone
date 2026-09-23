@@ -9,6 +9,7 @@ from src.core.enemy_tank import EnemyTank
 from src.core.map import Map
 from src.managers.battle import Battle, BattleResult
 from src.managers.enemy_manager import EnemyManager
+from src.managers.player_manager import CarriedProgress
 from src.managers.outcomes import (
     CarrierHit,
     EnemyDestroyed,
@@ -101,7 +102,7 @@ def make_enemy(battle, texture_manager):
 
 class TestBattleSetup:
     def test_players_start_invincible(self, battle):
-        assert all(p.is_invincible for p in battle.player_manager.players)
+        assert all(p.is_invincible for p in battle.player_manager.get_active_players())
 
     def test_settings_difficulty_is_used_without_a_map_override(
         self, make_battle, texture_manager
@@ -179,16 +180,35 @@ class TestBattleResult:
         battle.player_manager.handle_event(
             pygame.event.Event(pygame.KEYDOWN, key=pygame.K_UP)
         )
-        player = battle.player_manager.players[0]
+        player = battle.player_manager.get_active_players()[0]
         y_before = player.y
 
         assert battle.step(DT) is BattleResult.VICTORY
         assert player.y == y_before
 
 
+class TestBattleWorldView:
+    def test_shows_every_live_player(self, make_battle):
+        battle = make_battle(mode=GameMode.TWO_PLAYERS)
+
+        view = battle.world_view()
+
+        assert [p.player_id for p in view.players] == [1, 2]
+
+    def test_leaves_out_an_eliminated_player(self, make_battle):
+        battle = make_battle(
+            mode=GameMode.TWO_PLAYERS,
+            carried={2: CarriedProgress(lives=0, star_level=0, eliminated=True)},
+        )
+
+        view = battle.world_view()
+
+        assert [p.player_id for p in view.players] == [1]
+
+
 class TestBattleInput:
     def test_events_reach_the_players_inputs(self, battle):
-        player = battle.player_manager.players[0]
+        player = battle.player_manager.get_active_players()[0]
         y_before = player.y
 
         battle.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_UP))

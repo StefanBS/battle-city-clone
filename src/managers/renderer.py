@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import pygame
 from collections.abc import Sequence
+from typing import TYPE_CHECKING
 from src.states.game_state import GameState
 from src.utils.constants import (
     WHITE,
@@ -14,6 +17,9 @@ from src.utils.constants import (
     DARK_OVERLAY_ALPHA,
 )
 from src.utils.paths import resource_path
+
+if TYPE_CHECKING:
+    from src.managers.player_manager import PlayerHudEntry
 
 
 class Renderer:
@@ -82,23 +88,20 @@ class Renderer:
         bullets: Sequence,
         effect_manager,
         state: GameState,
-        scores: dict[int, int] | None = None,
+        hud_entries: Sequence[PlayerHudEntry] = (),
         power_ups: Sequence = (),
         game_over_rise_progress: float | None = None,
-        cpu_partner_ids: frozenset[int] = frozenset(),
     ) -> None:
         """Render the complete game frame.
 
         Args:
             game_map: The game map to draw.
-            player_tanks: All player tanks; only live ones (health > 0) are
-                drawn, but eliminated ones still appear in the HUD.
+            player_tanks: The live player tanks.
             enemy_tanks: List of enemy tanks.
             bullets: Every bullet in flight.
             state: Current game state.
-            scores: Per-player scores dict {player_id: score}.
+            hud_entries: What the HUD shows for each Player, P1 first.
             power_ups: Active power-ups to draw.
-            cpu_partner_ids: Player ids the HUD labels as the CPU Partner.
         """
         self.game_surface.fill(GRAY)
         self.map_surface.fill(BLACK)
@@ -106,8 +109,7 @@ class Renderer:
         game_map.draw(self.map_surface)
 
         for player_tank in player_tanks:
-            if player_tank.health > 0:
-                player_tank.draw(self.map_surface)
+            player_tank.draw(self.map_surface)
         for enemy in enemy_tanks:
             enemy.draw(self.map_surface)
         for power_up in power_ups:
@@ -121,7 +123,7 @@ class Renderer:
 
         self.game_surface.blit(self.map_surface, (self.map_offset_x, self.map_offset_y))
 
-        self._draw_hud(player_tanks, scores, cpu_partner_ids)
+        self._draw_hud(hud_entries)
 
         if state == GameState.VICTORY:
             self._draw_victory()
@@ -167,42 +169,30 @@ class Renderer:
         rect = surface.get_rect(center=(self._center_x, y))
         self.game_surface.blit(surface, rect)
 
-    def _draw_hud(
-        self,
-        player_tanks: list,
-        scores: dict[int, int] | None = None,
-        cpu_partner_ids: frozenset[int] = frozenset(),
-    ) -> None:
+    def _draw_hud(self, hud_entries: Sequence[PlayerHudEntry]) -> None:
         """Draw the heads-up display.
 
         Args:
-            player_tanks: List of player tanks.
-            scores: Per-player scores dict {player_id: score}.
-            cpu_partner_ids: Player ids labelled "CPU" instead of "P<id>".
+            hud_entries: What to show for each Player, P1 first. With two
+                Players each gets a labelled corner; with one, just lives and
+                score.
         """
-        if scores is None:
-            scores = {}
-
-        is_2p = len(player_tanks) > 1
-
-        if is_2p:
-            for i, player in enumerate(player_tanks):
-                pid = player.player_id
-                player_score = scores.get(pid, 0)
-                name = "CPU" if pid in cpu_partner_ids else f"P{pid}"
-                if player.is_eliminated:
-                    label = f"{name}: OUT"
+        if len(hud_entries) > 1:
+            for i, entry in enumerate(hud_entries):
+                if entry.eliminated:
+                    label = f"{entry.label}: OUT"
                     color = GRAY
                 else:
-                    label = f"{name}: {player.lives}"
+                    label = f"{entry.label}: {entry.lives}"
                     color = WHITE
                 align = "left" if i == 0 else "right"
-                self._draw_hud_slot(label, f"{player_score:>6}", color, align)
+                self._draw_hud_slot(label, f"{entry.score:>6}", color, align)
         else:
-            lives = player_tanks[0].lives if player_tanks else 0
-            total_score = sum(scores.values())
+            lives, score = (
+                (hud_entries[0].lives, hud_entries[0].score) if hud_entries else (0, 0)
+            )
             self._draw_hud_slot(f"Lives: {lives}", None, WHITE, "left")
-            self._draw_hud_slot(f"Score: {total_score:>6}", None, WHITE, "right")
+            self._draw_hud_slot(f"Score: {score:>6}", None, WHITE, "right")
 
     def _draw_hud_slot(
         self,

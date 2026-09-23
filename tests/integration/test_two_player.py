@@ -29,20 +29,20 @@ class TestTwoPlayerSetup:
 
     def test_players_have_different_ids(self, two_player_game):
         """P1 and P2 have player_id 1 and 2."""
-        players = two_player_game.battle.player_manager.players
+        players = two_player_game.battle.player_manager.get_active_players()
         assert players[0].player_id == 1
         assert players[1].player_id == 2
 
     def test_players_at_different_positions(self, two_player_game):
         """P1 and P2 spawn at different positions."""
-        players = two_player_game.battle.player_manager.players
+        players = two_player_game.battle.player_manager.get_active_players()
         assert (players[0].x, players[0].y) != (players[1].x, players[1].y)
 
     def test_player_spawn_positions_match_map(self, two_player_game):
         """Players spawn at positions defined in the map."""
         gm = two_player_game
-        p1 = gm.battle.player_manager.players[0]
-        p2 = gm.battle.player_manager.players[1]
+        p1 = gm.battle.player_manager.get_active_players()[0]
+        p2 = gm.battle.player_manager.get_active_players()[1]
         ts = gm.battle.map.tile_size
         expected_p1 = (
             gm.battle.map.player_spawn[0] * ts,
@@ -61,8 +61,8 @@ class TestTwoPlayerStageTransition:
     def test_both_players_preserved_across_stages(self, two_player_game):
         """Both players' lives and star levels are preserved across stages."""
         gm = two_player_game
-        p1 = gm.battle.player_manager.players[0]
-        p2 = gm.battle.player_manager.players[1]
+        p1 = gm.battle.player_manager.get_active_players()[0]
+        p2 = gm.battle.player_manager.get_active_players()[1]
 
         p1.lives = 5
         p1.restore_star_level(2)
@@ -71,15 +71,14 @@ class TestTwoPlayerStageTransition:
 
         gm._start_battle(gm.battle.carried_progress)
 
-        assert gm.battle.player_manager.players[0].lives == 5
-        assert gm.battle.player_manager.players[0].star_level == 2
-        assert gm.battle.player_manager.players[1].lives == 4
-        assert gm.battle.player_manager.players[1].star_level == 1
+        p1, p2 = gm.battle.player_manager.get_active_players()
+        assert (p1.lives, p1.star_level) == (5, 2)
+        assert (p2.lives, p2.star_level) == (4, 1)
 
     def test_player_out_of_lives_stays_out_in_the_next_stage(self, two_player_game):
         """A Player out of lives at a Victory does not come back next Stage."""
         gm = two_player_game
-        p2 = gm.battle.player_manager.players[1]
+        p2 = gm.battle.player_manager.get_active_players()[1]
         gm.battle.player_manager.add_score(500, player_id=2)
         p2.lives = 0
         p2.health = 0

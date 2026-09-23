@@ -59,7 +59,7 @@ def is_line_of_fire_safe(
     target_at = None if target is None else line.distance_to(target)
     nearest_stop = min(line.stopped_at, math.inf if target_at is None else target_at)
     for player in world.players:
-        if player.player_id == own.player_id or not player.alive:
+        if player.player_id == own.player_id:
             continue
         human_at = line.distance_to(player)
         if human_at is not None and human_at < nearest_stop:
@@ -250,7 +250,7 @@ class CpuPartnerInput:
         """
         self._refused_shots.start_frame()
         own = world.own_player
-        if own is None or not own.alive:
+        if own is None:
             return
         target = self._update_goal(world, own)
         if target is None:
@@ -330,7 +330,7 @@ class CpuPartnerInput:
         } | {
             ("player", p.player_id): world.covered_cells(p)
             for p in world.players
-            if p.player_id != own.player_id and p.alive
+            if p.player_id != own.player_id
         }
 
         def cells_ahead(direction: tuple[int, int]) -> set[Cell]:

@@ -424,15 +424,14 @@ class GameManager:
             return
         self.renderer.render(
             battle.map,
-            battle.player_manager.players,
+            battle.player_manager.get_active_players(),
             battle.enemy_manager.enemies,
             battle.tank_stepper.bullets,
             battle.effect_manager,
             self.state,
-            battle.player_manager.scores,
+            battle.player_manager.hud_entries,
             power_ups=battle.power_up_manager.active_power_ups,
             game_over_rise_progress=game_over_rise_progress,
-            cpu_partner_ids=battle.player_manager.cpu_partner_ids,
         )
 
     def run(self) -> None:

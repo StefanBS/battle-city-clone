@@ -174,8 +174,7 @@ class TestCpuPartnerHunt:
 
     def test_idle_when_own_tank_is_dead(self, cpu) -> None:
         view = make_view(own=(12, 12, Direction.UP), enemies=[(12, 2)])
-        dead = replace(view.players[1], alive=False)
-        cpu.observe(replace(view, players=(view.players[0], dead)))
+        cpu.observe(replace(view, players=view.players[:1]))
         assert cpu.get_movement_direction() == (0, 0)
         assert cpu.consume_shoot() is False
 
@@ -400,12 +399,6 @@ class TestCpuPartnerHoldFireNearHuman:
         # Its target dies and another Enemy, as badly placed, takes its place.
         other = replace(view.enemies[0], enemy_id=1, y=cell(4))
         observe_refused(cpu, replace(view, enemies=(other,)))
-
-    def test_fires_through_dead_human(self, cpu) -> None:
-        view = make_view(own=(12, 20, Direction.UP), enemies=[(12, 2)], human=(12, 10))
-        dead_human = replace(view.players[0], alive=False)
-        cpu.observe(replace(view, players=(dead_human, view.players[1])))
-        assert cpu.consume_shoot() is True
 
 
 # A steel corridor along columns 12-13 (walls at columns 11 and 14, rows 0-20)

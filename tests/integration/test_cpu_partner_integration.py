@@ -142,7 +142,7 @@ class TestWorldView:
     def test_reports_tank_and_bullet_speeds(self, cpu_game):
         gm = cpu_game
         enemy = spawn_enemy_at(gm, 4, 6)
-        p2 = gm.battle.player_manager.players[1]
+        p2 = gm.battle.player_manager.get_active_players()[1]
 
         view = gm.battle.world_view().for_player(2)
 
@@ -165,7 +165,7 @@ class TestWorldView:
         view = gm.battle.world_view()
 
         enemy.set_position(100, 100)
-        p2 = gm.battle.player_manager.players[1]
+        p2 = gm.battle.player_manager.get_active_players()[1]
         p2.set_position(0, 0)
 
         assert (view.enemies[0].x, view.enemies[0].y) == (
@@ -387,14 +387,14 @@ class TestCpuPartnerGameOver:
         open_field(gm)
         clear_enemies(gm)
         gm.battle.spawn_manager.spawn_interval = float("inf")
-        p1, p2 = gm.battle.player_manager.players
+        p1, p2 = gm.battle.player_manager.get_active_players()
         place_player_at(gm, 4 * SUB_TILE_SIZE, 12 * SUB_TILE_SIZE, player=p1)
         place_player_at(gm, 20 * SUB_TILE_SIZE, 12 * SUB_TILE_SIZE, player=p2)
         return gm
 
     def test_game_over_when_human_out_and_cpu_partner_alive(self, arena):
         gm = arena
-        p1, p2 = gm.battle.player_manager.players
+        p1, p2 = gm.battle.player_manager.get_active_players()
         p1.lives = 1
         p2.lives = 3
         fire_enemy_bullet_at(gm, p1)
@@ -414,7 +414,7 @@ class TestCpuPartnerHud:
         return {text for _, text, _ in gm.renderer._text_cache}
 
     def test_shows_cpu_out_once_eliminated(self, cpu_game):
-        p2 = cpu_game.battle.player_manager.players[1]
+        p2 = cpu_game.battle.player_manager.get_active_players()[1]
         p2.lives = 0
         p2.health = 0
         labels = self.hud_labels(cpu_game)
@@ -427,7 +427,7 @@ class TestCpuPartnerHoldFireSoak:
 
     def test_player_bullets_never_hit_base_or_base_wall(self, seeded_cpu_game):
         gm = seeded_cpu_game
-        p1 = gm.battle.player_manager.players[0]
+        p1 = gm.battle.player_manager.get_active_players()[0]
         protected = {
             (t.x, t.y) for t in gm.battle.map.get_tiles_by_type([TileType.BASE])
         }

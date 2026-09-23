@@ -2,6 +2,7 @@ import pytest
 import pygame
 from unittest.mock import MagicMock, patch
 
+from src.managers.player_manager import PlayerHudEntry
 from src.managers.renderer import Renderer
 from src.states.game_state import GameState
 from src.utils.constants import Difficulty
@@ -89,33 +90,22 @@ class TestRendererRender:
         mock_bullet1.draw.assert_called_once_with(renderer.map_surface)
         mock_bullet2.draw.assert_not_called()
 
-    def test_render_skips_eliminated_player_tank_but_keeps_it_in_hud(self, renderer):
-        """An eliminated Player is not drawn, but the HUD still lists it."""
-        alive = MagicMock(lives=3, health=1, player_id=1)
-        out = MagicMock(lives=0, health=0, player_id=2)
+    def test_render_draws_the_hud_from_the_hud_entries(self, renderer):
+        hud = (
+            PlayerHudEntry(label="P1", lives=3, score=0),
+            PlayerHudEntry(label="CPU", lives=0, score=0, eliminated=True),
+        )
 
         with (
             patch.object(renderer, "_draw_hud") as mock_draw_hud,
-            patch("pygame.transform.scale") as mock_scale,
+            patch("pygame.transform.scale"),
             patch("pygame.display.flip"),
         ):
-            mock_scale.return_value = MagicMock()
             renderer.render(
-                MagicMock(),
-                [alive, out],
-                [],
-                [],
-                MagicMock(),
-                GameState.RUNNING,
-                {1: 0, 2: 0},
-                cpu_partner_ids=frozenset({2}),
+                MagicMock(), [], [], [], MagicMock(), GameState.RUNNING, hud
             )
 
-        alive.draw.assert_called_once_with(renderer.map_surface)
-        out.draw.assert_not_called()
-        mock_draw_hud.assert_called_once_with(
-            [alive, out], {1: 0, 2: 0}, frozenset({2})
-        )
+        mock_draw_hud.assert_called_once_with(hud)
 
     def test_render_victory_overlay(self, renderer):
         """Victory overlay is drawn when state is VICTORY."""
@@ -372,20 +362,23 @@ class TestRenderOptionsMenu:
         assert ">" in render_calls
 
 
+def _hud_texts(renderer, *entries: PlayerHudEntry) -> list[str]:
+    renderer.small_font.render.reset_mock()
+    renderer._draw_hud(entries)
+    return [c.args[0] for c in renderer.small_font.render.call_args_list]
+
+
 class TestTextCache:
     """Tests for the text render cache."""
 
     def test_hud_redraw_with_unchanged_labels_hits_cache(self, renderer):
         """Re-rendering the HUD with identical labels does not re-render text."""
-        p1 = MagicMock()
-        p1.lives = 3
-        p1.health = 1
-        p1.player_id = 1
+        p1 = PlayerHudEntry(label="P1", lives=3, score=100)
 
-        renderer._draw_hud([p1], {1: 100})
+        renderer._draw_hud((p1,))
         first_call_count = renderer.small_font.render.call_count
 
-        renderer._draw_hud([p1], {1: 100})
+        renderer._draw_hud((p1,))
         second_call_count = renderer.small_font.render.call_count
 
         # Second call hits cache for both "Lives: 3" and "Score:    100"
@@ -393,94 +386,42 @@ class TestTextCache:
 
     def test_hud_redraw_with_changed_label_renders_new_surface(self, renderer):
         """Rendering a label with a new value adds a new render call."""
-        p1 = MagicMock()
-        p1.lives = 3
-        p1.health = 1
-        p1.player_id = 1
-
-        renderer._draw_hud([p1], {1: 100})
+        renderer._draw_hud((PlayerHudEntry(label="P1", lives=3, score=100),))
         first_call_count = renderer.small_font.render.call_count
 
-        p1.lives = 2
-        renderer._draw_hud([p1], {1: 100})
+        renderer._draw_hud((PlayerHudEntry(label="P1", lives=2, score=100),))
         second_call_count = renderer.small_font.render.call_count
 
         # "Lives: 2" is new; "Score:    100" is cached
         assert second_call_count == first_call_count + 1
 
 
+class TestOnePlayerHUD:
+    def test_shows_lives_and_score_without_a_label(self, renderer):
+        texts = _hud_texts(renderer, PlayerHudEntry(label="P1", lives=3, score=100))
+
+        assert texts == ["Lives: 3", f"Score: {100:>6}"]
+
+
 class TestTwoPlayerHUD:
-    def test_two_player_hud_shows_both_players(self, renderer):
-        """2P HUD renders info for both players."""
-        p1 = MagicMock()
-        p1.lives = 3
-        p1.health = 1
-        p1.player_id = 1
-        p1.is_eliminated = False
-        p2 = MagicMock()
-        p2.lives = 2
-        p2.health = 1
-        p2.player_id = 2
-        p2.is_eliminated = False
+    P1 = PlayerHudEntry(label="P1", lives=3, score=100)
 
-        renderer.small_font.render.reset_mock()
-        renderer._draw_hud([p1, p2], {1: 100, 2: 200})
-        rendered_texts = [c[0][0] for c in renderer.small_font.render.call_args_list]
-        assert any("P1" in t for t in rendered_texts)
-        assert any("P2" in t for t in rendered_texts)
-
-    def test_one_player_hud_no_prefix(self, renderer):
-        """1P HUD shows lives/score without P1/P2 prefix."""
-        p1 = MagicMock()
-        p1.lives = 3
-        p1.health = 1
-        p1.player_id = 1
-
-        renderer.small_font.render.reset_mock()
-        renderer._draw_hud([p1], {1: 100})
-        rendered_texts = [c[0][0] for c in renderer.small_font.render.call_args_list]
-        assert not any("P1" in t for t in rendered_texts)
-
-    def test_eliminated_player_shows_out(self, renderer):
-        """Eliminated player shows 'OUT'."""
-        p1 = MagicMock()
-        p1.lives = 3
-        p1.health = 1
-        p1.player_id = 1
-        p1.is_eliminated = False
-        p2 = MagicMock()
-        p2.lives = 0
-        p2.health = 0
-        p2.player_id = 2
-        p2.is_eliminated = True
-
-        renderer.small_font.render.reset_mock()
-        renderer._draw_hud([p1, p2], {1: 100, 2: 50})
-        rendered_texts = [c[0][0] for c in renderer.small_font.render.call_args_list]
-        assert any("OUT" in t for t in rendered_texts)
-
-    @staticmethod
-    def _hud_texts(renderer, p2_lives, p2_health, cpu_partner_ids):
-        p1 = MagicMock(lives=3, health=1, player_id=1, is_eliminated=False)
-        p2 = MagicMock(
-            lives=p2_lives,
-            health=p2_health,
-            player_id=2,
-            is_eliminated=p2_lives <= 0 and p2_health <= 0,
+    def test_shows_each_players_label_lives_and_score(self, renderer):
+        texts = _hud_texts(
+            renderer, self.P1, PlayerHudEntry(label="P2", lives=2, score=200)
         )
-        renderer.small_font.render.reset_mock()
-        renderer._draw_hud([p1, p2], {1: 100, 2: 250}, cpu_partner_ids=cpu_partner_ids)
-        return [c[0][0] for c in renderer.small_font.render.call_args_list]
 
-    def test_cpu_partner_label_shows_lives_and_score(self, renderer):
-        texts = self._hud_texts(renderer, 2, 1, frozenset({2}))
-        assert "CPU: 2" in texts
-        assert f"{250:>6}" in texts
-        assert not any(t.startswith("P2") for t in texts)
+        assert texts == ["P1: 3", f"{100:>6}", "P2: 2", f"{200:>6}"]
 
-    def test_eliminated_cpu_partner_shows_cpu_out(self, renderer):
-        texts = self._hud_texts(renderer, 0, 0, frozenset({2}))
-        assert "CPU: OUT" in texts
+    def test_an_out_player_shows_out_with_its_score(self, renderer):
+        texts = _hud_texts(
+            renderer,
+            self.P1,
+            PlayerHudEntry(label="P2", lives=0, score=50, eliminated=True),
+        )
+
+        assert "P2: OUT" in texts
+        assert f"{50:>6}" in texts
 
 
 class TestRenderTitleScreenUpdated:
