@@ -29,20 +29,20 @@ class TestTwoPlayerSetup:
 
     def test_players_have_different_ids(self, two_player_game):
         """P1 and P2 have player_id 1 and 2."""
-        players = two_player_game.player_manager._players
+        players = two_player_game.player_manager.players
         assert players[0].player_id == 1
         assert players[1].player_id == 2
 
     def test_players_at_different_positions(self, two_player_game):
         """P1 and P2 spawn at different positions."""
-        players = two_player_game.player_manager._players
+        players = two_player_game.player_manager.players
         assert (players[0].x, players[0].y) != (players[1].x, players[1].y)
 
     def test_player_spawn_positions_match_map(self, two_player_game):
         """Players spawn at positions defined in the map."""
         gm = two_player_game
-        p1 = gm.player_manager._players[0]
-        p2 = gm.player_manager._players[1]
+        p1 = gm.player_manager.players[0]
+        p2 = gm.player_manager.players[1]
         ts = gm.map.tile_size
         expected_p1 = (
             gm.map.player_spawn[0] * ts,
@@ -61,8 +61,8 @@ class TestTwoPlayerStageTransition:
     def test_both_players_preserved_across_stages(self, two_player_game):
         """Both players' lives and star levels are preserved across stages."""
         gm = two_player_game
-        p1 = gm.player_manager._players[0]
-        p2 = gm.player_manager._players[1]
+        p1 = gm.player_manager.players[0]
+        p2 = gm.player_manager.players[1]
 
         p1.lives = 5
         p1.restore_star_level(2)
@@ -77,7 +77,7 @@ class TestTwoPlayerStageTransition:
         )
         gm.player_manager.restore_state()
 
-        assert gm.player_manager._players[0].lives == 5
-        assert gm.player_manager._players[0].star_level == 2
-        assert gm.player_manager._players[1].lives == 4
-        assert gm.player_manager._players[1].star_level == 1
+        assert gm.player_manager.players[0].lives == 5
+        assert gm.player_manager.players[0].star_level == 2
+        assert gm.player_manager.players[1].lives == 4
+        assert gm.player_manager.players[1].star_level == 1
