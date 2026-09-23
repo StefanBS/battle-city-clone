@@ -1,17 +1,15 @@
 import itertools
 import json
 import random
+from collections.abc import Callable
 from loguru import logger
 from .tank import Tank
 from typing import TypedDict
 from src.utils.animation import is_blink_visible
 from src.utils.constants import (
     CARRIER_BLINK_INTERVAL,
-    Difficulty,
     Direction,
-    DIRECTION_CHANGE_RANDOM_OFFSET,
     OwnerType,
-    SHOOT_RANDOM_OFFSET,
     TankType,
 )
 from src.managers.texture_manager import TextureManager
@@ -36,7 +34,7 @@ _next_enemy_id = itertools.count()
 _enemy_config: dict | None = None
 
 
-def _get_enemy_config() -> dict:
+def get_enemy_config() -> dict:
     """Load and cache enemy type configuration from JSON."""
     global _enemy_config
     if _enemy_config is None:
@@ -54,9 +52,7 @@ def _reset_enemy_config() -> None:
 
 
 class EnemyTank(Tank):
-    """Enemy tank entity with difficulty-aware AI and type variations."""
-
-    base_position: tuple[float, float] | None = None
+    """Enemy tank entity with type variations. Driven by an EnemyAI."""
 
     def __init__(
         self,
@@ -68,7 +64,6 @@ class EnemyTank(Tank):
         *,
         map_width_px: int,
         map_height_px: int,
-        difficulty: Difficulty = Difficulty.NORMAL,
         is_carrier: bool = False,
     ) -> None:
         """
@@ -83,7 +78,7 @@ class EnemyTank(Tank):
             map_width_px: Map width in pixels (for boundary clamping)
             map_height_px: Map height in pixels (for boundary clamping)
         """
-        config = _get_enemy_config()
+        config = get_enemy_config()
         props = config[tank_type]
 
         super().__init__(
@@ -104,44 +99,16 @@ class EnemyTank(Tank):
         self._sprite_prefix: str = props.get("sprite_prefix", "enemy_tank")
         self.power_bullets = props["power_bullets"]
         self.direction = random.choice(list(Direction))
-        self.direction_timer: float = 0
-        self.direction_change_interval: float = props["direction_change_interval"]
-        self.shoot_timer: float = 0
-        self.shoot_interval: float = props["shoot_interval"]
-        self._wants_to_shoot: bool = False
-        self._blocked_directions: set[Direction] = set()
-        # A turn the AI wants but TankStepper hasn't made yet; None means
-        # keep going the way the tank faces.
-        self._turn_to: Direction | None = None
         self.is_carrier: bool = is_carrier
         self.carrier_blink_timer: float = 0.0
-        # Set by GameManager before each step: the Player the AI steers toward.
-        self.target_position: tuple[float, float] | None = None
-
-        # Compute effective AI biases from difficulty config + type multipliers
-        difficulty_config = config.get("difficulty", {}).get(
-            difficulty,
-            {"base_bias": 0.0, "player_bias": 0.0, "aligned_shoot_multiplier": 1.0},
-        )
-        self.effective_base_bias: float = difficulty_config["base_bias"] * props.get(
-            "base_bias_multiplier", 1.0
-        )
-        self.effective_player_bias: float = difficulty_config[
-            "player_bias"
-        ] * props.get("player_bias_multiplier", 1.0)
-        self.aligned_shoot_multiplier: float = difficulty_config[
-            "aligned_shoot_multiplier"
-        ]
+        # Set by the paired EnemyAI, so a blocked move reaches the AI.
+        self.movement_blocked_listener: Callable[[], None] | None = None
 
         self._update_sprite()
         logger.debug(
             f"EnemyTank ({tank_type}) properties: speed={self.speed:.2f}, "
-            f"bullet_speed={self.bullet_speed:.2f}, health={self.health}, "
-            f"dir_interval={self.direction_change_interval:.2f}, "
-            f"shoot_interval={self.shoot_interval:.2f}"
+            f"bullet_speed={self.bullet_speed:.2f}, health={self.health}"
         )
-
-    _ALL_DIRECTIONS = list(Direction)
 
     def stop_carrying(self) -> None:
         """Stop being a Carrier: no more flashing, no Power-Up to drop."""
@@ -167,141 +134,21 @@ class EnemyTank(Tank):
         except KeyError:
             logger.error(f"Sprite '{sprite_name}' not found for enemy tank.")
 
-    def _direction_moves_toward(
-        self, direction: Direction, target: tuple[float, float]
-    ) -> bool:
-        """Check if moving in direction reduces distance to target."""
-        dx, dy = direction.delta
-        tx, ty = target
-        if dx != 0:
-            return (dx > 0 and tx > self.x) or (dx < 0 and tx < self.x)
-        return (dy > 0 and ty > self.y) or (dy < 0 and ty < self.y)
-
-    def _change_direction(self) -> None:
-        """Pick a direction to turn to, weighted by AI biases when applicable."""
-        old_direction = self.direction
-
-        # Prefer unblocked directions, excluding opposite to avoid reversing
-        opposite = old_direction.opposite
-        candidates = [
-            d
-            for d in self._ALL_DIRECTIONS
-            if d not in self._blocked_directions and d != opposite
-        ]
-        # Fall back to unblocked only (allow opposite)
-        if not candidates:
-            candidates = [
-                d for d in self._ALL_DIRECTIONS if d not in self._blocked_directions
-            ]
-        # All directions blocked — stay put and wait for one to open
-        if not candidates:
-            return
-
-        if self.effective_base_bias > 0 or self.effective_player_bias > 0:
-            weights = [1.0] * len(candidates)
-            for i, d in enumerate(candidates):
-                if EnemyTank.base_position is not None:
-                    if self._direction_moves_toward(d, EnemyTank.base_position):
-                        weights[i] += self.effective_base_bias
-                if self.target_position is not None:
-                    if self._direction_moves_toward(d, self.target_position):
-                        weights[i] += self.effective_player_bias
-            new_direction = random.choices(candidates, weights)[0]
-        else:
-            new_direction = random.choice(candidates)
-
-        self._turn_to = new_direction
-        if new_direction != old_direction:
-            logger.trace(
-                f"EnemyTank ({self.tank_type}) turning "
-                f"from {old_direction} to {new_direction}"
-            )
-        else:
-            logger.trace(
-                f"EnemyTank ({self.tank_type}) direction remained {old_direction}."
-            )
-
-    def _is_aligned_with(self, target: tuple[float, float]) -> bool:
-        """Check if the tank is facing toward and aligned with a target position."""
-        tx, ty = target
-        dx, dy = self.direction.delta
-        tile = self.tile_size
-        if dx != 0:
-            if abs(self.y - ty) > tile:
-                return False
-        else:
-            if abs(self.x - tx) > tile:
-                return False
-        return self._direction_moves_toward(self.direction, target)
-
-    def get_movement_direction(self) -> tuple[int, int]:
-        """The way the AI wants to drive: its pending turn, else straight on."""
-        return (self._turn_to or self.direction).delta
-
-    def consume_shoot(self) -> bool:
-        """Check if the tank wants to shoot and clear the flag."""
-        if self._wants_to_shoot:
-            self._wants_to_shoot = False
-            return True
-        return False
-
     def on_movement_blocked(self) -> None:
-        """Handle collision with a wall by picking a new direction."""
+        """Cancel any Slide, then tell the paired EnemyAI."""
         super().on_movement_blocked()
-        self._blocked_directions.add(self.direction)
-        self._change_direction()
-        self.direction_timer = 0
+        if self.movement_blocked_listener is not None:
+            self.movement_blocked_listener()
 
     def update(self, dt: float) -> None:
         """
-        Advance timers and run the AI, which records where to go and whether
-        to shoot. Turning, moving and sliding are left to TankStepper.
+        Advance tank timers and the Carrier blink.
 
         Args:
             dt: Time elapsed since last update in seconds
         """
-        if self._turn_to is self.direction:
-            self._turn_to = None
-        # Clear blocked directions once the tank successfully moved,
-        # meaning the path is no longer obstructed. Check before
-        # super().update() overwrites prev_x/prev_y.
-        if self.x != self.prev_x or self.y != self.prev_y:
-            self._blocked_directions.clear()
-
-        # Update base tank state (this now stores prev_x/y)
         super().update(dt)
 
         if self.is_carrier:
             self.carrier_blink_timer += dt
             self._update_sprite()
-
-        # Update timers
-        self.direction_timer += dt
-        self.shoot_timer += dt
-
-        # Change direction periodically
-        if self.direction_timer >= self.direction_change_interval:
-            logger.trace(f"EnemyTank ({self.tank_type}) direction timer triggered.")
-            self._change_direction()
-            self.direction_timer = random.uniform(0, DIRECTION_CHANGE_RANDOM_OFFSET)
-
-        # Shoot periodically (reduced interval when aligned with a target)
-        reduced_threshold = self.shoot_interval * self.aligned_shoot_multiplier
-        if self.shoot_timer >= self.shoot_interval:
-            logger.trace(f"EnemyTank ({self.tank_type}) shoot timer triggered.")
-            self._wants_to_shoot = True
-            self.shoot_timer = random.uniform(0, SHOOT_RANDOM_OFFSET)
-        elif (
-            self.aligned_shoot_multiplier < 1.0
-            and self.shoot_timer >= reduced_threshold
-        ):
-            # Only check alignment when timer is between reduced and full thresholds
-            aligned = False
-            if EnemyTank.base_position is not None:
-                aligned = self._is_aligned_with(EnemyTank.base_position)
-            if not aligned and self.target_position is not None:
-                aligned = self._is_aligned_with(self.target_position)
-            if aligned:
-                logger.trace(f"EnemyTank ({self.tank_type}) aligned shoot triggered.")
-                self._wants_to_shoot = True
-                self.shoot_timer = random.uniform(0, SHOOT_RANDOM_OFFSET)

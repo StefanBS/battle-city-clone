@@ -216,8 +216,9 @@ class TestEnemyIceSlide:
     def enemy_on_ice(self, game):
         _place_ice_patch(game, 4, 4, width=8, height=8)
         enemy = spawn_enemy_at(game, 6, 6, direction=Direction.RIGHT)
-        enemy.shoot_interval = 999
-        enemy.direction_change_interval = 999
+        ai = game.spawn_manager.ai_for(enemy)
+        ai.shoot_interval = 999
+        ai.direction_change_interval = 999
         return enemy
 
     def test_turn_on_arrival_frame_slides(self, game, enemy_on_ice):
@@ -226,8 +227,9 @@ class TestEnemyIceSlide:
         # It drove onto this ice: this is its first frame here.
         enemy._moving_this_frame = True
         # A turn falls due this frame, and only DOWN is open.
-        enemy.direction_timer = enemy.direction_change_interval
-        enemy._blocked_directions = {Direction.UP, Direction.RIGHT}
+        ai = game.spawn_manager.ai_for(enemy)
+        ai.direction_timer = ai.direction_change_interval
+        ai._blocked_directions = {Direction.UP, Direction.RIGHT}
 
         tick(game)
 
@@ -237,8 +239,9 @@ class TestEnemyIceSlide:
     def test_turns_once_the_slide_ends(self, game, enemy_on_ice):
         enemy = enemy_on_ice
         enemy._moving_this_frame = True
-        enemy.direction_timer = enemy.direction_change_interval
-        enemy._blocked_directions = {Direction.UP, Direction.RIGHT}
+        ai = game.spawn_manager.ai_for(enemy)
+        ai.direction_timer = ai.direction_change_interval
+        ai._blocked_directions = {Direction.UP, Direction.RIGHT}
         x_before = enemy.x
 
         for _ in range(120):

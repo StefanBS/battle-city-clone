@@ -4,5 +4,5 @@ Players and Enemies are stepped through a frame by the same `TankStepper`: tank 
 
 ## Consequences
 
-- Don't add Enemy-only (or Player-only) movement rules to `EnemyTank.update()` or `PlayerManager`. Tank rules go in `Tank` or `TankStepper`, so both kinds of tank follow them.
+- Don't add Enemy-only (or Player-only) movement rules to `EnemyTank`, `EnemyAI` or `PlayerManager`. Tank rules go in `Tank` or `TankStepper`, so both kinds of tank follow them.
 - Sounds are the caller's choice. `TankStepper` reports what happened (a Slide started, a bullet was fired), and callers decide what to play. That is how only Players make the ice sound.

@@ -424,8 +424,10 @@ class GameManager:
                     closest_pos: tuple[float, float] | None = (closest.x, closest.y)
                 else:
                     closest_pos = shared_pos
-                enemy.target_position = closest_pos
-                if self.tank_stepper.step(enemy, enemy, dt).fired:
+                enemy_ai = self.spawn_manager.ai_for(enemy)
+                enemy_ai.target_position = closest_pos
+                enemy_ai.update(dt)
+                if self.tank_stepper.step(enemy, enemy_ai, dt).fired:
                     self.sound_manager.play("shoot")
 
         # Engine sound: plays when any tank is moving

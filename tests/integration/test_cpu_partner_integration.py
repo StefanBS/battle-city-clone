@@ -186,7 +186,7 @@ class TestCpuPartnerHunt:
         place_player_at(gm, 16 * SUB_TILE_SIZE, 16 * SUB_TILE_SIZE, player=p2)
         enemy = spawn_enemy_at(gm, 4, 6)
         enemy.speed = 0
-        enemy.shoot_interval = float("inf")
+        gm.spawn_manager.ai_for(enemy).shoot_interval = float("inf")
 
         for _ in range(10 * FPS):
             tick(gm)
@@ -209,7 +209,7 @@ class TestCpuPartnerHunt:
         place_player_at(gm, 16 * SUB_TILE_SIZE, 16 * SUB_TILE_SIZE, player=p2)
         enemy = spawn_enemy_at(gm, 16, 4)
         enemy.speed = 0
-        enemy.shoot_interval = float("inf")
+        gm.spawn_manager.ai_for(enemy).shoot_interval = float("inf")
 
         tick(gm, 3 * FPS)
 
@@ -237,7 +237,7 @@ class TestCpuPartnerPathfinding:
         place_player_at(gm, 16 * SUB_TILE_SIZE, 16 * SUB_TILE_SIZE, player=p2)
         enemy = spawn_enemy_at(gm, 4, 4)
         enemy.speed = 0
-        enemy.shoot_interval = float("inf")
+        gm.spawn_manager.ai_for(enemy).shoot_interval = float("inf")
 
         for _ in range(15 * FPS):
             tick(gm)
@@ -267,7 +267,7 @@ class TestCpuPartnerGivesWay:
         place_player_at(gm, 4 * SUB_TILE_SIZE, 20 * SUB_TILE_SIZE, player=p2)
         enemy = spawn_enemy_at(gm, 12, 2)
         enemy.speed = 0
-        enemy.shoot_interval = float("inf")
+        gm.spawn_manager.ai_for(enemy).shoot_interval = float("inf")
 
         for _ in range(15 * FPS):
             tick(gm)
@@ -299,7 +299,7 @@ class TestCpuPartnerFiringPosition:
         place_player_at(gm, 16 * SUB_TILE_SIZE, 16 * SUB_TILE_SIZE, player=p2)
         enemy = spawn_enemy_at(gm, 4, 4)
         enemy.speed = 0
-        enemy.shoot_interval = float("inf")
+        gm.spawn_manager.ai_for(enemy).shoot_interval = float("inf")
 
         for _ in range(10 * FPS):
             tick(gm)
@@ -325,7 +325,7 @@ class TestCpuPartnerDefend:
         threat = spawn_enemy_at(gm, 6, 20, replace=False)
         for enemy in (far, threat):
             enemy.speed = 0
-            enemy.shoot_interval = float("inf")
+            gm.spawn_manager.ai_for(enemy).shoot_interval = float("inf")
 
         for _ in range(10 * FPS):
             tick(gm)
@@ -350,7 +350,7 @@ class TestCpuPartnerGrabPowerUp:
         # Base, and a Power-Up a few sub-tiles off to its right.
         enemy = spawn_enemy_at(gm, 16, 4)
         enemy.speed = 0
-        enemy.shoot_interval = float("inf")
+        gm.spawn_manager.ai_for(enemy).shoot_interval = float("inf")
         gm.power_up_manager.spawn_power_up(
             power_up_type=PowerUpType.STAR,
             position=gm.map.grid_to_pixels(22, 16),
@@ -373,7 +373,7 @@ def fire_enemy_bullet_at(gm, player) -> None:
     gx, gy = int(player.x // SUB_TILE_SIZE), int(player.y // SUB_TILE_SIZE)
     enemy = spawn_enemy_at(gm, gx, gy - 4, direction=Direction.DOWN)
     enemy.speed = 0
-    enemy.shoot_interval = float("inf")
+    gm.spawn_manager.ai_for(enemy).shoot_interval = float("inf")
     fire_bullet_from(gm, enemy)
 
 
