@@ -3,6 +3,7 @@ import pygame
 from collections import deque
 from collections.abc import Callable
 from loguru import logger
+from src.core.enemy_tank import EnemyTank
 from src.core.map import Map
 from src.core.tile import Tile
 from src.states.game_mode import GameMode
@@ -37,6 +38,7 @@ from src.managers.input_handler import InputHandler
 from src.managers.menu_controller import MenuController, MenuItem
 from src.managers.outcomes import (
     BaseDestroyed,
+    CarrierHit,
     CollisionOutcome,
     EnemyDestroyed,
     PlayerDestroyed,
@@ -475,6 +477,8 @@ class GameManager:
         queue = deque(outcomes)
         while queue:
             match queue.popleft():
+                case CarrierHit(enemy=enemy):
+                    self._drop_carrier_power_up(enemy)
                 case EnemyDestroyed(enemy=enemy, by=by):
                     # A bullet and a Grenade can both destroy it in one frame.
                     if enemy not in self.spawn_manager.enemy_tanks:
@@ -489,13 +493,8 @@ class GameManager:
                             ENEMY_POINTS.get(enemy.tank_type, 0),
                             player_id=by.player_id,
                         )
-                    if enemy.is_carrier:
-                        self.power_up_manager.spawn_power_up(
-                            [
-                                *self.player_manager.get_active_players(),
-                                *self.spawn_manager.enemy_tanks,
-                            ]
-                        )
+                    # A Grenade kill is a Carrier's only drop without a hit.
+                    self._drop_carrier_power_up(enemy)
                 case PlayerDestroyed(player=player):
                     # Before handle_player_death moves it to its spawn point.
                     self.effect_manager.spawn_at_rect(
@@ -515,6 +514,18 @@ class GameManager:
                             power_up_type, player, self.spawn_manager
                         )
                     )
+
+    def _drop_carrier_power_up(self, enemy: EnemyTank) -> None:
+        """Make a Carrier's Power-Up appear; a Carrier drops only once."""
+        if not enemy.is_carrier:
+            return
+        enemy.stop_carrying()
+        self.power_up_manager.spawn_power_up(
+            [
+                *self.player_manager.get_active_players(),
+                *self.spawn_manager.enemy_tanks,
+            ]
+        )
 
     def _world_view(self) -> WorldView:
         """Snapshot the current battlefield for the Players' inputs."""

@@ -309,6 +309,20 @@ class TestEnemyTankCarrier:
         normal_tank.update(0.1)
         assert normal_tank.carrier_blink_timer == 0.0
 
+    def test_stop_carrying_shows_the_normal_sprite(
+        self, carrier_tank, mock_texture_manager
+    ):
+        carrier_tank.update(CARRIER_BLINK_INTERVAL + 0.01)  # red phase
+        mock_texture_manager.reset_mock()
+        carrier_tank.stop_carrying()
+        carrier_tank.update(CARRIER_BLINK_INTERVAL * 2)
+        called_names = [
+            c.args[0] for c in mock_texture_manager.get_sprite.call_args_list
+        ]
+        assert not carrier_tank.is_carrier
+        assert called_names
+        assert not any("red" in name for name in called_names)
+
     def test_carrier_falls_back_on_missing_red_sprite(
         self, carrier_tank, mock_texture_manager
     ):

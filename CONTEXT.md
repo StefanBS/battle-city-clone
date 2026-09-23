@@ -42,7 +42,7 @@ A computer-controlled tank that attacks Players and the Base.
 One of the fixed spots on a map where Enemies appear. A tank standing on it stops Enemies from spawning there.
 
 **Carrier**:
-An Enemy that flashes red and makes a Power-Up appear when it is destroyed.
+An Enemy that flashes red and makes a Power-Up appear the first time a Player's bullet hits it, or when a Grenade destroys it. It then stops flashing and is an ordinary Enemy.
 _Avoid_: Flashing tank, bonus tank
 
 **Enemy AI**:

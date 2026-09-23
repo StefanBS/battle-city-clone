@@ -143,6 +143,11 @@ class EnemyTank(Tank):
 
     _ALL_DIRECTIONS = list(Direction)
 
+    def stop_carrying(self) -> None:
+        """Stop being a Carrier: no more flashing, no Power-Up to drop."""
+        self.is_carrier = False
+        self._update_sprite()
+
     def _update_sprite(self) -> None:
         """Update sprite using type-specific prefix and carrier red variant."""
         if self.is_carrier and not is_blink_visible(

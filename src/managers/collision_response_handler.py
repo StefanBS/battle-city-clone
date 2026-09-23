@@ -22,6 +22,7 @@ from src.core.map import Map
 from src.managers.effect_manager import EffectManager
 from src.managers.outcomes import (
     BaseDestroyed,
+    CarrierHit,
     CollisionOutcome,
     EnemyDestroyed,
     PlayerDestroyed,
@@ -166,6 +167,8 @@ class CollisionResponseHandler:
             return False
         logger.debug(f"Player bullet hit enemy tank (type: {enemy.tank_type})")
         bullet.active = False
+        if enemy.is_carrier:
+            frame.outcomes.append(CarrierHit(enemy))
         if enemy.take_damage():
             logger.info(f"Enemy tank (type: {enemy.tank_type}) destroyed.")
             frame.destroyed.add(enemy)

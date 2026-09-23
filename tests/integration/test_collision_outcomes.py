@@ -12,6 +12,7 @@ from src.utils.constants import (
     POWERUP_COLLECT_POINTS,
     TILE_SIZE,
     PowerUpType,
+    TankType,
 )
 from tests.integration.conftest import (
     clear_enemies,
@@ -65,6 +66,23 @@ class TestPowerUps:
         assert player.lives == lives_before + 1
         assert player.invincibility_duration == HELMET_INVINCIBILITY_DURATION
         assert game.player_manager.get_score(1) == 2 * POWERUP_COLLECT_POINTS
+
+    def test_first_hit_on_armored_carrier_drops_its_power_up(self, game):
+        carrier = spawn_enemy_at(game, 0, 0, TankType.ARMOR, is_carrier=True)
+        carrier.speed = 0
+        carrier.shoot_interval = 999
+        player = first_player(game)
+
+        for _ in range(2):
+            bullet = Bullet(
+                carrier.rect.centerx, carrier.rect.centery, Direction.UP, player
+            )
+            game.tank_stepper.bullets.append(bullet)
+            game.update()
+
+        assert carrier in game.spawn_manager.enemy_tanks
+        assert not carrier.is_carrier
+        assert len(game.power_up_manager.active_power_ups) == 1
 
     def test_grenade_kill_on_carrier_drops_a_power_up(self, game):
         carrier = spawn_carrier(game)

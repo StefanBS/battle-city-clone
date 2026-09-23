@@ -1,6 +1,7 @@
 import pytest
 import pygame
 from unittest.mock import MagicMock
+from src.core.enemy_tank import EnemyTank
 from src.core.map import Map
 from src.managers.power_up_manager import PowerUpManager
 from src.utils.constants import (
@@ -12,7 +13,12 @@ from src.utils.constants import (
     POWERUP_COLLECT_POINTS,
     TILE_SIZE,
 )
-from src.managers.outcomes import EnemyDestroyed, PlayerDestroyed, PowerUpCollected
+from src.managers.outcomes import (
+    CarrierHit,
+    EnemyDestroyed,
+    PlayerDestroyed,
+    PowerUpCollected,
+)
 from src.states.game_state import GameState
 
 
@@ -107,7 +113,8 @@ class TestGameManagerApplyOutcomes:
 
     @staticmethod
     def _enemy(game, tank_type=TankType.BASIC, is_carrier=False):
-        enemy = MagicMock(tank_type=tank_type, is_carrier=is_carrier)
+        enemy = MagicMock(spec=EnemyTank, tank_type=tank_type, is_carrier=is_carrier)
+        enemy.stop_carrying.side_effect = lambda: setattr(enemy, "is_carrier", False)
         enemy.rect = pygame.Rect(0, 0, TILE_SIZE, TILE_SIZE)
         game.spawn_manager.enemy_tanks.append(enemy)
         return enemy
@@ -144,6 +151,18 @@ class TestGameManagerApplyOutcomes:
         other = self._enemy(game)
         game._apply_outcomes([EnemyDestroyed(carrier, by=players[0])])
         game.power_up_manager.spawn_power_up.assert_called_once_with([*players, other])
+
+    def test_carrier_hit_drops_once(self, game, players):
+        carrier = self._enemy(game, is_carrier=True)
+        game._apply_outcomes(
+            [
+                CarrierHit(carrier),
+                CarrierHit(carrier),
+                EnemyDestroyed(carrier, by=players[0]),
+            ]
+        )
+        game.power_up_manager.spawn_power_up.assert_called_once()
+        carrier.stop_carrying.assert_called_once_with()
 
     def test_player_destroyed(self, game, players):
         p1 = players[0]
