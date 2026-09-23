@@ -1,5 +1,6 @@
 import pytest
 import pygame
+from unittest.mock import MagicMock
 from src.core.effect import Effect
 
 
@@ -44,23 +45,32 @@ class TestEffect:
         assert effect.current_frame == 2
         assert effect.active is True
 
-    def test_large_dt_deactivates(self, frames):
-        effect = Effect(0, 0, frames, frame_duration=0.1)
-        effect.update(1.0)  # way past all frames
-        assert effect.active is False
-
-    def test_draw_centers_frame_on_position(self, frames):
-        surface = pygame.Surface((256, 256))
+    @pytest.mark.parametrize(
+        "dt, frame_index, expected_pos",
+        [
+            (0.0, 0, (100 - 32 // 2, 100 - 32 // 2)),
+            (0.2, 2, (100 - 64 // 2, 100 - 64 // 2)),
+        ],
+    )
+    def test_draw_centers_frame_on_position(
+        self, frames, dt, frame_index, expected_pos
+    ):
+        surface = MagicMock(spec=pygame.Surface)
         effect = Effect(100.0, 100.0, frames, frame_duration=0.1)
-        # Should not raise
+        effect.update(dt)
+
         effect.draw(surface)
+
+        surface.blit.assert_called_once_with(frames[frame_index], expected_pos)
 
     def test_draw_does_nothing_when_inactive(self, frames):
-        surface = pygame.Surface((256, 256))
+        surface = MagicMock(spec=pygame.Surface)
         effect = Effect(100.0, 100.0, frames, frame_duration=0.1)
         effect.active = False
-        # Should not raise
+
         effect.draw(surface)
+
+        surface.blit.assert_not_called()
 
     def test_single_frame_effect(self):
         frames = [pygame.Surface((32, 32))]

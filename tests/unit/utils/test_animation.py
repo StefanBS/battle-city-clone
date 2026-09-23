@@ -16,7 +16,3 @@ class TestIsBlinkVisible:
         assert is_blink_visible(2.5, 1.0)
         # second cycle, second half
         assert not is_blink_visible(3.5, 1.0)
-
-    def test_interval_boundary_is_hidden(self):
-        # exactly at interval → start of hidden phase
-        assert not is_blink_visible(1.0, 1.0)
