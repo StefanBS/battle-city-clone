@@ -12,6 +12,7 @@ import pygame
 
 from src.core.bullet import Bullet
 from src.core.tile import Tile, TileType
+from src.managers.cpu_partner import CpuPartnerInput
 from src.managers.game_manager import GameManager
 from src.states.game_mode import GameMode
 from src.states.game_state import GameState
@@ -147,7 +148,42 @@ class TestWorldView:
         view = gm.battle.world_view().for_player(2)
 
         assert view.enemies[0].speed == enemy.speed
+        assert view.own_player.speed == p2.speed
         assert view.own_player.bullet_speed == p2.bullet_speed
+
+    def test_reports_each_bullets_speed_and_identity(self, cpu_game):
+        gm = cpu_game
+        enemy = spawn_enemy_at(gm, 4, 6)
+        bullet = fire_bullet_from(gm, enemy)
+
+        first = gm.battle.world_view().bullets
+        bullet.update(1.0 / FPS)
+        later = gm.battle.world_view().bullets
+
+        assert [b.speed for b in first] == [enemy.bullet_speed]
+        assert [b.bullet_id for b in later] == [b.bullet_id for b in first]
+        other = fire_bullet_from(gm, gm.battle.player_manager.get_active_players()[0])
+        ids = {b.bullet_id for b in gm.battle.world_view().bullets}
+        assert len(ids) == 2 and other.active
+
+    def test_reports_whether_a_player_is_shielded(self, cpu_game):
+        gm = cpu_game
+        p1, p2 = gm.battle.player_manager.get_active_players()
+        p1.is_invincible = False
+        p2.activate_invincibility(5.0)
+
+        view = gm.battle.world_view()
+
+        assert [p.shielded for p in view.players] == [False, True]
+
+    def test_reports_whether_a_player_is_at_its_bullet_cap(self, cpu_game):
+        gm = cpu_game
+        p1, p2 = gm.battle.player_manager.get_active_players()
+        fire_bullet_from(gm, p2)
+
+        view = gm.battle.world_view()
+
+        assert [p.can_fire for p in view.players] == [True, False]
 
     def test_reports_half_bricks(self, cpu_game):
         gm = cpu_game
@@ -340,6 +376,36 @@ class TestCpuPartnerDefend:
         assert threat not in gm.battle.enemy_manager.enemies
         assert far in gm.battle.enemy_manager.enemies
         assert gm.battle.player_manager.get_score(2) > 0
+
+
+class TestCpuPartnerDodge:
+    def test_steps_out_of_the_way_of_an_enemy_shot(self, cpu_game):
+        gm = cpu_game
+        open_field(gm)
+        clear_enemies(gm)
+        gm.battle.spawn_manager.spawn_interval = float("inf")
+        # No Enemy Spawn Point to Ambush at: it stands still until the shot.
+        gm.battle.map.spawn_points = []
+        p1, p2 = gm.battle.player_manager.get_active_players()
+        # A CPU Partner that never misses a shot, so the test is certain.
+        gm.battle.player_manager._slots[1].input = CpuPartnerInput(dodge_miss_chance=0)
+        place_player_at(gm, 0, 0, player=p1)
+        place_player_at(gm, 16 * SUB_TILE_SIZE, 10 * SUB_TILE_SIZE, player=p2)
+        p2.is_invincible = False
+        # An Enemy far off to its left fires along its row, then is gone.
+        enemy = spawn_enemy_at(gm, 2, 10, direction=Direction.RIGHT, fires=False)
+        bullet = fire_bullet_from(gm, enemy)
+        clear_enemies(gm)
+        lives = p2.lives
+
+        for _ in range(3 * FPS):
+            tick(gm)
+            if not bullet.active:
+                break
+
+        assert not bullet.active
+        assert p2.lives == lives
+        assert (p2.x, p2.y) != (16 * SUB_TILE_SIZE, 10 * SUB_TILE_SIZE)
 
 
 class TestCpuPartnerGrabPowerUp:

@@ -30,6 +30,14 @@ The moment the CPU Partner takes before acting on a new Goal. Until it passes, i
 **Cut Off**:
 An Enemy the CPU Partner has no Firing Position left to use against from where the Enemy stands: it found none it can reach, or it has given up firing from every side. It is left out of the CPU Partner's Goals until it moves.
 
+**Incoming Shot**:
+An Enemy bullet that will hit the CPU Partner if it stays where it is.
+_Avoid_: Threat (that is a Base Threat), incoming bullet
+
+**Dodge**:
+The CPU Partner's reflex against an Incoming Shot: it shoots the bullet down or sidesteps out of its way. A Dodge overrides the CPU Partner's movement and shooting while it lasts, but it is not a Goal: the Goal and its target stay as they were and the CPU Partner goes back to them straight after.
+_Avoid_: Evade (an Enemy slipping away from a shot), evasion
+
 **Co-op**:
 A game with two Players, where P2 is either a second Human Player or a CPU Partner.
 

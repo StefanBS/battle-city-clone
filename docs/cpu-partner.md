@@ -15,6 +15,7 @@ capitalised (Goal, Firing Position, Cut Off, ...) are defined in
 | `src/managers/cpu_partner.py` | `CpuPartnerInput`: picks a Goal and turns it into a movement direction and shoot requests. Also the pure checks `is_line_of_fire_safe`, `can_evade_shot` and `ambush_positions`. |
 | `src/managers/goal_timing.py` | `GoalTiming` (when it decides, Goal stickiness, Reaction Delay) and `Hesitation` (holding back a shot now and then). |
 | `src/managers/world_view.py` | `WorldView`: the read-only snapshot it decides from. Lines of Fire, Firing Positions, Base Threats. |
+| `src/managers/dodge.py` | The Dodge (section 4): `incoming_shots`, `can_shoot_down`, `shields_base`, `sidestep`, and `Awareness` (reaction time and missed shots). |
 | `src/managers/pathfinding.py` | `NavGrid` and A* `find_path` over the sub-tile grid, for the tank's full footprint. Bricks are passable at extra cost (it shoots through them). Base Wall bricks never are. |
 | `src/managers/steering.py` | `Steering`: notices it is stuck and picks the tanks to route around. |
 | `src/managers/refused_shots.py` | `RefusedShots`: how long it has stayed lined up on a target without a safe shot. |
@@ -29,9 +30,11 @@ each Player's input its own view of it (`WorldView.for_player`). Human inputs
 ignore it. `CpuPartnerInput.observe` then:
 
 1. tells `Steering` whether last frame's move got it anywhere,
-2. settles its Goal through `GoalTiming` (diagrams 1 and 2),
-3. acts on that Goal (diagram 3 for Defend and Hunt), and
-4. passes the shot through `Hesitation`.
+2. Dodges an Incoming Shot if it has noticed one (diagram 4), and if so
+   stops there for this frame,
+3. otherwise settles its Goal through `GoalTiming` (diagrams 1 and 2),
+4. acts on that Goal (diagram 3 for Defend and Hunt), and
+5. passes the shot through `Hesitation`.
 
 `TankStepper` reads the result through `get_movement_direction()` and
 `consume_shoot()`, the same way it reads a keyboard. `reset()` clears
@@ -194,6 +197,76 @@ Grab Power-Up only uses the Approach step, toward cells where its tank would
 touch the Power-Up. Ambush uses Approach and then turns to face the Enemy Spawn
 Point and waits there. It doesn't fire at an empty Spawn Point. It changes Goal
 to Defend or Hunt once an Enemy appears.
+
+## 4. Dodging an Incoming Shot
+
+A Dodge is a reflex, not a Goal
+([ADR 0005](adr/0005-dodge-is-a-reflex-not-a-goal.md)). A Goal switch takes
+at least 0.75 s (stickiness, then the Reaction Delay), and stepping out of a
+bullet's way takes about 0.2 s. So each frame, before its Goal, the CPU
+Partner checks for an Incoming Shot, and while it Dodges it skips its Goal
+entirely: the Goal, its target, `GoalTiming` and the refused-shot count are
+all left as they were, and it carries on with them the frame the Dodge ends.
+
+```mermaid
+flowchart TD
+    Start(["Each frame, before its Goal"])
+    Q0{"Shielded or Frozen?"}
+    Q1{"Noticed an Incoming Shot?"}
+    Q2{"Facing it, with a shot left,<br/>and in line with its own bullet?"}
+    Q3{"Would the shot fly on<br/>into the Base?"}
+    Q4{"A clear way out of its lane in time?"}
+    Q5{"Could it shoot it down<br/>after turning?"}
+    Goal(["Acts on its Goal (diagrams 1 to 3)"])
+    ShootDown["<b>Shoot it down</b><br/>holding its ground"]
+    Step["<b>Sidestep</b><br/>the sooner way"]
+    Turn["<b>Turn and fire</b> at it"]
+    Stay["<b>Take the hit</b><br/>standing still"]
+
+    Start --> Q0
+    Q0 -- yes --> Goal
+    Q0 -- no --> Q1
+    Q1 -- no --> Goal
+    Q1 -- yes --> Q2
+    Q2 -- yes --> ShootDown
+    Q2 -- no --> Q3
+    Q3 -- no --> Q4
+    Q4 -- yes --> Step
+    Q4 -- no --> Q5
+    Q3 -- yes --> Q5
+    Q5 -- yes --> Turn
+    Q5 -- "no, guarding the Base" --> Stay
+    Q5 -- "no, otherwise" --> Goal
+```
+
+- **Incoming Shot** (`incoming_shots`): an Enemy bullet whose lane overlaps
+  the CPU Partner, flying toward it, with no solid tile (brick counts) and
+  no other Player in between, due to hit within `CPU_PARTNER_DODGE_HORIZON`
+  (0.75 s). Enemy bullets fly through Enemies, so an Enemy never shields it.
+  The Human Player's bullets never count. With several, it deals with the
+  one due to hit first.
+- **Noticing** (`Awareness`): a shot must have been coming at it for
+  `CPU_PARTNER_DODGE_REACTION_TIME` (0.1 s) before it reacts. The first
+  time a bullet comes at it, there is a `CPU_PARTNER_DODGE_MISS_CHANCE`
+  (20%) chance it never notices that bullet at all. Once noticed, a bullet
+  stays noticed for as long as it flies.
+- **Shoot it down** (`can_shoot_down`): its bullet leaves from its middle,
+  so it only meets a shot in line with that; one that would clip the tank's
+  edge flies past. It needs a shot left under its Bullet Cap. There is no
+  Line of Fire safety check (the two bullets cancel out first) and no
+  Hesitation.
+- **Sidestep** (`sidestep`): at right angles to the shot, the way that gets
+  the whole tank out of the lane sooner, if it can get there before the
+  shot hits. A way is ruled out when a tile or another tank is in it, or
+  when it leads into the lane of another shot that isn't coming at it
+  already. It never backs away along the lane: that only buys time.
+- **Guarding the Base** (`shields_base`): when the shot would fly on to hit
+  the Base itself if the CPU Partner weren't there, it doesn't step aside.
+  It fires back if it can, else takes the hit: a life is worth less than
+  the Base. A shot that would only hit a Base Wall brick is sidestepped.
+- **Turn and fire** is the last resort. Turning and firing happen in the
+  same frame. If firing back would miss too, a Dodge can't help, and it
+  simply carries on with its Goal.
 
 ## Testing
 

@@ -181,6 +181,11 @@ CPU_PARTNER_HESITATION_TIME: float = 0.3
 # Seconds the CPU Partner stays lined up on its target without a safe shot
 # before it moves to a Firing Position on another side of the target.
 CPU_PARTNER_REFUSED_SHOT_TIME: float = 1.0
+# Dodge: how far ahead (s to impact) an Enemy bullet counts as an Incoming
+# Shot, how long it takes to notice one, and the chance it never does.
+CPU_PARTNER_DODGE_HORIZON: float = 0.75
+CPU_PARTNER_DODGE_REACTION_TIME: float = 0.1
+CPU_PARTNER_DODGE_MISS_CHANCE: float = 0.2
 
 # UI settings
 FONT_SIZE_LARGE: int = 24
