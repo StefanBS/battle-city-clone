@@ -131,18 +131,19 @@ class TestTileRuleFlags:
         assert not tile.is_slidable
 
     def test_flags_set_from_constructor(self):
+        """Each keyword lands on its own flag (mixed values catch swaps)."""
         tile = Tile(
             TileType.BRICK,
             0,
             0,
             blocks_tanks=True,
-            blocks_bullets=True,
+            blocks_bullets=False,
             is_destructible=True,
-            is_overlay=True,
+            is_overlay=False,
             is_slidable=True,
         )
         assert tile.blocks_tanks
-        assert tile.blocks_bullets
+        assert not tile.blocks_bullets
         assert tile.is_destructible
-        assert tile.is_overlay
+        assert not tile.is_overlay
         assert tile.is_slidable

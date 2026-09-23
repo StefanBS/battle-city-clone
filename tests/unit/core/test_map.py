@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import MagicMock
 from src.core.map import Map, load_spawn_points
-from src.core.tile import TileType
+from src.core.tile import TileDefaults, TileType
 from src.utils.constants import (
     Difficulty,
     ENEMY_SPAWN_INTERVAL,
@@ -37,6 +37,7 @@ def write_tmx(tmp_path):
     return _write
 
 
+# Formatted twice: ``{properties}`` by minimal_tmx, then ``{tsx}`` by write_tmx.
 _MINIMAL_TMX = """\
 <?xml version="1.0" encoding="UTF-8"?>
 <map version="1.10" tiledversion="1.11.2" orientation="orthogonal" \
@@ -66,14 +67,14 @@ def minimal_tmx(**properties: str) -> str:
     return _MINIMAL_TMX.format(properties=block)
 
 
-def _flags(tile):
-    """Return a tile's rule flags in table order."""
-    return (
-        tile.blocks_tanks,
-        tile.blocks_bullets,
-        tile.is_destructible,
-        tile.is_overlay,
-        tile.is_slidable,
+def _rules(tile):
+    """Return a tile's rule flags as a TileDefaults, for comparing to a table row."""
+    return TileDefaults(
+        blocks_tanks=tile.blocks_tanks,
+        blocks_bullets=tile.blocks_bullets,
+        is_destructible=tile.is_destructible,
+        is_overlay=tile.is_overlay,
+        is_slidable=tile.is_slidable,
     )
 
 
@@ -162,38 +163,35 @@ class TestTileRulesFromTileset:
     """Tile rules come from the TSX properties of each tile's type."""
 
     @pytest.mark.parametrize(
-        "cell, tile_type, blocks_tanks, blocks_bullets, is_destructible, "
-        "is_overlay, is_slidable",
+        "cell, tile_type, rules",
         [
-            ((4, 6), TileType.EMPTY, False, False, False, False, False),
-            ((2, 2), TileType.BRICK, True, True, True, False, False),
-            ((0, 0), TileType.STEEL, True, True, False, False, False),
-            ((4, 4), TileType.WATER, True, False, False, False, False),
-            ((0, 6), TileType.BUSH, False, False, False, True, False),
-            ((1, 6), TileType.ICE, False, False, False, False, True),
-            ((4, 8), TileType.BASE, True, True, False, False, False),
+            ((4, 6), TileType.EMPTY, TileDefaults()),
+            (
+                (2, 2),
+                TileType.BRICK,
+                TileDefaults(
+                    blocks_tanks=True, blocks_bullets=True, is_destructible=True
+                ),
+            ),
+            (
+                (0, 0),
+                TileType.STEEL,
+                TileDefaults(blocks_tanks=True, blocks_bullets=True),
+            ),
+            ((4, 4), TileType.WATER, TileDefaults(blocks_tanks=True)),
+            ((0, 6), TileType.BUSH, TileDefaults(is_overlay=True)),
+            ((1, 6), TileType.ICE, TileDefaults(is_slidable=True)),
+            (
+                (4, 8),
+                TileType.BASE,
+                TileDefaults(blocks_tanks=True, blocks_bullets=True),
+            ),
         ],
     )
-    def test_tile_rules(
-        self,
-        game_map,
-        cell,
-        tile_type,
-        blocks_tanks,
-        blocks_bullets,
-        is_destructible,
-        is_overlay,
-        is_slidable,
-    ):
+    def test_tile_rules(self, game_map, cell, tile_type, rules):
         tile = game_map.get_tile_at(*cell)
         assert tile.type == tile_type
-        assert _flags(tile) == (
-            blocks_tanks,
-            blocks_bullets,
-            is_destructible,
-            is_overlay,
-            is_slidable,
-        )
+        assert _rules(tile) == rules
 
     def test_blocking_lists_follow_flags(self, game_map):
         tiles = [t for row in game_map.tiles for t in row]
@@ -236,22 +234,30 @@ class TestSetTileType:
     """set_tile_type applies the new type's rules from the tileset."""
 
     @pytest.mark.parametrize(
-        "cell, new_type, expected_flags",
+        "cell, new_type, rules",
         [
-            ((2, 2), TileType.EMPTY, (False, False, False, False, False)),
-            ((0, 6), TileType.EMPTY, (False, False, False, False, False)),
-            ((4, 6), TileType.STEEL, (True, True, False, False, False)),
-            ((4, 6), TileType.WATER, (True, False, False, False, False)),
-            ((4, 6), TileType.BRICK, (True, True, True, False, False)),
+            ((2, 2), TileType.EMPTY, TileDefaults()),
+            ((0, 6), TileType.EMPTY, TileDefaults()),
+            (
+                (4, 6),
+                TileType.STEEL,
+                TileDefaults(blocks_tanks=True, blocks_bullets=True),
+            ),
+            ((4, 6), TileType.WATER, TileDefaults(blocks_tanks=True)),
+            (
+                (4, 6),
+                TileType.BRICK,
+                TileDefaults(
+                    blocks_tanks=True, blocks_bullets=True, is_destructible=True
+                ),
+            ),
         ],
     )
-    def test_set_tile_type_applies_new_rules(
-        self, game_map, cell, new_type, expected_flags
-    ):
+    def test_set_tile_type_applies_new_rules(self, game_map, cell, new_type, rules):
         tile = game_map.get_tile_at(*cell)
         game_map.set_tile_type(tile, new_type)
         assert tile.type == new_type
-        assert _flags(tile) == expected_flags
+        assert _rules(tile) == rules
 
 
 class TestEnemyCompositionFallback:
@@ -334,22 +340,22 @@ class TestOverlayPropertyRendering:
 
 class TestGetBaseSurroundingTiles:
     @pytest.fixture
-    def level_map(self, mock_texture_manager):
+    def stage_map(self, mock_texture_manager):
         return Map(resource_path("assets/maps/level_01.tmx"), mock_texture_manager)
 
-    def test_returns_tiles_around_base(self, level_map):
-        tiles = level_map.get_base_surrounding_tiles()
+    def test_returns_tiles_around_base(self, stage_map):
+        tiles = stage_map.get_base_surrounding_tiles()
         assert len(tiles) > 0
-        base = level_map.get_base()
+        base = stage_map.get_base()
         assert base is not None
 
-    def test_no_base_tiles_in_result(self, level_map):
-        tiles = level_map.get_base_surrounding_tiles()
+    def test_no_base_tiles_in_result(self, stage_map):
+        tiles = stage_map.get_base_surrounding_tiles()
         for tile in tiles:
             assert tile.type != TileType.BASE
 
-    def test_no_empty_tiles_in_result(self, level_map):
-        tiles = level_map.get_base_surrounding_tiles()
+    def test_no_empty_tiles_in_result(self, stage_map):
+        tiles = stage_map.get_base_surrounding_tiles()
         for tile in tiles:
             assert tile.type != TileType.EMPTY
 
