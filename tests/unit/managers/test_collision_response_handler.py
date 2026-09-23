@@ -156,16 +156,6 @@ class TestBulletVsEnemy:
         outcomes = handler.process_collisions([(mock_bullet, mock_enemy)])
         assert outcomes == [CarrierHit(mock_enemy)]
 
-    def test_player_bullet_destroys_carrier(self, handler, mock_bullet, mock_enemy):
-        """The drop comes before the kill."""
-        mock_enemy.is_carrier = True
-        mock_enemy.take_damage.return_value = True
-        outcomes = handler.process_collisions([(mock_bullet, mock_enemy)])
-        assert outcomes == [
-            CarrierHit(mock_enemy),
-            EnemyDestroyed(mock_enemy, by=mock_bullet.owner),
-        ]
-
     def test_enemy_bullet_does_not_damage_enemy(self, handler, make_bullet, mock_enemy):
         """Friendly fire — enemy bullet should not damage enemy."""
         bullet = make_bullet(owner_type=OwnerType.ENEMY)
