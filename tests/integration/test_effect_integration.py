@@ -31,7 +31,7 @@ class TestEffectLifecycle:
         player.rect.topleft = (round(player.x), round(player.y))
 
         # Clear enemies so they don't interfere (e.g., shoot the player instead).
-        gm.battle.spawn_manager.enemy_tanks.clear()
+        gm.battle.enemy_manager.enemies.clear()
 
         fire_bullet_from(gm, player)
 

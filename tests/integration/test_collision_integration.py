@@ -123,7 +123,7 @@ def test_player_bullet_destroys_enemy_tank(game_manager_fixture, mocker):
     enemy_tank = spawn_enemy_at(game_manager, enemy_x_grid, enemy_y_grid)
     # Prevent enemy shooting so its bullets don't interfere with the player bullet.
     enemy_tank.shoot = lambda: None
-    initial_enemy_count = len(game_manager.battle.spawn_manager.enemy_tanks)
+    initial_enemy_count = len(game_manager.battle.enemy_manager.enemies)
 
     # Player below enemy (2 sub-tiles = 1 tank height).
     place_player_at(
@@ -146,22 +146,22 @@ def test_player_bullet_destroys_enemy_tank(game_manager_fixture, mocker):
         if not bullet.active:
             bullet_became_inactive_during_loop = True
             break
-        if enemy_tank not in game_manager.battle.spawn_manager.enemy_tanks:
+        if enemy_tank not in game_manager.battle.enemy_manager.enemies:
             if not bullet.active:
                 bullet_became_inactive_during_loop = True
             break
 
-    if enemy_tank in game_manager.battle.spawn_manager.enemy_tanks:
+    if enemy_tank in game_manager.battle.enemy_manager.enemies:
         assert bullet_became_inactive_during_loop, (
             "Bullet remained active but enemy was not destroyed."
         )
 
-    assert enemy_tank not in game_manager.battle.spawn_manager.enemy_tanks, (
+    assert enemy_tank not in game_manager.battle.enemy_manager.enemies, (
         "Enemy tank was not removed after being hit."
     )
-    assert (
-        len(game_manager.battle.spawn_manager.enemy_tanks) == initial_enemy_count - 1
-    ), "Enemy count did not decrease by one."
+    assert len(game_manager.battle.enemy_manager.enemies) == initial_enemy_count - 1, (
+        "Enemy count did not decrease by one."
+    )
 
 
 @pytest.mark.parametrize(
@@ -320,7 +320,7 @@ def test_enemy_bullet_hits_other_enemy(game_manager_fixture, mocker):
     )
     enemy2 = spawn_enemy_at(game_manager, enemy2_x_grid, enemy2_y_grid, replace=False)
 
-    initial_enemy_count = len(game_manager.battle.spawn_manager.enemy_tanks)
+    initial_enemy_count = len(game_manager.battle.enemy_manager.enemies)
     initial_enemy2_health = enemy2.health
 
     bullet = fire_bullet_from(game_manager, enemy1)
@@ -345,13 +345,13 @@ def test_enemy_bullet_hits_other_enemy(game_manager_fixture, mocker):
         f"Got: {enemy2.health}"
     )
 
-    assert enemy2 in game_manager.battle.spawn_manager.enemy_tanks, (
+    assert enemy2 in game_manager.battle.enemy_manager.enemies, (
         "Enemy2 was removed from the list."
     )
 
-    assert len(game_manager.battle.spawn_manager.enemy_tanks) == initial_enemy_count, (
+    assert len(game_manager.battle.enemy_manager.enemies) == initial_enemy_count, (
         f"Enemy count changed. Expected: {initial_enemy_count}, "
-        f"Got: {len(game_manager.battle.spawn_manager.enemy_tanks)}"
+        f"Got: {len(game_manager.battle.enemy_manager.enemies)}"
     )
 
 

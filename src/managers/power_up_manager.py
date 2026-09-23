@@ -29,7 +29,7 @@ from src.core.tile import BrickVariant, Tile, TileType
 from src.managers.outcomes import CollisionOutcome, EnemyDestroyed
 
 if TYPE_CHECKING:
-    from src.managers.spawn_manager import SpawnManager
+    from src.managers.enemy_manager import EnemyManager
 
 
 class PowerUpManager:
@@ -91,14 +91,14 @@ class PowerUpManager:
         self,
         power_up_type: PowerUpType,
         player: PlayerTank,
-        spawn_manager: SpawnManager,
+        enemy_manager: EnemyManager,
     ) -> list[CollisionOutcome]:
         """Dispatch a power-up effect.
 
         Args:
             power_up_type: The collected power-up type.
             player: The collecting player (recipient for player-targeted effects).
-            spawn_manager: Used by BOMB and CLOCK to affect enemies.
+            enemy_manager: Used by BOMB and CLOCK to affect enemies.
 
         Returns:
             The outcomes the effect causes: an ``EnemyDestroyed`` with no
@@ -112,11 +112,10 @@ class PowerUpManager:
                 player.lives += 1
             case PowerUpType.BOMB:
                 outcomes = [
-                    EnemyDestroyed(enemy, by=None)
-                    for enemy in spawn_manager.enemy_tanks
+                    EnemyDestroyed(enemy, by=None) for enemy in enemy_manager.enemies
                 ]
             case PowerUpType.CLOCK:
-                spawn_manager.freeze(CLOCK_FREEZE_DURATION)
+                enemy_manager.freeze(CLOCK_FREEZE_DURATION)
             case PowerUpType.SHOVEL:
                 self.apply_shovel()
             case PowerUpType.STAR:

@@ -60,7 +60,7 @@ def _steel_wall_right_of(game, tank):
 @pytest.fixture
 def game(game_manager_fixture):
     gm = game_manager_fixture
-    gm.battle.spawn_manager.enemy_tanks.clear()
+    gm.battle.enemy_manager.enemies.clear()
     gm.battle.spawn_manager._pending_spawns.clear()
     gm.battle.spawn_manager._spawn_queue.clear()
     return gm

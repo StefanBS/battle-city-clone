@@ -47,12 +47,12 @@ def flush_pending_spawns(game, max_ticks=120):
     """Tick effect updates until all pending spawn animations finish.
 
     This is needed because SpawnManager uses spawn animations (EffectManager),
-    so tanks only appear in enemy_tanks once the animation completes.
+    so tanks only reach EnemyManager once the animation completes.
 
-    NOTE: Accesses SpawnManager private internals (_pending_spawns,
-    _materialize_enemy) because the public API (update) also advances the
-    spawn timer and may trigger additional spawns. If SpawnManager internals
-    change, this helper must be updated accordingly.
+    NOTE: Accesses private internals (SpawnManager._pending_spawns and
+    _materialize_enemy, Battle._enter_battlefield) because the public API
+    (update) also advances the spawn timer and may trigger additional spawns.
+    If those internals change, this helper must be updated accordingly.
     """
     dt = 1.0 / FPS
     sm = game.battle.spawn_manager
@@ -61,15 +61,9 @@ def flush_pending_spawns(game, max_ticks=120):
         if not sm._pending_spawns:
             break
         em.update(dt)
-        still_pending = []
-        for pending in sm._pending_spawns:
-            if not pending.effect.active:
-                sm._materialize_enemy(
-                    pending.x, pending.y, pending.tank_type, pending.is_carrier
-                )
-            else:
-                still_pending.append(pending)
-        sm._pending_spawns = still_pending
+        ready = [p for p in sm._pending_spawns if p.ready]
+        sm._pending_spawns = [p for p in sm._pending_spawns if not p.ready]
+        game.battle._enter_battlefield([sm._materialize_enemy(p) for p in ready])
 
 
 def spawn_carrier(game):
@@ -83,13 +77,13 @@ def spawn_carrier(game):
     for _ in range(max_attempts):
         if game.battle.spawn_manager.total_enemy_spawns > first_carrier_index:
             break
-        game.battle.spawn_manager.enemy_tanks = []
+        game.battle.enemy_manager.enemies = []
         game.battle.spawn_manager._pending_spawns = []
         game.battle.spawn_manager.spawn_enemy(
             game.battle.player_manager.get_active_players(), game.battle.map
         )
         flush_pending_spawns(game)
-    carriers = [e for e in game.battle.spawn_manager.enemy_tanks if e.is_carrier]
+    carriers = [e for e in game.battle.enemy_manager.enemies if e.is_carrier]
     assert carriers, "No carrier found"
     return carriers[0]
 
@@ -148,15 +142,15 @@ def spawn_enemy_with_ai(
     if direction is not None:
         enemy.direction = direction
     if replace:
-        game.battle.spawn_manager.enemy_tanks = []
+        game.battle.enemy_manager.enemies = []
     ai = EnemyAI(
         enemy,
         difficulty=difficulty,
-        base_position=game.battle.spawn_manager.base_position,
+        base_position=game.battle.enemy_manager.base_position,
         shoot_interval=None if fires else float("inf"),
         direction_change_interval=None if turns else float("inf"),
     )
-    game.battle.spawn_manager.add_enemy(enemy, ai)
+    game.battle.enemy_manager.add(enemy, ai)
     return enemy, ai
 
 
@@ -189,8 +183,8 @@ def place_player_at(game, x, y, player=None):
 
 
 def clear_enemies(game, reset_total=True):
-    """Reset enemy_tanks, _pending_spawns, and optionally total_enemy_spawns."""
-    game.battle.spawn_manager.enemy_tanks = []
+    """Reset the Enemies, _pending_spawns, and optionally total_enemy_spawns."""
+    game.battle.enemy_manager.enemies = []
     game.battle.spawn_manager._pending_spawns = []
     if reset_total:
         game.battle.spawn_manager.total_enemy_spawns = 0

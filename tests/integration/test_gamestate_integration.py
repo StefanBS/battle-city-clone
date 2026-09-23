@@ -32,7 +32,7 @@ def test_initial_game_state(game_manager_fixture):
     )
 
     # Spawn animation may still be running, so count pending spawns too.
-    total_enemies = len(game_manager.battle.spawn_manager.enemy_tanks) + len(
+    total_enemies = len(game_manager.battle.enemy_manager.enemies) + len(
         game_manager.battle.spawn_manager._pending_spawns
     )
     assert total_enemies == 1, (
@@ -239,10 +239,10 @@ def test_score_accumulates_on_enemy_kill(game_manager_fixture):
 
     for _ in range(60):
         gm.update()
-        if gm.battle.spawn_manager.enemy_tanks:
+        if gm.battle.enemy_manager.enemies:
             break
 
-    enemy = gm.battle.spawn_manager.enemy_tanks[0]
+    enemy = gm.battle.enemy_manager.enemies[0]
     tank_type = enemy.tank_type
     expected_points = ENEMY_POINTS.get(tank_type, 0)
 
@@ -252,7 +252,7 @@ def test_score_accumulates_on_enemy_kill(game_manager_fixture):
 
     fire_bullet_from(gm, player)
 
-    gm.battle.spawn_manager.enemy_tanks = [enemy]
+    gm.battle.enemy_manager.enemies = [enemy]
     gm.battle.spawn_manager._pending_spawns = []
 
     # Enemy AI chooses random directions; freeze it so it can't dodge the bullet.
@@ -261,7 +261,7 @@ def test_score_accumulates_on_enemy_kill(game_manager_fixture):
 
     for _ in range(60):
         gm.update()
-        if enemy not in gm.battle.spawn_manager.enemy_tanks:
+        if enemy not in gm.battle.enemy_manager.enemies:
             break
 
     assert gm.battle.player_manager.score == expected_points, (

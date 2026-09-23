@@ -1,20 +1,17 @@
 import random
-from collections.abc import Callable
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 import pygame
 from loguru import logger
 
 from src.core.effect import Effect
-from src.core.enemy_ai import EnemyAI
 from src.core.enemy_tank import EnemyTank
 from src.core.map import Map
-from src.core.player_tank import PlayerTank
+from src.core.tank import Tank
 from src.managers.effect_manager import EffectManager
-from src.managers.tank_stepper import TankStepper
 from src.managers.texture_manager import TextureManager
 from src.utils.constants import (
-    Difficulty,
     EffectType,
     POWERUP_CARRIER_INDICES,
     TILE_SIZE,
@@ -25,18 +22,31 @@ from src.utils.constants import (
 
 @dataclass
 class _PendingSpawn:
-    """A spawn waiting for its animation to finish."""
+    """A spawn waiting for its animation to finish.
+
+    With no animation (``effect`` is None) it is ready at the next update.
+    """
 
     x: int
     y: int
     tank_type: TankType
-    effect: Effect
+    effect: Effect | None
     rect: pygame.Rect
     is_carrier: bool = False
 
+    @property
+    def ready(self) -> bool:
+        """Whether the Enemy can materialize: its animation is done."""
+        return self.effect is None or not self.effect.active
+
 
 class SpawnManager:
-    """Manages enemy tank spawning logic and state."""
+    """Sends the Stage's Roster onto the battlefield, one Enemy at a time.
+
+    Owns the spawn queue, spawn timer, spawn animations and Carrier indices.
+    The Enemies it materializes are handed back from ``update``; it does not
+    keep them.
+    """
 
     def __init__(
         self,
@@ -44,11 +54,9 @@ class SpawnManager:
         game_map: Map,
         enemy_composition: dict[TankType, int],
         spawn_interval: float,
-        player_tanks: list[PlayerTank],
+        tanks: Sequence[Tank],
         effect_manager: EffectManager | None = None,
-        difficulty: Difficulty = Difficulty.NORMAL,
         powerup_carrier_indices: tuple[int, ...] | None = None,
-        on_carrier_spawned: Callable[[], None] | None = None,
     ) -> None:
         """Initialize the SpawnManager.
 
@@ -57,15 +65,12 @@ class SpawnManager:
             game_map: The game map (spawn points, dimensions, collision).
             enemy_composition: Dict mapping TankType to enemy counts for this stage.
             spawn_interval: Seconds between spawn attempts.
-            player_tanks: Player tanks for collision checking on initial spawn.
+            tanks: Every tank on the battlefield, which blocks the initial spawn.
             effect_manager: EffectManager for spawn animations (optional).
-            difficulty: AI difficulty level for spawned enemies.
             powerup_carrier_indices: Tuple of spawn indices that carry powerups.
                 Falls back to POWERUP_CARRIER_INDICES constant when not provided.
-            on_carrier_spawned: Called each time a carrier materializes.
         """
         self.tile_size = TILE_SIZE
-        self._difficulty = difficulty
         self.texture_manager = texture_manager
         self.spawn_points = game_map.spawn_points
         self._spawn_queue: list[TankType] = self._build_spawn_queue(enemy_composition)
@@ -73,12 +78,8 @@ class SpawnManager:
         self.spawn_interval = spawn_interval
         self.map_width_px = game_map.width_px
         self.map_height_px = game_map.height_px
-        self.enemy_tanks: list[EnemyTank] = []
-        # Keyed by enemy_id, which is never reused.
-        self._enemy_ais: dict[int, EnemyAI] = {}
         self.total_enemy_spawns: int = 0
         self.spawn_timer: float = 0.0
-        self._freeze_timer: float = 0.0
         self._effect_manager = effect_manager
         self._powerup_carrier_indices: tuple[int, ...] = (
             powerup_carrier_indices
@@ -86,18 +87,9 @@ class SpawnManager:
             else POWERUP_CARRIER_INDICES
         )
         self._pending_spawns: list[_PendingSpawn] = []
-        self._on_carrier_spawned = on_carrier_spawned
-
-        # Where every Enemy AI this stage steers and fires toward.
-        base_tile = game_map.get_base()
-        self._base_position: tuple[float, float] | None = (
-            (float(base_tile.rect.centerx), float(base_tile.rect.centery))
-            if base_tile is not None
-            else None
-        )
 
         # Initial spawn
-        self.spawn_enemy(player_tanks, game_map)
+        self.spawn_enemy(tanks, game_map)
 
     def _build_spawn_queue(
         self, enemy_composition: dict[TankType, int]
@@ -121,33 +113,30 @@ class SpawnManager:
     def _is_spawn_blocked(
         self,
         rect: pygame.Rect,
-        player_tanks: list[PlayerTank],
+        tanks: Sequence[Tank],
         game_map: Map,
     ) -> bool:
         """Check if a spawn rect overlaps any obstacle."""
         for map_rect in game_map.get_collidable_tiles():
             if rect.colliderect(map_rect):
                 return True
-        for player_tank in player_tanks:
-            if player_tank and rect.colliderect(player_tank.rect):
-                return True
-        for enemy in self.enemy_tanks:
-            if rect.colliderect(enemy.rect):
+        for tank in tanks:
+            if rect.colliderect(tank.rect):
                 return True
         for pending in self._pending_spawns:
             if rect.colliderect(pending.rect):
                 return True
         return False
 
-    def spawn_enemy(self, player_tanks: list[PlayerTank], game_map: Map) -> bool:
-        """Spawn a new enemy tank at a random spawn point if under the spawn limit.
+    def spawn_enemy(self, tanks: Sequence[Tank], game_map: Map) -> bool:
+        """Start spawning the next Enemy at a random spawn point, if any remain.
 
         If an EffectManager is available, plays a spawn animation first and
-        the tank materializes when the animation finishes. Otherwise, the
-        tank appears immediately.
+        the tank materializes when the animation finishes. Otherwise, it
+        materializes at the next ``update``.
 
         Args:
-            player_tanks: List of player tanks (for collision checking).
+            tanks: Every tank on the battlefield (for collision checking).
             game_map: The game map (for collision checking).
 
         Returns:
@@ -161,7 +150,7 @@ class SpawnManager:
         x, y = game_map.grid_to_pixels(spawn_grid_x, spawn_grid_y)
 
         temp_rect = pygame.Rect(x, y, self.tile_size, self.tile_size)
-        if self._is_spawn_blocked(temp_rect, player_tanks, game_map):
+        if self._is_spawn_blocked(temp_rect, tanks, game_map):
             logger.warning(f"Spawn point ({x}, {y}) was blocked.")
             return False
 
@@ -169,146 +158,79 @@ class SpawnManager:
         self.total_enemy_spawns += 1
         is_carrier = (self.total_enemy_spawns - 1) in self._powerup_carrier_indices
 
+        effect = None
         if self._effect_manager is not None:
             # Play spawn animation, materialize tank when it finishes
             center_x = float(x + TILE_SIZE_HALF)
             center_y = float(y + TILE_SIZE_HALF)
             effect = self._effect_manager.spawn(EffectType.SPAWN, center_x, center_y)
-            self._pending_spawns.append(
-                _PendingSpawn(
-                    x=x,
-                    y=y,
-                    tank_type=tank_type,
-                    effect=effect,
-                    rect=pygame.Rect(x, y, self.tile_size, self.tile_size),
-                    is_carrier=is_carrier,
-                )
+        self._pending_spawns.append(
+            _PendingSpawn(
+                x=x,
+                y=y,
+                tank_type=tank_type,
+                effect=effect,
+                rect=pygame.Rect(x, y, self.tile_size, self.tile_size),
+                is_carrier=is_carrier,
             )
-            logger.debug(
-                f"Spawn animation started for enemy "
-                f"{self.total_enemy_spawns}/{self.max_enemy_spawns} "
-                f"at ({x}, {y}) type={tank_type}"
-            )
-        else:
-            self._materialize_enemy(x, y, tank_type, is_carrier)
-
-        return True
-
-    def _materialize_enemy(
-        self, x: int, y: int, tank_type: TankType, is_carrier: bool = False
-    ) -> None:
-        """Create the actual EnemyTank and add it to the active list."""
-        enemy = EnemyTank(
-            x,
-            y,
-            self.tile_size,
-            self.texture_manager,
-            tank_type=tank_type,
-            map_width_px=self.map_width_px,
-            map_height_px=self.map_height_px,
-            is_carrier=is_carrier,
-        )
-        self.add_enemy(
-            enemy,
-            EnemyAI(
-                enemy, difficulty=self._difficulty, base_position=self._base_position
-            ),
         )
         logger.debug(
-            f"Enemy materialized at ({x}, {y}) type={tank_type}"
-            f"{' [CARRIER]' if is_carrier else ''}"
+            f"Spawn started for enemy "
+            f"{self.total_enemy_spawns}/{self.max_enemy_spawns} "
+            f"at ({x}, {y}) type={tank_type}"
         )
-        if is_carrier and self._on_carrier_spawned is not None:
-            self._on_carrier_spawned()
+        return True
 
-    @property
-    def base_position(self) -> tuple[float, float] | None:
-        """Centre of this stage's base, or None when the map has no base."""
-        return self._base_position
+    def _materialize_enemy(self, pending: _PendingSpawn) -> EnemyTank:
+        """Create the EnemyTank for a spawn whose animation is done."""
+        enemy = EnemyTank(
+            pending.x,
+            pending.y,
+            self.tile_size,
+            self.texture_manager,
+            tank_type=pending.tank_type,
+            map_width_px=self.map_width_px,
+            map_height_px=self.map_height_px,
+            is_carrier=pending.is_carrier,
+        )
+        logger.debug(
+            f"Enemy materialized at ({pending.x}, {pending.y}) "
+            f"type={pending.tank_type}{' [CARRIER]' if pending.is_carrier else ''}"
+        )
+        return enemy
 
-    def add_enemy(self, enemy: EnemyTank, ai: EnemyAI) -> None:
-        """Put an Enemy on the field, paired with the EnemyAI that drives it."""
-        self.enemy_tanks.append(enemy)
-        self._enemy_ais[enemy.enemy_id] = ai
-
-    def freeze(self, duration: float) -> None:
-        """Make every Enemy Frozen for ``duration`` seconds (Clock Power-Up)."""
-        self._freeze_timer = duration
-
-    @property
-    def enemies_frozen(self) -> bool:
-        """Whether the Enemies are Frozen, so step_enemies leaves them be."""
-        return self._freeze_timer > 0
-
-    def step_enemies(
-        self, dt: float, stepper: TankStepper, players: list[PlayerTank]
-    ) -> bool:
-        """Step every Enemy through the frame, driven by its Enemy AI.
-
-        Args:
-            dt: Time step in seconds.
-            stepper: Steps each tank and owns the bullets it fires.
-            players: The live Players; each Enemy steers toward the nearest.
-
-        Returns:
-            Whether any Enemy fired, so the caller can play the sound.
-        """
-        if self.enemies_frozen:
-            return False
-        fired = False
-        for enemy in self.enemy_tanks:
-            nearest = min(
-                players,
-                key=lambda p: abs(p.x - enemy.x) + abs(p.y - enemy.y),
-                default=None,
-            )
-            ai = self._enemy_ais[enemy.enemy_id]
-            ai.update(dt, (nearest.x, nearest.y) if nearest is not None else None)
-            fired = stepper.step(enemy, ai, dt).fired or fired
-        return fired
-
-    def update(self, dt: float, player_tanks: list[PlayerTank], game_map: Map) -> None:
-        """Update spawn timer and attempt to spawn enemies.
-
-        Also checks pending spawns and materializes tanks whose
-        spawn animation has finished.
+    def update(
+        self, dt: float, tanks: Sequence[Tank], game_map: Map
+    ) -> list[EnemyTank]:
+        """Materialize finished spawns, then advance the spawn timer.
 
         Args:
             dt: Delta time in seconds.
-            player_tanks: List of player tanks (for collision checking).
+            tanks: Every tank on the battlefield (for collision checking).
             game_map: The game map (for collision checking).
-        """
-        if self._freeze_timer > 0:
-            self._freeze_timer -= dt
 
-        # Materialize tanks whose spawn animation is done
-        still_pending = []
-        for pending in self._pending_spawns:
-            if pending.effect.active:
-                still_pending.append(pending)
-                continue
-            self._materialize_enemy(
-                pending.x, pending.y, pending.tank_type, pending.is_carrier
-            )
-        self._pending_spawns = still_pending
+        Returns:
+            The Enemies that materialized this frame, for the caller to put
+            on the battlefield.
+        """
+        materialized = [
+            self._materialize_enemy(p) for p in self._pending_spawns if p.ready
+        ]
+        self._pending_spawns = [p for p in self._pending_spawns if not p.ready]
 
         self.spawn_timer += dt
         if self.spawn_timer >= self.spawn_interval:
             logger.trace("Spawn timer triggered.")
-            # Reset timer only if spawn was successful
-            if self.spawn_enemy(player_tanks, game_map):
+            # Reset timer only if spawn was successful. Enemies that just
+            # materialized aren't among ``tanks`` yet but still block.
+            if self.spawn_enemy([*tanks, *materialized], game_map):
                 self.spawn_timer = 0
+        return materialized
 
-    def remove_enemy(self, enemy: EnemyTank) -> None:
-        """Remove a destroyed enemy from the active list."""
-        if enemy in self.enemy_tanks:
-            self.enemy_tanks.remove(enemy)
-        self._enemy_ais.pop(enemy.enemy_id, None)
-
-    def all_enemies_defeated(self) -> bool:
-        """Check if all enemies have been spawned and destroyed."""
+    @property
+    def is_exhausted(self) -> bool:
+        """Whether the whole Roster has materialized: nothing left to spawn."""
         return (
-            not self.enemy_tanks
-            and not self._pending_spawns
+            not self._pending_spawns
             and self.total_enemy_spawns >= self.max_enemy_spawns
         )

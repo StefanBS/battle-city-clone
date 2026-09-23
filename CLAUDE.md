@@ -47,16 +47,16 @@ GameObject (base: position, rect, draw, update)
 
 - **Two-step collision resolution:** Tanks move optimistically in `Tank._move()`, then `CollisionManager` detects overlaps and queues events, then `CollisionResponseHandler` calls `Tank.revert_move(obstacle_rect)` to snap the tank flush against the obstacle.
 - **Detection, response, outcomes:** `CollisionManager` only detects collisions and queues events. `CollisionResponseHandler` applies the physics later events in the frame depend on (bullets, reverts, tile damage, `take_damage`) and returns game-level outcomes (`src/managers/outcomes.py`). `Battle.apply_outcomes()` applies them (score, removal, Carrier drops, respawn, Power-Up effects), then decides Game Over and Victory in one place. See `docs/adr/0003-collision-response-returns-outcomes.md`.
-- **Screen flow vs. Battle:** `GameManager` owns the screen flow (menus, pause, curtain, Game Over animation) and which Stage comes next. A `Battle` owns one Stage's collaborators (`Map`, `PlayerManager`, `SpawnManager`, `PowerUpManager`, `EffectManager`, `TankStepper`, collision managers), runs the frame pipeline in `step(dt)` and returns a `BattleResult` when it ends. Each Battle is built from the previous one's `carried_progress` (lives, Stars, score). A Battle needs no window or `SettingsManager`, so frame rules are tested against it directly. See `docs/adr/0004-a-battle-owns-one-stage.md`.
-- **One stepping path:** `TankStepper` steps every tank, Player or Enemy, through a frame (timers, ice check, Slide or move, then fire within the Bullet Cap) and owns the only bullet list. `EnemyAI` (random direction changes, periodic shooting) and `PlayerInput` only supply intent. The owner of each kind of tank calls the stepper: `PlayerManager.update` for Players, `SpawnManager.step_enemies` for Enemies (pairs each with its `EnemyAI`, steers it toward the nearest Player, skips Frozen Enemies). See `docs/adr/0002-one-stepping-path-for-all-tanks.md`.
+- **Screen flow vs. Battle:** `GameManager` owns the screen flow (menus, pause, curtain, Game Over animation) and which Stage comes next. A `Battle` owns one Stage's collaborators (`Map`, `PlayerManager`, `EnemyManager`, `SpawnManager`, `PowerUpManager`, `EffectManager`, `TankStepper`, collision managers), runs the frame pipeline in `step(dt)` and returns a `BattleResult` when it ends. Each Battle is built from the previous one's `carried_progress` (lives, Stars, score). A Battle needs no window or `SettingsManager`, so frame rules are tested against it directly. See `docs/adr/0004-a-battle-owns-one-stage.md`.
+- **One stepping path:** `TankStepper` steps every tank, Player or Enemy, through a frame (timers, ice check, Slide or move, then fire within the Bullet Cap) and owns the only bullet list. `EnemyAI` (random direction changes, periodic shooting) and `PlayerInput` only supply intent. The owner of each kind of tank calls the stepper: `PlayerManager.update` for Players, `EnemyManager.step_enemies` for Enemies (pairs each with its `EnemyAI`, steers it toward the nearest Player, skips Frozen Enemies). `SpawnManager` only works through the Stage's Roster: `update()` returns the Enemies that materialized, and `Battle` hands them to `EnemyManager`. See `docs/adr/0002-one-stepping-path-for-all-tanks.md`.
 - **Logical vs. display surface:** `GameManager` renders to a `game_surface` (512x512) then scales up to the window (1024x1024) for a pixel-art effect.
 - **Fixed timestep:** `dt = 1.0 / fps` (constant, not measured from clock).
-- **No pygame.sprite.Group:** Entities are plain classes, managed via plain lists (tanks in `PlayerManager`/`SpawnManager`, bullets in `TankStepper`).
+- **No pygame.sprite.Group:** Entities are plain classes, managed via plain lists (tanks in `PlayerManager`/`EnemyManager`, bullets in `TankStepper`).
 
 ### Source Layout
 
 - `src/core/` — Game entities (`GameObject`, `Tank`, `PlayerTank`, `EnemyTank`, `Bullet`, `Tile`, `Map`) and `EnemyAI`
-- `src/managers/` — `GameManager` (main loop, screen flow), `Battle` (one Stage: frame pipeline, applying collision outcomes, Game Over / Victory), `CollisionResponseHandler`, `TankStepper` (per-frame tank stepping, bullet list), `CollisionManager`, `TextureManager` (sprite atlas slicing), `InputHandler`
+- `src/managers/` — `GameManager` (main loop, screen flow), `Battle` (one Stage: frame pipeline, applying collision outcomes, Game Over / Victory), `CollisionResponseHandler`, `TankStepper` (per-frame tank stepping, bullet list), `EnemyManager` (Enemies on the battlefield, their AIs, Frozen), `SpawnManager` (the Roster, spawn timer and animations), `CollisionManager`, `TextureManager` (sprite atlas slicing), `InputHandler`
 - `src/states/` — `GameState` enum: RUNNING, GAME_OVER, VICTORY, EXIT
 - `src/utils/constants.py` — All game constants (sizes, speeds, grid dimensions, colors)
 
@@ -100,7 +100,7 @@ tests/
 
 **Data-carrier exception:** within-module mocks are allowed when the dependency is used only as a data carrier (read-only attribute access, no behavior). Example: `test_bullet.py` mocks the owner Tank because Bullet only reads `owner.owner_type` and map dimensions.
 
-**Per-call collaborator exception:** within-module mocks are allowed for a collaborator the unit under test is handed on each call, when the test is about what the unit asks of it. The collaborator's own behavior is covered by its own tests. Example: `test_spawn_manager.py` mocks the `TankStepper` passed to `step_enemies`, to check which Enemy is stepped with which AI.
+**Per-call collaborator exception:** within-module mocks are allowed for a collaborator the unit under test is handed on each call, when the test is about what the unit asks of it. The collaborator's own behavior is covered by its own tests. Example: `test_enemy_manager.py` mocks the `TankStepper` passed to `step_enemies`, to check which Enemy is stepped with which AI.
 
 ### Integration Tests
 
