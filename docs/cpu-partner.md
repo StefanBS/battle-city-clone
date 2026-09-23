@@ -40,38 +40,45 @@ respawn.
 
 ## 1. Choosing a Goal
 
-At each decision the CPU Partner works out the Goal it prefers right now.
-Priority runs from top to bottom: the first rule that matches wins. Cut Off
-Enemies are left out of every rule.
+The CPU Partner decides which Goal it prefers by asking the questions below
+in order and taking the first "yes". Cut Off Enemies don't count for any of
+them. Its Goal is the state it is in, and this check is how it moves from one
+Goal to another.
 
 ```mermaid
-stateDiagram-v2
-    direction LR
-    state "No Goal" as NoGoal
-    state "Defend" as Defend
-    state "Grab Power-Up" as Grab
-    state "Hunt" as Hunt
-    state "Ambush" as Ambush
-    state prefer <<choice>>
+flowchart TD
+    Start(["Time to decide<br/>every 0.25 s, or at once when it has no Goal,<br/>its target is gone or it gave up on it"])
+    Q1{"Is there a Base Threat?"}
+    Q2{"Is a Power-Up within range?"}
+    Q3{"Can it reach a Firing Position<br/>on any Enemy?"}
+    Q4{"Can it reach an<br/>Enemy Spawn Point?"}
+    Defend["<b>Defend</b><br/>the Base Threat nearest the Base"]
+    Grab["<b>Grab Power-Up</b><br/>the one cheapest to reach"]
+    Hunt["<b>Hunt</b><br/>its current target while it lives,<br/>else the Enemy cheapest to reach"]
+    Ambush["<b>Ambush</b><br/>its current Spawn Point,<br/>else the one cheapest to reach"]
+    None["<b>No Goal</b><br/>stands still"]
+    Switch(["Preferred Goal goes to diagram 2,<br/>which decides when it takes over"])
 
-    [*] --> NoGoal : reset (Stage start, respawn)
-    NoGoal --> prefer : decides at once
-    prefer --> Defend : 1. a Base Threat
-    prefer --> Grab : 2. a Power-Up within range
-    prefer --> Hunt : 3. an Enemy with a reachable Firing Position
-    prefer --> Ambush : 4. a reachable Enemy Spawn Point
-    prefer --> NoGoal : nothing matches
-
-    Defend --> prefer : decision tick
-    Grab --> prefer : decision tick
-    Hunt --> prefer : decision tick
-    Ambush --> prefer : decision tick
-
-    Defend --> NoGoal : target unreachable, now Cut Off
-    Hunt --> NoGoal : target unreachable, now Cut Off
-    Grab --> NoGoal : Power-Up unreachable
-    Ambush --> NoGoal : Spawn Point unreachable
+    Start --> Q1
+    Q1 -- yes --> Defend
+    Q1 -- no --> Q2
+    Q2 -- yes --> Grab
+    Q2 -- no --> Q3
+    Q3 -- yes --> Hunt
+    Q3 -- no --> Q4
+    Q4 -- yes --> Ambush
+    Q4 -- no --> None
+    Defend & Grab & Hunt & Ambush & None --> Switch
 ```
+
+It leaves a Goal in one of three ways:
+
+- **A better Goal comes up** at a decision: diagram 2.
+- **Its target is gone** (destroyed or collected): it decides again at once.
+- **Its target can't be reached**: it gives up on the Goal and decides again
+  next frame. An Enemy it gave up on is Cut Off until the Enemy moves.
+
+More on each Goal:
 
 - **Defend** targets the Base Threat nearest the Base.
 - **Grab Power-Up** targets the Power-Up cheapest to reach, and only if the
@@ -83,11 +90,7 @@ stateDiagram-v2
   cheapest to reach, then waits at a Firing Position at least
   `CPU_PARTNER_AMBUSH_DISTANCE` sub-tiles away from it, facing it. It never
   waits on a Spawn Point, since that would stop Enemies from spawning there.
-- Decisions happen every `CPU_PARTNER_DECISION_INTERVAL` (0.25 s). They also
-  happen at once when it has no Goal or its Goal's target is gone (destroyed,
-  collected).
-- A preferred Goal doesn't take over straight away. Diagram 2 shows the
-  stickiness and the Reaction Delay between "prefers" and "acts on".
+- The decision interval is `CPU_PARTNER_DECISION_INTERVAL` (0.25 s).
 
 ## 2. Switching Goals: stickiness and Reaction Delay
 
