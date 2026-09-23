@@ -41,6 +41,10 @@ A computer-controlled tank that attacks Players and the Base.
 **Enemy Spawn Point**:
 One of the fixed spots on a map where Enemies appear. A tank standing on it stops Enemies from spawning there.
 
+**Carrier**:
+An Enemy that flashes red and makes a Power-Up appear when it is destroyed.
+_Avoid_: Flashing tank, bonus tank
+
 **Enemy AI**:
 The behaviour that drives an Enemy's movement and shooting. Never used for the CPU Partner.
 
@@ -71,6 +75,10 @@ The number of a tank's bullets that can be in flight at once: 1, or 2 for a Play
 
 **Power-Up**:
 A pickup that appears on the battlefield and gives the Player who collects it an effect (star, helmet, grenade, clock, shovel, extra life).
+
+**Grenade**:
+The Power-Up that destroys every Enemy on the battlefield at once.
+_Avoid_: Bomb
 
 **Game Over**:
 The end of a game: the Base is destroyed, or every Human Player is out of lives. A CPU Partner that still has lives does not keep the game going.
