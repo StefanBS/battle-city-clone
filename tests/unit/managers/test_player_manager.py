@@ -20,7 +20,13 @@ from src.managers.sound_manager import SoundManager
 from src.managers.tank_stepper import TankStepper
 from src.managers.world_view import EnemyView, PlayerView, WorldView
 from src.states.game_mode import GameMode
-from src.utils.constants import CPU_PARTNER_REACTION_DELAY, FPS, TILE_SIZE, Direction
+from src.utils.constants import (
+    CPU_PARTNER_REACTION_DELAY,
+    FPS,
+    INITIAL_PLAYER_LIVES,
+    TILE_SIZE,
+    Direction,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -272,6 +278,10 @@ class TestPlayerManagerScore:
         player_manager.add_score(300)
         assert player_manager.score == 500
 
+    def test_add_score_for_a_missing_slot_raises(self, player_manager):
+        with pytest.raises(KeyError):
+            player_manager.add_score(100, player_id=2)
+
     def test_score_is_kept_in_the_players_slot(self, player_manager, mock_game_map):
         player_manager.create_players(mock_game_map, controller_instance_ids=[])
         player_manager.add_score(300)
@@ -458,7 +468,7 @@ class TestPlayerManagerReset:
         player_manager.create_players(mock_game_map, controller_instance_ids=[])
         player_manager.restore_state()
         assert player_manager.score == 0
-        assert player_manager.players[0].lives != 5
+        assert player_manager.players[0].lives == INITIAL_PLAYER_LIVES
 
 
 # ---------------------------------------------------------------------------

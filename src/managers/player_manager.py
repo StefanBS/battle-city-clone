@@ -58,13 +58,13 @@ class CarriedProgress:
 
 
 class PlayerManager:
-    """Owns the player tank(s), their input bindings, and score.
+    """Owns the player slots: each Player's tank, input, kind, and score.
 
     Responsibilities:
-    - Create player tanks at map spawn points.
-    - Forward pygame events to PlayerInput instances.
+    - Create one slot per Player, with its tank at the map's spawn point.
+    - Forward pygame events to every slot's input.
     - Each update: step every live player through TankStepper with its input.
-    - Track player score.
+    - Track each Player's score and carry lives and Stars between stages.
     """
 
     def __init__(
@@ -216,10 +216,15 @@ class PlayerManager:
 
         Args:
             points: Number of points to add.
-            player_id: The player whose score to update (defaults to 1 for
-                backward compatibility with 1-player mode).
+            player_id: The player whose score to update (defaults to P1).
+
+        Raises:
+            KeyError: If no slot has that player id.
         """
-        self._slot(player_id).score += points
+        slot = self._find_slot(player_id)
+        if slot is None:
+            raise KeyError(f"No player slot with id {player_id}")
+        slot.score += points
 
     @property
     def scores(self) -> dict[int, int]:
@@ -235,12 +240,11 @@ class PlayerManager:
         Returns:
             The player's current score, or 0 if not found.
         """
-        return next(
-            (slot.score for slot in self._slots if slot.player_id == player_id), 0
-        )
+        slot = self._find_slot(player_id)
+        return slot.score if slot is not None else 0
 
-    def _slot(self, player_id: int) -> PlayerSlot:
-        return next(slot for slot in self._slots if slot.player_id == player_id)
+    def _find_slot(self, player_id: int) -> PlayerSlot | None:
+        return next((s for s in self._slots if s.player_id == player_id), None)
 
     def preserve_state(self) -> None:
         """Save each Player's lives and Stars before a stage transition."""
