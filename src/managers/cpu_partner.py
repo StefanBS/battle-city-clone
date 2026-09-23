@@ -9,6 +9,7 @@ import pygame
 
 from src.managers.dodge import (
     Awareness,
+    IncomingShot,
     can_shoot_down,
     incoming_shots,
     shields_base,
@@ -277,10 +278,10 @@ class CpuPartnerInput:
         if not shots:
             return False
         shot = shots[0]
-        facing_it = shot.bullet.direction.opposite
-        shoot_down = can_shoot_down(world, own, shot)
-        if own.direction == facing_it and shoot_down:
-            self._shoot_requested = True
+        toward_shot = shot.bullet.direction.opposite
+        able_to_shoot_down = can_shoot_down(world, own, shot)
+        if own.direction == toward_shot and able_to_shoot_down:
+            self._fire_back_at(shot)
             return True
         guarding_base = shields_base(world, shot)
         way = (
@@ -290,10 +291,15 @@ class CpuPartnerInput:
         )
         if way is not None:
             self._movement = way.delta
-        elif shoot_down:
-            self._movement = facing_it.delta
-            self._shoot_requested = True
-        return way is not None or shoot_down or guarding_base
+        elif able_to_shoot_down:
+            self._movement = toward_shot.delta
+            self._fire_back_at(shot)
+        return way is not None or able_to_shoot_down or guarding_base
+
+    def _fire_back_at(self, shot: IncomingShot) -> None:
+        """Fire at ``shot`` and leave it to that bullet from now on."""
+        self._shoot_requested = True
+        self._awareness.fired_back_at(shot)
 
     def _act(self, world: WorldView) -> None:
         """Set this frame's movement and shoot request for its Goal.

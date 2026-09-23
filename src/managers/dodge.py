@@ -23,7 +23,14 @@ class IncomingShot:
 
     @property
     def horizontal(self) -> bool:
+        """Whether the bullet flies along a row (else down a column)."""
         return self.bullet.direction in (Direction.LEFT, Direction.RIGHT)
+
+    @property
+    def lane(self) -> tuple[float, float]:
+        """The span the bullet sweeps across its direction of travel (px)."""
+        start = self.bullet.y if self.horizontal else self.bullet.x
+        return start, start + self.bullet.size
 
 
 def incoming_shots(
@@ -82,10 +89,9 @@ def can_shoot_down(world: WorldView, own: PlayerView, shot: IncomingShot) -> boo
     """
     if not own.can_fire:
         return False
-    bullet = shot.bullet
-    lane = world.line_of_fire(own, bullet.direction.opposite).lane
-    lane_start = bullet.y if shot.horizontal else bullet.x
-    return lane_start < lane[1] and lane[0] < lane_start + bullet.size
+    own_lane = world.line_of_fire(own, shot.bullet.direction.opposite).lane
+    shot_lane = shot.lane
+    return shot_lane[0] < own_lane[1] and own_lane[0] < shot_lane[1]
 
 
 def sidestep(
@@ -94,13 +100,15 @@ def sidestep(
     """The way to step out of ``shot``'s lane in time, the sooner way first.
 
     A way is ruled out when a tile or another tank is in it, or when it
-    leads into the lane of a shot that isn't coming at ``own`` already.
-    ``None`` when no way is left.
+    brings any other shot sooner: one not coming at ``own`` yet, or one
+    already coming at it along the way it would step. ``None`` when no way is
+    left.
     """
-    bullet = shot.bullet
-    already = {other.bullet for other in incoming_shots(world, own, horizon)}
+    due_now = {
+        other.bullet: other.time_to_hit for other in incoming_shots(world, own, horizon)
+    }
     across = own.y if shot.horizontal else own.x
-    lane_start = bullet.y if shot.horizontal else bullet.x
+    lane = shot.lane
     before, after = (
         (Direction.UP, Direction.DOWN)
         if shot.horizontal
@@ -108,8 +116,8 @@ def sidestep(
     )
     ways = sorted(
         [
-            (across + own.size - lane_start, before),
-            (lane_start + bullet.size - across, after),
+            (across + own.size - lane[0], before),
+            (lane[1] - across, after),
         ],
         key=lambda way: way[0],
     )
@@ -126,7 +134,7 @@ def sidestep(
             ),
         )
         if any(
-            other.bullet not in already
+            other.time_to_hit < due_now.get(other.bullet, math.inf)
             for other in incoming_shots(stepped, after_step, horizon)
         ):
             continue
@@ -169,7 +177,8 @@ class Awareness:
 
     It notices a shot only once the shot has been coming at it for
     ``reaction_frames``, and never notices one it misses: a chance rolled
-    once per bullet, the first time the bullet comes at it.
+    once per bullet, the first time the bullet comes at it. A shot it has
+    fired back at is left to its own bullet, and no longer noticed.
     """
 
     def __init__(self, reaction_frames: int, miss_chance: float) -> None:
@@ -178,6 +187,7 @@ class Awareness:
         # Frames each bullet has come at it, kept while the bullet flies.
         self._seen: dict[int, int] = {}
         self._missed: set[int] = set()
+        self._fired_back_at: set[int] = set()
 
     def noticed(
         self, world: WorldView, shots: list[IncomingShot]
@@ -186,6 +196,7 @@ class Awareness:
         flying = {b.bullet_id for b in world.bullets}
         self._seen = {i: n for i, n in self._seen.items() if i in flying}
         self._missed &= flying
+        self._fired_back_at &= flying
         result = []
         for shot in shots:
             bullet_id = shot.bullet.bullet_id
@@ -193,8 +204,12 @@ class Awareness:
                 self._missed.add(bullet_id)
             self._seen[bullet_id] = self._seen.get(bullet_id, 0) + 1
             if (
-                bullet_id not in self._missed
+                bullet_id not in self._missed | self._fired_back_at
                 and self._seen[bullet_id] > self._reaction_frames
             ):
                 result.append(shot)
         return result
+
+    def fired_back_at(self, shot: IncomingShot) -> None:
+        """Leave ``shot`` to the bullet just fired back at it."""
+        self._fired_back_at.add(shot.bullet.bullet_id)

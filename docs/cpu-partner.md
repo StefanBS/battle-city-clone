@@ -205,8 +205,11 @@ A Dodge is a reflex, not a Goal
 at least 0.75 s (stickiness, then the Reaction Delay), and stepping out of a
 bullet's way takes about 0.2 s. So each frame, before its Goal, the CPU
 Partner checks for an Incoming Shot, and while it Dodges it skips its Goal
-entirely: the Goal, its target, `GoalTiming` and the refused-shot count are
-all left as they were, and it carries on with them the frame the Dodge ends.
+entirely. The Goal and its target are left as they were, and every clock
+behind them pauses: `GoalTiming`, the refused-shot count, Hesitation, and
+the forgetting of Cut Off Enemies and given-up sides. It carries on with
+them the frame the Dodge ends, so a long run of Dodges delays a Goal switch
+by as long as it lasts.
 
 ```mermaid
 flowchart TD
@@ -249,7 +252,9 @@ flowchart TD
   `CPU_PARTNER_DODGE_REACTION_TIME` (0.1 s) before it reacts. The first
   time a bullet comes at it, there is a `CPU_PARTNER_DODGE_MISS_CHANCE`
   (20%) chance it never notices that bullet at all. Once noticed, a bullet
-  stays noticed for as long as it flies.
+  stays noticed for as long as it flies, unless it fires back at it: that
+  shot is then left to its own bullet, and it doesn't sidestep it while
+  its bullet is on the way.
 - **Shoot it down** (`can_shoot_down`): its bullet leaves from its middle,
   so it only meets a shot in line with that; one that would clip the tank's
   edge flies past. It needs a shot left under its Bullet Cap. There is no
@@ -258,8 +263,9 @@ flowchart TD
 - **Sidestep** (`sidestep`): at right angles to the shot, the way that gets
   the whole tank out of the lane sooner, if it can get there before the
   shot hits. A way is ruled out when a tile or another tank is in it, or
-  when it leads into the lane of another shot that isn't coming at it
-  already. It never backs away along the lane: that only buys time.
+  when it would bring any other shot sooner: one not coming at it yet, or
+  one already coming at it along that way. It never backs away along the
+  lane: that only buys time.
 - **Guarding the Base** (`shields_base`): when the shot would fly on to hit
   the Base itself if the CPU Partner weren't there, it doesn't step aside.
   It fires back if it can, else takes the hit: a life is worth less than

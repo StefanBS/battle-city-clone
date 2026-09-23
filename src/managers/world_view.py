@@ -10,6 +10,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Protocol
 
 from src.core.tile import BrickVariant, TileType
+from src.managers.tank_stepper import is_at_bullet_cap
 from src.utils.constants import (
     BASE_THREAT_RADIUS,
     BULLET_SIZE,
@@ -441,7 +442,7 @@ def build_world_view(
                 direction=p.direction,
                 frozen=p.is_frozen,
                 shielded=p.is_invincible,
-                can_fire=sum(b.owner is p for b in bullets) < p.max_bullets,
+                can_fire=not is_at_bullet_cap(p, bullets),
                 size=p.width,
                 speed=p.speed,
                 bullet_speed=p.bullet_speed,

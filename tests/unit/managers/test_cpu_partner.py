@@ -1302,7 +1302,17 @@ MIDDLE = cell(12) + 14
 
 
 def with_bullets(view: WorldView, *bullets: BulletView) -> WorldView:
+    """``view`` with exactly ``bullets`` in flight."""
     return replace(view, bullets=bullets)
+
+
+def with_own(view: WorldView, **fields) -> WorldView:
+    """``view`` with the CPU Partner's tank changed by ``fields``."""
+    human, own = view.players
+    return replace(view, players=(human, replace(own, **fields)))
+
+
+SHOT_FROM_THE_LEFT = enemy_bullet(cell(6), MIDDLE, Direction.RIGHT)
 
 
 class TestCpuPartnerDodgeSidestep:
@@ -1423,11 +1433,20 @@ class TestCpuPartnerDodgeShootDown:
         assert cpu.consume_shoot() is True
         assert cpu.get_movement_direction() == (0, 0)
 
-    def test_sidesteps_when_at_its_bullet_cap(self, cpu) -> None:
+    def test_leaves_a_shot_it_shot_down_to_its_own_bullet(self, cpu) -> None:
         view = make_view(own=(12, 12, Direction.LEFT))
-        at_cap = replace(view.players[1], can_fire=False)
+        cpu.observe(with_bullets(view, SHOT_FROM_THE_LEFT))
+        assert cpu.consume_shoot() is True
+        # Its bullet is in flight now: at its Bullet Cap, it still doesn't
+        # sidestep a shot its bullet is about to meet.
+        at_cap = with_own(view, can_fire=False)
+        cpu.observe(with_bullets(at_cap, replace(SHOT_FROM_THE_LEFT, x=cell(6) + 3)))
+        assert cpu.get_movement_direction() == (0, 0)
+        assert cpu.consume_shoot() is False
+
+    def test_sidesteps_when_at_its_bullet_cap(self, cpu) -> None:
         view = with_bullets(
-            replace(view, players=(view.players[0], at_cap)),
+            with_own(make_view(own=(12, 12, Direction.LEFT)), can_fire=False),
             enemy_bullet(cell(6), MIDDLE, Direction.RIGHT),
         )
         cpu.observe(view)
@@ -1462,6 +1481,17 @@ class TestCpuPartnerDodgeShootDown:
         cpu.observe(view)
         assert cpu.consume_shoot() is True
         assert cpu.get_movement_direction() == (0, 0)
+
+    def test_does_not_step_toward_a_shot_already_coming_at_it(self, cpu) -> None:
+        view = with_bullets(
+            make_view(own=(12, 12, Direction.LEFT)),
+            enemy_bullet(cell(6), cell(12) + 2, Direction.RIGHT, bullet_id=0),
+            # Coming up its column, due after the first: stepping down would
+            # bring it sooner.
+            enemy_bullet(MIDDLE, cell(22), Direction.UP, bullet_id=1),
+        )
+        cpu.observe(view)
+        assert cpu.get_movement_direction() == Direction.UP.delta
 
     def test_dodges_the_shot_that_arrives_first(self, cpu) -> None:
         view = with_bullets(
@@ -1516,9 +1546,8 @@ def guarding_base_view(wall: TileType | None, can_fire: bool = True) -> WorldVie
         base_cells=BASE,
         base_wall_cells=BASE_WALL,
     )
-    own = replace(view.players[1], can_fire=can_fire)
     return with_bullets(
-        replace(view, players=(view.players[0], own)),
+        with_own(view, can_fire=can_fire),
         enemy_bullet(cell(12) + 14, cell(2), Direction.DOWN),
     )
 
@@ -1543,19 +1572,11 @@ class TestCpuPartnerDodgeGuardingTheBase:
         assert cpu.consume_shoot() is False
 
 
-SHOT_FROM_THE_LEFT = enemy_bullet(cell(6), MIDDLE, Direction.RIGHT)
-
-
 class TestCpuPartnerDodgeWhen:
     @pytest.mark.parametrize("state", ["shielded", "frozen"])
     def test_does_not_dodge_while(self, cpu, state) -> None:
         view = make_view(own=(12, 12, Direction.UP))
-        own = replace(view.players[1], **{state: True})
-        cpu.observe(
-            with_bullets(
-                replace(view, players=(view.players[0], own)), SHOT_FROM_THE_LEFT
-            )
-        )
+        cpu.observe(with_bullets(with_own(view, **{state: True}), SHOT_FROM_THE_LEFT))
         assert cpu.get_movement_direction() == (0, 0)
         assert cpu.consume_shoot() is False
 
@@ -1576,7 +1597,8 @@ class TestCpuPartnerDodgeWhen:
         assert cpu.get_movement_direction() == Direction.RIGHT.delta
 
     def test_a_dodge_neither_counts_nor_breaks_its_refused_shot_time(self, cpu) -> None:
-        # Lined up on an Enemy it may not shoot: the Human stands in between.
+        # Lined up on an Enemy it may not shoot: the Human Player stands in
+        # between.
         refused = make_view(
             own=(12, 12, Direction.RIGHT), enemies=[(20, 12)], human=(16, 12)
         )
