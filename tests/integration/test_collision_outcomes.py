@@ -65,7 +65,7 @@ class TestPowerUps:
             game.battle.tank_stepper.bullets.append(bullet)
             game.update()
 
-        assert carrier in game.battle.spawn_manager.enemy_tanks
+        assert carrier in game.battle.enemy_manager.enemies
         assert not carrier.is_carrier
         assert len(game.battle.power_up_manager.active_power_ups) == 1
 
@@ -79,7 +79,7 @@ class TestPowerUps:
 
         game.update()
 
-        assert carrier not in game.battle.spawn_manager.enemy_tanks
+        assert carrier not in game.battle.enemy_manager.enemies
         assert len(game.battle.power_up_manager.active_power_ups) == 1
         # The Grenade kill scores nothing; only the pickup does.
         assert game.battle.player_manager.get_score(1) == POWERUP_COLLECT_POINTS
@@ -120,5 +120,6 @@ class TestBaseDestroyed:
         game.update()
 
         assert game.battle.map.is_base_destroyed
-        assert game.battle.spawn_manager.all_enemies_defeated()
+        assert game.battle.spawn_manager.is_exhausted
+        assert not game.battle.enemy_manager.enemies
         assert game.state == GameState.GAME_OVER_ANIMATION

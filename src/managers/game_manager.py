@@ -425,7 +425,7 @@ class GameManager:
         self.renderer.render(
             battle.map,
             battle.player_manager.players,
-            battle.spawn_manager.enemy_tanks,
+            battle.enemy_manager.enemies,
             battle.tank_stepper.bullets,
             battle.effect_manager,
             self.state,

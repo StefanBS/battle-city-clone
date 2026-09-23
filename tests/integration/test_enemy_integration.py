@@ -30,12 +30,12 @@ def test_enemy_spawning_rules(game_manager_fixture):
 
     for _ in range(60):
         game_manager.update()
-        if game_manager.battle.spawn_manager.enemy_tanks:
+        if game_manager.battle.enemy_manager.enemies:
             break
-    assert len(game_manager.battle.spawn_manager.enemy_tanks) == 1, (
+    assert len(game_manager.battle.enemy_manager.enemies) == 1, (
         "GameManager should have 1 enemy after spawn animation completes."
     )
-    initial_enemy = game_manager.battle.spawn_manager.enemy_tanks[0]
+    initial_enemy = game_manager.battle.enemy_manager.enemies[0]
     initial_enemy_pos = initial_enemy.get_position()
     assert initial_enemy_pos in spawn_points_pixels, (
         f"Initial enemy spawned at {initial_enemy_pos}, which is not in valid spawn "
@@ -69,7 +69,7 @@ def test_enemy_spawning_rules(game_manager_fixture):
         total_spawned_before = game_manager.battle.spawn_manager.total_enemy_spawns
 
         # Clear enemies so they don't block spawn points on the small test map.
-        game_manager.battle.spawn_manager.enemy_tanks = []
+        game_manager.battle.enemy_manager.enemies = []
 
         spawn_success = game_manager.battle.spawn_manager.spawn_enemy(
             game_manager.battle.player_manager.get_active_players(),
@@ -85,10 +85,10 @@ def test_enemy_spawning_rules(game_manager_fixture):
                 f"After: {total_spawned_after}"
             )
             flush_pending_spawns(game_manager)
-            assert game_manager.battle.spawn_manager.enemy_tanks, (
+            assert game_manager.battle.enemy_manager.enemies, (
                 "Enemy should have materialized after spawn animation"
             )
-            new_enemy = game_manager.battle.spawn_manager.enemy_tanks[-1]
+            new_enemy = game_manager.battle.enemy_manager.enemies[-1]
             new_enemy_pos = new_enemy.get_position()
             assert new_enemy_pos in spawn_points_pixels, (
                 f"Enemy spawned at {new_enemy_pos}, "
@@ -100,7 +100,7 @@ def test_enemy_spawning_rules(game_manager_fixture):
                 "total_enemy_spawns increased even though spawn failed."
             )
 
-    assert len(game_manager.battle.spawn_manager.enemy_tanks) <= max_spawns, (
+    assert len(game_manager.battle.enemy_manager.enemies) <= max_spawns, (
         "Exceeded max on-screen enemies"
     )
     assert game_manager.battle.spawn_manager.total_enemy_spawns == max_spawns, (
@@ -113,9 +113,9 @@ def test_enemy_spawning_rules(game_manager_fixture):
     )
 
     assert not spawn_success, "Spawn succeeded unexpectedly beyond max limit."
-    assert len(game_manager.battle.spawn_manager.enemy_tanks) <= max_spawns, (
+    assert len(game_manager.battle.enemy_manager.enemies) <= max_spawns, (
         f"Enemy count changed when spawning beyond limit. Expected <= {max_spawns}, "
-        f"got {len(game_manager.battle.spawn_manager.enemy_tanks)}"
+        f"got {len(game_manager.battle.enemy_manager.enemies)}"
     )
     total_spawns = game_manager.battle.spawn_manager.total_enemy_spawns
     assert total_spawns == max_spawns, (
@@ -152,18 +152,18 @@ def test_enemy_spawn_blocked(game_manager_fixture):
         if game_manager.battle.spawn_manager.total_enemy_spawns >= max_spawns:
             break
 
-        spawned_count_before = len(game_manager.battle.spawn_manager.enemy_tanks)
+        spawned_count_before = len(game_manager.battle.enemy_manager.enemies)
         spawn_success = game_manager.battle.spawn_manager.spawn_enemy(
             game_manager.battle.player_manager.get_active_players(),
             game_manager.battle.map,
         )
-        spawned_count_after = len(game_manager.battle.spawn_manager.enemy_tanks)
+        spawned_count_after = len(game_manager.battle.enemy_manager.enemies)
 
         if spawn_success:
             flush_pending_spawns(game_manager)
-            spawned_count_after = len(game_manager.battle.spawn_manager.enemy_tanks)
+            spawned_count_after = len(game_manager.battle.enemy_manager.enemies)
             assert spawned_count_after == spawned_count_before + 1
-            new_enemy = game_manager.battle.spawn_manager.enemy_tanks[-1]
+            new_enemy = game_manager.battle.enemy_manager.enemies[-1]
             new_enemy_pos = new_enemy.get_position()
             assert new_enemy_pos != blocked_spawn_point_pixels, (
                 f"Enemy spawned at the blocked point {blocked_spawn_point_pixels}."
@@ -171,13 +171,13 @@ def test_enemy_spawn_blocked(game_manager_fixture):
         else:
             assert spawned_count_after == spawned_count_before
 
-    for i, enemy in enumerate(game_manager.battle.spawn_manager.enemy_tanks):
+    for i, enemy in enumerate(game_manager.battle.enemy_manager.enemies):
         assert enemy.get_position() != blocked_spawn_point_pixels, (
             f"Enemy {i} is located at the blocked spawn point "
             f"{blocked_spawn_point_pixels}."
         )
 
-    enemy_count = len(game_manager.battle.spawn_manager.enemy_tanks)
+    enemy_count = len(game_manager.battle.enemy_manager.enemies)
     assert enemy_count <= max_spawns, (
         f"Enemy count ({enemy_count}) exceeded max spawns ({max_spawns})."
     )

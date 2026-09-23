@@ -38,6 +38,10 @@ A game with two Players, where P2 is either a second Human Player or a CPU Partn
 **Enemy**:
 A computer-controlled tank that attacks Players and the Base.
 
+**Roster**:
+The Enemies a Stage sends against the Players, by type and count. They enter the battlefield one at a time, in random order, until none are left.
+_Avoid_: Wave, spawn queue
+
 **Enemy Spawn Point**:
 One of the fixed spots on a map where Enemies appear. A tank standing on it stops Enemies from spawning there.
 
@@ -87,7 +91,7 @@ _Avoid_: Bomb
 ### Game flow
 
 **Stage**:
-One numbered level of the game: its map, its Enemy roster and its difficulty. Stages are played in order.
+One numbered level of the game: its map, its Roster and its difficulty. Stages are played in order.
 _Avoid_: Level
 
 **Battle**:
@@ -95,7 +99,7 @@ One playing of a Stage, from the moment its Players appear until it ends in Game
 _Avoid_: Round, match
 
 **Victory**:
-The end of a Battle in which every Enemy in the Stage's roster has been destroyed. If Game Over happens at the same moment, Game Over wins.
+The end of a Battle in which every Enemy in the Stage's Roster has been destroyed. If Game Over happens at the same moment, Game Over wins.
 
 **Game Over**:
 The end of a Battle, and of the game: the Base is destroyed, or every Human Player is out of lives. A CPU Partner that still has lives does not keep the game going.

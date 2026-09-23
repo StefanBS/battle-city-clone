@@ -24,9 +24,9 @@ class TestPowerUpEffectsIntegration:
         """Spawn a carrier, destroy it, spawn a specific power-up, collect it."""
         carrier = spawn_carrier(game)
         carrier.health = 0
-        game.battle.spawn_manager.remove_enemy(carrier)
+        game.battle.enemy_manager.remove(carrier)
         game.battle.power_up_manager.spawn_power_up(
-            [first_player(game), *game.battle.spawn_manager.enemy_tanks],
+            [first_player(game), *game.battle.enemy_manager.enemies],
             power_up_type=power_up_type,
         )
         assert len(game.battle.power_up_manager.active_power_ups) == 1
@@ -51,11 +51,11 @@ class TestPowerUpEffectsIntegration:
 
     def test_bomb_effect(self, game):
         flush_pending_spawns(game)
-        enemies_before = len(game.battle.spawn_manager.enemy_tanks)
+        enemies_before = len(game.battle.enemy_manager.enemies)
         assert enemies_before > 0
         self._collect_power_up(game, PowerUpType.BOMB)
         game.update()
-        assert len(game.battle.spawn_manager.enemy_tanks) == 0
+        assert len(game.battle.enemy_manager.enemies) == 0
 
 
 class TestRemainingPowerUpEffects:
@@ -67,7 +67,7 @@ class TestRemainingPowerUpEffects:
         game.battle.apply_outcomes(
             [PowerUpCollected(PowerUpType.CLOCK, first_player(game))]
         )
-        assert game.battle.spawn_manager.enemies_frozen is True
+        assert game.battle.enemy_manager.enemies_frozen is True
 
     def test_shovel_effect(self, game):
         game.battle.apply_outcomes(

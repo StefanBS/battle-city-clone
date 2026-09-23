@@ -191,10 +191,10 @@ class TestCpuPartnerHunt:
 
         for _ in range(10 * FPS):
             tick(gm)
-            if enemy not in gm.battle.spawn_manager.enemy_tanks:
+            if enemy not in gm.battle.enemy_manager.enemies:
                 break
 
-        assert enemy not in gm.battle.spawn_manager.enemy_tanks
+        assert enemy not in gm.battle.enemy_manager.enemies
         assert gm.battle.player_manager.get_score(2) > 0
         assert gm.battle.player_manager.get_score(1) == 0
 
@@ -213,7 +213,7 @@ class TestCpuPartnerHunt:
 
         tick(gm, 3 * FPS)
 
-        assert enemy not in gm.battle.spawn_manager.enemy_tanks
+        assert enemy not in gm.battle.enemy_manager.enemies
 
 
 def set_tiles(game_map, positions, tile_type) -> None:
@@ -244,10 +244,10 @@ class TestCpuPartnerPathfinding:
 
         for _ in range(15 * FPS):
             tick(gm)
-            if enemy not in gm.battle.spawn_manager.enemy_tanks:
+            if enemy not in gm.battle.enemy_manager.enemies:
                 break
 
-        assert enemy not in gm.battle.spawn_manager.enemy_tanks
+        assert enemy not in gm.battle.enemy_manager.enemies
         assert gm.battle.player_manager.get_score(2) > 0
 
 
@@ -278,10 +278,10 @@ class TestCpuPartnerGivesWay:
 
         for _ in range(15 * FPS):
             tick(gm)
-            if enemy not in gm.battle.spawn_manager.enemy_tanks:
+            if enemy not in gm.battle.enemy_manager.enemies:
                 break
 
-        assert enemy not in gm.battle.spawn_manager.enemy_tanks
+        assert enemy not in gm.battle.enemy_manager.enemies
         assert gm.battle.player_manager.get_score(2) > 0
         assert (p1.x, p1.y) == (4 * SUB_TILE_SIZE, 12 * SUB_TILE_SIZE)
 
@@ -309,10 +309,10 @@ class TestCpuPartnerFiringPosition:
 
         for _ in range(10 * FPS):
             tick(gm)
-            if enemy not in gm.battle.spawn_manager.enemy_tanks:
+            if enemy not in gm.battle.enemy_manager.enemies:
                 break
 
-        assert enemy not in gm.battle.spawn_manager.enemy_tanks
+        assert enemy not in gm.battle.enemy_manager.enemies
         assert gm.battle.player_manager.get_score(2) > 0
 
 
@@ -334,11 +334,11 @@ class TestCpuPartnerDefend:
 
         for _ in range(10 * FPS):
             tick(gm)
-            if threat not in gm.battle.spawn_manager.enemy_tanks:
+            if threat not in gm.battle.enemy_manager.enemies:
                 break
 
-        assert threat not in gm.battle.spawn_manager.enemy_tanks
-        assert far in gm.battle.spawn_manager.enemy_tanks
+        assert threat not in gm.battle.enemy_manager.enemies
+        assert far in gm.battle.enemy_manager.enemies
         assert gm.battle.player_manager.get_score(2) > 0
 
 
@@ -368,7 +368,7 @@ class TestCpuPartnerGrabPowerUp:
         assert not gm.battle.power_up_manager.active_power_ups
         assert p2.star_level == 1
         assert p1.star_level == 0
-        assert enemy in gm.battle.spawn_manager.enemy_tanks
+        assert enemy in gm.battle.enemy_manager.enemies
 
 
 def fire_enemy_bullet_at(gm, player) -> None:
@@ -500,5 +500,10 @@ class TestCpuPartnerAmbush:
                 *gm.battle.map.grid_to_pixels(sx, sy), TILE_SIZE, TILE_SIZE
             )
             assert not gm.battle.spawn_manager._is_spawn_blocked(
-                rect, gm.battle.player_manager.get_active_players(), gm.battle.map
+                rect,
+                [
+                    *gm.battle.player_manager.get_active_players(),
+                    *gm.battle.enemy_manager.enemies,
+                ],
+                gm.battle.map,
             )

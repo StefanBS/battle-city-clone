@@ -2,6 +2,7 @@ import pytest
 import pygame
 from unittest.mock import MagicMock
 from src.core.map import Map
+from src.managers.enemy_manager import EnemyManager
 from src.managers.outcomes import EnemyDestroyed
 from src.managers.power_up_manager import PowerUpManager
 from src.core.tile import BrickVariant, TileType
@@ -177,10 +178,10 @@ class TestPowerUpManagerApply:
         return p
 
     @pytest.fixture
-    def spawn_manager(self):
-        sm = MagicMock()
-        sm.enemy_tanks = []
-        return sm
+    def enemy_manager(self):
+        em = MagicMock(spec=EnemyManager)
+        em.enemies = []
+        return em
 
     @pytest.fixture
     def manager(self, mock_texture_manager):
@@ -194,40 +195,40 @@ class TestPowerUpManagerApply:
         m.apply_shovel = MagicMock()
         return m
 
-    def test_helmet_grants_invincibility(self, manager, player, spawn_manager):
-        manager.apply(PowerUpType.HELMET, player, spawn_manager)
+    def test_helmet_grants_invincibility(self, manager, player, enemy_manager):
+        manager.apply(PowerUpType.HELMET, player, enemy_manager)
         player.activate_invincibility.assert_called_once_with(
             HELMET_INVINCIBILITY_DURATION
         )
 
-    def test_extra_life_increments_lives(self, manager, player, spawn_manager):
-        manager.apply(PowerUpType.EXTRA_LIFE, player, spawn_manager)
+    def test_extra_life_increments_lives(self, manager, player, enemy_manager):
+        manager.apply(PowerUpType.EXTRA_LIFE, player, enemy_manager)
         assert player.lives == 4
 
-    def test_bomb_destroys_every_enemy(self, manager, player, spawn_manager):
+    def test_bomb_destroys_every_enemy(self, manager, player, enemy_manager):
         enemies = [MagicMock(), MagicMock(), MagicMock()]
-        spawn_manager.enemy_tanks = list(enemies)
-        outcomes = manager.apply(PowerUpType.BOMB, player, spawn_manager)
+        enemy_manager.enemies = list(enemies)
+        outcomes = manager.apply(PowerUpType.BOMB, player, enemy_manager)
         assert outcomes == [EnemyDestroyed(e, by=None) for e in enemies]
-        spawn_manager.remove_enemy.assert_not_called()
+        enemy_manager.remove.assert_not_called()
 
-    def test_clock_freezes_enemies(self, manager, player, spawn_manager):
-        manager.apply(PowerUpType.CLOCK, player, spawn_manager)
-        spawn_manager.freeze.assert_called_once_with(CLOCK_FREEZE_DURATION)
+    def test_clock_freezes_enemies(self, manager, player, enemy_manager):
+        manager.apply(PowerUpType.CLOCK, player, enemy_manager)
+        enemy_manager.freeze.assert_called_once_with(CLOCK_FREEZE_DURATION)
 
-    def test_shovel_delegates_to_apply_shovel(self, manager, player, spawn_manager):
-        manager.apply(PowerUpType.SHOVEL, player, spawn_manager)
+    def test_shovel_delegates_to_apply_shovel(self, manager, player, enemy_manager):
+        manager.apply(PowerUpType.SHOVEL, player, enemy_manager)
         manager.apply_shovel.assert_called_once_with()
 
-    def test_star_applies_to_player(self, manager, player, spawn_manager):
-        manager.apply(PowerUpType.STAR, player, spawn_manager)
+    def test_star_applies_to_player(self, manager, player, enemy_manager):
+        manager.apply(PowerUpType.STAR, player, enemy_manager)
         player.apply_star.assert_called_once_with()
 
     def test_helmet_overrides_respawn_invincibility(
-        self, manager, player, spawn_manager
+        self, manager, player, enemy_manager
     ):
         player.is_invincible = True
-        manager.apply(PowerUpType.HELMET, player, spawn_manager)
+        manager.apply(PowerUpType.HELMET, player, enemy_manager)
         player.activate_invincibility.assert_called_once_with(
             HELMET_INVINCIBILITY_DURATION
         )

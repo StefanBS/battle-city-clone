@@ -14,7 +14,7 @@ class TestStageTransition:
         assert game.state == GameState.RUNNING
         assert game.current_stage == 1
 
-        game.battle.spawn_manager.enemy_tanks = []
+        game.battle.enemy_manager.enemies = []
         game.battle.spawn_manager._pending_spawns = []
         game.battle.spawn_manager.total_enemy_spawns = (
             game.battle.spawn_manager.max_enemy_spawns
