@@ -315,37 +315,40 @@ class TestIceSlide:
         assert tank._sliding is False
         assert tank._slide_remaining == 0.0
 
-    def test_start_slide_when_on_ice(self, tank):
-        tank._on_ice = True
+    @pytest.mark.parametrize(
+        "on_ice,was_moving,already_sliding,expect_started,expect_sliding,"
+        "expect_slide_direction,expect_slide_remaining",
+        [
+            (True, True, False, True, True, Direction.RIGHT, ICE_SLIDE_DISTANCE),
+            (False, True, False, False, False, Direction.UP, 0.0),
+            (True, False, False, False, False, Direction.UP, 0.0),
+            (True, True, True, False, True, Direction.LEFT, 10.0),
+        ],
+        ids=["on_ice", "not_on_ice", "not_moving", "already_sliding"],
+    )
+    def test_start_slide(
+        self,
+        tank,
+        on_ice,
+        was_moving,
+        already_sliding,
+        expect_started,
+        expect_sliding,
+        expect_slide_direction,
+        expect_slide_remaining,
+    ):
+        tank._on_ice = on_ice
+        tank._was_moving = was_moving
+        if already_sliding:
+            tank.direction = Direction.LEFT
+            tank.start_slide()
+            tank._slide_remaining = 10.0
         tank.direction = Direction.RIGHT
-        tank._was_moving = True
-        tank.start_slide()
-        assert tank._sliding is True
-        assert tank._slide_direction == Direction.RIGHT
-        assert tank._slide_remaining == ICE_SLIDE_DISTANCE
 
-    def test_start_slide_ignored_when_not_on_ice(self, tank):
-        tank._on_ice = False
-        tank._was_moving = True
-        tank.start_slide()
-        assert tank._sliding is False
-
-    def test_start_slide_ignored_when_not_moving(self, tank):
-        tank._on_ice = True
-        tank._was_moving = False
-        tank.start_slide()
-        assert tank._sliding is False
-
-    def test_start_slide_ignored_when_already_sliding(self, tank):
-        tank._on_ice = True
-        tank._was_moving = True
-        tank.direction = Direction.RIGHT
-        tank.start_slide()
-        tank._slide_remaining = 10.0
-        tank.direction = Direction.LEFT
-        tank.start_slide()
-        assert tank._slide_direction == Direction.RIGHT
-        assert tank._slide_remaining == 10.0
+        assert tank.start_slide() is expect_started
+        assert tank.is_sliding is expect_sliding
+        assert tank._slide_direction == expect_slide_direction
+        assert tank._slide_remaining == expect_slide_remaining
 
     def test_slide_moves_tank(self, tank):
         tank._on_ice = True
@@ -400,11 +403,6 @@ class TestIsMoving:
         tank = create_tank()
         assert tank.is_moving is False
 
-    def test_is_moving_true_after_move(self, create_tank):
-        tank = create_tank()
-        tank._move(1, 0, 1.0 / 60)
-        assert tank.is_moving is True
-
     def test_is_moving_true_when_sliding(self, create_tank):
         tank = create_tank()
         tank._on_ice = True
@@ -419,30 +417,3 @@ class TestIsMoving:
         assert tank.is_moving is True
         tank.update(1.0 / 60)
         assert tank.is_moving is False
-
-
-class TestStartSlideReturnValue:
-    def test_start_slide_returns_true_when_slide_begins(self, create_tank):
-        tank = create_tank()
-        tank._on_ice = True
-        tank._was_moving = True
-        assert tank.start_slide() is True
-        assert tank.is_sliding is True
-
-    def test_start_slide_returns_false_when_not_on_ice(self, create_tank):
-        tank = create_tank()
-        tank._was_moving = True
-        assert tank.start_slide() is False
-
-    def test_start_slide_returns_false_when_already_sliding(self, create_tank):
-        tank = create_tank()
-        tank._on_ice = True
-        tank._was_moving = True
-        tank.start_slide()
-        assert tank.start_slide() is False
-
-    def test_start_slide_returns_false_when_not_moving(self, create_tank):
-        tank = create_tank()
-        tank._on_ice = True
-        tank._was_moving = False
-        assert tank.start_slide() is False
