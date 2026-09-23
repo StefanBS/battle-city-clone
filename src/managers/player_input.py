@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Protocol
 
 import pygame
 
+from src.managers.tank_stepper import TankIntent
 from src.utils.constants import Direction
 
 if TYPE_CHECKING:
@@ -66,14 +67,12 @@ _CONTROLLER_EVENT_TYPES: tuple[int, ...] = (
 )
 
 
-class PlayerInput(Protocol):
+class PlayerInput(TankIntent, Protocol):
     def handle_event(self, event: pygame.event.Event) -> None: ...
     # Called once per frame, before movement is read.
     def observe(self, world: WorldView) -> None: ...
     # Called when the paired tank respawns.
     def reset(self) -> None: ...
-    def get_movement_direction(self) -> tuple[int, int]: ...
-    def consume_shoot(self) -> bool: ...
     def clear_pending_shoot(self) -> None: ...
 
 

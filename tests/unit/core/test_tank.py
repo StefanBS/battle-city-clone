@@ -378,6 +378,22 @@ class TestIceSlide:
         assert tank._sliding is False
         assert tank._slide_remaining == 0.0
 
+    def test_no_slide_after_being_blocked(self, tank):
+        tank.move(1, 0, 1.0 / 60)
+        tank.on_movement_blocked()
+        tank.update(1.0 / 60)
+        tank.on_ice = True
+
+        assert tank.start_slide() is False
+
+    def test_no_slide_after_hitting_map_edge(self, tank):
+        tank.set_position(tank.map_width_px - tank.width, tank.y)
+        tank.move(1, 0, 1.0 / 60)
+        tank.update(1.0 / 60)
+        tank.on_ice = True
+
+        assert tank.start_slide() is False
+
 
 class TestIsMoving:
     def test_is_moving_false_by_default(self, create_tank):

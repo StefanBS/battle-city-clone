@@ -12,7 +12,12 @@ from src.utils.constants import (
     ICE_SLIDE_DISTANCE,
     SUB_TILE_SIZE,
 )
-from tests.integration.conftest import first_player, place_player_at, tick
+from tests.integration.conftest import (
+    first_player,
+    place_player_at,
+    spawn_enemy_at,
+    tick,
+)
 
 _DIRECTION_TO_KEY = {direction: key for key, direction in KEY_TO_DIRECTION.items()}
 
@@ -28,11 +33,11 @@ def _place_ice_patch(game, grid_x, grid_y, width=4, height=4):
 
 def _set_input(game, direction):
     """Simulate holding exactly one direction key (or none)."""
-    player_input = game.player_manager._player_inputs[0]
+    player_manager = game.player_manager
     for key in _DIRECTION_TO_KEY.values():
-        player_input.handle_event(pygame.event.Event(pygame.KEYUP, key=key))
+        player_manager.handle_event(pygame.event.Event(pygame.KEYUP, key=key))
     if direction is not None:
-        player_input.handle_event(
+        player_manager.handle_event(
             pygame.event.Event(pygame.KEYDOWN, key=_DIRECTION_TO_KEY[direction])
         )
 
@@ -42,16 +47,27 @@ def _clear_input(game):
     _set_input(game, None)
 
 
+def _steel_wall_right_of(game, tank):
+    """Put a steel column one sub-tile to the right of ``tank``."""
+    wall_x = int(tank.x // SUB_TILE_SIZE) + 3
+    wall_y = int(tank.y // SUB_TILE_SIZE)
+    for dy in range(2):
+        game.map.set_tile_type(
+            game.map.get_tile_at(wall_x, wall_y + dy), TileType.STEEL
+        )
+
+
+@pytest.fixture
+def game(game_manager_fixture):
+    gm = game_manager_fixture
+    gm.spawn_manager.enemy_tanks.clear()
+    gm.spawn_manager._pending_spawns.clear()
+    gm.spawn_manager._spawn_queue.clear()
+    return gm
+
+
 class TestPlayerIceSlide:
     """Integration tests for player ice sliding."""
-
-    @pytest.fixture
-    def game(self, game_manager_fixture):
-        gm = game_manager_fixture
-        gm.spawn_manager.enemy_tanks.clear()
-        gm.spawn_manager._pending_spawns.clear()
-        gm.spawn_manager._spawn_queue.clear()
-        return gm
 
     @pytest.fixture
     def ice_game(self, game):
@@ -174,3 +190,77 @@ class TestPlayerIceSlide:
         pos_before = first_player(game).y
         tick(game)
         assert first_player(game).y < pos_before, "Tank should continue sliding UP"
+
+    def test_turn_after_hitting_a_wall_does_not_slide(self, ice_game):
+        """A tank that has just run into something turns without sliding."""
+        game = ice_game
+        player = first_player(game)
+        player.direction = Direction.RIGHT
+        _steel_wall_right_of(game, player)
+        _set_input(game, Direction.RIGHT)
+        tick(game, 30)
+
+        _set_input(game, Direction.UP)
+        y_before = player.y
+        tick(game)
+
+        assert player.is_sliding is False
+        assert player.direction == Direction.UP
+        assert player.y < y_before
+
+
+class TestEnemyIceSlide:
+    """Enemies follow the same Slide rule as Players."""
+
+    @pytest.fixture
+    def enemy_on_ice(self, game):
+        _place_ice_patch(game, 4, 4, width=8, height=8)
+        enemy = spawn_enemy_at(game, 6, 6, direction=Direction.RIGHT)
+        enemy.shoot_interval = 999
+        enemy.direction_change_interval = 999
+        return enemy
+
+    def test_turn_on_arrival_frame_slides(self, game, enemy_on_ice):
+        """The ice flag comes from where the Enemy stands, not last frame."""
+        enemy = enemy_on_ice
+        # It drove onto this ice: this is its first frame here.
+        enemy._moving_this_frame = True
+        # A turn falls due this frame, and only DOWN is open.
+        enemy.direction_timer = enemy.direction_change_interval
+        enemy._blocked_directions = {Direction.UP, Direction.RIGHT}
+
+        tick(game)
+
+        assert enemy.is_sliding is True
+        assert enemy._slide_direction == Direction.RIGHT
+
+    def test_turns_once_the_slide_ends(self, game, enemy_on_ice):
+        enemy = enemy_on_ice
+        enemy._moving_this_frame = True
+        enemy.direction_timer = enemy.direction_change_interval
+        enemy._blocked_directions = {Direction.UP, Direction.RIGHT}
+        x_before = enemy.x
+
+        for _ in range(120):
+            tick(game)
+            if not enemy.is_sliding:
+                break
+
+        assert abs(enemy.x - x_before - ICE_SLIDE_DISTANCE) < 2.0
+        tick(game)
+        assert enemy.direction == Direction.DOWN
+
+    def test_turn_after_hitting_a_wall_does_not_slide(self, game, enemy_on_ice):
+        """A tank that has just run into something turns without sliding."""
+        enemy = enemy_on_ice
+        _steel_wall_right_of(game, enemy)
+
+        slid = False
+        for _ in range(60):
+            tick(game)
+            slid = slid or enemy.is_sliding
+            if enemy.direction != Direction.RIGHT:
+                break
+
+        assert slid is False
+        assert enemy.direction in (Direction.UP, Direction.DOWN)

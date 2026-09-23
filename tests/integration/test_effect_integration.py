@@ -6,7 +6,7 @@ plays through frames over multiple updates, and is cleaned up.
 
 from src.core.tile import TileType
 from src.utils.constants import EffectType, FPS
-from tests.integration.conftest import first_player
+from tests.integration.conftest import fire_bullet_from, first_player
 
 
 class TestEffectLifecycle:
@@ -33,9 +33,7 @@ class TestEffectLifecycle:
         # Clear enemies so they don't interfere (e.g., shoot the player instead).
         gm.spawn_manager.enemy_tanks.clear()
 
-        bullet = player.shoot()
-        assert bullet is not None
-        gm.bullets.append(bullet)
+        fire_bullet_from(gm, player)
 
         effect_spawned = False
         for _ in range(30):

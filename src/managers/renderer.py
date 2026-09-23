@@ -79,8 +79,7 @@ class Renderer:
         game_map,
         player_tanks: list,
         enemy_tanks: list,
-        player_bullets: Sequence,
-        enemy_bullets: Sequence,
+        bullets: Sequence,
         effect_manager,
         state: GameState,
         scores: dict[int, int] | None = None,
@@ -95,8 +94,7 @@ class Renderer:
             player_tanks: All player tanks; only live ones (health > 0) are
                 drawn, but eliminated ones still appear in the HUD.
             enemy_tanks: List of enemy tanks.
-            player_bullets: Player-fired bullets.
-            enemy_bullets: Enemy-fired bullets.
+            bullets: Every bullet in flight.
             state: Current game state.
             scores: Per-player scores dict {player_id: score}.
             power_ups: Active power-ups to draw.
@@ -114,10 +112,7 @@ class Renderer:
             enemy.draw(self.map_surface)
         for power_up in power_ups:
             power_up.draw(self.map_surface)
-        for bullet in player_bullets:
-            if bullet.active:
-                bullet.draw(self.map_surface)
-        for bullet in enemy_bullets:
+        for bullet in bullets:
             if bullet.active:
                 bullet.draw(self.map_surface)
 

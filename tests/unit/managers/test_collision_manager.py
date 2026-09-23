@@ -67,9 +67,8 @@ class TestCollisionManager:
         obj_a.rect = obj_b.rect.copy()
         defaults = dict(
             player_tanks=[],
-            player_bullets=[],
+            bullets=[],
             enemy_tanks=[],
-            enemy_bullets=[],
             bullet_blocking_tiles=[],
             tank_blocking_tiles=[],
             player_base=None,
@@ -89,9 +88,8 @@ class TestCollisionManager:
         all_blocking = mock_objects["bricks"] + mock_objects["steel"]
         collision_manager.check_collisions(
             player_tanks=[mock_objects["player"]],
-            player_bullets=mock_objects["p_bullets"],
             enemy_tanks=mock_objects["enemies"],
-            enemy_bullets=mock_objects["e_bullets"],
+            bullets=mock_objects["p_bullets"] + mock_objects["e_bullets"],
             bullet_blocking_tiles=all_blocking,
             tank_blocking_tiles=all_blocking,
             player_base=mock_objects["base"],
@@ -105,7 +103,7 @@ class TestCollisionManager:
             mock_objects["p_bullets"][0],
             mock_objects["enemies"][0],
             player_tanks=[mock_objects["player"]],
-            player_bullets=[mock_objects["p_bullets"][0]],
+            bullets=[mock_objects["p_bullets"][0]],
             enemy_tanks=[mock_objects["enemies"][0]],
         )
 
@@ -115,7 +113,7 @@ class TestCollisionManager:
             collision_manager,
             mock_objects["p_bullets"][0],
             mock_objects["bricks"][0],
-            player_bullets=[mock_objects["p_bullets"][0]],
+            bullets=[mock_objects["p_bullets"][0]],
             bullet_blocking_tiles=[mock_objects["bricks"][0]],
         )
 
@@ -126,7 +124,7 @@ class TestCollisionManager:
             mock_objects["e_bullets"][0],
             mock_objects["player"],
             player_tanks=[mock_objects["player"]],
-            enemy_bullets=[mock_objects["e_bullets"][0]],
+            bullets=[mock_objects["e_bullets"][0]],
         )
 
     def test_player_bullet_vs_player_tank(self, collision_manager, mock_objects):
@@ -136,7 +134,7 @@ class TestCollisionManager:
             mock_objects["p_bullets"][0],
             mock_objects["player"],
             player_tanks=[mock_objects["player"]],
-            player_bullets=[mock_objects["p_bullets"][0]],
+            bullets=[mock_objects["p_bullets"][0]],
         )
 
     def test_enemy_bullet_vs_player_base(self, collision_manager, mock_objects):
@@ -145,7 +143,7 @@ class TestCollisionManager:
             collision_manager,
             mock_objects["e_bullets"][0],
             mock_objects["base"],
-            enemy_bullets=[mock_objects["e_bullets"][0]],
+            bullets=[mock_objects["e_bullets"][0]],
             player_base=mock_objects["base"],
         )
 
@@ -155,7 +153,7 @@ class TestCollisionManager:
             collision_manager,
             mock_objects["e_bullets"][0],
             mock_objects["bricks"][0],
-            enemy_bullets=[mock_objects["e_bullets"][0]],
+            bullets=[mock_objects["e_bullets"][0]],
             bullet_blocking_tiles=[mock_objects["bricks"][0]],
         )
 
@@ -165,9 +163,27 @@ class TestCollisionManager:
             collision_manager,
             mock_objects["p_bullets"][0],
             mock_objects["e_bullets"][0],
-            player_bullets=[mock_objects["p_bullets"][0]],
-            enemy_bullets=[mock_objects["e_bullets"][0]],
+            bullets=[mock_objects["p_bullets"][0], mock_objects["e_bullets"][0]],
         )
+
+    def test_enemy_bullet_passes_through_enemy_tank(
+        self, collision_manager, mock_objects
+    ):
+        """Bullets are split by owner_type: Enemy bullets never hit Enemies."""
+        e_bullet = mock_objects["e_bullets"][0]
+        enemy = mock_objects["enemies"][0]
+        e_bullet.rect = enemy.rect.copy()
+
+        collision_manager.check_collisions(
+            player_tanks=[],
+            enemy_tanks=[enemy],
+            bullets=[e_bullet],
+            bullet_blocking_tiles=[],
+            tank_blocking_tiles=[],
+            player_base=None,
+        )
+
+        assert collision_manager.get_collision_events() == []
 
     def test_tank_vs_impassable_tile(self, collision_manager, mock_objects):
         """Test collision between player tank and steel tile."""
@@ -202,9 +218,8 @@ class TestCollisionManager:
 
         collision_manager.check_collisions(
             player_tanks=[],
-            player_bullets=[p_bullet],
             enemy_tanks=[enemy],
-            enemy_bullets=[e_bullet],
+            bullets=[p_bullet, e_bullet],
             bullet_blocking_tiles=[brick],
             tank_blocking_tiles=[],
             player_base=None,
@@ -223,9 +238,8 @@ class TestCollisionManager:
         # First call with collision
         collision_manager.check_collisions(
             player_tanks=[],
-            player_bullets=[p_bullet],
+            bullets=[p_bullet],
             enemy_tanks=[enemy],
-            enemy_bullets=[],
             bullet_blocking_tiles=[],
             tank_blocking_tiles=[],
             player_base=None,
@@ -236,9 +250,8 @@ class TestCollisionManager:
         p_bullet.rect.move_ip(1000, 1000)  # Move bullet away
         collision_manager.check_collisions(
             player_tanks=[],
-            player_bullets=[p_bullet],
+            bullets=[p_bullet],
             enemy_tanks=[enemy],
-            enemy_bullets=[],
             bullet_blocking_tiles=[],
             tank_blocking_tiles=[],
             player_base=None,
@@ -253,7 +266,7 @@ class TestCollisionManager:
             collision_manager,
             mock_objects["p_bullets"][0],
             mock_objects["steel"][0],
-            player_bullets=[mock_objects["p_bullets"][0]],
+            bullets=[mock_objects["p_bullets"][0]],
             bullet_blocking_tiles=[mock_objects["steel"][0]],
         )
 
@@ -265,7 +278,7 @@ class TestCollisionManager:
             collision_manager,
             mock_objects["e_bullets"][0],
             mock_objects["steel"][0],
-            enemy_bullets=[mock_objects["e_bullets"][0]],
+            bullets=[mock_objects["e_bullets"][0]],
             bullet_blocking_tiles=[mock_objects["steel"][0]],
         )
 
@@ -280,9 +293,8 @@ class TestCollisionManager:
         # Pass brick in BOTH blocking tile lists (blocks tanks and bullets)
         collision_manager.check_collisions(
             player_tanks=[],
-            player_bullets=[p_bullet],
+            bullets=[p_bullet],
             enemy_tanks=[],
-            enemy_bullets=[],
             bullet_blocking_tiles=[brick],
             tank_blocking_tiles=[brick],
             player_base=None,
@@ -309,9 +321,8 @@ class TestPowerUpCollision:
     def _check(self, cm, player, power_ups):
         cm.check_collisions(
             player_tanks=[player],
-            player_bullets=[],
+            bullets=[],
             enemy_tanks=[],
-            enemy_bullets=[],
             bullet_blocking_tiles=[],
             tank_blocking_tiles=[],
             player_base=None,

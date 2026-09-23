@@ -44,7 +44,6 @@ def _mock_game_deps():
         mock_player.is_moving = False
         mock_pm_instance.get_active_players.return_value = [mock_player]
         mock_pm_instance.score = 0
-        mock_pm_instance.get_all_bullets.return_value = []
         yield
 
 

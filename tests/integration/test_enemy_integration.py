@@ -388,7 +388,7 @@ def test_enemy_shooting(game_manager_fixture):
 
         enemy_bullets = [
             b
-            for b in game_manager.bullets
+            for b in game_manager.tank_stepper.bullets
             if b.owner_type == OwnerType.ENEMY and b.active
         ]
         if not bullet_fired and len(enemy_bullets) > 0:

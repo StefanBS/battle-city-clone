@@ -6,10 +6,9 @@ import pytest
 import pygame
 from unittest.mock import MagicMock
 
-from src.core.bullet import Bullet
 from src.core.map import Map
 from src.core.player_tank import PlayerTank
-from src.core.tile import Tile, TileType
+from src.core.tile import TileType
 from src.managers.player_input import (
     CombinedInput,
     ControllerInput,
@@ -19,6 +18,7 @@ from src.managers.player_input import (
 from src.managers.cpu_partner import CpuPartnerInput
 from src.managers.player_manager import PlayerManager
 from src.managers.sound_manager import SoundManager
+from src.managers.tank_stepper import TankStepper
 from src.managers.world_view import EnemyView, PlayerView, WorldView
 from src.states.game_mode import GameMode
 from src.utils.constants import CPU_PARTNER_REACTION_DELAY, FPS, TILE_SIZE, Direction
@@ -55,6 +55,7 @@ def mock_game_map():
     )
     # Default: no ice tile under any tank
     game_map.get_tile_at.return_value = None
+    game_map.is_tile_slidable.return_value = False
     return game_map
 
 
@@ -67,10 +68,6 @@ class TestPlayerManagerCreation:
     def test_initial_players_empty(self, player_manager):
         """No players exist before create_players() is called."""
         assert player_manager.get_active_players() == []
-
-    def test_initial_bullets_empty(self, player_manager):
-        """No bullets exist before create_players() is called."""
-        assert player_manager.get_all_bullets() == []
 
     def test_create_players_single_player(
         self, player_manager, mock_game_map, mock_texture_manager
@@ -122,14 +119,13 @@ class TestPlayerManagerCreation:
         assert pi._inputs[1].instance_id is None
 
     def test_create_players_clears_previous_state(self, player_manager, mock_game_map):
-        """Calling create_players() twice resets players, inputs, and bullets."""
+        """Calling create_players() twice replaces the players and inputs."""
         player_manager.create_players(mock_game_map, controller_instance_ids=[])
-        # Manually add a bullet to the list
-        player_manager._bullets.append(MagicMock(spec=Bullet))
+        first = player_manager.players[0]
         player_manager.create_players(mock_game_map, controller_instance_ids=[])
 
-        assert len(player_manager._players) == 1
-        assert len(player_manager._bullets) == 0
+        assert len(player_manager.players) == 1
+        assert player_manager.players[0] is not first
 
     def test_get_active_players_returns_living(self, player_manager, mock_game_map):
         """get_active_players() filters out dead tanks."""
@@ -138,273 +134,85 @@ class TestPlayerManagerCreation:
         player_manager._players[0].health = 0
         assert player_manager.get_active_players() == []
 
-    def test_get_all_bullets_empty_initially(self, player_manager, mock_game_map):
-        """No bullets exist immediately after create_players()."""
-        player_manager.create_players(mock_game_map, controller_instance_ids=[])
-
-        assert player_manager.get_all_bullets() == []
-
 
 # ---------------------------------------------------------------------------
 # TestPlayerManagerUpdate
 # ---------------------------------------------------------------------------
 
 
+def _press(pm: PlayerManager, key: int) -> None:
+    pm.handle_event(pygame.event.Event(pygame.KEYDOWN, key=key))
+
+
+def _release(pm: PlayerManager, key: int) -> None:
+    pm.handle_event(pygame.event.Event(pygame.KEYUP, key=key))
+
+
 class TestPlayerManagerUpdate:
+    DT = 1.0 / 60
+
     @pytest.fixture(autouse=True)
-    def setup(self, player_manager, mock_game_map, mock_texture_manager):
-        """Create a single player before each test in this class."""
+    def setup(self, player_manager, mock_game_map):
+        """Create a single player and a stepper before each test in this class."""
         player_manager.create_players(mock_game_map, controller_instance_ids=[])
         self.pm = player_manager
         self.game_map = mock_game_map
+        self.stepper = TankStepper(mock_game_map)
+        self.player = player_manager.players[0]
 
-    def test_update_calls_player_update(self):
-        """player.update(dt) is called for each living player."""
-        player = MagicMock(spec=PlayerTank)
-        player.health = 1
-        player.on_ice = False
-        player.is_sliding = False
-        player.direction = MagicMock()
-        player.direction.delta = (0, 0)
-        player.x = 0.0
-        player.y = 0.0
-        player.width = TILE_SIZE
-        player.height = TILE_SIZE
-        self.pm._players = [player]
-        # Pair with a keyboard input that has no keys pressed
-        self.pm._player_inputs = [KeyboardInput()]
+    def test_steps_player_with_its_input(self):
+        y_before = self.player.y
+        _press(self.pm, pygame.K_UP)
 
-        self.pm.update(0.016, self.game_map)
+        self.pm.update(self.DT, self.stepper)
 
-        player.update.assert_called_once_with(0.016)
+        assert self.player.y < y_before
 
-    def test_update_skips_dead_player(self):
-        """Dead players (health == 0) are skipped entirely."""
-        player = MagicMock(spec=PlayerTank)
-        player.health = 0
-        self.pm._players = [player]
-        self.pm._player_inputs = [KeyboardInput()]
+    def test_skips_dead_player(self):
+        self.player.health = 0
+        y_before = self.player.y
+        _press(self.pm, pygame.K_UP)
+        _press(self.pm, pygame.K_SPACE)
 
-        self.pm.update(0.016, self.game_map)
+        self.pm.update(self.DT, self.stepper)
 
-        player.update.assert_not_called()
+        assert self.player.y == y_before
+        assert self.stepper.bullets == []
 
-    def test_movement_applied_on_valid_input(self, mock_texture_manager):
-        """Player.move() is called when a valid (non-diagonal) direction is active."""
-        player = MagicMock(spec=PlayerTank)
-        player.health = 1
-        player.on_ice = False
-        player.is_sliding = False
-        player.direction = MagicMock()
-        player.direction.delta = (0, -1)
-        player.x = 0.0
-        player.y = 0.0
-        player.width = TILE_SIZE
-        player.height = TILE_SIZE
-        self.pm._players = [player]
+    def test_fired_bullet_goes_to_the_stepper_and_plays_shoot(self):
+        _press(self.pm, pygame.K_SPACE)
 
-        pi = KeyboardInput()
-        pi.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_UP))
-        self.pm._player_inputs = [pi]
+        self.pm.update(self.DT, self.stepper)
 
-        self.pm.update(0.016, self.game_map)
-
-        player.move.assert_called_once_with(0, -1, 0.016)
-
-    def test_diagonal_input_does_not_move(self):
-        """Diagonal input (dx and dy both non-zero) is rejected."""
-        player = MagicMock(spec=PlayerTank)
-        player.health = 1
-        player.on_ice = False
-        player.is_sliding = False
-        player.direction = MagicMock()
-        player.direction.delta = (0, 0)
-        player.x = 0.0
-        player.y = 0.0
-        player.width = TILE_SIZE
-        player.height = TILE_SIZE
-        self.pm._players = [player]
-
-        pi = KeyboardInput()
-        # Press both UP and RIGHT simultaneously
-        pi.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_UP))
-        pi.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RIGHT))
-        self.pm._player_inputs = [pi]
-
-        self.pm.update(0.016, self.game_map)
-
-        player.move.assert_not_called()
-
-    def test_sliding_player_does_not_move_via_input(self):
-        """A player that is_sliding does not receive a move() call."""
-        player = MagicMock(spec=PlayerTank)
-        player.health = 1
-        player.on_ice = False
-        player.is_sliding = True
-        player.direction = MagicMock()
-        player.direction.delta = (0, -1)
-        player.x = 0.0
-        player.y = 0.0
-        player.width = TILE_SIZE
-        player.height = TILE_SIZE
-        self.pm._players = [player]
-
-        pi = KeyboardInput()
-        pi.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_UP))
-        self.pm._player_inputs = [pi]
-
-        self.pm.update(0.016, self.game_map)
-
-        player.move.assert_not_called()
-
-    def test_ice_slide_starts_when_on_ice_and_no_valid_input(self, mock_sound_manager):
-        """start_slide() is called (and ice sound plays) when on ice with no input."""
-        player = MagicMock(spec=PlayerTank)
-        player.health = 1
-        player.is_frozen = False
-        player.is_sliding = False
-        player.direction = MagicMock()
-        player.direction.delta = (0, -1)
-
-        # Simulate ice tile under tank
-        ice_tile = MagicMock(spec=Tile)
-        ice_tile.is_slidable = True
-        self.game_map.get_tile_at.return_value = ice_tile
-        player.start_slide.return_value = True
-
-        # Mock width/height for centre calculation
-        player.x = 0
-        player.y = 0
-        player.width = TILE_SIZE
-        player.height = TILE_SIZE
-
-        self.pm._players = [player]
-        self.pm._player_inputs = [KeyboardInput()]  # no keys pressed
-
-        self.pm.update(0.016, self.game_map)
-
-        player.start_slide.assert_called_once()
-        self.pm._sound_manager.play.assert_called_once_with("ice_slide")
-
-    def test_bullets_updated_during_update(self):
-        """Active bullets have update(dt) called."""
-        bullet = MagicMock(spec=Bullet)
-        bullet.active = True
-        self.pm._bullets = [bullet]
-
-        self.pm.update(0.016, self.game_map)
-
-        bullet.update.assert_called_once_with(0.016)
-
-    def test_inactive_bullets_pruned_after_update(self):
-        """Inactive bullets are removed from the internal list after update."""
-        bullet = MagicMock(spec=Bullet)
-        bullet.active = False
-        self.pm._bullets = [bullet]
-
-        self.pm.update(0.016, self.game_map)
-
-        assert self.pm._bullets == []
-
-
-# ---------------------------------------------------------------------------
-# TestPlayerManagerShooting
-# ---------------------------------------------------------------------------
-
-
-class TestPlayerManagerShooting:
-    @pytest.fixture(autouse=True)
-    def setup(self, player_manager, mock_game_map):
-        """Create a single player before each test in this class."""
-        player_manager.create_players(mock_game_map, controller_instance_ids=[])
-        self.pm = player_manager
-
-    def test_try_shoot_creates_bullet(self, mock_sound_manager):
-        """try_shoot() appends a bullet and plays the shoot sound."""
-        player = MagicMock(spec=PlayerTank)
-        player.health = 1
-        player.max_bullets = 1
-
-        bullet = MagicMock(spec=Bullet)
-        bullet.active = True
-        bullet.owner = player
-        player.shoot.return_value = bullet
-
-        self.pm._players = [player]
-        pi = KeyboardInput()
-        pi._shoot_pressed = True  # simulate a shoot press
-        self.pm._player_inputs = [pi]
-
-        self.pm.try_shoot()
-
-        player.shoot.assert_called_once()
-        assert bullet in self.pm._bullets
+        assert [b.owner for b in self.stepper.bullets] == [self.player]
         self.pm._sound_manager.play.assert_called_once_with("shoot")
 
-    def test_try_shoot_no_bullet_without_input(self, mock_sound_manager):
-        """try_shoot() does nothing when shoot was not pressed."""
-        player = MagicMock(spec=PlayerTank)
-        player.health = 1
-        player.max_bullets = 1
+    def test_slide_plays_ice_sound(self):
+        self.game_map.is_tile_slidable.return_value = True
+        _press(self.pm, pygame.K_UP)
+        self.pm.update(self.DT, self.stepper)
+        _release(self.pm, pygame.K_UP)
 
-        self.pm._players = [player]
-        self.pm._player_inputs = [KeyboardInput()]
+        self.pm.update(self.DT, self.stepper)
 
-        self.pm.try_shoot()
+        assert self.player.is_sliding is True
+        self.pm._sound_manager.play.assert_called_once_with("ice_slide")
 
-        player.shoot.assert_not_called()
-        self.pm._sound_manager.play.assert_not_called()
+    def test_two_players_each_follow_their_own_input(
+        self, player_manager, mock_game_map
+    ):
+        mock_game_map.player_spawn_2 = (16, 24)
+        player_manager.create_players(
+            mock_game_map, controller_instance_ids=[3], mode=GameMode.TWO_PLAYERS
+        )
+        p1, p2 = player_manager.players
+        p1_y, p2_y = p1.y, p2.y
+        _press(player_manager, pygame.K_UP)
 
-    def test_try_shoot_respects_max_bullets(self):
-        """No new bullet is created when max_bullets are already active."""
-        player = MagicMock(spec=PlayerTank)
-        player.health = 1
-        player.max_bullets = 1
+        player_manager.update(self.DT, self.stepper)
 
-        existing_bullet = MagicMock(spec=Bullet)
-        existing_bullet.active = True
-        existing_bullet.owner = player
-        self.pm._bullets = [existing_bullet]
-
-        self.pm._players = [player]
-        pi = KeyboardInput()
-        pi._shoot_pressed = True
-        self.pm._player_inputs = [pi]
-
-        self.pm.try_shoot()
-
-        player.shoot.assert_not_called()
-
-    def test_try_shoot_skips_dead_player(self):
-        """Dead players cannot shoot."""
-        player = MagicMock(spec=PlayerTank)
-        player.health = 0
-        player.max_bullets = 1
-
-        self.pm._players = [player]
-        pi = KeyboardInput()
-        pi._shoot_pressed = True
-        self.pm._player_inputs = [pi]
-
-        self.pm.try_shoot()
-
-        player.shoot.assert_not_called()
-
-    def test_try_shoot_none_bullet_not_appended(self):
-        """If player.shoot() returns None the bullet list is unchanged."""
-        player = MagicMock(spec=PlayerTank)
-        player.health = 1
-        player.max_bullets = 1
-        player.shoot.return_value = None
-
-        self.pm._players = [player]
-        pi = KeyboardInput()
-        pi._shoot_pressed = True
-        self.pm._player_inputs = [pi]
-
-        self.pm.try_shoot()
-
-        assert self.pm._bullets == []
+        assert p1.y < p1_y
+        assert p2.y == p2_y
 
 
 # ---------------------------------------------------------------------------
@@ -599,18 +407,16 @@ class TestPlayerManagerReset:
     def test_reset_clears_all_state(
         self, player_manager, mock_game_map, mock_texture_manager
     ):
-        """reset() clears players, inputs, bullets, score, and preserved state."""
+        """reset() clears players, inputs, score, and preserved state."""
         player_manager.create_players(mock_game_map, controller_instance_ids=[])
 
         player_manager.add_score(500)
-        player_manager._bullets.append(MagicMock(spec=Bullet))
         player_manager._preserved_state = {0: {"lives": 3, "star_level": 1}}
 
         player_manager.reset()
 
         assert player_manager._players == []
         assert player_manager._player_inputs == []
-        assert player_manager._bullets == []
         assert player_manager.score == 0
         assert player_manager._preserved_state == {}
 
@@ -742,7 +548,6 @@ class TestPlayerManagerCpuPartner:
     def cpu_pm(self, player_manager, mock_game_map):
         """PlayerManager in 1 Player + CPU mode."""
         mock_game_map.player_spawn_2 = (16, 24)
-        mock_game_map.is_tile_slidable.return_value = False
         player_manager.create_players(
             mock_game_map, controller_instance_ids=[3], mode=GameMode.ONE_PLAYER_CPU
         )
@@ -772,8 +577,9 @@ class TestPlayerManagerCpuPartner:
     def test_respawn_makes_cpu_partner_choose_a_new_target(self, cpu_pm, mock_game_map):
         p2 = cpu_pm.players[1]
         far_left = (p2.x - 6 * TILE_SIZE, p2.y - 10 * TILE_SIZE)
+        stepper = TankStepper(mock_game_map)
         cpu_pm.observe(self.view(cpu_pm, enemies=[far_left]))
-        cpu_pm.update(self.DT, mock_game_map)
+        cpu_pm.update(self.DT, stepper)
 
         p2.lives = 2
         cpu_pm.handle_player_death(p2)
@@ -783,7 +589,7 @@ class TestPlayerManagerCpuPartner:
         # Past the CPU Partner's reaction delay to its new target.
         for _ in range(round(CPU_PARTNER_REACTION_DELAY * FPS) + 1):
             cpu_pm.observe(self.view(cpu_pm, enemies=[far_left, close_right]))
-            cpu_pm.update(self.DT, mock_game_map)
+            cpu_pm.update(self.DT, stepper)
 
         assert p2.x > x_after_respawn
 

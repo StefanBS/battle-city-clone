@@ -75,9 +75,7 @@ def test_player_bullet_vs_tile(
     )
 
     player_tank.direction = Direction.UP
-    bullet = player_tank.shoot()
-    assert bullet is not None, "Bullet failed to spawn."
-    game_manager.player_manager._bullets.append(bullet)
+    bullet = fire_bullet_from(game_manager, player_tank)
 
     dt = 1.0 / FPS
     update_duration = 0.2
@@ -136,9 +134,7 @@ def test_player_bullet_destroys_enemy_tank(game_manager_fixture, mocker):
     )
 
     player_tank.direction = Direction.UP
-    bullet = player_tank.shoot()
-    assert bullet is not None, "Bullet failed to spawn."
-    game_manager.player_manager._bullets.append(bullet)
+    bullet = fire_bullet_from(game_manager, player_tank)
 
     dt = 1.0 / FPS
     max_simulation_time = 0.5
@@ -394,9 +390,8 @@ def test_player_tank_vs_enemy_tank_no_overlap(game_manager_fixture, mocker):
 
         game_manager.collision_manager.check_collisions(
             player_tanks=[player_tank],
-            player_bullets=[],
             enemy_tanks=[enemy_tank],
-            enemy_bullets=[],
+            bullets=[],
             tank_blocking_tiles=[],
             bullet_blocking_tiles=[],
             player_base=None,

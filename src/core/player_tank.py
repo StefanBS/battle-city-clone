@@ -134,37 +134,10 @@ class PlayerTank(Tank):
         self.invincibility_duration = duration
 
     def move(self, dx: int, dy: int, dt: float) -> None:
-        """
-        Move the tank in the given direction.
-
-        Sets the direction, updates the sprite, and calls _move().
-        This is the public interface for external controllers (GameManager).
-
-        Args:
-            dx: X movement amount (-1, 0, or 1)
-            dy: Y movement amount (-1, 0, or 1)
-            dt: Time elapsed since last update in seconds
-        """
+        """Move like any tank, unless frozen by friendly fire."""
         if self.is_frozen:
             return
-        if dx == 0 and dy == 0:
-            return
-
-        new_direction = self.direction
-        if dx > 0:
-            new_direction = Direction.RIGHT
-        elif dx < 0:
-            new_direction = Direction.LEFT
-        elif dy > 0:
-            new_direction = Direction.DOWN
-        elif dy < 0:
-            new_direction = Direction.UP
-
-        if new_direction != self.direction:
-            self.direction = new_direction
-            self._update_sprite()
-
-        self._move(dx, dy, dt)
+        super().move(dx, dy, dt)
 
     def shoot(self):
         """Shoot a bullet. Returns None if frozen."""

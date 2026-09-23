@@ -96,9 +96,7 @@ def test_player_bullet_hits_base(game_manager_fixture):
     player_tank.prev_x, player_tank.prev_y = player_start_x, player_start_y
 
     player_tank.direction = Direction.DOWN
-    bullet = player_tank.shoot()
-    assert bullet is not None, "Player bullet failed to spawn."
-    game_manager.player_manager._bullets.append(bullet)
+    bullet = fire_bullet_from(game_manager, player_tank)
     assert bullet.active, "Player bullet spawned inactive."
 
     assert game_manager.state == GameState.RUNNING, (
@@ -252,9 +250,7 @@ def test_score_accumulates_on_enemy_kill(game_manager_fixture):
     place_player_at(gm, float(enemy.x), float(enemy.y + TILE_SIZE + 10), player=player)
     player.direction = Direction.UP
 
-    bullet = player.shoot()
-    assert bullet is not None
-    gm.player_manager._bullets.append(bullet)
+    fire_bullet_from(gm, player)
 
     gm.spawn_manager.enemy_tanks = [enemy]
     gm.spawn_manager._pending_spawns = []

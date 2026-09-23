@@ -2,11 +2,17 @@ import pygame
 from typing import Protocol, runtime_checkable
 from collections.abc import Sequence
 
+from src.utils.constants import OwnerType
+
 
 # Define a protocol for objects that have a rect attribute
 @runtime_checkable
 class Collidable(Protocol):
     rect: pygame.Rect
+
+
+class OwnedCollidable(Collidable, Protocol):
+    owner_type: OwnerType
 
 
 class CollisionManager:
@@ -21,9 +27,8 @@ class CollisionManager:
     def check_collisions(
         self,
         player_tanks: Sequence[Collidable],
-        player_bullets: Sequence[Collidable],
         enemy_tanks: Sequence[Collidable],
-        enemy_bullets: Sequence[Collidable],
+        bullets: Sequence[OwnedCollidable],
         tank_blocking_tiles: Sequence[Collidable],
         bullet_blocking_tiles: Sequence[Collidable],
         player_base: Collidable | None,
@@ -34,9 +39,8 @@ class CollisionManager:
 
         Args:
             player_tanks: List of player tank objects (may be empty).
-            player_bullets: A list/group of player bullet objects.
             enemy_tanks: A list/group of enemy tank objects.
-            enemy_bullets: A list/group of enemy bullet objects.
+            bullets: Every bullet in flight, split here by owner_type.
             tank_blocking_tiles: Tiles that block tank movement.
             bullet_blocking_tiles: Tiles that block bullets.
             player_base: The player's base object, or None if not present.
@@ -44,6 +48,9 @@ class CollisionManager:
         """
         self._collision_events.clear()
         self._seen_pairs.clear()
+
+        player_bullets = [b for b in bullets if b.owner_type == OwnerType.PLAYER]
+        enemy_bullets = [b for b in bullets if b.owner_type == OwnerType.ENEMY]
 
         # Combine tanks
         all_tanks: list[Collidable] = list(player_tanks)
