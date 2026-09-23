@@ -13,10 +13,9 @@ from src.managers.player_input import (
     CombinedInput,
     ControllerInput,
     KeyboardInput,
-    PlayerInput,
 )
 from src.managers.cpu_partner import CpuPartnerInput
-from src.managers.player_manager import PlayerManager
+from src.managers.player_manager import PlayerKind, PlayerManager
 from src.managers.sound_manager import SoundManager
 from src.managers.tank_stepper import TankStepper
 from src.managers.world_view import EnemyView, PlayerView, WorldView
@@ -103,7 +102,7 @@ class TestPlayerManagerCreation:
         controller is currently plugged in, so hot-plugging Just Works.
         """
         player_manager.create_players(mock_game_map, controller_instance_ids=[])
-        pi = player_manager._player_inputs[0]
+        pi = player_manager.slots[0].input
         assert isinstance(pi, CombinedInput)
         assert len(pi._inputs) == 2
         assert isinstance(pi._inputs[0], KeyboardInput)
@@ -114,9 +113,19 @@ class TestPlayerManagerCreation:
         self, player_manager, mock_game_map
     ) -> None:
         player_manager.create_players(mock_game_map, controller_instance_ids=[7])
-        pi = player_manager._player_inputs[0]
+        pi = player_manager.slots[0].input
         assert isinstance(pi, CombinedInput)
         assert pi._inputs[1].instance_id is None
+
+    def test_1p_slot_is_a_human_player(self, player_manager, mock_game_map):
+        player_manager.create_players(mock_game_map, controller_instance_ids=[])
+        assert [slot.kind for slot in player_manager.slots] == [PlayerKind.HUMAN]
+
+    def test_slot_holds_its_tank(self, player_manager, mock_game_map):
+        player_manager.create_players(mock_game_map, controller_instance_ids=[])
+        slot = player_manager.slots[0]
+        assert slot.tank is player_manager.players[0]
+        assert slot.player_id == 1
 
     def test_create_players_clears_previous_state(self, player_manager, mock_game_map):
         """Calling create_players() twice replaces the players and inputs."""
@@ -131,7 +140,7 @@ class TestPlayerManagerCreation:
         """get_active_players() filters out dead tanks."""
         player_manager.create_players(mock_game_map, controller_instance_ids=[])
 
-        player_manager._players[0].health = 0
+        player_manager.players[0].health = 0
         assert player_manager.get_active_players() == []
 
 
@@ -221,19 +230,23 @@ class TestPlayerManagerUpdate:
 
 
 class TestPlayerManagerHandleEvent:
-    def test_handle_event_forwarded_to_player_input(
+    def test_handle_event_reaches_every_players_input(
         self, player_manager, mock_game_map
     ):
-        """handle_event() propagates the event to the PlayerInput."""
-        player_manager.create_players(mock_game_map, controller_instance_ids=[])
+        """handle_event() forwards the event to each slot's input."""
+        mock_game_map.player_spawn_2 = (16, 24)
+        # No controllers: both Players fall back to the keyboard.
+        player_manager.create_players(
+            mock_game_map, controller_instance_ids=[], mode=GameMode.TWO_PLAYERS
+        )
+        p1, p2 = player_manager.players
+        p1_y, p2_y = p1.y, p2.y
 
-        pi = MagicMock(spec=PlayerInput)
-        player_manager._player_inputs = [pi]
+        _press(player_manager, pygame.K_UP)
+        player_manager.update(1.0 / 60, TankStepper(mock_game_map))
 
-        event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_SPACE)
-        player_manager.handle_event(event)
-
-        pi.handle_event.assert_called_once_with(event)
+        assert p1.y < p1_y
+        assert p2.y < p2_y
 
 
 # ---------------------------------------------------------------------------
@@ -246,16 +259,38 @@ class TestPlayerManagerScore:
         """Score is 0 immediately after construction."""
         assert player_manager.score == 0
 
-    def test_add_score_increments(self, player_manager):
+    def test_add_score_increments(self, player_manager, mock_game_map):
         """add_score(100) raises the score to 100."""
+        player_manager.create_players(mock_game_map, controller_instance_ids=[])
         player_manager.add_score(100)
         assert player_manager.score == 100
 
-    def test_add_score_accumulates(self, player_manager):
+    def test_add_score_accumulates(self, player_manager, mock_game_map):
         """Multiple add_score() calls accumulate correctly."""
+        player_manager.create_players(mock_game_map, controller_instance_ids=[])
         player_manager.add_score(200)
         player_manager.add_score(300)
         assert player_manager.score == 500
+
+    def test_score_is_kept_in_the_players_slot(self, player_manager, mock_game_map):
+        player_manager.create_players(mock_game_map, controller_instance_ids=[])
+        player_manager.add_score(300)
+        assert player_manager.slots[0].score == 300
+
+    def test_score_carries_over_to_the_next_stage(self, player_manager, mock_game_map):
+        """create_players() for a new stage keeps each slot's score."""
+        mock_game_map.player_spawn_2 = (16, 24)
+        player_manager.create_players(
+            mock_game_map, controller_instance_ids=[0], mode=GameMode.TWO_PLAYERS
+        )
+        player_manager.add_score(100, player_id=1)
+        player_manager.add_score(200, player_id=2)
+
+        player_manager.create_players(
+            mock_game_map, controller_instance_ids=[0], mode=GameMode.TWO_PLAYERS
+        )
+
+        assert player_manager.scores == {1: 100, 2: 200}
 
 
 # ---------------------------------------------------------------------------
@@ -270,7 +305,7 @@ class TestPlayerManagerStatePreservation:
         """Preserved lives are restored onto a new player tank."""
         player_manager.create_players(mock_game_map, controller_instance_ids=[])
 
-        player_manager._players[0].lives = 5
+        player_manager.players[0].lives = 5
         player_manager.preserve_state()
 
         # Simulate stage transition: create fresh tanks
@@ -278,7 +313,7 @@ class TestPlayerManagerStatePreservation:
 
         player_manager.restore_state()
 
-        assert player_manager._players[0].lives == 5
+        assert player_manager.players[0].lives == 5
 
     def test_preserve_and_restore_star_level(
         self, player_manager, mock_game_map, mock_texture_manager
@@ -286,14 +321,14 @@ class TestPlayerManagerStatePreservation:
         """Preserved star_level is restored onto a new player tank."""
         player_manager.create_players(mock_game_map, controller_instance_ids=[])
 
-        player_manager._players[0].restore_star_level(2)
+        player_manager.players[0].restore_star_level(2)
         player_manager.preserve_state()
 
         player_manager.create_players(mock_game_map, controller_instance_ids=[])
 
         player_manager.restore_state()
 
-        assert player_manager._players[0].star_level == 2
+        assert player_manager.players[0].star_level == 2
 
     def test_restore_with_no_preserved_state(
         self, player_manager, mock_game_map, mock_texture_manager
@@ -301,11 +336,11 @@ class TestPlayerManagerStatePreservation:
         """restore_state() with empty preserved state does not crash."""
         player_manager.create_players(mock_game_map, controller_instance_ids=[])
 
-        # _preserved_state is empty by default — should not raise
+        # Nothing preserved yet — should not raise
         player_manager.restore_state()
 
         # Player remains in default state
-        assert player_manager._players[0].lives >= 0
+        assert player_manager.players[0].lives >= 0
 
 
 # ---------------------------------------------------------------------------
@@ -369,7 +404,7 @@ class TestPlayerManagerGameOver:
         """is_game_over() returns False when the player is still alive."""
         player_manager.create_players(mock_game_map, controller_instance_ids=[])
 
-        player = player_manager._players[0]
+        player = player_manager.players[0]
         player.health = 1
         player.lives = 2
 
@@ -381,7 +416,7 @@ class TestPlayerManagerGameOver:
         """is_game_over() returns True when the player is dead with no lives."""
         player_manager.create_players(mock_game_map, controller_instance_ids=[])
 
-        player = player_manager._players[0]
+        player = player_manager.players[0]
         player.health = 0
         player.lives = 0
 
@@ -393,7 +428,7 @@ class TestPlayerManagerGameOver:
         """is_game_over() returns False when the player is dead but has lives left."""
         player_manager.create_players(mock_game_map, controller_instance_ids=[])
 
-        player = player_manager._players[0]
+        player = player_manager.players[0]
         player.health = 0
         player.lives = 1  # dead this frame but can still respawn
 
@@ -413,14 +448,17 @@ class TestPlayerManagerReset:
         player_manager.create_players(mock_game_map, controller_instance_ids=[])
 
         player_manager.add_score(500)
-        player_manager._preserved_state = {0: {"lives": 3, "star_level": 1}}
+        player_manager.players[0].lives = 5
+        player_manager.preserve_state()
 
         player_manager.reset()
 
-        assert player_manager._players == []
-        assert player_manager._player_inputs == []
+        assert player_manager.slots == ()
         assert player_manager.score == 0
-        assert player_manager._preserved_state == {}
+        player_manager.create_players(mock_game_map, controller_instance_ids=[])
+        player_manager.restore_state()
+        assert player_manager.score == 0
+        assert player_manager.players[0].lives != 5
 
 
 # ---------------------------------------------------------------------------
@@ -444,8 +482,8 @@ class TestPlayerManagerTwoPlayerCreation:
         player_manager.create_players(
             mock_game_map, controller_instance_ids=[0], mode=GameMode.TWO_PLAYERS
         )
-        assert player_manager._players[0].player_id == 1
-        assert player_manager._players[1].player_id == 2
+        assert player_manager.players[0].player_id == 1
+        assert player_manager.players[1].player_id == 2
 
     def test_player2_at_spawn_2_position(self, player_manager, mock_game_map):
         """Player 2 spawns at player_spawn_2 coordinates."""
@@ -453,7 +491,7 @@ class TestPlayerManagerTwoPlayerCreation:
         player_manager.create_players(
             mock_game_map, controller_instance_ids=[0], mode=GameMode.TWO_PLAYERS
         )
-        p2 = player_manager._players[1]
+        p2 = player_manager.players[1]
         assert p2.x == 16 * TILE_SIZE
         assert p2.y == 24 * TILE_SIZE
 
@@ -463,9 +501,9 @@ class TestPlayerManagerTwoPlayerCreation:
         player_manager.create_players(
             mock_game_map, controller_instance_ids=[4], mode=GameMode.TWO_PLAYERS
         )
-        assert isinstance(player_manager._player_inputs[0], KeyboardInput)
-        assert isinstance(player_manager._player_inputs[1], ControllerInput)
-        assert player_manager._player_inputs[1].instance_id == 4
+        assert isinstance(player_manager.slots[0].input, KeyboardInput)
+        assert isinstance(player_manager.slots[1].input, ControllerInput)
+        assert player_manager.slots[1].input.instance_id == 4
 
     def test_2p_two_controllers_both_controller(self, player_manager, mock_game_map):
         """2P + 2 controllers: each player bound to its own instance_id."""
@@ -473,10 +511,10 @@ class TestPlayerManagerTwoPlayerCreation:
         player_manager.create_players(
             mock_game_map, controller_instance_ids=[8, 12], mode=GameMode.TWO_PLAYERS
         )
-        assert isinstance(player_manager._player_inputs[0], ControllerInput)
-        assert player_manager._player_inputs[0].instance_id == 8
-        assert isinstance(player_manager._player_inputs[1], ControllerInput)
-        assert player_manager._player_inputs[1].instance_id == 12
+        assert isinstance(player_manager.slots[0].input, ControllerInput)
+        assert player_manager.slots[0].input.instance_id == 8
+        assert isinstance(player_manager.slots[1].input, ControllerInput)
+        assert player_manager.slots[1].input.instance_id == 12
 
     def test_2p_two_controllers_non_sequential_instance_ids(
         self, player_manager, mock_game_map
@@ -491,8 +529,19 @@ class TestPlayerManagerTwoPlayerCreation:
         player_manager.create_players(
             mock_game_map, controller_instance_ids=[0, 5], mode=GameMode.TWO_PLAYERS
         )
-        assert player_manager._player_inputs[0].instance_id == 0
-        assert player_manager._player_inputs[1].instance_id == 5
+        assert player_manager.slots[0].input.instance_id == 0
+        assert player_manager.slots[1].input.instance_id == 5
+
+    def test_2p_both_slots_are_human_players(self, player_manager, mock_game_map):
+        mock_game_map.player_spawn_2 = (16, 24)
+        player_manager.create_players(
+            mock_game_map, controller_instance_ids=[0], mode=GameMode.TWO_PLAYERS
+        )
+        assert [slot.kind for slot in player_manager.slots] == [
+            PlayerKind.HUMAN,
+            PlayerKind.HUMAN,
+        ]
+        assert player_manager.cpu_partner_ids == frozenset()
 
     def test_2p_fallback_spawn_when_no_spawn_2(self, player_manager, mock_game_map):
         """When player_spawn_2 is absent, derive P2 position from P1."""
@@ -501,7 +550,7 @@ class TestPlayerManagerTwoPlayerCreation:
         player_manager.create_players(
             mock_game_map, controller_instance_ids=[0], mode=GameMode.TWO_PLAYERS
         )
-        p2 = player_manager._players[1]
+        p2 = player_manager.players[1]
         assert p2.x == (8 + 8) * TILE_SIZE
         assert p2.y == 24 * TILE_SIZE
 
@@ -534,8 +583,8 @@ class TestPlayerManagerTwoPlayerCreation:
             mock_game_map, controller_instance_ids=[], mode=GameMode.TWO_PLAYERS
         )
 
-        assert isinstance(player_manager._player_inputs[0], KeyboardInput)
-        assert isinstance(player_manager._player_inputs[1], KeyboardInput)
+        assert isinstance(player_manager.slots[0].input, KeyboardInput)
+        assert isinstance(player_manager.slots[1].input, KeyboardInput)
 
 
 # ---------------------------------------------------------------------------
@@ -573,8 +622,15 @@ class TestPlayerManagerCpuPartner:
 
     def test_p1_is_human_and_p2_is_cpu_partner(self, cpu_pm):
         assert [p.player_id for p in cpu_pm.get_active_players()] == [1, 2]
-        assert isinstance(cpu_pm._player_inputs[0], CombinedInput)
-        assert isinstance(cpu_pm._player_inputs[1], CpuPartnerInput)
+        assert isinstance(cpu_pm.slots[0].input, CombinedInput)
+        assert isinstance(cpu_pm.slots[1].input, CpuPartnerInput)
+        assert [slot.kind for slot in cpu_pm.slots] == [
+            PlayerKind.HUMAN,
+            PlayerKind.CPU_PARTNER,
+        ]
+
+    def test_cpu_partner_ids_names_the_p2_slot(self, cpu_pm):
+        assert cpu_pm.cpu_partner_ids == frozenset({2})
 
     def test_respawn_makes_cpu_partner_choose_a_new_target(self, cpu_pm, mock_game_map):
         p2 = cpu_pm.players[1]
@@ -623,8 +679,8 @@ class TestPlayerManagerTwoPlayerDeath:
 
     def test_dead_player_does_not_borrow_from_partner(self, two_player_pm):
         """Each player has their own life pool — no transfers between players."""
-        p1 = two_player_pm._players[0]
-        p2 = two_player_pm._players[1]
+        p1 = two_player_pm.players[0]
+        p2 = two_player_pm.players[1]
         p1.lives = 0
         p1.health = 0
         p2.lives = 3
@@ -637,8 +693,8 @@ class TestPlayerManagerTwoPlayerDeath:
 
     def test_game_over_when_last_player_dies(self, two_player_pm):
         """Game ends when the surviving player loses their last life."""
-        p1 = two_player_pm._players[0]
-        p2 = two_player_pm._players[1]
+        p1 = two_player_pm.players[0]
+        p2 = two_player_pm.players[1]
         p1.lives = 0
         p1.health = 0
         p2.lives = 0
@@ -650,8 +706,8 @@ class TestPlayerManagerTwoPlayerDeath:
 
     def test_game_over_only_when_both_eliminated(self, two_player_pm):
         """is_game_over() is True only when both players are dead with 0 lives."""
-        p1 = two_player_pm._players[0]
-        p2 = two_player_pm._players[1]
+        p1 = two_player_pm.players[0]
+        p2 = two_player_pm.players[1]
 
         p1.lives = 0
         p1.health = 0
