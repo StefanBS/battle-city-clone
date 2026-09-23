@@ -50,12 +50,12 @@ GameObject (base: position, rect, draw, update)
 - **One stepping path:** `TankStepper` steps every tank, Player or Enemy, through a frame (timers, ice check, Slide or move, then fire within the Bullet Cap) and owns the only bullet list. Enemy AI and `PlayerInput` only supply intent. See `docs/adr/0002-one-stepping-path-for-all-tanks.md`.
 - **Logical vs. display surface:** `GameManager` renders to a `game_surface` (512x512) then scales up to the window (1024x1024) for a pixel-art effect.
 - **Fixed timestep:** `dt = 1.0 / fps` (constant, not measured from clock).
-- **No pygame.sprite.Group:** Entities are plain classes, managed via lists in `GameManager`.
+- **No pygame.sprite.Group:** Entities are plain classes, managed via plain lists (tanks in `PlayerManager`/`SpawnManager`, bullets in `TankStepper`).
 
 ### Source Layout
 
 - `src/core/` — Game entities (`GameObject`, `Tank`, `PlayerTank`, `EnemyTank`, `Bullet`, `Tile`, `Map`)
-- `src/managers/` — `GameManager` (main loop, spawning, collision dispatch), `CollisionManager`, `TextureManager` (sprite atlas slicing), `InputHandler`
+- `src/managers/` — `GameManager` (main loop, spawning, collision dispatch), `TankStepper` (per-frame tank stepping, bullet list), `CollisionManager`, `TextureManager` (sprite atlas slicing), `InputHandler`
 - `src/states/` — `GameState` enum: RUNNING, GAME_OVER, VICTORY, EXIT
 - `src/utils/constants.py` — All game constants (sizes, speeds, grid dimensions, colors)
 

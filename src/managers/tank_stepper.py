@@ -61,7 +61,7 @@ class TankStepper:
         tank.update(dt)
 
         dx, dy = intent.get_movement_direction()
-        has_direction = (dx != 0) != (dy != 0)
+        single_axis = (dx != 0) != (dy != 0)
 
         # Read from where the tank stands now, before deciding to Slide.
         tank.on_ice = self._map.is_tile_slidable(
@@ -69,10 +69,10 @@ class TankStepper:
         )
         slide_started = False
         if tank.on_ice and not tank.is_sliding:
-            if not has_direction or (dx, dy) != tank.direction.delta:
+            if not single_axis or (dx, dy) != tank.direction.delta:
                 slide_started = tank.start_slide()
 
-        if has_direction and not tank.is_sliding:
+        if single_axis and not tank.is_sliding:
             tank.move(dx, dy, dt)
 
         fired = intent.consume_shoot() and self._fire(tank)
