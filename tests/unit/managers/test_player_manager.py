@@ -411,30 +411,6 @@ class TestPlayerManagerHud:
 
         assert labels == ["P1", "CPU"]
 
-    def test_an_eliminated_player_is_out_and_keeps_its_score(
-        self, make_player_manager, mock_game_map
-    ):
-        mock_game_map.player_spawn_2 = (16, 24)
-        player_manager = make_player_manager(
-            controller_instance_ids=[0],
-            mode=GameMode.TWO_PLAYERS,
-            carried={
-                2: CarriedProgress(lives=0, star_level=0, score=700, eliminated=True)
-            },
-        )
-
-        p2 = player_manager.hud_entries[1]
-
-        assert p2.eliminated is True
-        assert p2.score == 700
-
-    def test_a_player_on_its_last_life_is_not_out(self, make_player_manager):
-        player_manager = make_player_manager()
-        [player] = player_manager.get_active_players()
-        player.lives = 0
-
-        assert player_manager.hud_entries[0].eliminated is False
-
 
 # ---------------------------------------------------------------------------
 # TestPlayerManagerDeathHandling

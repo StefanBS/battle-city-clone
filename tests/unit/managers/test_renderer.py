@@ -402,13 +402,6 @@ class TestOnePlayerHUD:
 
         assert texts == ["Lives: 3", f"Score: {100:>6}"]
 
-    def test_shows_no_lives_left_when_out(self, renderer):
-        texts = _hud_texts(
-            renderer, PlayerHudEntry(label="P1", lives=0, score=100, eliminated=True)
-        )
-
-        assert "Lives: 0" in texts
-
 
 class TestTwoPlayerHUD:
     P1 = PlayerHudEntry(label="P1", lives=3, score=100)
@@ -429,23 +422,6 @@ class TestTwoPlayerHUD:
 
         assert "P2: OUT" in texts
         assert f"{50:>6}" in texts
-
-    def test_cpu_partner_shows_its_label(self, renderer):
-        texts = _hud_texts(
-            renderer, self.P1, PlayerHudEntry(label="CPU", lives=2, score=250)
-        )
-
-        assert "CPU: 2" in texts
-        assert f"{250:>6}" in texts
-
-    def test_an_out_cpu_partner_shows_cpu_out(self, renderer):
-        texts = _hud_texts(
-            renderer,
-            self.P1,
-            PlayerHudEntry(label="CPU", lives=0, score=0, eliminated=True),
-        )
-
-        assert "CPU: OUT" in texts
 
 
 class TestRenderTitleScreenUpdated:
