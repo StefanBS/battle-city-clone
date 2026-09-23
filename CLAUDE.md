@@ -99,6 +99,8 @@ tests/
 
 **Data-carrier exception:** within-module mocks are allowed when the dependency is used only as a data carrier (read-only attribute access, no behavior). Example: `test_bullet.py` mocks the owner Tank because Bullet only reads `owner.owner_type` and map dimensions.
 
+**Per-call collaborator exception:** within-module mocks are allowed for a collaborator the unit under test is handed on each call, when the test is about what the unit asks of it. The collaborator's own behavior is covered by its own tests. Example: `test_spawn_manager.py` mocks the `TankStepper` passed to `step_enemies`, to check which Enemy is stepped with which AI.
+
 ### Integration Tests
 
 Real objects only, no mocks. `SDL_VIDEODRIVER=dummy` for headless execution.
