@@ -6,6 +6,7 @@ import pygame
 from loguru import logger
 
 from src.core.effect import Effect
+from src.core.enemy_ai import EnemyAI
 from src.core.enemy_tank import EnemyTank
 from src.core.map import Map
 from src.core.player_tank import PlayerTank
@@ -72,6 +73,8 @@ class SpawnManager:
         self.map_width_px = game_map.width_px
         self.map_height_px = game_map.height_px
         self.enemy_tanks: list[EnemyTank] = []
+        # Keyed by enemy_id, which is never reused.
+        self._enemy_ais: dict[int, EnemyAI] = {}
         self.total_enemy_spawns: int = 0
         self.spawn_timer: float = 0.0
         self._freeze_timer: float = 0.0
@@ -84,13 +87,13 @@ class SpawnManager:
         self._pending_spawns: list[_PendingSpawn] = []
         self._on_carrier_spawned = on_carrier_spawned
 
-        # Set class-level base position for AI targeting
+        # Where every Enemy AI this stage steers and fires toward.
         base_tile = game_map.get_base()
-        if base_tile is not None:
-            EnemyTank.base_position = (
-                float(base_tile.rect.centerx),
-                float(base_tile.rect.centery),
-            )
+        self._base_position: tuple[float, float] | None = (
+            (float(base_tile.rect.centerx), float(base_tile.rect.centery))
+            if base_tile is not None
+            else None
+        )
 
         # Initial spawn
         self.spawn_enemy(player_tanks, game_map)
@@ -202,16 +205,38 @@ class SpawnManager:
             tank_type=tank_type,
             map_width_px=self.map_width_px,
             map_height_px=self.map_height_px,
-            difficulty=self._difficulty,
             is_carrier=is_carrier,
         )
-        self.enemy_tanks.append(enemy)
+        self.add_enemy(
+            enemy,
+            EnemyAI(
+                enemy, difficulty=self._difficulty, base_position=self._base_position
+            ),
+        )
         logger.debug(
             f"Enemy materialized at ({x}, {y}) type={tank_type}"
             f"{' [CARRIER]' if is_carrier else ''}"
         )
         if is_carrier and self._on_carrier_spawned is not None:
             self._on_carrier_spawned()
+
+    @property
+    def base_position(self) -> tuple[float, float] | None:
+        """Centre of this stage's base, or None when the map has no base."""
+        return self._base_position
+
+    def add_enemy(self, enemy: EnemyTank, ai: EnemyAI) -> None:
+        """Put an Enemy on the field, paired with the EnemyAI that drives it."""
+        self.enemy_tanks.append(enemy)
+        self._enemy_ais[enemy.enemy_id] = ai
+
+    def ai_for(self, enemy: EnemyTank) -> EnemyAI:
+        """The EnemyAI paired with ``enemy``.
+
+        Raises:
+            KeyError: If ``enemy`` was not added through add_enemy().
+        """
+        return self._enemy_ais[enemy.enemy_id]
 
     def freeze(self, duration: float) -> None:
         """Freeze enemy AI updates for the given duration (clock power-up)."""
@@ -258,6 +283,7 @@ class SpawnManager:
         """Remove a destroyed enemy from the active list."""
         if enemy in self.enemy_tanks:
             self.enemy_tanks.remove(enemy)
+        self._enemy_ais.pop(enemy.enemy_id, None)
 
     def all_enemies_defeated(self) -> bool:
         """Check if all enemies have been spawned and destroyed."""

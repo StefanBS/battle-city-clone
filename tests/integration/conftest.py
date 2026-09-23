@@ -1,10 +1,12 @@
 import os
 import pytest
 import pygame
+from src.core.enemy_ai import EnemyAI
 from src.core.enemy_tank import EnemyTank
 from src.core.tile import Tile, TileType
 from src.managers.game_manager import GameManager
 from src.utils.constants import (
+    Difficulty,
     FPS,
     POWERUP_CARRIER_INDICES,
     SUB_TILE_SIZE,
@@ -108,14 +110,16 @@ def spawn_enemy_at(
     tank_type=TankType.BASIC,
     direction=None,
     replace=True,
+    difficulty=Difficulty.NORMAL,
     **enemy_kwargs,
 ):
-    """Spawn a single EnemyTank at the given sub-tile grid position.
+    """Spawn a single EnemyTank, paired with its EnemyAI, at a sub-tile grid position.
 
     If replace=True (default), replaces any existing enemies with just this one.
-    Otherwise, appends to the existing list. Extra kwargs (e.g. difficulty=...)
-    are forwarded to EnemyTank. Returns the new EnemyTank so callers can tweak
-    attributes (speed, shoot, etc.).
+    Otherwise, appends to the existing list. ``difficulty`` goes to the EnemyAI;
+    extra kwargs (e.g. is_carrier=...) are forwarded to EnemyTank. Returns the
+    new EnemyTank so callers can tweak attributes (speed, shoot, etc.); reach
+    its AI with ``game.spawn_manager.ai_for(enemy)``.
     """
     map_w_px = game.map.width * SUB_TILE_SIZE
     map_h_px = game.map.height * SUB_TILE_SIZE
@@ -132,9 +136,11 @@ def spawn_enemy_at(
     if direction is not None:
         enemy.direction = direction
     if replace:
-        game.spawn_manager.enemy_tanks = [enemy]
-    else:
-        game.spawn_manager.enemy_tanks.append(enemy)
+        game.spawn_manager.enemy_tanks = []
+    ai = EnemyAI(
+        enemy, difficulty=difficulty, base_position=game.spawn_manager.base_position
+    )
+    game.spawn_manager.add_enemy(enemy, ai)
     return enemy
 
 

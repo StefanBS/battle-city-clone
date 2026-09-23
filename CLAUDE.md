@@ -39,7 +39,7 @@ ruff format src/ tests/
 GameObject (base: position, rect, draw, update)
 ├── Tank (movement, shooting, health)
 │   ├── PlayerTank (keyboard input, respawn, lives)
-│   └── EnemyTank (AI: random direction changes, periodic shooting; 4 types: basic/fast/power/armor)
+│   └── EnemyTank (4 types: basic/fast/power/armor; driven by a paired EnemyAI)
 └── Bullet (directional movement, bounds checking)
 ```
 
@@ -47,14 +47,14 @@ GameObject (base: position, rect, draw, update)
 
 - **Two-step collision resolution:** Tanks move optimistically in `Tank._move()`, then `CollisionManager` detects overlaps and queues events, then `CollisionResponseHandler` calls `Tank.revert_move(obstacle_rect)` to snap the tank flush against the obstacle.
 - **Detection, response, outcomes:** `CollisionManager` only detects collisions and queues events. `CollisionResponseHandler` applies the physics later events in the frame depend on (bullets, reverts, tile damage, `take_damage`) and returns game-level outcomes (`src/managers/outcomes.py`). `GameManager._apply_outcomes()` applies them (score, removal, Carrier drops, respawn, Power-Up effects), then decides Game Over and Victory in one place. See `docs/adr/0003-collision-response-returns-outcomes.md`.
-- **One stepping path:** `TankStepper` steps every tank, Player or Enemy, through a frame (timers, ice check, Slide or move, then fire within the Bullet Cap) and owns the only bullet list. Enemy AI and `PlayerInput` only supply intent. See `docs/adr/0002-one-stepping-path-for-all-tanks.md`.
+- **One stepping path:** `TankStepper` steps every tank, Player or Enemy, through a frame (timers, ice check, Slide or move, then fire within the Bullet Cap) and owns the only bullet list. `EnemyAI` (random direction changes, periodic shooting; paired with its `EnemyTank` by `SpawnManager`) and `PlayerInput` only supply intent. See `docs/adr/0002-one-stepping-path-for-all-tanks.md`.
 - **Logical vs. display surface:** `GameManager` renders to a `game_surface` (512x512) then scales up to the window (1024x1024) for a pixel-art effect.
 - **Fixed timestep:** `dt = 1.0 / fps` (constant, not measured from clock).
 - **No pygame.sprite.Group:** Entities are plain classes, managed via plain lists (tanks in `PlayerManager`/`SpawnManager`, bullets in `TankStepper`).
 
 ### Source Layout
 
-- `src/core/` — Game entities (`GameObject`, `Tank`, `PlayerTank`, `EnemyTank`, `Bullet`, `Tile`, `Map`)
+- `src/core/` — Game entities (`GameObject`, `Tank`, `PlayerTank`, `EnemyTank`, `Bullet`, `Tile`, `Map`) and `EnemyAI`
 - `src/managers/` — `GameManager` (main loop, spawning, applying collision outcomes), `CollisionResponseHandler`, `TankStepper` (per-frame tank stepping, bullet list), `CollisionManager`, `TextureManager` (sprite atlas slicing), `InputHandler`
 - `src/states/` — `GameState` enum: RUNNING, GAME_OVER, VICTORY, EXIT
 - `src/utils/constants.py` — All game constants (sizes, speeds, grid dimensions, colors)

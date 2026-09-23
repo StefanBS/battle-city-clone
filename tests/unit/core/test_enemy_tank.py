@@ -1,13 +1,10 @@
 import pytest
-from unittest.mock import patch
-from src.core.enemy_tank import EnemyTank, _get_enemy_config, _reset_enemy_config
+from src.core.enemy_tank import get_enemy_config, _reset_enemy_config
 from src.utils.constants import (
     TILE_SIZE,
-    FPS,
     OwnerType,
     TankType,
     Direction,
-    Difficulty,
     CARRIER_BLINK_INTERVAL,
 )
 
@@ -17,29 +14,21 @@ EXPECTED_PROPERTIES = {
         "speed": 80,
         "bullet_speed": 180,
         "health": 1,
-        "shoot_interval": 2.0,
-        "direction_change_interval": 2.5,
     },
     TankType.FAST: {
         "speed": 120,
         "bullet_speed": 180,
         "health": 1,
-        "shoot_interval": 1.8,
-        "direction_change_interval": 1.5,
     },
     TankType.POWER: {
         "speed": 92,
         "bullet_speed": 360,
         "health": 1,
-        "shoot_interval": 1.0,
-        "direction_change_interval": 2.0,
     },
     TankType.ARMOR: {
         "speed": 60,
         "bullet_speed": 360,
         "health": 4,
-        "shoot_interval": 1.5,
-        "direction_change_interval": 2.0,
     },
 }
 
@@ -68,10 +57,6 @@ def test_enemy_tank_initialization_properties(
     assert tank.bullet_speed == pytest.approx(expected["bullet_speed"])
     assert tank.health == expected["health"]
     assert tank.max_health == expected["health"]
-    assert tank.shoot_interval == pytest.approx(expected["shoot_interval"])
-    assert tank.direction_change_interval == pytest.approx(
-        expected["direction_change_interval"]
-    )
 
     assert tank.owner_type == OwnerType.ENEMY
     assert tank.lives == 1
@@ -83,28 +68,28 @@ class TestEnemyConfigLoading:
     """Tests for enemy config JSON loading and caching."""
 
     def test_config_loads_all_types(self):
-        config = _get_enemy_config()
+        config = get_enemy_config()
         assert "basic" in config
         assert "fast" in config
         assert "power" in config
         assert "armor" in config
 
     def test_reset_clears_cache(self):
-        _get_enemy_config()  # ensure loaded
+        get_enemy_config()  # ensure loaded
         _reset_enemy_config()
         # After reset, next call reloads from file
-        config = _get_enemy_config()
+        config = get_enemy_config()
         assert config is not None
         assert "basic" in config
 
     def test_config_contains_difficulty_section(self):
-        config = _get_enemy_config()
+        config = get_enemy_config()
         assert "difficulty" in config
         assert "easy" in config["difficulty"]
         assert "normal" in config["difficulty"]
 
     def test_difficulty_config_has_required_keys(self):
-        config = _get_enemy_config()
+        config = get_enemy_config()
         for level in ("easy", "normal"):
             diff = config["difficulty"][level]
             assert "base_bias" in diff
@@ -112,7 +97,7 @@ class TestEnemyConfigLoading:
             assert "aligned_shoot_multiplier" in diff
 
     def test_type_configs_have_bias_multipliers(self):
-        config = _get_enemy_config()
+        config = get_enemy_config()
         for tank_type in ("basic", "fast", "power", "armor"):
             assert "base_bias_multiplier" in config[tank_type]
             assert "player_bias_multiplier" in config[tank_type]
@@ -130,125 +115,6 @@ def test_enemy_tank_grid_alignment(create_enemy_tank):
     assert tank.y == expected_y
     assert tank.rect.x == expected_x
     assert tank.rect.y == expected_y
-
-
-@patch("src.core.enemy_tank.random.choice")
-def test_on_movement_blocked(mock_random_choice, create_enemy_tank):
-    """on_movement_blocked picks a new wanted direction and resets the timer."""
-    mock_random_choice.return_value = Direction.DOWN
-    tank = create_enemy_tank(patch_random=False, difficulty=Difficulty.EASY)
-    tank.direction = Direction.UP
-    tank.direction_timer = 1.5
-
-    mock_random_choice.return_value = Direction.RIGHT
-    tank.on_movement_blocked()
-
-    assert tank.get_movement_direction() == Direction.RIGHT.delta
-    assert tank.direction == Direction.UP
-    assert tank.direction_timer == 0
-    assert Direction.UP in tank._blocked_directions
-
-
-@patch("src.core.enemy_tank.random.choice")
-def test_blocked_avoids_blocked_dirs(mock_random_choice, create_enemy_tank):
-    """Test that consecutive wall hits accumulate blocked directions."""
-    mock_random_choice.return_value = Direction.DOWN
-    tank = create_enemy_tank(patch_random=False, difficulty=Difficulty.EASY)
-    # Block UP, then RIGHT — only DOWN and LEFT remain as candidates
-    tank.direction = Direction.UP
-    tank._blocked_directions.add(Direction.UP)
-    tank.direction = Direction.RIGHT
-    mock_random_choice.return_value = Direction.DOWN
-    tank.on_movement_blocked()
-    assert Direction.RIGHT in tank._blocked_directions
-    assert Direction.UP in tank._blocked_directions
-    assert tank.get_movement_direction() == Direction.DOWN.delta
-
-
-@patch("src.core.enemy_tank.random.choice")
-def test_blocked_directions_persist_until_movement(
-    mock_random_choice, create_enemy_tank
-):
-    """Blocked directions persist while stuck, clear on successful move."""
-    mock_random_choice.return_value = Direction.DOWN
-    tank = create_enemy_tank(patch_random=False, difficulty=Difficulty.EASY)
-    tank._blocked_directions.add(Direction.UP)
-    tank._blocked_directions.add(Direction.LEFT)
-    # Simulate a frame where the tank doesn't move (stuck)
-    tank.x = 0
-    tank.prev_x = 0
-    tank.y = 0
-    tank.prev_y = 0
-    tank.update(1.0 / 60)
-    # Blocked directions should persist (tank didn't move)
-    assert Direction.UP in tank._blocked_directions
-    assert Direction.LEFT in tank._blocked_directions
-
-
-@patch("src.core.enemy_tank.random.choice")
-def test_blocked_directions_cleared_on_successful_move(
-    mock_random_choice, create_enemy_tank
-):
-    """Blocked directions are cleared once the tank moves successfully."""
-    mock_random_choice.return_value = Direction.DOWN
-    tank = create_enemy_tank(patch_random=False, difficulty=Difficulty.EASY)
-    tank._blocked_directions.add(Direction.UP)
-    # Simulate prev position differing from current (tank moved last frame)
-    tank.prev_x = 32.0
-    tank.prev_y = 0.0
-    tank.update(1.0 / 60)
-    assert len(tank._blocked_directions) == 0
-
-
-def test_consume_shoot_after_timer(create_enemy_tank):
-    """Test that EnemyTank signals shoot intent when timer fires."""
-    tank = create_enemy_tank()
-    assert not tank.consume_shoot()
-
-    tank.shoot_timer = tank.shoot_interval + 0.1
-    tank.update(0.01)
-
-    assert tank.consume_shoot() is True
-    assert tank.consume_shoot() is False
-
-
-def test_wants_to_keep_going_the_way_it_faces(create_enemy_tank):
-    """Until the AI turns, an Enemy wants to drive the way it spawned facing."""
-    tank = create_enemy_tank(x=128, y=128)
-
-    assert tank.get_movement_direction() == Direction.DOWN.delta
-
-
-def test_update_does_not_move(create_enemy_tank):
-    """update() runs the AI; moving is left to TankStepper."""
-    tank = create_enemy_tank(x=128, y=128)
-    tank.direction_timer = 0
-    tank.shoot_timer = 0
-
-    tank.update(1.0 / FPS)
-
-    assert (tank.x, tank.y) == (128, 128)
-    assert tank.is_moving is False
-
-
-@patch("src.core.enemy_tank.random.uniform", return_value=0.0)
-def test_direction_timer_records_wanted_direction_without_turning(
-    mock_uniform, create_enemy_tank
-):
-    """Turning, and any Slide it causes on ice, is left to TankStepper."""
-    tank = create_enemy_tank(x=128, y=128, difficulty=Difficulty.EASY)
-    tank.direction = Direction.RIGHT
-    tank.direction_timer = tank.direction_change_interval
-    tank.on_ice = True
-    tank._moving_this_frame = True
-
-    with patch("src.core.enemy_tank.random.choice", return_value=Direction.UP):
-        tank.update(1.0 / FPS)
-
-    assert tank.get_movement_direction() == Direction.UP.delta
-    assert tank.direction == Direction.RIGHT
-    assert tank.is_sliding is False
-    assert tank.direction_timer == 0.0
 
 
 class TestEnemyTankCarrier:
@@ -347,7 +213,7 @@ class TestEnemyIceSlide:
 
     @pytest.fixture
     def enemy(self, create_enemy_tank):
-        return create_enemy_tank(x=128, y=128, difficulty=Difficulty.EASY)
+        return create_enemy_tank(x=128, y=128)
 
     def test_on_movement_blocked_cancels_slide(self, enemy):
         enemy._on_ice = True
@@ -356,173 +222,3 @@ class TestEnemyIceSlide:
         enemy.start_slide()
         enemy.on_movement_blocked()
         assert enemy._sliding is False
-
-
-class TestEnemyAIBiases:
-    """Tests for difficulty-based AI bias computation."""
-
-    @pytest.fixture(autouse=True)
-    def set_base_position(self):
-        """Ensure base_position class attribute exists for AI tests."""
-        EnemyTank.base_position = (256.0, 480.0)
-        yield
-        EnemyTank.base_position = None
-
-    def test_normal_difficulty_basic_tank_biases(self, create_enemy_tank):
-        """Basic tank on Normal: 0.3*0.5=0.15 base, 0.2*0.5=0.1 player."""
-        tank = create_enemy_tank(map_width_px=512, map_height_px=512)
-        assert tank.effective_base_bias == pytest.approx(0.15)
-        assert tank.effective_player_bias == pytest.approx(0.1)
-
-    def test_normal_difficulty_armor_tank_biases(self, create_enemy_tank):
-        """Armor tank on Normal: 0.3*1.5=0.45 base, 0.2*0.5=0.1 player."""
-        tank = create_enemy_tank(
-            tank_type=TankType.ARMOR, map_width_px=512, map_height_px=512
-        )
-        assert tank.effective_base_bias == pytest.approx(0.45)
-        assert tank.effective_player_bias == pytest.approx(0.1)
-
-    def test_easy_difficulty_all_biases_zero(self, create_enemy_tank):
-        """On Easy, all biases should be zero regardless of type."""
-        tank = create_enemy_tank(
-            tank_type=TankType.POWER,
-            map_width_px=512,
-            map_height_px=512,
-            difficulty=Difficulty.EASY,
-        )
-        assert tank.effective_base_bias == pytest.approx(0.0)
-        assert tank.effective_player_bias == pytest.approx(0.0)
-
-    def test_aligned_shoot_multiplier_stored(self, create_enemy_tank):
-        """Aligned shoot multiplier should be stored from difficulty config."""
-        tank = create_enemy_tank(map_width_px=512, map_height_px=512)
-        assert tank.aligned_shoot_multiplier == pytest.approx(0.5)
-
-    @patch("src.core.enemy_tank.random.choices")
-    def test_change_direction_weights_toward_base(
-        self, mock_choices, create_enemy_tank
-    ):
-        """When base is below, DOWN should get extra base_bias weight."""
-        mock_choices.return_value = [Direction.DOWN]
-        tank = create_enemy_tank(
-            tank_type=TankType.ARMOR, map_width_px=512, map_height_px=512
-        )
-        tank.direction = Direction.LEFT
-        tank.direction_timer = tank.direction_change_interval + 1
-        tank._blocked_directions.clear()
-
-        tank.update(0.01)
-
-        mock_choices.assert_called()
-        candidates, weights = mock_choices.call_args[0]
-        # DOWN should have highest weight (base bias for armor = 0.45)
-        down_idx = candidates.index(Direction.DOWN)
-        assert weights[down_idx] == pytest.approx(1.0 + 0.45)
-
-    @patch("src.core.enemy_tank.random.choices")
-    def test_change_direction_weights_toward_player(
-        self, mock_choices, create_enemy_tank
-    ):
-        """When player is to the right, RIGHT should get extra player_bias weight."""
-        mock_choices.return_value = [Direction.RIGHT]
-        tank = create_enemy_tank(
-            tank_type=TankType.FAST, map_width_px=512, map_height_px=512
-        )
-        tank.direction = Direction.UP
-        tank.direction_timer = tank.direction_change_interval + 1
-        tank._blocked_directions.clear()
-
-        tank.target_position = (400.0, 0.0)
-        tank.update(0.01)
-
-        mock_choices.assert_called()
-        candidates, weights = mock_choices.call_args[0]
-        right_idx = candidates.index(Direction.RIGHT)
-        # fast: player_bias = 0.2 * 1.5 = 0.3
-        assert weights[right_idx] >= 1.0 + 0.3
-
-    @patch("src.core.enemy_tank.random.choices")
-    def test_easy_difficulty_equal_weights(self, mock_choices, create_enemy_tank):
-        """On Easy, all candidate directions should have equal weight 1.0."""
-        mock_choices.return_value = [Direction.DOWN]
-        tank = create_enemy_tank(
-            map_width_px=512,
-            map_height_px=512,
-            difficulty=Difficulty.EASY,
-        )
-        tank.direction = Direction.LEFT
-        tank.direction_timer = tank.direction_change_interval + 1
-        tank._blocked_directions.clear()
-
-        tank.target_position = (400.0, 400.0)
-        tank.update(0.01)
-
-        # On Easy, biases are zero so random.choice is used, not random.choices
-        mock_choices.assert_not_called()
-
-    def test_no_target_position_uses_base_only(self, create_enemy_tank):
-        """When target_position is None, only base bias applies."""
-        tank = create_enemy_tank(
-            tank_type=TankType.ARMOR, map_width_px=512, map_height_px=512
-        )
-        tank.direction = Direction.LEFT
-        tank.direction_timer = tank.direction_change_interval + 1
-
-        with patch(
-            "src.core.enemy_tank.random.choices", return_value=[Direction.DOWN]
-        ) as mock_choices:
-            tank.update(0.01)
-            candidates, weights = mock_choices.call_args[0]
-            # No player bias added, only base bias
-            down_idx = candidates.index(Direction.DOWN)
-            assert weights[down_idx] == pytest.approx(1.0 + 0.45)  # base only
-
-    def test_aligned_shooting_reduces_interval(self, create_enemy_tank):
-        """When facing the player and aligned, shoot interval is reduced."""
-        tank = create_enemy_tank(x=100, map_width_px=512, map_height_px=512)
-        tank.direction = Direction.DOWN
-        # Player is below and at similar X (within TILE_SIZE)
-        player_pos = (100.0, 300.0)
-        # Set shoot_timer just above half the interval (reduced threshold)
-        tank.shoot_timer = tank.shoot_interval * 0.5 + 0.01
-        tank.direction_timer = 0  # don't trigger direction change
-
-        tank.target_position = player_pos
-        tank.update(0.01)
-
-        assert tank.consume_shoot() is True
-
-    def test_not_aligned_uses_normal_interval(self, create_enemy_tank):
-        """When not aligned, normal shoot interval applies."""
-        tank = create_enemy_tank(x=100, map_width_px=512, map_height_px=512)
-        tank.direction = Direction.LEFT  # facing left, player is below
-        player_pos = (100.0, 300.0)
-        tank.shoot_timer = tank.shoot_interval * 0.5 + 0.01
-        tank.direction_timer = 0
-
-        tank.target_position = player_pos
-        tank.update(0.01)
-
-        assert tank.consume_shoot() is False
-
-    @pytest.mark.parametrize(
-        "direction, tank_pos, target_pos, expected_aligned",
-        [
-            (Direction.DOWN, (100, 0), (100, 300), True),
-            (Direction.UP, (100, 300), (100, 0), True),
-            (Direction.RIGHT, (0, 100), (300, 100), True),
-            (Direction.LEFT, (300, 100), (0, 100), True),
-            (Direction.UP, (100, 0), (100, 300), False),  # target behind
-            (Direction.DOWN, (100, 300), (100, 0), False),  # target behind
-            (Direction.DOWN, (100, 0), (300, 300), False),  # different X
-        ],
-    )
-    def test_alignment_detection(
-        self, direction, tank_pos, target_pos, expected_aligned, create_enemy_tank
-    ):
-        """Test _is_aligned_with for various positions and directions."""
-        tank = create_enemy_tank(
-            x=tank_pos[0], y=tank_pos[1], map_width_px=512, map_height_px=512
-        )
-        tank.direction = direction
-        assert tank._is_aligned_with(target_pos) == expected_aligned

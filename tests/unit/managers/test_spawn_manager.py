@@ -4,8 +4,15 @@ from unittest.mock import ANY, patch, MagicMock
 from src.managers.spawn_manager import SpawnManager
 from src.managers.effect_manager import EffectManager
 from src.core.effect import Effect
+from src.core.enemy_ai import EnemyAI
 from src.core.enemy_tank import EnemyTank
-from src.utils.constants import EffectType, TILE_SIZE, SUB_TILE_SIZE, TankType
+from src.utils.constants import (
+    Difficulty,
+    EffectType,
+    TILE_SIZE,
+    SUB_TILE_SIZE,
+    TankType,
+)
 
 _DEFAULT_COMPOSITION = {
     TankType.BASIC: 18,
@@ -276,6 +283,53 @@ class TestSpawnManager:
             player_tanks=[mock_player_tank],
         )
         assert manager.max_enemy_spawns == 20
+
+
+class TestEnemyAIPairing:
+    """Each Enemy is paired with the EnemyAI that drives it."""
+
+    @pytest.fixture
+    def spawn_manager(self, mock_texture_manager):
+        game_map = MagicMock()
+        game_map.spawn_points = TestSpawnManager.SPAWN_POINTS
+        game_map.width_px = 16 * TILE_SIZE
+        game_map.height_px = 16 * TILE_SIZE
+        game_map.get_base.return_value.rect = pygame.Rect(240, 464, 32, 32)
+        game_map.grid_to_pixels.side_effect = lambda gx, gy: (
+            gx * SUB_TILE_SIZE,
+            gy * SUB_TILE_SIZE,
+        )
+        return SpawnManager(
+            texture_manager=mock_texture_manager,
+            game_map=game_map,
+            enemy_composition=_DEFAULT_COMPOSITION,
+            spawn_interval=5.0,
+            player_tanks=[],
+            difficulty=Difficulty.EASY,
+        )
+
+    def test_spawned_enemy_gets_its_own_ai(self, spawn_manager):
+        enemy = spawn_manager.enemy_tanks[0]
+
+        ai = spawn_manager.ai_for(enemy)
+
+        assert isinstance(ai, EnemyAI)
+        assert ai.tank is enemy
+
+    def test_ai_steers_for_the_stage_base_and_difficulty(self, spawn_manager):
+        ai = spawn_manager.ai_for(spawn_manager.enemy_tanks[0])
+
+        assert ai.base_position == (256.0, 480.0)
+        assert spawn_manager.base_position == (256.0, 480.0)
+        assert ai.effective_base_bias == 0.0
+
+    def test_removed_enemy_loses_its_ai(self, spawn_manager):
+        enemy = spawn_manager.enemy_tanks[0]
+
+        spawn_manager.remove_enemy(enemy)
+
+        with pytest.raises(KeyError):
+            spawn_manager.ai_for(enemy)
 
 
 class TestSpawnAnimation:

@@ -107,7 +107,7 @@ def test_player_bullet_vs_tile(
 
 def test_player_bullet_destroys_enemy_tank(game_manager_fixture, mocker):
     """Test player bullet hitting and destroying a basic enemy tank."""
-    mocker.patch("src.core.enemy_tank.random.uniform", return_value=0.0)
+    mocker.patch("src.core.enemy_ai.random.uniform", return_value=0.0)
     game_manager = game_manager_fixture
     player_tank = first_player(game_manager)
 
@@ -182,7 +182,7 @@ def test_enemy_bullet_hits_player_tank(
     mocker,
 ):
     """Test enemy bullet hitting the player tank under different conditions."""
-    mocker.patch("src.core.enemy_tank.random.uniform", return_value=0.0)
+    mocker.patch("src.core.enemy_ai.random.uniform", return_value=0.0)
     game_manager = game_manager_fixture
     player_tank = first_player(game_manager)
     initial_spawn_pos = player_tank.initial_position
@@ -303,7 +303,7 @@ def test_enemy_bullet_hits_player_tank(
 
 def test_enemy_bullet_hits_other_enemy(game_manager_fixture, mocker):
     """Test that an enemy bullet has no effect on another enemy tank."""
-    mocker.patch("src.core.enemy_tank.random.uniform", return_value=0.0)
+    mocker.patch("src.core.enemy_ai.random.uniform", return_value=0.0)
     game_manager = game_manager_fixture
 
     # enemy1 shoots down at enemy2 (4 sub-tiles apart).
@@ -357,7 +357,7 @@ def test_enemy_bullet_hits_other_enemy(game_manager_fixture, mocker):
 
 def test_player_tank_vs_enemy_tank_no_overlap(game_manager_fixture, mocker):
     """Test that a player tank driving into an enemy tank does not overlap."""
-    mocker.patch("src.core.enemy_tank.random.uniform", return_value=0.0)
+    mocker.patch("src.core.enemy_ai.random.uniform", return_value=0.0)
     game_manager = game_manager_fixture
     player_tank = first_player(game_manager)
 
@@ -379,8 +379,9 @@ def test_player_tank_vs_enemy_tank_no_overlap(game_manager_fixture, mocker):
     enemy_tank = spawn_enemy_at(game_manager, enemy_x_grid, enemy_y_grid)
     # Pin the enemy so only the player moves; we want to test the collision, not AI.
     enemy_tank.speed = 0
-    enemy_tank.direction_change_interval = 999
-    enemy_tank.shoot_interval = 999
+    enemy_ai = game_manager.spawn_manager.ai_for(enemy_tank)
+    enemy_ai.direction_change_interval = 999
+    enemy_ai.shoot_interval = 999
 
     dt = 1.0 / FPS
     for _ in range(30):
@@ -410,7 +411,7 @@ def test_player_tank_vs_enemy_tank_no_overlap(game_manager_fixture, mocker):
 
 def test_enemy_bullets_collide(game_manager_fixture, mocker):
     """Test that two enemy bullets pass through each other."""
-    mocker.patch("src.core.enemy_tank.random.uniform", return_value=0.0)
+    mocker.patch("src.core.enemy_ai.random.uniform", return_value=0.0)
     game_manager = game_manager_fixture
 
     enemy1_x_grid, enemy1_y_grid = 2, 16

@@ -10,6 +10,7 @@ from src.utils.constants import (
 from src.core.tile import Tile, TileType
 from tests.integration.conftest import (
     clear_enemies,
+    clear_tiles,
     first_player,
     flush_pending_spawns,
     spawn_enemy_at,
@@ -186,7 +187,7 @@ original_random_choice = random.choice
 
 
 @patch("src.core.enemy_tank.random.choice")
-@patch("src.core.enemy_tank.random.uniform", return_value=0.0)
+@patch("src.core.enemy_ai.random.uniform", return_value=0.0)
 def test_enemy_movement_and_direction_change(
     mock_uniform, mock_choice, game_manager_fixture
 ):
@@ -231,7 +232,9 @@ def test_enemy_movement_and_direction_change(
     observed_directions = {initial_direction}
 
     dt = 1.0 / FPS
-    direction_change_interval = enemy_tank.direction_change_interval
+    direction_change_interval = game_manager.spawn_manager.ai_for(
+        enemy_tank
+    ).direction_change_interval
     simulation_duration = direction_change_interval + 0.1
     num_updates = int(simulation_duration / dt)
 
@@ -344,13 +347,13 @@ def test_enemy_movement_blocked_by_tile(
     enemy_tank = spawn_enemy_at(
         game_manager, start_grid_x, start_grid_y, direction=move_direction
     )
-    enemy_tank.direction_timer = 0
+    game_manager.spawn_manager.ai_for(enemy_tank).direction_timer = 0
     game_manager.spawn_manager.total_enemy_spawns = 1
 
     initial_pos = enemy_tank.get_position()
 
     # Check after a single update: the first update attempts movement and gets
-    # snapped back by the collision. A second update would trigger _change_direction()
+    # snapped back by the collision. A second update would let the AI turn
     # away from the obstacle, which would contaminate this test.
     game_manager.update()
 
@@ -368,12 +371,13 @@ def test_enemy_shooting(game_manager_fixture):
 
     clear_enemies(game_manager)
     enemy_tank = spawn_enemy_at(game_manager, 16, 16, direction=Direction.RIGHT)
-    enemy_tank.shoot_timer = 0
+    enemy_ai = game_manager.spawn_manager.ai_for(enemy_tank)
+    enemy_ai.shoot_timer = 0
     game_manager.spawn_manager.total_enemy_spawns = 1
 
     # Run longer than shoot_interval so we're guaranteed to see a shot.
     dt = 1.0 / FPS
-    shoot_interval = enemy_tank.shoot_interval
+    shoot_interval = enemy_ai.shoot_interval
     simulation_duration = shoot_interval + 0.5
     num_updates = int(simulation_duration / dt)
 
@@ -430,4 +434,45 @@ def test_enemy_shooting(game_manager_fixture):
     assert bullet_fired, (
         f"Enemy did not fire a bullet within {simulation_duration}s "
         f"({num_updates} updates)"
+    )
+
+
+def test_enemy_ai_steers_toward_the_player(game_manager_fixture):
+    """Each frame, an Enemy's AI is told where the nearest Player is."""
+    game_manager = game_manager_fixture
+    clear_enemies(game_manager)
+    enemy_tank = spawn_enemy_at(game_manager, 20, 4)
+    game_manager.spawn_manager.total_enemy_spawns = 1
+
+    game_manager.update()
+
+    player = first_player(game_manager)
+    enemy_ai = game_manager.spawn_manager.ai_for(enemy_tank)
+    assert enemy_ai.target_position == (player.x, player.y)
+
+
+def test_blocked_enemy_turns_away(game_manager_fixture):
+    """Running into a wall reaches the Enemy AI, which picks another way."""
+    game_manager = game_manager_fixture
+    game_map = game_manager.map
+    for gx, gy in [(20, 20), (21, 20), (20, 21), (21, 21)]:
+        game_map.place_tile(
+            gx,
+            gy,
+            Tile(TileType.STEEL, gx, gy, SUB_TILE_SIZE, blocks_tanks=True),
+        )
+    clear_tiles(game_map, [(22, 20), (23, 20), (22, 21), (23, 21)])
+    clear_enemies(game_manager)
+    enemy_tank = spawn_enemy_at(game_manager, 22, 20, direction=Direction.LEFT)
+    enemy_ai = game_manager.spawn_manager.ai_for(enemy_tank)
+    enemy_ai.direction_change_interval = 999
+    enemy_ai.shoot_interval = 999
+    game_manager.spawn_manager.total_enemy_spawns = 1
+
+    game_manager.update()
+
+    assert Direction.LEFT in enemy_ai._blocked_directions
+    assert enemy_ai.get_movement_direction() in (
+        Direction.UP.delta,
+        Direction.DOWN.delta,
     )
