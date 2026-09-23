@@ -55,9 +55,13 @@ jobs:
         with:
           python-version-file: '.python-version'
 
-      - name: Install bump-my-version
+      - name: Install uv
         if: steps.bump-type.outputs.type != 'none'
-        run: pip install bump-my-version
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
+
+      - name: Install build tools (bump-my-version)
+        if: steps.bump-type.outputs.type != 'none'
+        run: uv sync --locked --no-install-project --extra build
 
       - name: Configure git
         if: steps.bump-type.outputs.type != 'none'
@@ -67,7 +71,7 @@ jobs:
 
       - name: Bump version
         if: steps.bump-type.outputs.type != 'none'
-        run: bump-my-version bump ${{ steps.bump-type.outputs.type }}
+        run: uv run --no-sync bump-my-version bump ${{ steps.bump-type.outputs.type }}
 
       - name: Push changes and tag
         if: steps.bump-type.outputs.type != 'none'
