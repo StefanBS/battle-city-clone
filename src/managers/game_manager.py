@@ -5,7 +5,6 @@ from loguru import logger
 from src.core.map import Map
 from src.core.player_tank import PlayerTank
 from src.core.tile import Tile
-from src.core.bullet import Bullet
 from src.states.game_mode import GameMode
 from src.states.game_state import GameState
 from src.utils.constants import (
@@ -40,6 +39,7 @@ from src.managers.renderer import Renderer
 from src.managers.power_up_manager import PowerUpManager
 from src.managers.player_manager import PlayerManager
 from src.managers.sound_manager import SoundManager
+from src.managers.tank_stepper import TankStepper
 from src.managers.world_view import WorldView, build_world_view
 from src.managers.settings_manager import SettingsManager
 from src.utils.paths import resource_path
@@ -256,7 +256,8 @@ class GameManager:
             powerup_carrier_indices=self.map.powerup_carrier_indices,
         )
 
-        self.bullets: list[Bullet] = []
+        # Steps every tank; recreated per stage so no bullet outlives it.
+        self.tank_stepper = TankStepper(self.map)
 
         # Restore player progress
         self.player_manager.restore_state()
@@ -391,9 +392,7 @@ class GameManager:
 
         self.map.update(dt)
         self.player_manager.observe(self._world_view())
-        # Update player tanks via PlayerManager
-        self.player_manager.update(dt, self.map)
-        self.player_manager.try_shoot()
+        self.player_manager.update(dt, self.tank_stepper)
 
         active_players = self.player_manager.get_active_players()
 
@@ -416,12 +415,9 @@ class GameManager:
                     closest_pos: tuple[float, float] | None = (closest.x, closest.y)
                 else:
                     closest_pos = shared_pos
-                enemy.update(dt, player_position=closest_pos)
-                enemy.on_ice = self.map.is_tile_slidable(
-                    enemy.x, enemy.y, enemy.width, enemy.height
-                )
-                if enemy.consume_shoot():
-                    self._try_shoot(enemy)
+                enemy.target_position = closest_pos
+                if self.tank_stepper.step(enemy, enemy, dt).fired:
+                    self.sound_manager.play("shoot")
 
         # Engine sound: plays when any tank is moving
         any_moving = any(p.is_moving for p in active_players) or any(
@@ -429,10 +425,7 @@ class GameManager:
         )
         self.sound_manager.update_engine(any_moving)
 
-        # Update enemy bullets (player bullets managed by PlayerManager)
-        for bullet in self.bullets:
-            bullet.update(dt)
-        self.bullets = [b for b in self.bullets if b.active]
+        self.tank_stepper.update_bullets(dt)
 
         self.spawn_manager.update(dt, active_players, self.map)
         self.power_up_manager.update(dt)
@@ -443,15 +436,12 @@ class GameManager:
         bullet_blocking_tiles: list[Tile] = self.map.get_bullet_blocking_tiles()
         player_base: Tile | None = self.map.get_base()
 
-        player_bullets = self.player_manager.get_all_bullets()
-
         active_power_ups = self.power_up_manager.active_power_ups
 
         self.collision_manager.check_collisions(
             player_tanks=active_players,
-            player_bullets=player_bullets,
             enemy_tanks=self.spawn_manager.enemy_tanks,
-            enemy_bullets=self.bullets,
+            bullets=self.tank_stepper.bullets,
             tank_blocking_tiles=tank_blocking_tiles,
             bullet_blocking_tiles=bullet_blocking_tiles,
             player_base=player_base,
@@ -493,17 +483,8 @@ class GameManager:
             enemies=self.spawn_manager.enemy_tanks,
             enemies_frozen=self.spawn_manager.enemies_frozen,
             power_ups=self.power_up_manager.active_power_ups,
-            bullets=[*self.player_manager.get_all_bullets(), *self.bullets],
+            bullets=self.tank_stepper.bullets,
         )
-
-    def _try_shoot(self, tank) -> None:
-        """Attempt to fire a bullet for the given tank, respecting max_bullets."""
-        active_count = sum(1 for b in self.bullets if b.owner is tank and b.active)
-        if active_count < tank.max_bullets:
-            bullet = tank.shoot()
-            if bullet is not None:
-                self.bullets.append(bullet)
-                self.sound_manager.play("shoot")
 
     def _on_victory_finished(self) -> None:
         if self.current_stage >= MAX_STAGE:
@@ -603,8 +584,7 @@ class GameManager:
             self.map,
             self.player_manager.players,
             self.spawn_manager.enemy_tanks,
-            self.player_manager.get_all_bullets(),
-            self.bullets,
+            self.tank_stepper.bullets,
             self.effect_manager,
             self.state,
             self.player_manager.scores,

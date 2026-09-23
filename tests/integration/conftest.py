@@ -138,10 +138,24 @@ def spawn_enemy_at(
     return enemy
 
 
+class _FireInPlace:
+    """A TankIntent that stands still and fires."""
+
+    def get_movement_direction(self):
+        return (0, 0)
+
+    def consume_shoot(self):
+        return True
+
+
 def fire_bullet_from(game, tank):
-    """Fire a bullet from `tank` via GameManager._try_shoot and return it."""
-    game._try_shoot(tank)
-    return next(b for b in game.bullets if b.owner is tank)
+    """Step `tank` one frame in place with a shot queued; return its bullet.
+
+    The shot respects the Bullet Cap, so at the cap this returns the bullet
+    already in flight.
+    """
+    game.tank_stepper.step(tank, _FireInPlace(), 1.0 / FPS)
+    return next(b for b in game.tank_stepper.bullets if b.owner is tank)
 
 
 def place_player_at(game, x, y, player=None):

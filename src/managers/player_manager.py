@@ -1,4 +1,4 @@
-"""PlayerManager: owns player tanks, input, bullets, and score."""
+"""PlayerManager: owns player tanks, input, and score."""
 
 from __future__ import annotations
 
@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 import pygame
 from loguru import logger
 
-from src.core.bullet import Bullet
 from src.core.player_tank import PlayerTank
 from src.managers.cpu_partner import CpuPartnerInput
 from src.managers.player_input import (
@@ -21,18 +20,18 @@ from src.states.game_mode import GameMode
 if TYPE_CHECKING:
     from src.core.map import Map
     from src.managers.sound_manager import SoundManager
+    from src.managers.tank_stepper import TankStepper
     from src.managers.texture_manager import TextureManager
     from src.managers.world_view import WorldView
 
 
 class PlayerManager:
-    """Owns the player tank(s), their input bindings, bullets, and score.
+    """Owns the player tank(s), their input bindings, and score.
 
     Responsibilities:
     - Create player tanks at map spawn points.
     - Forward pygame events to PlayerInput instances.
-    - Each update: call player.update(), apply ice sliding, apply movement.
-    - On try_shoot: consume shoot input and spawn bullets up to max_bullets.
+    - Each update: step every live player through TankStepper with its input.
     - Track player score.
     """
 
@@ -49,7 +48,6 @@ class PlayerManager:
         self._sound_manager = sound_manager
         self._players: list[PlayerTank] = []
         self._player_inputs: list[PlayerInput] = []
-        self._bullets: list[Bullet] = []
         self._scores: dict[int, int] = {}
         self._preserved_state: dict[int, dict] = {}
 
@@ -63,7 +61,6 @@ class PlayerManager:
         # source of truth for which SDL game controllers are currently open.
         self._players.clear()
         self._player_inputs.clear()
-        self._bullets.clear()
 
         map_width_px = game_map.width * game_map.tile_size
         map_height_px = game_map.height * game_map.tile_size
@@ -137,72 +134,21 @@ class PlayerManager:
         for pi in self._player_inputs:
             pi.clear_pending_shoot()
 
-    def update(self, dt: float, game_map: Map) -> None:
-        """Process input, move players, and handle ice sliding.
-
-        For each live player:
-        1. Call player.update(dt) to advance timers.
-        2. Read movement direction from the paired PlayerInput.
-        3. Detect whether the player is on an ice tile and start sliding if needed.
-        4. Apply player.move() when there is valid (non-diagonal) input and the
-           player is not currently sliding.
-
-        Also advances all active bullets and prunes inactive ones.
+    def update(self, dt: float, stepper: TankStepper) -> None:
+        """Step every live player with its input and play its sounds.
 
         Args:
             dt: Time step in seconds.
-            game_map: Current map (used for ice tile detection).
+            stepper: Steps each tank and owns the bullets it fires.
         """
         for player, player_input in zip(self._players, self._player_inputs):
             if player.health <= 0:
                 continue
-
-            player.update(dt)
-
-            dx, dy = player_input.get_movement_direction()
-            has_valid_input = (dx != 0 or dy != 0) and not (dx != 0 and dy != 0)
-
-            # Ice slide: trigger BEFORE move() so start_slide() captures old direction
-            player.on_ice = game_map.is_tile_slidable(
-                player.x, player.y, player.width, player.height
-            )
-            if player.on_ice and not player.is_sliding:
-                if not has_valid_input or (dx, dy) != player.direction.delta:
-                    if player.start_slide():
-                        self._sound_manager.play("ice_slide")
-
-            if has_valid_input and not player.is_sliding:
-                player.move(dx, dy, dt)
-
-        for bullet in self._bullets:
-            bullet.update(dt)
-        self._bullets = [b for b in self._bullets if b.active]
-
-    def try_shoot(self) -> None:
-        """Check shoot input for each player and fire a bullet if possible.
-
-        Respects each tank's max_bullets cap — no new bullet is created when
-        the player already has that many active bullets in flight.
-        """
-        for player, player_input in zip(self._players, self._player_inputs):
-            if player.health <= 0:
-                continue
-            if player_input.consume_shoot():
-                active_count = sum(
-                    1 for b in self._bullets if b.owner is player and b.active
-                )
-                if active_count < player.max_bullets:
-                    bullet: Bullet | None = player.shoot()
-                    if bullet is not None:
-                        self._bullets.append(bullet)
-                        self._sound_manager.play("shoot")
-
-    def get_all_bullets(self) -> list[Bullet]:
-        """Return all player bullets (pruned to active-only by update()).
-
-        Read-only: callers must not mutate the returned list.
-        """
-        return self._bullets
+            result = stepper.step(player, player_input, dt)
+            if result.slide_started:
+                self._sound_manager.play("ice_slide")
+            if result.fired:
+                self._sound_manager.play("shoot")
 
     @property
     def players(self) -> list[PlayerTank]:
@@ -315,6 +261,5 @@ class PlayerManager:
         """Full reset for starting a new game."""
         self._players.clear()
         self._player_inputs.clear()
-        self._bullets.clear()
         self._scores = {}
         self._preserved_state = {}

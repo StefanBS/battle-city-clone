@@ -47,7 +47,7 @@ GameObject (base: position, rect, draw, update)
 
 - **Two-step collision resolution:** Tanks move optimistically in `Tank._move()`, then `CollisionManager` detects overlaps and queues events, then `GameManager._process_collisions()` calls `Tank.revert_move(obstacle_rect)` to snap the tank flush against the obstacle.
 - **Separation of detection vs. response:** `CollisionManager` only detects collisions and queues events. `GameManager._process_collisions()` handles all outcomes (damage, tile destruction, state changes).
-- **One bullet per tank:** Each tank holds a single `Optional[Bullet]`. A new bullet fires only when the previous one is inactive.
+- **One stepping path:** `TankStepper` steps every tank, Player or Enemy, through a frame (timers, ice check, Slide or move, then fire within the Bullet Cap) and owns the only bullet list. Enemy AI and `PlayerInput` only supply intent. See `docs/adr/0002-one-stepping-path-for-all-tanks.md`.
 - **Logical vs. display surface:** `GameManager` renders to a `game_surface` (512x512) then scales up to the window (1024x1024) for a pixel-art effect.
 - **Fixed timestep:** `dt = 1.0 / fps` (constant, not measured from clock).
 - **No pygame.sprite.Group:** Entities are plain classes, managed via lists in `GameManager`.

@@ -134,7 +134,7 @@ def test_enemy_tank_grid_alignment(create_enemy_tank):
 
 @patch("src.core.enemy_tank.random.choice")
 def test_on_movement_blocked(mock_random_choice, create_enemy_tank):
-    """Test that on_movement_blocked changes direction and resets direction_timer."""
+    """on_movement_blocked picks a new wanted direction and resets the timer."""
     mock_random_choice.return_value = Direction.DOWN
     tank = create_enemy_tank(patch_random=False, difficulty=Difficulty.EASY)
     tank.direction = Direction.UP
@@ -143,7 +143,8 @@ def test_on_movement_blocked(mock_random_choice, create_enemy_tank):
     mock_random_choice.return_value = Direction.RIGHT
     tank.on_movement_blocked()
 
-    assert tank.direction == Direction.RIGHT
+    assert tank.get_movement_direction() == Direction.RIGHT.delta
+    assert tank.direction == Direction.UP
     assert tank.direction_timer == 0
     assert Direction.UP in tank._blocked_directions
 
@@ -161,7 +162,7 @@ def test_blocked_avoids_blocked_dirs(mock_random_choice, create_enemy_tank):
     tank.on_movement_blocked()
     assert Direction.RIGHT in tank._blocked_directions
     assert Direction.UP in tank._blocked_directions
-    assert tank.direction == Direction.DOWN
+    assert tank.get_movement_direction() == Direction.DOWN.delta
 
 
 @patch("src.core.enemy_tank.random.choice")
@@ -211,25 +212,39 @@ def test_consume_shoot_after_timer(create_enemy_tank):
     assert tank.consume_shoot() is False
 
 
-@patch("src.core.enemy_tank.random.choice")
-@patch("src.core.enemy_tank.random.uniform", return_value=0.0)
-def test_update_moves_in_current_direction(
-    mock_uniform, mock_choice, create_enemy_tank
-):
-    """Test that update() moves the tank in its current direction."""
-    mock_choice.return_value = Direction.DOWN
-    tank = create_enemy_tank(patch_random=False, difficulty=Difficulty.EASY)
-    tank.direction = Direction.RIGHT
-    # Set timers low so they don't trigger direction/shoot changes
+def test_wants_to_keep_going_the_way_it_faces(create_enemy_tank):
+    """Until the AI turns, an Enemy wants to drive the way it spawned facing."""
+    tank = create_enemy_tank(x=128, y=128)
+
+    assert tank.get_movement_direction() == Direction.DOWN.delta
+
+
+def test_update_does_not_move(create_enemy_tank):
+    """update() runs the AI; moving is left to TankStepper."""
+    tank = create_enemy_tank(x=128, y=128)
     tank.direction_timer = 0
     tank.shoot_timer = 0
-    initial_x = tank.x
 
-    dt = 1.0 / FPS
-    tank.update(dt)
+    tank.update(1.0 / FPS)
 
-    assert tank.x > initial_x
-    assert tank.y == pytest.approx(0.0)
+    assert (tank.x, tank.y) == (128, 128)
+    assert tank.is_moving is False
+
+
+@patch("src.core.enemy_tank.random.uniform", return_value=0.0)
+def test_direction_timer_records_wanted_direction_without_turning(
+    mock_uniform, create_enemy_tank
+):
+    tank = create_enemy_tank(x=128, y=128, difficulty=Difficulty.EASY)
+    tank.direction = Direction.RIGHT
+    tank.direction_timer = tank.direction_change_interval
+
+    with patch("src.core.enemy_tank.random.choice", return_value=Direction.UP):
+        tank.update(1.0 / FPS)
+
+    assert tank.get_movement_direction() == Direction.UP.delta
+    assert tank.direction == Direction.RIGHT
+    assert tank.direction_timer == 0.0
 
 
 class TestEnemyTankCarrier:
@@ -316,22 +331,14 @@ class TestEnemyIceSlide:
     def enemy(self, create_enemy_tank):
         return create_enemy_tank(x=128, y=128, difficulty=Difficulty.EASY)
 
-    def test_direction_change_triggers_slide_on_ice(self, enemy):
+    def test_direction_change_leaves_the_slide_to_the_stepper(self, enemy):
         enemy._on_ice = True
         enemy._was_moving = True
-        enemy.direction = Direction.RIGHT
-        old_direction = enemy.direction
-        with patch("src.core.enemy_tank.random.choice", return_value=Direction.UP):
-            enemy._change_direction()
-        assert enemy._sliding is True
-        assert enemy._slide_direction == old_direction
-
-    def test_direction_change_no_slide_off_ice(self, enemy):
-        enemy._on_ice = False
         enemy.direction = Direction.RIGHT
         with patch("src.core.enemy_tank.random.choice", return_value=Direction.UP):
             enemy._change_direction()
         assert enemy._sliding is False
+        assert enemy.direction == Direction.RIGHT
 
     def test_on_movement_blocked_cancels_slide(self, enemy):
         enemy._on_ice = True
@@ -395,7 +402,7 @@ class TestEnemyAIBiases:
         tank.direction_timer = tank.direction_change_interval + 1
         tank._blocked_directions.clear()
 
-        tank.update(0.01, player_position=None)
+        tank.update(0.01)
 
         mock_choices.assert_called()
         candidates, weights = mock_choices.call_args[0]
@@ -416,7 +423,8 @@ class TestEnemyAIBiases:
         tank.direction_timer = tank.direction_change_interval + 1
         tank._blocked_directions.clear()
 
-        tank.update(0.01, player_position=(400.0, 0.0))
+        tank.target_position = (400.0, 0.0)
+        tank.update(0.01)
 
         mock_choices.assert_called()
         candidates, weights = mock_choices.call_args[0]
@@ -437,13 +445,14 @@ class TestEnemyAIBiases:
         tank.direction_timer = tank.direction_change_interval + 1
         tank._blocked_directions.clear()
 
-        tank.update(0.01, player_position=(400.0, 400.0))
+        tank.target_position = (400.0, 400.0)
+        tank.update(0.01)
 
         # On Easy, biases are zero so random.choice is used, not random.choices
         mock_choices.assert_not_called()
 
-    def test_none_player_position_uses_base_only(self, create_enemy_tank):
-        """When player_position is None, only base bias applies."""
+    def test_no_target_position_uses_base_only(self, create_enemy_tank):
+        """When target_position is None, only base bias applies."""
         tank = create_enemy_tank(
             tank_type=TankType.ARMOR, map_width_px=512, map_height_px=512
         )
@@ -453,7 +462,7 @@ class TestEnemyAIBiases:
         with patch(
             "src.core.enemy_tank.random.choices", return_value=[Direction.DOWN]
         ) as mock_choices:
-            tank.update(0.01, player_position=None)
+            tank.update(0.01)
             candidates, weights = mock_choices.call_args[0]
             # No player bias added, only base bias
             down_idx = candidates.index(Direction.DOWN)
@@ -469,7 +478,8 @@ class TestEnemyAIBiases:
         tank.shoot_timer = tank.shoot_interval * 0.5 + 0.01
         tank.direction_timer = 0  # don't trigger direction change
 
-        tank.update(0.01, player_position=player_pos)
+        tank.target_position = player_pos
+        tank.update(0.01)
 
         assert tank.consume_shoot() is True
 
@@ -481,7 +491,8 @@ class TestEnemyAIBiases:
         tank.shoot_timer = tank.shoot_interval * 0.5 + 0.01
         tank.direction_timer = 0
 
-        tank.update(0.01, player_position=player_pos)
+        tank.target_position = player_pos
+        tank.update(0.01)
 
         assert tank.consume_shoot() is False
 

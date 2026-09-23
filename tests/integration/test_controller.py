@@ -53,7 +53,7 @@ class TestControllerGameplay:
         send_event(gm, event)
         gm.update()
 
-        assert len(gm.player_manager.get_all_bullets()) > 0
+        assert len(gm.tank_stepper.bullets) > 0
 
 
 class TestControllerMenuNavigation:

@@ -206,9 +206,14 @@ class Tank(GameObject):
         )
 
     def on_movement_blocked(self) -> None:
-        """Called when movement is blocked (wall, boundary, tank). No-op by default."""
+        """Called when movement is blocked (wall, boundary, tank).
+
+        Cancels any Slide, and the blocked move doesn't count as moving, so
+        the tank won't Slide next frame.
+        """
         self._sliding = False
         self._slide_remaining = 0.0
+        self._moving_this_frame = False
 
     @property
     def on_ice(self) -> bool:
@@ -303,6 +308,9 @@ class Tank(GameObject):
         target_x = self.x + dx * self.speed * dt
         target_y = self.y + dy * self.speed * dt
 
+        # Before clamping, so a blocked move can clear it.
+        self._moving_this_frame = True
+
         # Apply movement and clamp to map bounds
         self._apply_clamped_position(target_x, target_y)
 
@@ -314,8 +322,35 @@ class Tank(GameObject):
             self.animation_frame = 3 - self.animation_frame  # Toggle between 1 and 2
             self._update_sprite()
 
-        self._moving_this_frame = True
         return True  # Movement was attempted
+
+    def move(self, dx: int, dy: int, dt: float) -> None:
+        """
+        Turn to face (dx, dy) and move that way.
+
+        Args:
+            dx: X movement amount (-1, 0, or 1)
+            dy: Y movement amount (-1, 0, or 1)
+            dt: Time elapsed since last update in seconds
+        """
+        if dx == 0 and dy == 0:
+            return
+
+        new_direction = self.direction
+        if dx > 0:
+            new_direction = Direction.RIGHT
+        elif dx < 0:
+            new_direction = Direction.LEFT
+        elif dy > 0:
+            new_direction = Direction.DOWN
+        elif dy < 0:
+            new_direction = Direction.UP
+
+        if new_direction != self.direction:
+            self.direction = new_direction
+            self._update_sprite()
+
+        self._move(dx, dy, dt)
 
     def revert_move(self, obstacle_rect: pygame.Rect | None = None) -> None:
         """

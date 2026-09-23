@@ -110,9 +110,13 @@ class EnemyTank(Tank):
         self.shoot_interval: float = props["shoot_interval"]
         self._wants_to_shoot: bool = False
         self._blocked_directions: set[Direction] = set()
+        # A turn the AI wants but TankStepper hasn't made yet; None means
+        # keep going the way the tank faces.
+        self._turn_to: Direction | None = None
         self.is_carrier: bool = is_carrier
         self.carrier_blink_timer: float = 0.0
-        self._current_player_position: tuple[float, float] | None = None
+        # Set by GameManager before each step: the Player the AI steers toward.
+        self.target_position: tuple[float, float] | None = None
 
         # Compute effective AI biases from difficulty config + type multipliers
         difficulty_config = config.get("difficulty", {}).get(
@@ -168,12 +172,8 @@ class EnemyTank(Tank):
             return (dx > 0 and tx > self.x) or (dx < 0 and tx < self.x)
         return (dy > 0 and ty > self.y) or (dy < 0 and ty < self.y)
 
-    def _change_direction(
-        self,
-        player_position: tuple[float, float] | None = None,
-        allow_slide: bool = True,
-    ) -> None:
-        """Change the tank's direction, weighted by AI biases when applicable."""
+    def _change_direction(self) -> None:
+        """Pick a direction to turn to, weighted by AI biases when applicable."""
         old_direction = self.direction
 
         # Prefer unblocked directions, excluding opposite to avoid reversing
@@ -198,24 +198,19 @@ class EnemyTank(Tank):
                 if EnemyTank.base_position is not None:
                     if self._direction_moves_toward(d, EnemyTank.base_position):
                         weights[i] += self.effective_base_bias
-                if player_position is not None:
-                    if self._direction_moves_toward(d, player_position):
+                if self.target_position is not None:
+                    if self._direction_moves_toward(d, self.target_position):
                         weights[i] += self.effective_player_bias
             new_direction = random.choices(candidates, weights)[0]
         else:
             new_direction = random.choice(candidates)
 
-        # Trigger ice slide in old direction before changing
-        if allow_slide and new_direction != old_direction and self._on_ice:
-            self.start_slide()
-
+        self._turn_to = new_direction
         if new_direction != old_direction:
-            self.direction = new_direction
             logger.trace(
-                f"EnemyTank ({self.tank_type}) changing direction "
-                f"from {old_direction} to {self.direction}"
+                f"EnemyTank ({self.tank_type}) turning "
+                f"from {old_direction} to {new_direction}"
             )
-            self._update_sprite()
         else:
             logger.trace(
                 f"EnemyTank ({self.tank_type}) direction remained {old_direction}."
@@ -234,6 +229,10 @@ class EnemyTank(Tank):
                 return False
         return self._direction_moves_toward(self.direction, target)
 
+    def get_movement_direction(self) -> tuple[int, int]:
+        """The way the AI wants to drive: its pending turn, else straight on."""
+        return (self._turn_to or self.direction).delta
+
     def consume_shoot(self) -> bool:
         """Check if the tank wants to shoot and clear the flag."""
         if self._wants_to_shoot:
@@ -242,27 +241,22 @@ class EnemyTank(Tank):
         return False
 
     def on_movement_blocked(self) -> None:
-        """Handle collision with a wall by changing direction."""
+        """Handle collision with a wall by picking a new direction."""
         super().on_movement_blocked()
         self._blocked_directions.add(self.direction)
-        self._change_direction(
-            player_position=self._current_player_position, allow_slide=False
-        )
+        self._change_direction()
         self.direction_timer = 0
 
-    def update(
-        self,
-        dt: float,
-        player_position: tuple[float, float] | None = None,
-    ) -> None:
+    def update(self, dt: float) -> None:
         """
-        Update the tank's position and behavior.
+        Advance timers and run the AI, which records where to go and whether
+        to shoot. Turning, moving and sliding are left to TankStepper.
 
         Args:
             dt: Time elapsed since last update in seconds
-            player_position: Current player position for AI targeting, or None
         """
-        self._current_player_position = player_position
+        if self._turn_to is self.direction:
+            self._turn_to = None
         # Clear blocked directions once the tank successfully moved,
         # meaning the path is no longer obstructed. Check before
         # super().update() overwrites prev_x/prev_y.
@@ -283,7 +277,7 @@ class EnemyTank(Tank):
         # Change direction periodically
         if self.direction_timer >= self.direction_change_interval:
             logger.trace(f"EnemyTank ({self.tank_type}) direction timer triggered.")
-            self._change_direction(player_position=player_position)
+            self._change_direction()
             self.direction_timer = random.uniform(0, DIRECTION_CHANGE_RANDOM_OFFSET)
 
         # Shoot periodically (reduced interval when aligned with a target)
@@ -300,13 +294,9 @@ class EnemyTank(Tank):
             aligned = False
             if EnemyTank.base_position is not None:
                 aligned = self._is_aligned_with(EnemyTank.base_position)
-            if not aligned and player_position is not None:
-                aligned = self._is_aligned_with(player_position)
+            if not aligned and self.target_position is not None:
+                aligned = self._is_aligned_with(self.target_position)
             if aligned:
                 logger.trace(f"EnemyTank ({self.tank_type}) aligned shoot triggered.")
                 self._wants_to_shoot = True
                 self.shoot_timer = random.uniform(0, SHOOT_RANDOM_OFFSET)
-
-        if not self._sliding:
-            dx, dy = self.direction.delta
-            self._move(dx, dy, dt)
