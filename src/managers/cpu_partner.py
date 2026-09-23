@@ -4,13 +4,14 @@ import itertools
 import math
 from collections.abc import Collection
 from dataclasses import replace
-from typing import Literal
 
 import pygame
 
 from src.managers.enemy_memory import EnemyMemory
 from src.managers.goal_timing import Goal, GoalKind, GoalTiming, Hesitation
 from src.managers.pathfinding import Cell, NavGrid, find_path
+from src.managers.refused_shots import RefusedShots
+from src.managers.steering import Steering, TankKey
 from src.managers.world_view import (
     EnemyView,
     Footprint,
@@ -34,9 +35,6 @@ from src.utils.constants import (
     TANK_ALIGN_THRESHOLD,
     Direction,
 )
-
-# Identifies a tank in the World View: Enemy and Player ids can overlap.
-_TankKey = tuple[Literal["enemy", "player"], int]
 
 
 def _along_step(direction: Direction, horizontal: bool) -> int:
@@ -227,24 +225,16 @@ class CpuPartnerInput:
         self._cut_off: EnemyMemory[None] = EnemyMemory()
         # Sides of Enemies it gave up firing from, avoided until they move.
         self._given_up_sides: EnemyMemory[set[Direction]] = EnemyMemory()
-        # Frames it has stayed lined up on its target without a safe shot,
-        # and that target's id.
-        self._refused_frames: int = 0
-        self._refused_target: int | None = None
-        self._last_position: tuple[float, float] | None = None
-        self._stuck_frames: int = 0
-        # The direction it keeps trying to move in while stuck.
-        self._pushing: tuple[int, int] = (0, 0)
-        # Tanks to route around, with the cells they blocked it from, while
-        # they still stand on any of those cells.
-        self._detour_around: dict[_TankKey, set[Cell]] = {}
+        self._refused_shots = RefusedShots(round(CPU_PARTNER_REFUSED_SHOT_TIME * FPS))
+        self._steering = Steering(round(CPU_PARTNER_STUCK_TIME * FPS))
 
     def handle_event(self, event: pygame.event.Event) -> None:
         """The CPU Partner ignores pygame events."""
 
     def observe(self, world: WorldView) -> None:
         """Decide this frame's movement and shooting from the World View."""
-        self._track_progress(world.own_player)
+        own = world.own_player
+        self._steering.track(None if own is None else (own.x, own.y), self._movement)
         self._movement = (0, 0)
         self._shoot_requested = False
         self._act(world)
@@ -258,8 +248,7 @@ class CpuPartnerInput:
         Position on another. With none left on the other sides, the Enemy is
         Cut Off.
         """
-        # Any frame it doesn't refuse a shot starts the count afresh.
-        refused_frames, self._refused_frames = self._refused_frames, 0
+        self._refused_shots.start_frame()
         own = world.own_player
         if own is None or not own.alive:
             return
@@ -297,14 +286,7 @@ class CpuPartnerInput:
         self._shoot_requested = is_line_of_fire_safe(
             world, own, target
         ) and not can_evade_shot(world, own, target)
-        if self._shoot_requested:
-            return
-        if target.enemy_id != self._refused_target:
-            refused_frames = 0
-        self._refused_target = target.enemy_id
-        self._refused_frames = refused_frames + 1
-        if self._refused_frames >= CPU_PARTNER_REFUSED_SHOT_TIME * FPS:
-            self._refused_frames = 0
+        if not self._shoot_requested and self._refused_shots.refuse(target.enemy_id):
             given_up = set(Direction) - set(sides) | {facing.opposite}
             self._given_up_sides.remember(
                 target.enemy_id, world.cell_of(target), given_up
@@ -333,59 +315,37 @@ class CpuPartnerInput:
         if own.direction != facing:
             self._movement = facing.delta
 
-    def _track_progress(self, own: PlayerView | None) -> None:
-        """Count the frames it has tried to move without getting anywhere."""
-        position = None if own is None else (own.x, own.y)
-        if self._movement != (0, 0) and position == self._last_position:
-            self._stuck_frames += 1
-            self._pushing = self._movement
-        else:
-            self._stuck_frames = 0
-        self._last_position = position
-
     def _update_detour(
         self, world: WorldView, own: PlayerView, target: EnemyView | None
     ) -> tuple[set[Cell], set[Cell]]:
         """Update which tanks to route around and return their cells.
 
-        Once stuck for long enough, the tanks right ahead of it (Enemies other
-        than the ``target``, and the Human Player, to give way rather than push)
-        are routed around until they move off the cells where they stood.
-        Returns the cells of every tank to route around, and of the Players
-        among them.
+        Once stuck, it routes around the tanks right ahead of it: Enemies
+        other than the ``target``, and the Human Player, to give way rather
+        than push. Returns the cells of every tank to route around, and of the
+        Players among them.
         """
-        tanks: dict[_TankKey, PlayerView | EnemyView] = {
-            ("enemy", e.enemy_id): e for e in world.enemies
+        tanks: dict[TankKey, set[Cell]] = {
+            ("enemy", e.enemy_id): world.covered_cells(e) for e in world.enemies
         } | {
-            ("player", p.player_id): p
+            ("player", p.player_id): world.covered_cells(p)
             for p in world.players
             if p.player_id != own.player_id and p.alive
         }
-        if self._stuck_frames >= CPU_PARTNER_STUCK_TIME * FPS:
-            self._stuck_frames = 0
-            dx, dy = self._pushing
-            ahead = world.covered_cells(
+
+        def cells_ahead(direction: tuple[int, int]) -> set[Cell]:
+            dx, dy = direction
+            return world.covered_cells(
                 replace(
-                    own,
-                    x=own.x + dx * world.tile_size,
-                    y=own.y + dy * world.tile_size,
+                    own, x=own.x + dx * world.tile_size, y=own.y + dy * world.tile_size
                 )
             )
-            self._detour_around = {
-                key: cells
-                for key, t in tanks.items()
-                if (target is None or key != ("enemy", target.enemy_id))
-                and (cells := world.covered_cells(t)) & ahead
-            }
-        still_there = {
-            key: cells
-            for key, t in tanks.items()
-            if key in self._detour_around
-            and (cells := world.covered_cells(t)) & self._detour_around[key]
-        }
-        self._detour_around = {key: self._detour_around[key] for key in still_there}
-        players = [cells for key, cells in still_there.items() if key[0] == "player"]
-        return set().union(*still_there.values()), set().union(*players)
+
+        detour = self._steering.detour(
+            tanks, cells_ahead, None if target is None else ("enemy", target.enemy_id)
+        )
+        players = [cells for key, cells in detour.items() if key[0] == "player"]
+        return set().union(*detour.values()), set().union(*players)
 
     def _follow_path(
         self,
