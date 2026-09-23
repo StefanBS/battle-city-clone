@@ -5,11 +5,19 @@ import pytest
 
 from src.core.tile import TileType
 from src.managers.cpu_partner import CpuPartnerInput, ambush_positions
-from src.managers.world_view import EnemyView, PlayerView, PowerUpView, WorldView
+from src.managers.world_view import (
+    BulletView,
+    EnemyView,
+    PlayerView,
+    PowerUpView,
+    WorldView,
+)
 from src.utils.constants import (
     CPU_PARTNER_ALIGN_TOLERANCE,
     CPU_PARTNER_AMBUSH_DISTANCE,
     CPU_PARTNER_DECISION_INTERVAL,
+    CPU_PARTNER_DODGE_MISS_CHANCE,
+    CPU_PARTNER_DODGE_REACTION_TIME,
     CPU_PARTNER_GOAL_STICKINESS,
     CPU_PARTNER_HESITATION_CHANCE,
     CPU_PARTNER_HESITATION_TIME,
@@ -21,6 +29,7 @@ from src.utils.constants import (
     SUB_TILE_SIZE,
     TANK_ALIGN_THRESHOLD,
     Direction,
+    OwnerType,
     PowerUpType,
 )
 from tests.conftest import tile_fields
@@ -115,7 +124,13 @@ def walk(cpu: CpuPartnerInput, view: WorldView, steps: int = 40) -> PlayerView:
 @pytest.fixture
 def cpu() -> CpuPartnerInput:
     """A CPU Partner without imperfection: it decides and acts every frame."""
-    return CpuPartnerInput(decision_interval=0, reaction_delay=0, hesitation_chance=0)
+    return CpuPartnerInput(
+        decision_interval=0,
+        reaction_delay=0,
+        hesitation_chance=0,
+        dodge_reaction_time=0,
+        dodge_miss_chance=0,
+    )
 
 
 class TestCpuPartnerHunt:
@@ -1265,3 +1280,359 @@ class TestCpuPartnerHesitation:
         cpu.observe(make_view(own=(12, 12, Direction.LEFT), enemies=[(12, 2)]))
         cpu.observe(LINED_UP)
         assert random_.call_count == 2
+
+
+def enemy_bullet(
+    x: float, y: float, direction: Direction, bullet_id: int = 0, **fields
+) -> BulletView:
+    """An Enemy bullet with its top-left corner at pixel ``(x, y)``."""
+    return BulletView(
+        bullet_id=bullet_id,
+        x=x,
+        y=y,
+        direction=direction,
+        owner_type=OwnerType.ENEMY,
+        **fields,
+    )
+
+
+# The CPU Partner at sub-tile (12, 12) spans pixels 192 to 224 on both axes;
+# its bullet's lane (and the middle of its side) runs from 206 to 210.
+MIDDLE = cell(12) + 14
+
+
+def with_bullets(view: WorldView, *bullets: BulletView) -> WorldView:
+    """``view`` with exactly ``bullets`` in flight."""
+    return replace(view, bullets=bullets)
+
+
+def with_own(view: WorldView, **fields) -> WorldView:
+    """``view`` with the CPU Partner's tank changed by ``fields``."""
+    human, own = view.players
+    return replace(view, players=(human, replace(own, **fields)))
+
+
+SHOT_FROM_THE_LEFT = enemy_bullet(cell(6), MIDDLE, Direction.RIGHT)
+
+
+class TestCpuPartnerDodgeSidestep:
+    def test_sidesteps_a_shot_fired_from_across_the_map_only_once_it_is_near(
+        self, cpu
+    ) -> None:
+        own = make_view(own=(12, 12, Direction.UP))
+        far = enemy_bullet(cell(0), MIDDLE, Direction.RIGHT, speed=100)
+        cpu.observe(with_bullets(own, far))
+        assert cpu.get_movement_direction() == (0, 0)
+        cpu.observe(with_bullets(own, replace(far, x=cell(8))))
+        assert cpu.get_movement_direction() != (0, 0)
+
+    @pytest.mark.parametrize(
+        "bullet, tiles, human",
+        [
+            # Flying away from it.
+            (enemy_bullet(cell(6), MIDDLE, Direction.LEFT), {}, (0, 24)),
+            # Its lane passes just above the tank.
+            (enemy_bullet(cell(6), cell(12) - 4, Direction.RIGHT), {}, (0, 24)),
+            # A brick or steel wall stops it first.
+            (
+                enemy_bullet(cell(6), MIDDLE, Direction.RIGHT),
+                {(9, 12): TileType.BRICK, (9, 13): TileType.BRICK},
+                (0, 24),
+            ),
+            # The Human Player stands in between and takes it.
+            (enemy_bullet(cell(4), MIDDLE, Direction.RIGHT), {}, (8, 12)),
+            # The Human Player's own bullet.
+            (
+                replace(
+                    enemy_bullet(cell(6), MIDDLE, Direction.RIGHT),
+                    owner_type=OwnerType.PLAYER,
+                ),
+                {},
+                (0, 24),
+            ),
+        ],
+        ids=["flying-away", "lane-misses", "brick", "human", "player-bullet"],
+    )
+    def test_ignores_bullets_that_are_no_incoming_shot(
+        self, cpu, bullet, tiles, human
+    ) -> None:
+        view = make_view(own=(12, 12, Direction.UP), tiles=tiles, human=human)
+        cpu.observe(with_bullets(view, bullet))
+        assert cpu.get_movement_direction() == (0, 0)
+        assert cpu.consume_shoot() is False
+
+
+class TestCpuPartnerDodgeWhichWay:
+    @pytest.mark.parametrize(
+        "lane_top, way",
+        [(cell(12) + 2, Direction.DOWN), (cell(14) - 6, Direction.UP)],
+        ids=["near-its-top", "near-its-bottom"],
+    )
+    def test_steps_the_short_way_out_of_the_lane(self, cpu, lane_top, way) -> None:
+        view = with_bullets(
+            make_view(own=(12, 12, Direction.LEFT)),
+            enemy_bullet(cell(6), lane_top, Direction.RIGHT),
+        )
+        cpu.observe(view)
+        assert cpu.get_movement_direction() == way.delta
+
+    @pytest.mark.parametrize(
+        "blocker",
+        [
+            {"tiles": {(12, 14): TileType.STEEL, (13, 14): TileType.STEEL}},
+            {"enemies": [(12, 14)]},
+        ],
+        ids=["steel", "enemy"],
+    )
+    def test_steps_the_long_way_when_the_short_way_is_blocked(
+        self, cpu, blocker
+    ) -> None:
+        view = with_bullets(
+            make_view(own=(12, 12, Direction.LEFT), **blocker),
+            enemy_bullet(cell(4), cell(12) + 2, Direction.RIGHT),
+        )
+        cpu.observe(view)
+        assert cpu.get_movement_direction() == Direction.UP.delta
+
+    def test_does_not_step_into_another_incoming_shots_lane(self, cpu) -> None:
+        view = with_bullets(
+            make_view(own=(12, 12, Direction.LEFT)),
+            enemy_bullet(cell(4), cell(12) + 2, Direction.RIGHT, bullet_id=0),
+            # Passing just below it: stepping down walks into its lane.
+            enemy_bullet(cell(6), cell(14) + 2, Direction.RIGHT, bullet_id=1),
+        )
+        cpu.observe(view)
+        assert cpu.get_movement_direction() == Direction.UP.delta
+
+
+class TestCpuPartnerDodgeShootDown:
+    def test_shoots_down_a_shot_it_faces_and_holds_its_ground(self, cpu) -> None:
+        view = with_bullets(
+            make_view(own=(12, 12, Direction.LEFT)),
+            enemy_bullet(cell(6), MIDDLE, Direction.RIGHT),
+        )
+        cpu.observe(view)
+        assert cpu.consume_shoot() is True
+        assert cpu.get_movement_direction() == (0, 0)
+
+    def test_leaves_a_shot_it_shot_down_to_its_own_bullet(self, cpu) -> None:
+        view = make_view(own=(12, 12, Direction.LEFT))
+        cpu.observe(with_bullets(view, SHOT_FROM_THE_LEFT))
+        assert cpu.consume_shoot() is True
+        # Its bullet is in flight now: at its Bullet Cap, it still doesn't
+        # sidestep a shot its bullet is about to meet.
+        at_cap = with_own(view, can_fire=False)
+        cpu.observe(with_bullets(at_cap, replace(SHOT_FROM_THE_LEFT, x=cell(6) + 3)))
+        assert cpu.get_movement_direction() == (0, 0)
+        assert cpu.consume_shoot() is False
+
+    def test_sidesteps_when_at_its_bullet_cap(self, cpu) -> None:
+        view = with_bullets(
+            with_own(make_view(own=(12, 12, Direction.LEFT)), can_fire=False),
+            enemy_bullet(cell(6), MIDDLE, Direction.RIGHT),
+        )
+        cpu.observe(view)
+        assert cpu.consume_shoot() is False
+        assert cpu.get_movement_direction() in (
+            Direction.UP.delta,
+            Direction.DOWN.delta,
+        )
+
+    def test_sidesteps_a_shot_that_would_only_clip_its_edge(self, cpu) -> None:
+        # Its own bullet would fly past: the lanes don't meet.
+        view = with_bullets(
+            make_view(own=(12, 12, Direction.LEFT)),
+            enemy_bullet(cell(6), cell(12) + 2, Direction.RIGHT),
+        )
+        cpu.observe(view)
+        assert cpu.consume_shoot() is False
+        assert cpu.get_movement_direction() == Direction.DOWN.delta
+
+    def test_shoots_down_a_shot_coming_from_the_base(self, cpu) -> None:
+        # Its Line of Fire runs into the Base Wall, but its bullet meets the
+        # Enemy's first.
+        view = with_bullets(
+            make_view(
+                own=(12, 8, Direction.DOWN),
+                tiles=base_tiles(),
+                base_cells=BASE,
+                base_wall_cells=BASE_WALL,
+            ),
+            enemy_bullet(cell(12) + 14, cell(13), Direction.UP),
+        )
+        cpu.observe(view)
+        assert cpu.consume_shoot() is True
+        assert cpu.get_movement_direction() == (0, 0)
+
+    def test_does_not_step_toward_a_shot_already_coming_at_it(self, cpu) -> None:
+        view = with_bullets(
+            make_view(own=(12, 12, Direction.LEFT)),
+            enemy_bullet(cell(6), cell(12) + 2, Direction.RIGHT, bullet_id=0),
+            # Coming up its column, due after the first: stepping down would
+            # bring it sooner.
+            enemy_bullet(MIDDLE, cell(22), Direction.UP, bullet_id=1),
+        )
+        cpu.observe(view)
+        assert cpu.get_movement_direction() == Direction.UP.delta
+
+    def test_dodges_the_shot_that_arrives_first(self, cpu) -> None:
+        view = with_bullets(
+            make_view(own=(12, 12, Direction.LEFT)),
+            enemy_bullet(cell(4), cell(12) + 2, Direction.RIGHT, bullet_id=0),
+            enemy_bullet(cell(12) + 2, cell(8), Direction.DOWN, bullet_id=1),
+        )
+        cpu.observe(view)
+        assert cpu.get_movement_direction() == Direction.RIGHT.delta
+
+
+# Steel just above and below the CPU Partner at (12, 12): no room to sidestep.
+HEMMED_IN = {(x, y): TileType.STEEL for x in (12, 13) for y in (11, 14)}
+
+
+class TestCpuPartnerDodgeLastResort:
+    def test_turns_and_fires_when_too_late_to_step_aside(self, cpu) -> None:
+        view = with_bullets(
+            make_view(own=(12, 12, Direction.UP)),
+            enemy_bullet(cell(12) - 12, MIDDLE, Direction.RIGHT),
+        )
+        cpu.observe(view)
+        assert cpu.get_movement_direction() == Direction.LEFT.delta
+        assert cpu.consume_shoot() is True
+
+    def test_carries_on_when_nothing_would_help(self, cpu) -> None:
+        # Hemmed in, and the shot would only clip its edge: firing back would
+        # miss, so it keeps at its Goal.
+        view = with_bullets(
+            make_view(own=(12, 12, Direction.UP), enemies=[(20, 12)], tiles=HEMMED_IN),
+            enemy_bullet(cell(6), cell(12) + 2, Direction.RIGHT),
+        )
+        cpu.observe(view)
+        assert cpu.get_movement_direction() == Direction.RIGHT.delta
+        assert cpu.consume_shoot() is False
+
+
+def guarding_base_view(wall: TileType | None, can_fire: bool = True) -> WorldView:
+    """The CPU Partner above the mid-field Base, a shot coming down on it."""
+    view = make_view(
+        own=(12, 8, Direction.LEFT),
+        tiles=base_tiles(wall),
+        base_cells=BASE,
+        base_wall_cells=BASE_WALL,
+    )
+    return with_bullets(
+        with_own(view, can_fire=can_fire),
+        enemy_bullet(cell(12) + 14, cell(2), Direction.DOWN),
+    )
+
+
+class TestCpuPartnerDodgeGuardingTheBase:
+    def test_shoots_down_a_shot_that_would_go_on_to_hit_the_base(self, cpu) -> None:
+        cpu.observe(guarding_base_view(wall=None))
+        assert cpu.get_movement_direction() == Direction.UP.delta
+        assert cpu.consume_shoot() is True
+
+    def test_takes_the_hit_when_it_cannot_shoot_it_down(self, cpu) -> None:
+        cpu.observe(guarding_base_view(wall=None, can_fire=False))
+        assert cpu.get_movement_direction() == (0, 0)
+        assert cpu.consume_shoot() is False
+
+    def test_steps_aside_when_only_the_base_wall_lies_behind(self, cpu) -> None:
+        cpu.observe(guarding_base_view(wall=TileType.BRICK))
+        assert cpu.get_movement_direction() in (
+            Direction.LEFT.delta,
+            Direction.RIGHT.delta,
+        )
+        assert cpu.consume_shoot() is False
+
+
+class TestCpuPartnerDodgeWhen:
+    @pytest.mark.parametrize("state", ["shielded", "frozen"])
+    def test_does_not_dodge_while(self, cpu, state) -> None:
+        view = make_view(own=(12, 12, Direction.UP))
+        cpu.observe(with_bullets(with_own(view, **{state: True}), SHOT_FROM_THE_LEFT))
+        assert cpu.get_movement_direction() == (0, 0)
+        assert cpu.consume_shoot() is False
+
+    def test_goes_straight_back_to_its_target_after_a_dodge(self) -> None:
+        # Real Goal timing: a Dodge must not restart the Reaction Delay.
+        cpu = CpuPartnerInput(
+            hesitation_chance=0, dodge_reaction_time=0, dodge_miss_chance=0
+        )
+        hunting = make_view(own=(12, 12, Direction.UP), enemies=[(20, 12)])
+        observe_frames(cpu, hunting, DECISION_FRAMES + REACTION_FRAMES + 1)
+        assert cpu.get_movement_direction() == Direction.RIGHT.delta
+        cpu.observe(with_bullets(hunting, SHOT_FROM_THE_LEFT))
+        assert cpu.get_movement_direction() in (
+            Direction.UP.delta,
+            Direction.DOWN.delta,
+        )
+        cpu.observe(hunting)
+        assert cpu.get_movement_direction() == Direction.RIGHT.delta
+
+    def test_a_dodge_neither_counts_nor_breaks_its_refused_shot_time(self, cpu) -> None:
+        # Lined up on an Enemy it may not shoot: the Human Player stands in
+        # between.
+        refused = make_view(
+            own=(12, 12, Direction.RIGHT), enemies=[(20, 12)], human=(16, 12)
+        )
+        for _ in range(REFUSED_FRAMES - 1):
+            cpu.observe(refused)
+            assert cpu.get_movement_direction() == (0, 0)
+        # A shot from behind makes it dodge for a few frames.
+        for _ in range(3):
+            cpu.observe(with_bullets(refused, SHOT_FROM_THE_LEFT))
+            assert cpu.get_movement_direction() != (0, 0)
+        # One more refused frame completes the refused shot time.
+        cpu.observe(refused)
+        cpu.observe(refused)
+        assert cpu.get_movement_direction() != (0, 0)
+
+
+DODGE_REACTION_FRAMES = round(CPU_PARTNER_DODGE_REACTION_TIME * FPS)
+
+
+class TestCpuPartnerDodgeImperfection:
+    @pytest.fixture
+    def cpu(self) -> CpuPartnerInput:
+        return CpuPartnerInput(
+            decision_interval=0,
+            reaction_delay=0,
+            hesitation_chance=0,
+            dodge_miss_chance=0,
+        )
+
+    def test_takes_a_moment_to_notice_an_incoming_shot(self, cpu) -> None:
+        view = with_bullets(make_view(own=(12, 12, Direction.UP)), SHOT_FROM_THE_LEFT)
+        moves = observe_frames(cpu, view, DODGE_REACTION_FRAMES)
+        assert moves == [(0, 0)] * DODGE_REACTION_FRAMES
+        cpu.observe(view)
+        assert cpu.get_movement_direction() != (0, 0)
+
+    def test_keeps_dodging_a_shot_it_has_noticed(self, cpu) -> None:
+        view = with_bullets(make_view(own=(12, 12, Direction.UP)), SHOT_FROM_THE_LEFT)
+        observe_frames(cpu, view, DODGE_REACTION_FRAMES + 1)
+        # A frame out of its lane (it just stepped clear) doesn't reset that.
+        cpu.observe(
+            with_bullets(make_view(own=(12, 9, Direction.UP)), SHOT_FROM_THE_LEFT)
+        )
+        cpu.observe(view)
+        assert cpu.get_movement_direction() != (0, 0)
+
+    @patch(
+        "src.managers.dodge.random.random",
+        return_value=CPU_PARTNER_DODGE_MISS_CHANCE - 0.01,
+    )
+    def test_misses_a_shot_for_its_whole_flight(self, random_) -> None:
+        cpu = CpuPartnerInput(
+            decision_interval=0,
+            reaction_delay=0,
+            hesitation_chance=0,
+            dodge_reaction_time=0,
+        )
+        view = with_bullets(make_view(own=(12, 12, Direction.UP)), SHOT_FROM_THE_LEFT)
+        assert observe_frames(cpu, view, 10) == [(0, 0)] * 10
+        assert random_.call_count == 1
+        # Another bullet gets its own roll.
+        random_.return_value = CPU_PARTNER_DODGE_MISS_CHANCE + 0.01
+        cpu.observe(with_bullets(view, replace(SHOT_FROM_THE_LEFT, bullet_id=1)))
+        assert cpu.get_movement_direction() != (0, 0)

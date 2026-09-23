@@ -30,6 +30,14 @@ The moment the CPU Partner takes before acting on a new Goal. Until it passes, i
 **Cut Off**:
 An Enemy the CPU Partner has no Firing Position left to use against from where the Enemy stands: it found none it can reach, or it has given up firing from every side. It is left out of the CPU Partner's Goals until it moves.
 
+**Incoming Shot**:
+An Enemy bullet that will hit the CPU Partner if it stays where it is.
+_Avoid_: Threat (that is a Base Threat), incoming bullet
+
+**Dodge**:
+The CPU Partner's reflex against an Incoming Shot: it shoots the bullet down or sidesteps out of its way. A Dodge overrides the CPU Partner's movement and shooting while it lasts, but it is not a Goal: the Goal and its target stay as they were and the CPU Partner goes back to them straight after.
+_Avoid_: Evade (an Enemy slipping away from a shot), evasion
+
 **Co-op**:
 A game with two Players, where P2 is either a second Human Player or a CPU Partner.
 
@@ -53,7 +61,7 @@ _Avoid_: Flashing tank, bonus tank
 The behaviour that drives an Enemy's movement and shooting. Never used for the CPU Partner.
 
 **Frozen**:
-The state of every Enemy while a Clock is in effect: it neither moves, turns, fires nor Slides, but its bullets already in flight keep going and it can still be destroyed. Enemies that appear during it are Frozen too.
+The state of a tank that for a while neither moves, turns nor fires, though its bullets already in flight keep going and it can still be destroyed. Every Enemy is Frozen while a Clock is in effect: it doesn't Slide either, and Enemies that appear during it are Frozen too. A Player is Frozen for a moment when the other Player's bullet hits it.
 _Avoid_: Paused, stopped
 
 ### Battlefield

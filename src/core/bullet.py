@@ -1,3 +1,5 @@
+import itertools
+
 import pygame
 from loguru import logger
 from .game_object import GameObject
@@ -8,6 +10,9 @@ from src.utils.constants import (
     BULLET_SPEED,
     WHITE,
 )
+
+
+_next_bullet_id = itertools.count()
 
 
 class Bullet(GameObject):
@@ -46,6 +51,7 @@ class Bullet(GameObject):
         self.map_width_px: int = owner.map_width_px
         self.map_height_px: int = owner.map_height_px
         self.power_bullet: bool = power_bullet
+        self.bullet_id: int = next(_next_bullet_id)
         logger.trace(
             f"Created bullet for {self.owner_type} "
             f"at ({x:.1f}, {y:.1f}) moving {direction}"

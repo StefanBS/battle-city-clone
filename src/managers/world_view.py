@@ -10,6 +10,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Protocol
 
 from src.core.tile import BrickVariant, TileType
+from src.managers.tank_stepper import is_at_bullet_cap
 from src.utils.constants import (
     BASE_THREAT_RADIUS,
     BULLET_SIZE,
@@ -117,7 +118,10 @@ class PlayerView:
     y: float
     direction: Direction
     frozen: bool = False
+    shielded: bool = False
+    can_fire: bool = True
     size: int = TILE_SIZE
+    speed: float = TANK_SPEED
     bullet_speed: float = BULLET_SPEED
 
 
@@ -139,12 +143,18 @@ class EnemyView:
 
 @dataclass(frozen=True, kw_only=True)
 class BulletView:
-    """An active bullet as seen in the World View (pixel coordinates)."""
+    """An active bullet as seen in the World View (pixel coordinates).
 
+    ``bullet_id`` stays the same for as long as that bullet is in flight.
+    """
+
+    bullet_id: int
     x: float
     y: float
     direction: Direction
     owner_type: OwnerType
+    size: int = BULLET_SIZE
+    speed: float = BULLET_SPEED
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -370,6 +380,7 @@ def build_world_view(
 
     ``players`` must be the live Players only.
     """
+    bullets = [b for b in bullets if b.active]
     tiles = tuple(
         tuple(tile.type if tile is not None else TileType.EMPTY for tile in row)
         for row in game_map.tiles
@@ -412,9 +423,16 @@ def build_world_view(
             if p.active
         ),
         bullets=tuple(
-            BulletView(x=b.x, y=b.y, direction=b.direction, owner_type=b.owner_type)
+            BulletView(
+                bullet_id=b.bullet_id,
+                x=b.x,
+                y=b.y,
+                direction=b.direction,
+                owner_type=b.owner_type,
+                size=b.width,
+                speed=b.speed,
+            )
             for b in bullets
-            if b.active
         ),
         players=tuple(
             PlayerView(
@@ -423,7 +441,10 @@ def build_world_view(
                 y=p.y,
                 direction=p.direction,
                 frozen=p.is_frozen,
+                shielded=p.is_invincible,
+                can_fire=not is_at_bullet_cap(p, bullets),
                 size=p.width,
+                speed=p.speed,
                 bullet_speed=p.bullet_speed,
             )
             for p in players

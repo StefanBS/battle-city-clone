@@ -7,6 +7,14 @@ from dataclasses import replace
 
 import pygame
 
+from src.managers.dodge import (
+    Awareness,
+    IncomingShot,
+    can_shoot_down,
+    incoming_shots,
+    shields_base,
+    sidestep,
+)
 from src.managers.enemy_memory import EnemyMemory
 from src.managers.goal_timing import Goal, GoalKind, GoalTiming, Hesitation
 from src.managers.pathfinding import Cell, NavGrid, find_path
@@ -24,6 +32,9 @@ from src.utils.constants import (
     CPU_PARTNER_ALIGN_TOLERANCE,
     CPU_PARTNER_AMBUSH_DISTANCE,
     CPU_PARTNER_DECISION_INTERVAL,
+    CPU_PARTNER_DODGE_HORIZON,
+    CPU_PARTNER_DODGE_MISS_CHANCE,
+    CPU_PARTNER_DODGE_REACTION_TIME,
     CPU_PARTNER_GOAL_STICKINESS,
     CPU_PARTNER_HESITATION_CHANCE,
     CPU_PARTNER_HESITATION_TIME,
@@ -199,10 +210,14 @@ class CpuPartnerInput:
         decision_interval: float = CPU_PARTNER_DECISION_INTERVAL,
         reaction_delay: float = CPU_PARTNER_REACTION_DELAY,
         hesitation_chance: float = CPU_PARTNER_HESITATION_CHANCE,
+        dodge_reaction_time: float = CPU_PARTNER_DODGE_REACTION_TIME,
+        dodge_miss_chance: float = CPU_PARTNER_DODGE_MISS_CHANCE,
     ) -> None:
         self._decision_frames = max(1, round(decision_interval * FPS))
         self._reaction_frames = round(reaction_delay * FPS)
         self._hesitation_chance = hesitation_chance
+        self._dodge_reaction_frames = round(dodge_reaction_time * FPS)
+        self._dodge_miss_chance = dodge_miss_chance
         self.reset()
 
     def reset(self) -> None:
@@ -227,6 +242,9 @@ class CpuPartnerInput:
         self._given_up_sides: EnemyMemory[set[Direction]] = EnemyMemory()
         self._refused_shots = RefusedShots(round(CPU_PARTNER_REFUSED_SHOT_TIME * FPS))
         self._steering = Steering(round(CPU_PARTNER_STUCK_TIME * FPS))
+        self._awareness = Awareness(
+            self._dodge_reaction_frames, self._dodge_miss_chance
+        )
 
     def handle_event(self, event: pygame.event.Event) -> None:
         """The CPU Partner ignores pygame events."""
@@ -237,8 +255,51 @@ class CpuPartnerInput:
         self._steering.track(None if own is None else (own.x, own.y), self._movement)
         self._movement = (0, 0)
         self._shoot_requested = False
+        if self._dodge(world):
+            return
         self._act(world)
         self._shoot_requested = self._hesitation.filter(self._shoot_requested)
+
+    def _dodge(self, world: WorldView) -> bool:
+        """Dodge the soonest Incoming Shot, if any; whether it dodged.
+
+        It shoots the shot down if it faces it, else sidesteps, else turns to
+        fire back at it. It never steps aside from a shot that would fly on
+        into the Base: it takes the hit instead. A Dodge overrides this
+        frame's movement and shooting but leaves the Goal and everything
+        that times it untouched (ADR 0005).
+        """
+        own = world.own_player
+        if own is None or own.shielded or own.frozen:
+            return False
+        shots = self._awareness.noticed(
+            world, incoming_shots(world, own, CPU_PARTNER_DODGE_HORIZON)
+        )
+        if not shots:
+            return False
+        shot = shots[0]
+        toward_shot = shot.bullet.direction.opposite
+        able_to_shoot_down = can_shoot_down(world, own, shot)
+        if own.direction == toward_shot and able_to_shoot_down:
+            self._fire_back_at(shot)
+            return True
+        guarding_base = shields_base(world, shot)
+        way = (
+            None
+            if guarding_base
+            else sidestep(world, own, shot, CPU_PARTNER_DODGE_HORIZON)
+        )
+        if way is not None:
+            self._movement = way.delta
+        elif able_to_shoot_down:
+            self._movement = toward_shot.delta
+            self._fire_back_at(shot)
+        return way is not None or able_to_shoot_down or guarding_base
+
+    def _fire_back_at(self, shot: IncomingShot) -> None:
+        """Fire at ``shot`` and leave it to that bullet from now on."""
+        self._shoot_requested = True
+        self._awareness.fired_back_at(shot)
 
     def _act(self, world: WorldView) -> None:
         """Set this frame's movement and shoot request for its Goal.

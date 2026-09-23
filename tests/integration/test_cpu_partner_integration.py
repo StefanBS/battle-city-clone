@@ -147,7 +147,42 @@ class TestWorldView:
         view = gm.battle.world_view().for_player(2)
 
         assert view.enemies[0].speed == enemy.speed
+        assert view.own_player.speed == p2.speed
         assert view.own_player.bullet_speed == p2.bullet_speed
+
+    def test_reports_each_bullets_speed_and_identity(self, cpu_game):
+        gm = cpu_game
+        enemy = spawn_enemy_at(gm, 4, 6)
+        bullet = fire_bullet_from(gm, enemy)
+
+        first = gm.battle.world_view().bullets
+        bullet.update(1.0 / FPS)
+        later = gm.battle.world_view().bullets
+
+        assert [b.speed for b in first] == [enemy.bullet_speed]
+        assert [b.bullet_id for b in later] == [b.bullet_id for b in first]
+        other = fire_bullet_from(gm, gm.battle.player_manager.get_active_players()[0])
+        ids = {b.bullet_id for b in gm.battle.world_view().bullets}
+        assert len(ids) == 2 and other.active
+
+    def test_reports_whether_a_player_is_shielded(self, cpu_game):
+        gm = cpu_game
+        p1, p2 = gm.battle.player_manager.get_active_players()
+        p1.is_invincible = False
+        p2.activate_invincibility(5.0)
+
+        view = gm.battle.world_view()
+
+        assert [p.shielded for p in view.players] == [False, True]
+
+    def test_reports_whether_a_player_is_at_its_bullet_cap(self, cpu_game):
+        gm = cpu_game
+        p1, p2 = gm.battle.player_manager.get_active_players()
+        fire_bullet_from(gm, p2)
+
+        view = gm.battle.world_view()
+
+        assert [p.can_fire for p in view.players] == [True, False]
 
     def test_reports_half_bricks(self, cpu_game):
         gm = cpu_game
@@ -340,6 +375,48 @@ class TestCpuPartnerDefend:
         assert threat not in gm.battle.enemy_manager.enemies
         assert far in gm.battle.enemy_manager.enemies
         assert gm.battle.player_manager.get_score(2) > 0
+
+
+# The first roll under this seed is above the Dodge miss chance, and noticing
+# the shot is the only thing that rolls during the test: it doesn't miss it.
+NOTICES_THE_SHOT_SEED = 0
+
+
+@pytest.fixture
+def seeded_rng():
+    """Lets a test seed the RNG; restores its state after."""
+    state = random.getstate()
+    yield random.seed
+    random.setstate(state)
+
+
+class TestCpuPartnerDodge:
+    def test_steps_out_of_the_way_of_an_enemy_shot(self, cpu_game, seeded_rng):
+        gm = cpu_game
+        open_field(gm)
+        clear_enemies(gm)
+        gm.battle.spawn_manager.spawn_interval = float("inf")
+        # No Enemy Spawn Point to Ambush at: it stands still until the shot.
+        gm.battle.map.spawn_points = []
+        p1, p2 = gm.battle.player_manager.get_active_players()
+        place_player_at(gm, 0, 0, player=p1)
+        place_player_at(gm, 16 * SUB_TILE_SIZE, 10 * SUB_TILE_SIZE, player=p2)
+        p2.is_invincible = False
+        # An Enemy far off to its left fires along its row, then is gone.
+        enemy = spawn_enemy_at(gm, 2, 10, direction=Direction.RIGHT, fires=False)
+        bullet = fire_bullet_from(gm, enemy)
+        clear_enemies(gm)
+        lives = p2.lives
+        seeded_rng(NOTICES_THE_SHOT_SEED)
+
+        for _ in range(3 * FPS):
+            tick(gm)
+            if not bullet.active:
+                break
+
+        assert not bullet.active
+        assert p2.lives == lives
+        assert (p2.x, p2.y) != (16 * SUB_TILE_SIZE, 10 * SUB_TILE_SIZE)
 
 
 class TestCpuPartnerGrabPowerUp:
