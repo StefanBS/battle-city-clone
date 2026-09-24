@@ -104,9 +104,6 @@ def sidestep(
     already coming at it along the way it would step. ``None`` when no way is
     left.
     """
-    due_now = {
-        other.bullet: other.time_to_hit for other in incoming_shots(world, own, horizon)
-    }
     across = own.y if shot.horizontal else own.x
     lane = shot.lane
     before, after = (
@@ -126,20 +123,38 @@ def sidestep(
             continue
         if not _is_way_clear(world, own, direction, distance):
             continue
-        after_step = _moved(own, direction, distance)
-        stepped = replace(
-            world,
-            players=tuple(
-                after_step if p.player_id == own.player_id else p for p in world.players
-            ),
-        )
-        if any(
-            other.time_to_hit < due_now.get(other.bullet, math.inf)
-            for other in incoming_shots(stepped, after_step, horizon)
-        ):
+        if brings_a_shot_sooner(world, own, direction, distance, horizon):
             continue
         return direction
     return None
+
+
+def brings_a_shot_sooner(
+    world: WorldView,
+    own: PlayerView,
+    direction: Direction,
+    distance: float,
+    horizon: float,
+) -> bool:
+    """Whether moving ``distance`` px toward ``direction`` brings a shot sooner.
+
+    That is a shot not coming at ``own`` yet, or one already coming at it
+    along that way.
+    """
+    due_now = {
+        other.bullet: other.time_to_hit for other in incoming_shots(world, own, horizon)
+    }
+    after_step = _moved(own, direction, distance)
+    stepped = replace(
+        world,
+        players=tuple(
+            after_step if p.player_id == own.player_id else p for p in world.players
+        ),
+    )
+    return any(
+        other.time_to_hit < due_now.get(other.bullet, math.inf)
+        for other in incoming_shots(stepped, after_step, horizon)
+    )
 
 
 def _moved(own: PlayerView, direction: Direction, distance: float) -> PlayerView:

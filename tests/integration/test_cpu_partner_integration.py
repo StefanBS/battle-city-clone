@@ -418,6 +418,37 @@ class TestCpuPartnerDodge:
         assert p2.lives == lives
         assert (p2.x, p2.y) != (16 * SUB_TILE_SIZE, 10 * SUB_TILE_SIZE)
 
+    def test_survives_a_shot_from_an_enemy_it_is_not_lined_up_with(
+        self, cpu_game, seeded_rng
+    ):
+        gm = cpu_game
+        open_field(gm)
+        clear_enemies(gm)
+        gm.battle.spawn_manager.spawn_interval = float("inf")
+        gm.battle.map.spawn_points = []
+        p1, p2 = gm.battle.player_manager.get_active_players()
+        place_player_at(gm, 0, 0, player=p1)
+        place_player_at(gm, 16 * SUB_TILE_SIZE, 10 * SUB_TILE_SIZE, player=p2)
+        p2.direction = Direction.LEFT
+        p2.is_invincible = False
+        # A still Enemy a few px below its row fires at it: the shot's lane
+        # misses its own bullet's, so it sidesteps, then must not line up
+        # with the Enemy again while the shot flies past.
+        enemy = spawn_enemy_at(gm, 8, 10, direction=Direction.RIGHT, fires=False)
+        enemy.speed = 0
+        place_player_at(gm, enemy.x, enemy.y + 6, player=enemy)
+        bullet = fire_bullet_from(gm, enemy)
+        lives = p2.lives
+        seeded_rng(NOTICES_THE_SHOT_SEED)
+
+        for _ in range(3 * FPS):
+            tick(gm)
+            if not bullet.active:
+                break
+
+        assert not bullet.active
+        assert p2.lives == lives
+
 
 class TestCpuPartnerGrabPowerUp:
     def test_collects_a_nearby_power_up_before_hunting(self, cpu_game):

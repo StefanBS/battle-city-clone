@@ -10,6 +10,7 @@ import pygame
 from src.managers.dodge import (
     Awareness,
     IncomingShot,
+    brings_a_shot_sooner,
     can_shoot_down,
     incoming_shots,
     shields_base,
@@ -258,6 +259,7 @@ class CpuPartnerInput:
         if self._dodge(world):
             return
         self._act(world)
+        self._keep_out_of_shots(world)
         self._shoot_requested = self._hesitation.filter(self._shoot_requested)
 
     def _dodge(self, world: WorldView) -> bool:
@@ -295,6 +297,21 @@ class CpuPartnerInput:
             self._movement = toward_shot.delta
             self._fire_back_at(shot)
         return way is not None or able_to_shoot_down or guarding_base
+
+    def _keep_out_of_shots(self, world: WorldView) -> None:
+        """Hold still rather than let the Goal step into a shot's way.
+
+        Without this, the Goal steers it straight back into the lane of a shot
+        it has just sidestepped.
+        """
+        own = world.own_player
+        if own is None or own.shielded or self._movement == (0, 0):
+            return
+        direction = next(d for d in Direction if d.delta == self._movement)
+        if brings_a_shot_sooner(
+            world, own, direction, own.speed / FPS, CPU_PARTNER_DODGE_HORIZON
+        ):
+            self._movement = (0, 0)
 
     def _fire_back_at(self, shot: IncomingShot) -> None:
         """Fire at ``shot`` and leave it to that bullet from now on."""

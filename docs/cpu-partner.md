@@ -15,7 +15,7 @@ capitalised (Goal, Firing Position, Cut Off, ...) are defined in
 | `src/managers/cpu_partner.py` | `CpuPartnerInput`: picks a Goal and turns it into a movement direction and shoot requests. Also the pure checks `is_line_of_fire_safe`, `can_evade_shot` and `ambush_positions`. |
 | `src/managers/goal_timing.py` | `GoalTiming` (when it decides, Goal stickiness, Reaction Delay) and `Hesitation` (holding back a shot now and then). |
 | `src/managers/world_view.py` | `WorldView`: the read-only snapshot it decides from. Lines of Fire, Firing Positions, Base Threats. |
-| `src/managers/dodge.py` | The Dodge (section 4): `incoming_shots`, `can_shoot_down`, `shields_base`, `sidestep`, and `Awareness` (reaction time and missed shots). |
+| `src/managers/dodge.py` | The Dodge (section 4): `incoming_shots`, `can_shoot_down`, `shields_base`, `sidestep`, `brings_a_shot_sooner`, and `Awareness` (reaction time and missed shots). |
 | `src/managers/pathfinding.py` | `NavGrid` and A* `find_path` over the sub-tile grid, for the tank's full footprint. Bricks are passable at extra cost (it shoots through them). Base Wall bricks never are. |
 | `src/managers/steering.py` | `Steering`: notices it is stuck and picks the tanks to route around. |
 | `src/managers/refused_shots.py` | `RefusedShots`: how long it has stayed lined up on a target without a safe shot. |
@@ -33,8 +33,9 @@ ignore it. `CpuPartnerInput.observe` then:
 2. Dodges an Incoming Shot if it has noticed one (diagram 4), and if so
    stops there for this frame,
 3. otherwise settles its Goal through `GoalTiming` (diagrams 1 and 2),
-4. acts on that Goal (diagram 3 for Defend and Hunt), and
-5. passes the shot through `Hesitation`.
+4. acts on that Goal (diagram 3 for Defend and Hunt),
+5. holds still instead if the Goal's step would walk into a shot (section 4), and
+6. passes the shot through `Hesitation`.
 
 `TankStepper` reads the result through `get_movement_direction()` and
 `consume_shoot()`, the same way it reads a keyboard. `reset()` clears
@@ -270,6 +271,13 @@ flowchart TD
   the Base itself if the CPU Partner weren't there, it doesn't step aside.
   It fires back if it can, else takes the hit: a life is worth less than
   the Base. A shot that would only hit a Base Wall brick is sidestepped.
+- **Keeping out of shots** (`brings_a_shot_sooner`): after a Dodge ends,
+  the Goal would often steer it straight back into the lane of the shot it
+  just stepped out of, for example to line up again with the Enemy that
+  fired. So whenever the Goal's step would bring any Enemy bullet's hit
+  sooner, it holds still for that frame instead. This uses the same check
+  as a sidestep's, and it doesn't wait to notice the shot. The Goal and its
+  clocks carry on as usual; only that step is dropped.
 - **Turn and fire** is the last resort. Turning and firing happen in the
   same frame. If firing back would miss too, a Dodge can't help, and it
   simply carries on with its Goal.
