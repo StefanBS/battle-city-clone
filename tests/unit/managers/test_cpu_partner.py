@@ -1405,6 +1405,18 @@ class TestCpuPartnerDodgeWhichWay:
         assert cpu.get_movement_direction() == Direction.UP.delta
 
 
+class TestCpuPartnerKeepsOutOfShots:
+    def test_goal_does_not_step_into_a_shot_passing_beside_it(self, cpu) -> None:
+        # Hunting the Enemy, it would step down to line up with it, straight
+        # into the lane of the shot passing just below it.
+        view = with_bullets(
+            make_view(own=(12, 12, Direction.LEFT), enemies=[(2, 14)]),
+            enemy_bullet(cell(6), cell(14), Direction.RIGHT),
+        )
+        cpu.observe(view)
+        assert cpu.get_movement_direction() == (0, 0)
+
+
 class TestCpuPartnerDodgeShootDown:
     def test_shoots_down_a_shot_it_faces_and_holds_its_ground(self, cpu) -> None:
         view = with_bullets(
