@@ -3,7 +3,7 @@
 import itertools
 import math
 from collections.abc import Collection
-from dataclasses import replace
+from dataclasses import dataclass, replace
 
 import pygame
 
@@ -186,6 +186,15 @@ def can_evade_shot(world: WorldView, own: PlayerView, target: EnemyView) -> bool
     return False
 
 
+@dataclass(frozen=True)
+class _RefusedShot:
+    """A shot it held this frame: lined up on ``target`` from ``own``, facing it."""
+
+    own: PlayerView
+    target: EnemyView
+    facing: Direction
+
+
 class CpuPartnerInput:
     """Computer-controlled input for the CPU Partner in the P2 slot.
 
@@ -261,33 +270,35 @@ class CpuPartnerInput:
         self._steering.track(position, self._goal_movement)
         self._movement = (0, 0)
         self._shoot_requested = False
-        self._act(world)
+        refused = self._act(world)
+        # Counted every frame, refused or not; it can only give up on a
+        # refused shot, and the check on ``refused`` just tells mypy so.
+        refusing = None if refused is None else refused.target.enemy_id
+        if self._refused_shots.should_give_up(refusing) and refused is not None:
+            self._give_up_side(world, refused)
         if not self._dodge.is_step_safe(world, self._movement):
             self._movement = (0, 0)
         self._goal_movement = self._movement
         self._shoot_requested = self._hesitation.filter(self._shoot_requested)
 
-    def _act(self, world: WorldView) -> None:
+    def _act(self, world: WorldView) -> _RefusedShot | None:
         """Set this frame's movement and shoot request for its Goal.
 
-        Lined up on an Enemy but kept from shooting it safely for the refused
-        shot time, it gives up on that side of the Enemy and moves to a Firing
-        Position on another. With none left on the other sides, the Enemy is
-        Cut Off.
+        Returns the shot it held, if it was lined up on an Enemy but kept from
+        shooting it safely.
         """
-        self._refused_shots.start_frame()
         own = world.own_player
         if own is None:
-            return
+            return None
         target = self._update_goal(world, own)
         if target is None:
-            return
+            return None
         if isinstance(target, PowerUpView):
             self._follow_path(world, own, _touching_cells(world, own, target), None)
-            return
+            return None
         if isinstance(target, Footprint):
             self._ambush(world, own, target)
-            return
+            return None
         ox, oy = center(own)
         ex, ey = center(target)
         dx, dy = ex - ox, ey - oy
@@ -306,24 +317,39 @@ class CpuPartnerInput:
         ):
             positions = world.firing_positions(target, own.size, sides)
             self._follow_path(world, own, positions, target)
-            return
+            return None
         if own.direction != facing:
             self._movement = facing.delta
-            return
+            return None
         self._shoot_requested = is_line_of_fire_safe(
             world, own, target
         ) and not can_evade_shot(world, own, target)
-        if not self._shoot_requested and self._refused_shots.refuse(target.enemy_id):
-            given_up = set(Direction) - set(sides) | {facing.opposite}
-            self._given_up_sides.remember(
-                target.enemy_id, world.cell_of(target), given_up
-            )
-            if not world.firing_positions(target, own.size, self._open_sides(target)):
-                self._give_up_on(world, target)
+        if self._shoot_requested:
+            return None
+        return _RefusedShot(own, target, facing)
+
+    def _give_up_side(self, world: WorldView, refused: _RefusedShot) -> None:
+        """Give up firing on its target from the side it held the shot on.
+
+        It moves to a Firing Position on another side; with none left, the
+        target is Cut Off.
+        """
+        own, target = refused.own, refused.target
+        self._given_up_sides.remember(
+            target.enemy_id,
+            world.cell_of(target),
+            self._given_up(target) | {refused.facing.opposite},
+        )
+        if not world.firing_positions(target, own.size, self._open_sides(target)):
+            self._give_up_on(world, target)
+
+    def _given_up(self, enemy: EnemyView) -> set[Direction]:
+        """Sides of ``enemy`` it has given up firing from."""
+        return self._given_up_sides.get(enemy.enemy_id) or set()
 
     def _open_sides(self, enemy: EnemyView) -> list[Direction]:
         """Sides of ``enemy`` it hasn't given up firing from."""
-        given_up = self._given_up_sides.get(enemy.enemy_id) or set()
+        given_up = self._given_up(enemy)
         return [side for side in Direction if side not in given_up]
 
     def _ambush(self, world: WorldView, own: PlayerView, spawn: Footprint) -> None:

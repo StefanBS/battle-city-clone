@@ -11,22 +11,21 @@ class RefusedShots:
     def __init__(self, frames: int) -> None:
         self._frames = frames
         self._count: int = 0
-        # The count up to the last frame, kept only if it refuses this frame.
-        self._carried: int = 0
         self._target: int | None = None
 
-    def start_frame(self) -> None:
-        """Start a frame: the count carries on only if it refuses in it."""
-        self._carried, self._count = self._count, 0
+    def should_give_up(self, refusing_enemy_id: int | None) -> bool:
+        """Count one frame: whether to give up on the Enemy it refused to shoot.
 
-    def refuse(self, enemy_id: int) -> bool:
-        """Count a frame refusing to shoot the Enemy; whether to give up now.
-
-        Once it has refused for ``frames`` it gives up, and counts afresh.
+        ``refusing_enemy_id`` is the Enemy it refused to shoot this frame, or
+        None if it refused no shot. Once it has refused the same Enemy for
+        ``frames`` in a row it gives up, and counts afresh.
         """
-        carried = self._carried if enemy_id == self._target else 0
-        self._target = enemy_id
-        self._count = carried + 1
+        if refusing_enemy_id != self._target:
+            self._count = 0
+        self._target = refusing_enemy_id
+        if refusing_enemy_id is None:
+            return False
+        self._count += 1
         if self._count >= self._frames:
             self._count = 0
             return True
