@@ -33,6 +33,9 @@ pytest tests/unit/core/test_tank.py::TestTank::test_shoot
 ruff check src/ tests/
 ruff check --fix src/ tests/
 ruff format src/ tests/
+
+# Type check (mypy, also run in CI)
+mypy src
 ```
 
 ## Architecture
