@@ -14,21 +14,13 @@ from src.utils.constants import (
 )
 from tests.integration.conftest import (
     first_player,
+    place_ice_patch,
     place_player_at,
     spawn_enemy_with_ai,
     tick,
 )
 
 _DIRECTION_TO_KEY = {direction: key for key, direction in KEY_TO_DIRECTION.items()}
-
-
-def _place_ice_patch(game, grid_x, grid_y, width=4, height=4):
-    """Place a patch of ice tiles at the given sub-tile grid position."""
-    for dy in range(height):
-        for dx in range(width):
-            tile = game.battle.map.get_tile_at(grid_x + dx, grid_y + dy)
-            if tile is not None:
-                game.battle.map.set_tile_type(tile, TileType.ICE)
 
 
 def _set_input(game, direction):
@@ -72,7 +64,7 @@ class TestPlayerIceSlide:
     @pytest.fixture
     def ice_game(self, game):
         """Game with player on a large ice patch."""
-        _place_ice_patch(game, 4, 4, width=8, height=8)
+        place_ice_patch(game, 4, 4, width=8, height=8)
         place_player_at(game, 6 * SUB_TILE_SIZE, 6 * SUB_TILE_SIZE)
         first_player(game).direction = Direction.UP
         return game
@@ -214,7 +206,7 @@ class TestEnemyIceSlide:
 
     @pytest.fixture
     def enemy_on_ice(self, game):
-        _place_ice_patch(game, 4, 4, width=8, height=8)
+        place_ice_patch(game, 4, 4, width=8, height=8)
         return spawn_enemy_with_ai(
             game, 6, 6, direction=Direction.RIGHT, fires=False, turns=False
         )

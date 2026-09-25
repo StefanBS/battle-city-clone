@@ -305,6 +305,32 @@ class TestTank:
         assert bullet.sprite is None
 
 
+class TestFreeze:
+    """Frozen is state on the tank; update() counts it down."""
+
+    @pytest.fixture
+    def tank(self, create_tank):
+        return create_tank(x=128, y=128)
+
+    def test_not_frozen_by_default(self, tank):
+        assert tank.is_frozen is False
+
+    def test_update_counts_the_freeze_down(self, tank):
+        tank.freeze(1.0)
+
+        tank.update(0.5)
+
+        assert tank.is_frozen is True
+
+    def test_freeze_ends_after_its_duration(self, tank):
+        tank.freeze(1.0)
+
+        tank.update(0.5)
+        tank.update(0.5)
+
+        assert tank.is_frozen is False
+
+
 class TestIceSlide:
     @pytest.fixture
     def tank(self, create_tank):

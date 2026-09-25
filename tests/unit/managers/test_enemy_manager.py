@@ -155,27 +155,50 @@ class TestStepEnemies:
 class TestFrozen:
     """A Clock makes every Enemy Frozen for its duration."""
 
-    def test_frozen_enemies_are_not_stepped(self, enemy_manager, stepper, add_enemy):
-        _, ai = add_enemy(100, 100)
+    def test_a_clock_freezes_every_enemy(self, enemy_manager, add_enemy):
+        first, _ = add_enemy(0, 0)
+        second, _ = add_enemy(200, 0)
+
+        enemy_manager.freeze(5.0)
+
+        first.freeze.assert_called_once_with(5.0)
+        second.freeze.assert_called_once_with(5.0)
+
+    def test_frozen_enemies_are_stepped_without_their_ai_deciding(
+        self, enemy_manager, stepper, add_enemy
+    ):
+        enemy, ai = add_enemy(100, 100)
         enemy_manager.freeze(5.0)
 
         fired = enemy_manager.step_enemies(DT, stepper, [_player(0, 0)])
 
         assert fired is False
         ai.update.assert_not_called()
-        stepper.step.assert_not_called()
+        stepper.step.assert_called_once_with(enemy, ai, DT)
+
+    def test_an_enemy_added_during_a_clock_is_frozen_for_the_time_left(
+        self, enemy_manager, stepper, make_enemy
+    ):
+        dt = 0.25  # Exact in binary, so the countdown has no rounding.
+        enemy_manager.freeze(1.0)
+        enemy_manager.step_enemies(dt, stepper, [])
+
+        enemy = make_enemy()
+        enemy_manager.add(enemy, MagicMock(spec=EnemyAI))
+
+        enemy.freeze.assert_called_once_with(0.75)
 
     def test_a_clock_lasts_one_frame_per_dt_of_its_duration(
         self, enemy_manager, stepper, add_enemy
     ):
         dt = 0.25  # Exact in binary, so the countdown has no rounding.
-        add_enemy(100, 100)
+        _, ai = add_enemy(100, 100)
         enemy_manager.freeze(3 * dt)
 
         frozen_frames = 0
-        while not stepper.step.called:
+        while not ai.update.called:
             enemy_manager.step_enemies(dt, stepper, [])
-            frozen_frames += 0 if stepper.step.called else 1
+            frozen_frames += 0 if ai.update.called else 1
 
         assert frozen_frames == 3
         assert not enemy_manager.enemies_frozen

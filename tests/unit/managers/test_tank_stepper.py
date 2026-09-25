@@ -51,6 +51,7 @@ def tank():
     tank.height = TILE_SIZE
     tank.direction = Direction.UP
     tank.is_sliding = False
+    tank.is_frozen = False
     tank.max_bullets = 1
     tank.start_slide.return_value = True
     tank.shoot.side_effect = lambda: _bullet(tank)
@@ -168,6 +169,54 @@ class TestIce:
         stepper.step(tank, FakeIntent((1, 0)), DT)
 
         tank.move.assert_not_called()
+
+
+class TestFrozen:
+    """A Frozen tank neither moves, turns nor fires, but its timers run."""
+
+    @pytest.fixture
+    def tank(self, tank):
+        tank.is_frozen = True
+        return tank
+
+    def test_still_runs_tank_update(self, stepper, tank):
+        stepper.step(tank, FakeIntent((1, 0)), DT)
+
+        tank.update.assert_called_once_with(DT)
+
+    def test_does_not_move_or_turn(self, stepper, tank):
+        stepper.step(tank, FakeIntent((1, 0)), DT)
+
+        tank.move.assert_not_called()
+
+    def test_throws_away_its_shot(self, stepper, tank):
+        intent = FakeIntent(shoot=True)
+
+        result = stepper.step(tank, intent, DT)
+
+        tank.shoot.assert_not_called()
+        assert result.fired is False
+        assert intent.shoot is False
+        assert stepper.bullets == []
+
+    def test_frozen_for_the_whole_frame_its_freeze_ends_in(self, stepper, tank):
+        def thaw(dt):
+            tank.is_frozen = False
+
+        tank.update.side_effect = thaw
+
+        stepper.step(tank, FakeIntent((1, 0), shoot=True), DT)
+
+        tank.move.assert_not_called()
+        tank.shoot.assert_not_called()
+
+    def test_driving_on_ice_starts_a_slide(self, stepper, tank, game_map):
+        game_map.is_tile_slidable.return_value = True
+
+        result = stepper.step(tank, FakeIntent((0, -1)), DT)
+
+        tank.start_slide.assert_called_once()
+        assert result.slide_started is True
 
 
 class TestFiring:

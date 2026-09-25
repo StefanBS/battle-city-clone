@@ -58,7 +58,6 @@ class PlayerTank(Tank):
         )
         self.player_id: int = player_id
         self.star_level: int = 0
-        self._freeze_timer: float = 0.0
         self._update_sprite()
         self._shield_frames: list[pygame.Surface] = [
             texture_manager.get_sprite("shield_1"),
@@ -111,39 +110,12 @@ class PlayerTank(Tank):
         except KeyError:
             logger.error(f"Sprite '{sprite_name}' not found for player tank.")
 
-    @property
-    def is_frozen(self) -> bool:
-        """Whether the player is currently frozen (friendly fire)."""
-        return self._freeze_timer > 0
-
-    def freeze(self, duration: float) -> None:
-        """Freeze the player for the given duration (friendly fire effect)."""
-        self._freeze_timer = duration
-
-    def update(self, dt: float) -> None:
-        """Update timers including freeze countdown."""
-        super().update(dt)
-        if self._freeze_timer > 0:
-            self._freeze_timer = max(0.0, self._freeze_timer - dt)
-
     def activate_invincibility(self, duration: float) -> None:
         """Activate invincibility for the given duration."""
         self.is_invincible = True
         self.invincibility_timer = 0
         self.blink_timer = 0
         self.invincibility_duration = duration
-
-    def move(self, dx: int, dy: int, dt: float) -> None:
-        """Move like any tank, unless frozen by friendly fire."""
-        if self.is_frozen:
-            return
-        super().move(dx, dy, dt)
-
-    def shoot(self):
-        """Shoot a bullet. Returns None if frozen."""
-        if self.is_frozen:
-            return None
-        return super().shoot()
 
     @property
     def is_eliminated(self) -> bool:

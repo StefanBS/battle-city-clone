@@ -86,6 +86,7 @@ class Tank(GameObject):
         self._slide_remaining: float = 0.0
         self._was_moving: bool = False
         self._moving_this_frame: bool = False
+        self._freeze_timer: float = 0.0
 
     def _update_sprite(self) -> None:
         """Updates the tank's sprite based on direction and animation frame."""
@@ -181,6 +182,9 @@ class Tank(GameObject):
                 self.is_invincible = False
                 self.invincibility_timer = 0
 
+        if self._freeze_timer > 0:
+            self._freeze_timer = max(0.0, self._freeze_timer - dt)
+
         if self._sliding and self._slide_remaining > 0:
             dx, dy = self._slide_direction.delta
             distance = self.speed * dt
@@ -194,6 +198,15 @@ class Tank(GameObject):
                 self._sliding = False
 
         super().update(dt)
+
+    @property
+    def is_frozen(self) -> bool:
+        """Whether the tank is Frozen: it neither moves, turns nor fires."""
+        return self._freeze_timer > 0
+
+    def freeze(self, duration: float) -> None:
+        """Make the tank Frozen for ``duration`` seconds, counted down by update()."""
+        self._freeze_timer = duration
 
     @property
     def prev_rect(self) -> pygame.Rect:
