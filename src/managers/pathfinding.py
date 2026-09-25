@@ -4,7 +4,8 @@ import heapq
 import itertools
 from collections.abc import Collection
 
-from src.managers.world_view import Cell, WorldView
+from src.managers.footprint import Cell, cells_at
+from src.managers.world_view import WorldView
 from src.utils.constants import CPU_PARTNER_BRICK_COST, Direction
 
 
@@ -31,12 +32,6 @@ class NavGrid:
         self._height = len(world.tiles)
         self._width = len(world.tiles[0]) if world.tiles else 0
 
-    def _footprint(self, cell: Cell) -> list[Cell]:
-        x, y = cell
-        return [
-            (x + dx, y + dy) for dy in range(self._size) for dx in range(self._size)
-        ]
-
     def passable(self, cell: Cell) -> bool:
         """Whether the tank fits at ``cell``, bricks included."""
         x, y = cell
@@ -50,12 +45,12 @@ class NavGrid:
                 self._world.blocks_tanks(c)
                 and (not self._is_brick(c) or c in self._world.base_wall_cells)
             )
-            for c in self._footprint(cell)
+            for c in cells_at(cell, self._size)
         )
 
     def has_brick(self, cell: Cell) -> bool:
         """Whether the tank's footprint at ``cell`` overlaps a brick to shoot."""
-        return any(self._is_brick(c) for c in self._footprint(cell))
+        return any(self._is_brick(c) for c in cells_at(cell, self._size))
 
     def _is_brick(self, cell: Cell) -> bool:
         """Whether ``cell`` blocks tanks until a bullet destroys it."""

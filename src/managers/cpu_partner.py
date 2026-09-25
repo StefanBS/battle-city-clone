@@ -3,19 +3,27 @@
 import itertools
 import math
 from collections.abc import Collection
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 
 import pygame
 
 from src.managers.dodge import Dodge
 from src.managers.enemy_memory import EnemyMemory
 from src.managers.goal_timing import Goal, GoalKind, GoalTiming, Hesitation
-from src.managers.pathfinding import Cell, NavGrid, find_path
+from src.managers.footprint import (
+    Cell,
+    Footprint,
+    blocks_spawn_point,
+    moved,
+    size_in_cells,
+    spawn_point_footprint,
+    touching_cells,
+)
+from src.managers.pathfinding import NavGrid, find_path
 from src.managers.refused_shots import RefusedShots
 from src.managers.steering import Steering, TankKey
 from src.managers.world_view import (
     EnemyView,
-    Footprint,
     PlayerView,
     PowerUpView,
     WorldView,
@@ -76,22 +84,17 @@ def ambush_positions(world: WorldView, own: PlayerView, spawn_point: Cell) -> se
     Those at least the ambush distance from it, where ``own`` wouldn't stand
     on any Enemy Spawn Point and so keep Enemies from spawning there.
     """
-    size_cells = math.ceil(own.size / world.tile_size)
-    spawn_cells = set().union(
-        *(
-            world.covered_cells(world.spawn_footprint(s))
-            for s in world.enemy_spawn_points
-        )
-    )
+    size = world.tile_size
     sx, sy = spawn_point
     return {
         (x, y)
-        for x, y in world.firing_positions(world.spawn_footprint(spawn_point), own.size)
+        for x, y in world.firing_positions(
+            spawn_point_footprint(spawn_point, size), own.size
+        )
         if abs(x - sx) + abs(y - sy) >= CPU_PARTNER_AMBUSH_DISTANCE
         and not any(
-            (x + dx, y + dy) in spawn_cells
-            for dx in range(size_cells)
-            for dy in range(size_cells)
+            blocks_spawn_point(Footprint(x * size, y * size, own.size), s, size)
+            for s in world.enemy_spawn_points
         )
     }
 
@@ -100,13 +103,8 @@ def _touching_cells(
     world: WorldView, own: PlayerView, power_up: PowerUpView
 ) -> set[Cell]:
     """Cells from which ``own``'s footprint overlaps ``power_up``, collecting it."""
-    size_cells = math.ceil(own.size / world.tile_size)
-    return {
-        (x - dx, y - dy)
-        for x, y in world.covered_cells(power_up)
-        for dx in range(size_cells)
-        for dy in range(size_cells)
-    }
+    size = world.tile_size
+    return touching_cells(power_up, size_in_cells(own.size, size), size)
 
 
 def can_evade_shot(world: WorldView, own: PlayerView, target: EnemyView) -> bool:
@@ -159,7 +157,7 @@ def can_evade_shot(world: WorldView, own: PlayerView, target: EnemyView) -> bool
         ),
     ]
     corridor = range(first, last + 1)
-    size_cells = math.ceil(target.size / tile_size)
+    size_cells = size_in_cells(target.size, tile_size)
     bullet_step = line.step
     target_step = _along_step(target.direction, horizontal)
     for step in [target_step] if target_step else [-1, 1]:
@@ -387,12 +385,7 @@ class CpuPartnerInput:
         }
 
         def cells_ahead(direction: tuple[int, int]) -> set[Cell]:
-            dx, dy = direction
-            return world.covered_cells(
-                replace(
-                    own, x=own.x + dx * world.tile_size, y=own.y + dy * world.tile_size
-                )
-            )
+            return world.covered_cells(moved(own, direction, world.tile_size))
 
         detour = self._steering.detour(
             tanks, cells_ahead, None if target is None else ("enemy", target.enemy_id)
@@ -488,7 +481,7 @@ class CpuPartnerInput:
                 or spawn_point not in world.enemy_spawn_points
             ):
                 return None
-            return world.spawn_footprint(spawn_point)
+            return spawn_point_footprint(spawn_point, world.tile_size)
         return next((e for e in world.enemies if e.enemy_id == goal.target), None)
 
     def _preferred_goal(self, world: WorldView, own: PlayerView) -> Goal | None:
@@ -568,7 +561,7 @@ class CpuPartnerInput:
     def _nav_grid(
         world: WorldView, own: PlayerView, avoid: Collection[Cell] = frozenset()
     ) -> NavGrid:
-        return NavGrid(world, math.ceil(own.size / world.tile_size), avoid)
+        return NavGrid(world, size_in_cells(own.size, world.tile_size), avoid)
 
     def get_movement_direction(self) -> tuple[int, int]:
         return self._movement

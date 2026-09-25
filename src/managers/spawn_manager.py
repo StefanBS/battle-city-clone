@@ -10,6 +10,12 @@ from src.core.enemy_tank import EnemyTank
 from src.core.map import Map
 from src.core.tank import Tank
 from src.managers.effect_manager import EffectManager
+from src.managers.footprint import (
+    Cell,
+    Footprint,
+    blocks_spawn_point,
+    spawn_point_footprint,
+)
 from src.managers.texture_manager import TextureManager
 from src.utils.constants import (
     EffectType,
@@ -110,18 +116,26 @@ class SpawnManager:
         random.shuffle(queue)
         return queue
 
+    @staticmethod
+    def _spawn_rect(spawn_point: Cell, game_map: Map) -> pygame.Rect:
+        """The square an Enemy spawning at ``spawn_point`` takes up."""
+        spawn = spawn_point_footprint(spawn_point, game_map.tile_size)
+        return pygame.Rect(spawn.x, spawn.y, spawn.size, spawn.size)
+
     def _is_spawn_blocked(
         self,
-        rect: pygame.Rect,
+        spawn_point: Cell,
         tanks: Sequence[Tank],
         game_map: Map,
     ) -> bool:
-        """Check if a spawn rect overlaps any obstacle."""
+        """Check if a tile, a tank or a pending spawn blocks the spawn point."""
+        rect = self._spawn_rect(spawn_point, game_map)
         for map_rect in game_map.get_collidable_tiles():
             if rect.colliderect(map_rect):
                 return True
         for tank in tanks:
-            if rect.colliderect(tank.rect):
+            footprint = Footprint(tank.rect.x, tank.rect.y, tank.rect.width)
+            if blocks_spawn_point(footprint, spawn_point, game_map.tile_size):
                 return True
         for pending in self._pending_spawns:
             if rect.colliderect(pending.rect):
@@ -146,11 +160,10 @@ class SpawnManager:
             logger.trace("Max enemy spawns reached, skipping spawn.")
             return False
 
-        spawn_grid_x, spawn_grid_y = random.choice(self.spawn_points)
-        x, y = game_map.grid_to_pixels(spawn_grid_x, spawn_grid_y)
-
-        temp_rect = pygame.Rect(x, y, self.tile_size, self.tile_size)
-        if self._is_spawn_blocked(temp_rect, tanks, game_map):
+        spawn_point = random.choice(self.spawn_points)
+        rect = self._spawn_rect(spawn_point, game_map)
+        x, y = rect.topleft
+        if self._is_spawn_blocked(spawn_point, tanks, game_map):
             logger.warning(f"Spawn point ({x}, {y}) was blocked.")
             return False
 
@@ -170,7 +183,7 @@ class SpawnManager:
                 y=y,
                 tank_type=tank_type,
                 effect=effect,
-                rect=pygame.Rect(x, y, self.tile_size, self.tile_size),
+                rect=rect,
                 is_carrier=is_carrier,
             )
         )

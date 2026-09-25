@@ -7,9 +7,10 @@ import math
 from collections.abc import Collection, Iterable
 from dataclasses import dataclass, replace
 from functools import cached_property
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING
 
 from src.core.tile import BrickVariant, TileType
+from src.managers.footprint import Cell, Footprint, Placed, covered_cells, size_in_cells
 from src.managers.tank_stepper import is_at_bullet_cap
 from src.utils.constants import (
     BASE_THREAT_RADIUS,
@@ -29,28 +30,6 @@ if TYPE_CHECKING:
     from src.core.map import Map
     from src.core.player_tank import PlayerTank
     from src.core.power_up import PowerUp
-
-Cell = tuple[int, int]
-
-
-class Placed(Protocol):
-    """Anything with a square footprint on the battlefield (pixels)."""
-
-    @property
-    def x(self) -> float: ...
-    @property
-    def y(self) -> float: ...
-    @property
-    def size(self) -> int: ...
-
-
-@dataclass(frozen=True)
-class Footprint:
-    """A square footprint that isn't a tank, such as the Base (pixels)."""
-
-    x: float
-    y: float
-    size: int
 
 
 def center(placed: Placed) -> tuple[float, float]:
@@ -224,24 +203,8 @@ class WorldView:
         return round(placed.x / self.tile_size), round(placed.y / self.tile_size)
 
     def covered_cells(self, placed: Placed) -> set[Cell]:
-        """Every sub-tile a footprint overlaps."""
-        size = self.tile_size
-        return {
-            (x, y)
-            for x in range(
-                math.floor(placed.x / size), math.ceil((placed.x + placed.size) / size)
-            )
-            for y in range(
-                math.floor(placed.y / size), math.ceil((placed.y + placed.size) / size)
-            )
-        }
-
-    def spawn_footprint(self, spawn_point: Cell) -> Footprint:
-        """The footprint an Enemy spawning at ``spawn_point`` takes up."""
-        x, y = spawn_point
-        return Footprint(
-            float(x * self.tile_size), float(y * self.tile_size), TILE_SIZE
-        )
+        """Every sub-tile a footprint overlaps, even partly."""
+        return covered_cells(placed, self.tile_size)
 
     @cached_property
     def base_footprint(self) -> Footprint | None:
@@ -347,7 +310,7 @@ class WorldView:
         on are left to the pathfinder to reject.
         """
         tx, ty = self.cell_of(target)
-        size_cells = math.ceil(shooter_size / self.tile_size)
+        size_cells = size_in_cells(shooter_size, self.tile_size)
         positions: set[Cell] = set()
         for away in sides:
             # Walk outward from the target; once a tile no bullet gets past

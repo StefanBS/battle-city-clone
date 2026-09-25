@@ -19,7 +19,6 @@ from src.utils.constants import (
     CPU_PARTNER_AMBUSH_DISTANCE,
     FPS,
     SUB_TILE_SIZE,
-    TILE_SIZE,
     Direction,
     OwnerType,
     PowerUpType,
@@ -603,12 +602,9 @@ class TestCpuPartnerAmbush:
             else (Direction.RIGHT if sx > cx else Direction.LEFT)
         )
         assert p2.direction == facing
-        for sx, sy in gm.battle.map.spawn_points:
-            rect = pygame.Rect(
-                *gm.battle.map.grid_to_pixels(sx, sy), TILE_SIZE, TILE_SIZE
-            )
+        for spawn_point in gm.battle.map.spawn_points:
             assert not gm.battle.spawn_manager._is_spawn_blocked(
-                rect,
+                spawn_point,
                 [
                     *gm.battle.player_manager.get_active_players(),
                     *gm.battle.enemy_manager.enemies,
