@@ -11,9 +11,11 @@ from src.managers.sound_manager import SoundManager
 from src.utils.constants import (
     CLOCK_FREEZE_DURATION,
     FPS,
+    FRIENDLY_FIRE_FREEZE_DURATION,
     ICE_SLIDE_DISTANCE,
     Direction,
     PowerUpType,
+    SUB_TILE_SIZE,
     TankType,
 )
 from tests.integration.conftest import (
@@ -74,7 +76,7 @@ def _driving_enemy(game, grid_x, grid_y, direction):
     return enemy
 
 
-class TestClockStopsEnemies:
+class TestClockFreezesEnemies:
     def test_engine_sound_stops_and_the_enemy_is_not_moving(self, game):
         recorder = _EngineRecorder()
         game.battle._sound = recorder
@@ -136,19 +138,19 @@ class TestFrozenOnIce:
         place_ice_patch(game, 2, 6, width=22, height=2)
         return game
 
-    def _stops_after(self, game, enemy):
-        """Tick until the Enemy stops Sliding, then check it stands still."""
+    def _stands_still_after(self, game, enemy):
+        """Tick until the Enemy's Slide ends, then check it stands still."""
         for _ in range(FPS):
             if not enemy.is_sliding:
                 break
             tick(game)
-        stopped_at = (enemy.x, enemy.y)
+        slide_end = (enemy.x, enemy.y)
         tick(game, 10)
         assert enemy.is_moving is False
-        assert (enemy.x, enemy.y) == stopped_at
-        return stopped_at
+        assert (enemy.x, enemy.y) == slide_end
+        return slide_end
 
-    def test_a_sliding_enemy_finishes_its_slide_then_stops(self, ice):
+    def test_a_sliding_enemy_finishes_its_slide_then_stands_still(self, ice):
         enemy = _driving_enemy(ice, 4, 6, Direction.RIGHT)
         assert enemy.start_slide()
         slide_from = enemy.x
@@ -156,7 +158,7 @@ class TestFrozenOnIce:
         assert enemy.is_sliding
 
         _clock(ice)
-        x, _ = self._stops_after(ice, enemy)
+        x, _ = self._stands_still_after(ice, enemy)
 
         assert x == pytest.approx(slide_from + ICE_SLIDE_DISTANCE)
 
@@ -167,6 +169,18 @@ class TestFrozenOnIce:
         _clock(ice)
         tick(ice)
         assert enemy.is_sliding
-        x, _ = self._stops_after(ice, enemy)
+        x, _ = self._stands_still_after(ice, enemy)
 
         assert x == pytest.approx(frozen_at + ICE_SLIDE_DISTANCE)
+
+    def test_a_player_standing_still_on_ice_never_slides_when_frozen(self, ice):
+        player = first_player(ice)
+        place_player_at(ice, 10 * SUB_TILE_SIZE, 6 * SUB_TILE_SIZE)
+        tick(ice)
+        standing_at = (player.x, player.y)
+
+        player.freeze(FRIENDLY_FIRE_FREEZE_DURATION)
+        tick(ice, 10)
+
+        assert player.is_sliding is False
+        assert (player.x, player.y) == standing_at
