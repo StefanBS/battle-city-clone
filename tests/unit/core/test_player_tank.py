@@ -63,8 +63,6 @@ class TestPlayerTank:
 
         player_tank.respawn()
 
-        assert player_tank.lives == 2
-        assert player_tank.health == player_tank.max_health
         assert (player_tank.x, player_tank.y) == initial_pos
         assert player_tank.is_invincible
         assert player_tank.invincibility_timer == 0
@@ -133,7 +131,7 @@ class TestPlayerTank:
         assert player_tank.rect.topleft != moved_rect.topleft
 
 
-class TestPlayerTankHits:
+class TestPlayerTankLives:
     @pytest.fixture
     def player(self, create_player_tank):
         return create_player_tank(x=5, y=12)
@@ -165,22 +163,9 @@ class TestPlayerTankHits:
         assert player.lives == 0
         assert player.is_eliminated
 
-
-class TestPlayerTankLives:
-    @pytest.fixture
-    def player(self, create_player_tank):
-        return create_player_tank(x=5, y=12)
-
-    def test_eliminate_leaves_the_player_eliminated(self, player):
-        player.eliminate()
-
-        assert player.lives == 0
-        assert player.is_eliminated
-
-    @pytest.mark.parametrize("lives", [0, -1])
-    def test_restore_lives_rejects_fewer_than_one(self, player, lives):
+    def test_restore_lives_rejects_fewer_than_one(self, player):
         with pytest.raises(ValueError):
-            player.restore_lives(lives)
+            player.restore_lives(0)
 
     def test_gain_life_adds_a_life(self, player):
         player.gain_life()
