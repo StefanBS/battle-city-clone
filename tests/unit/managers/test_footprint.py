@@ -1,3 +1,5 @@
+import pytest
+
 from src.managers.footprint import (
     Footprint,
     blocks_spawn_point,
@@ -42,9 +44,9 @@ class TestSizeInCells:
     def test_a_tank_spans_two_cells(self) -> None:
         assert size_in_cells(TILE_SIZE, CELL) == 2
 
-    def test_a_part_cell_counts_as_a_whole_one(self) -> None:
-        assert size_in_cells(CELL + 1, CELL) == 2
-        assert size_in_cells(CELL, CELL) == 1
+    @pytest.mark.parametrize(("size", "cells"), [(CELL, 1), (CELL + 1, 2)])
+    def test_a_part_cell_counts_as_a_whole_one(self, size: int, cells: int) -> None:
+        assert size_in_cells(size, CELL) == cells
 
 
 class TestCellsAt:
@@ -103,6 +105,8 @@ class TestEnemySpawnPoint:
     def test_a_tank_covering_part_of_it_blocks_it(self) -> None:
         assert blocks_spawn_point(square(px(9) + 4, px(1) + 4), (8, 0), CELL)
 
-    def test_a_tank_flush_against_it_does_not_block_it(self) -> None:
-        assert not blocks_spawn_point(square(px(10), px(0)), (8, 0), CELL)
-        assert not blocks_spawn_point(square(px(8), px(2)), (8, 0), CELL)
+    @pytest.mark.parametrize("beside", [(px(10), px(0)), (px(8), px(2))])
+    def test_a_tank_flush_against_it_does_not_block_it(
+        self, beside: tuple[float, float]
+    ) -> None:
+        assert not blocks_spawn_point(square(*beside), (8, 0), CELL)

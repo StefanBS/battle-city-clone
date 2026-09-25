@@ -36,7 +36,7 @@ else:
 
 @dataclass(frozen=True)
 class Footprint:
-    """A square footprint that isn't a tank, such as the Base (pixels)."""
+    """A plain square on the battlefield, such as the Base or a tank's rect (pixels)."""
 
     x: float
     y: float
@@ -71,11 +71,11 @@ def cells_at(cell: Cell, size_cells: int) -> set[Cell]:
 
 def touching_cells(placed: Placed, size_cells: int, cell_size: int) -> set[Cell]:
     """Cells from which a tank ``size_cells`` wide overlaps ``placed``."""
+    reach = size_cells - 1
     return {
-        (x - dx, y - dy)
+        cell
         for x, y in covered_cells(placed, cell_size)
-        for dx in range(size_cells)
-        for dy in range(size_cells)
+        for cell in cells_at((x - reach, y - reach), size_cells)
     }
 
 

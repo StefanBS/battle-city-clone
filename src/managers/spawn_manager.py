@@ -161,11 +161,11 @@ class SpawnManager:
             return False
 
         spawn_point = random.choice(self.spawn_points)
+        if self._is_spawn_blocked(spawn_point, tanks, game_map):
+            logger.warning(f"Spawn point {spawn_point} was blocked.")
+            return False
         rect = self._spawn_rect(spawn_point, game_map)
         x, y = rect.topleft
-        if self._is_spawn_blocked(spawn_point, tanks, game_map):
-            logger.warning(f"Spawn point ({x}, {y}) was blocked.")
-            return False
 
         tank_type = self._spawn_queue.pop()
         self.total_enemy_spawns += 1

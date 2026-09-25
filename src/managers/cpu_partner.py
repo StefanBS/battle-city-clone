@@ -84,16 +84,16 @@ def ambush_positions(world: WorldView, own: PlayerView, spawn_point: Cell) -> se
     Those at least the ambush distance from it, where ``own`` wouldn't stand
     on any Enemy Spawn Point and so keep Enemies from spawning there.
     """
-    size = world.tile_size
+    cell = world.tile_size
     sx, sy = spawn_point
     return {
         (x, y)
         for x, y in world.firing_positions(
-            spawn_point_footprint(spawn_point, size), own.size
+            spawn_point_footprint(spawn_point, cell), own.size
         )
         if abs(x - sx) + abs(y - sy) >= CPU_PARTNER_AMBUSH_DISTANCE
         and not any(
-            blocks_spawn_point(Footprint(x * size, y * size, own.size), s, size)
+            blocks_spawn_point(Footprint(x * cell, y * cell, own.size), s, cell)
             for s in world.enemy_spawn_points
         )
     }
