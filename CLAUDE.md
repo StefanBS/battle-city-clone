@@ -34,7 +34,7 @@ ruff check src/ tests/
 ruff check --fix src/ tests/
 ruff format src/ tests/
 
-# Type check (mypy, also run in CI)
+# Type check (mypy, also run in CI and pre-commit)
 mypy src
 ```
 
@@ -124,7 +124,7 @@ Real objects only, no mocks. `SDL_VIDEODRIVER=dummy` for headless execution.
 
 - Ruff for linting (rules: E, F) and formatting (double quotes, 88 char line length)
 - PEP 8, type hints on public APIs, docstrings on public functions/classes
-- Pre-commit hooks run ruff check --fix and ruff format automatically
+- Pre-commit hooks run ruff check --fix, ruff format and mypy automatically
 
 ## Git Conventions
 
