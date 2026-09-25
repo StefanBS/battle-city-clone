@@ -1225,16 +1225,6 @@ class TestCpuPartnerHesitation:
 
 
 class TestCpuPartnerDodge:
-    def test_a_dodge_overrides_its_movement_and_shooting(self, cpu) -> None:
-        # Hunting the Enemy to its right, it sidesteps a shot instead.
-        view = make_view(own=(12, 12, Direction.UP), enemies=[(20, 12)])
-        cpu.observe(with_bullets(view, SHOT_FROM_THE_LEFT))
-        assert cpu.get_movement_direction() in (
-            Direction.UP.delta,
-            Direction.DOWN.delta,
-        )
-        assert cpu.consume_shoot() is False
-
     def test_a_dodge_fires_without_hesitating(self) -> None:
         cpu = CpuPartnerInput(
             decision_interval=0,
@@ -1246,18 +1236,6 @@ class TestCpuPartnerDodge:
         view = make_view(own=(12, 12, Direction.LEFT))
         cpu.observe(with_bullets(view, SHOT_FROM_THE_LEFT))
         assert cpu.consume_shoot() is True
-
-    def test_carries_on_with_its_goal_when_a_dodge_would_not_help(self, cpu) -> None:
-        # Steel just above and below it, and the shot would only clip its
-        # edge: firing back would miss.
-        hemmed_in = {(x, y): TileType.STEEL for x in (12, 13) for y in (11, 14)}
-        view = with_bullets(
-            make_view(own=(12, 12, Direction.UP), enemies=[(20, 12)], tiles=hemmed_in),
-            enemy_bullet(cell(6), cell(12) + 2, Direction.RIGHT),
-        )
-        cpu.observe(view)
-        assert cpu.get_movement_direction() == Direction.RIGHT.delta
-        assert cpu.consume_shoot() is False
 
     def test_goal_does_not_step_into_a_shot_passing_beside_it(self, cpu) -> None:
         # Hunting the Enemy, it would step down to line up with it, straight

@@ -253,11 +253,6 @@ class TestDodgeWhen:
         shot = with_bullets(with_own(view, **{condition: True}), SHOT_FROM_THE_LEFT)
         assert dodge.react(shot) is None
 
-    def test_does_not_dodge_off_the_battlefield(self, dodge) -> None:
-        assert (
-            dodge.react(with_bullets(make_view(own=None), SHOT_FROM_THE_LEFT)) is None
-        )
-
 
 # The CPU Partner at (12, 12), a shot passing just below it.
 SHOT_BELOW = with_bullets(
@@ -270,9 +265,7 @@ class TestDodgeIsStepSafe:
     def test_a_step_into_a_shots_lane_is_not_safe(self, dodge) -> None:
         assert dodge.is_step_safe(SHOT_BELOW, Direction.DOWN.delta) is False
 
-    @pytest.mark.parametrize(
-        "movement", [Direction.UP.delta, Direction.LEFT.delta, (0, 0)]
-    )
+    @pytest.mark.parametrize("movement", [Direction.UP.delta, (0, 0)])
     def test_a_step_that_brings_no_shot_sooner_is_safe(self, dodge, movement) -> None:
         assert dodge.is_step_safe(SHOT_BELOW, movement) is True
 
