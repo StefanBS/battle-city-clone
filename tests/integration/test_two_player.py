@@ -64,9 +64,9 @@ class TestTwoPlayerStageTransition:
         p1 = gm.battle.player_manager.get_active_players()[0]
         p2 = gm.battle.player_manager.get_active_players()[1]
 
-        p1.lives = 5
+        p1.restore_lives(5)
         p1.restore_star_level(2)
-        p2.lives = 4
+        p2.restore_lives(4)
         p2.restore_star_level(1)
 
         gm._start_battle(gm.battle.carried_progress)
@@ -76,12 +76,11 @@ class TestTwoPlayerStageTransition:
         assert (p2.lives, p2.star_level) == (4, 1)
 
     def test_player_out_of_lives_stays_out_in_the_next_stage(self, two_player_game):
-        """A Player out of lives at a Victory does not come back next Stage."""
+        """A Player Eliminated at a Victory does not come back next Stage."""
         gm = two_player_game
         p2 = gm.battle.player_manager.get_active_players()[1]
         gm.battle.player_manager.add_score(500, player_id=2)
-        p2.lives = 0
-        p2.health = 0
+        p2.eliminate()
 
         gm._start_battle(gm.battle.carried_progress)
 

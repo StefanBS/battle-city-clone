@@ -256,7 +256,9 @@ def test_score_accumulates_on_enemy_kill(game_manager_fixture):
     gm.battle.spawn_manager._pending_spawns = []
 
     # Enemy AI chooses random directions; freeze it so it can't dodge the bullet.
-    enemy.health = 1
+    # Wear the Enemy down to its last hit so the one bullet destroys it.
+    while enemy.health > 1:
+        enemy.take_damage()
     enemy.speed = 0
 
     for _ in range(60):

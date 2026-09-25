@@ -41,6 +41,13 @@ _Avoid_: Evade (an Enemy slipping away from a shot), evasion
 **Co-op**:
 A game with two Players, where P2 is either a second Human Player or a CPU Partner.
 
+**Destroyed**:
+What happens to a tank when it takes the hit that ends it. An Enemy leaves the battlefield. A Player loses a life and, if it has any left, reappears at its spawn point.
+
+**Eliminated**:
+A Player destroyed on its last life. It stays off the battlefield for the rest of the game, including later Battles.
+_Avoid_: Dead, out of lives
+
 ### Opponents
 
 **Enemy**:
@@ -110,4 +117,4 @@ _Avoid_: Round, match
 The end of a Battle in which every Enemy in the Stage's Roster has been destroyed. If Game Over happens at the same moment, Game Over wins.
 
 **Game Over**:
-The end of a Battle, and of the game: the Base is destroyed, or every Human Player is out of lives. A CPU Partner that still has lives does not keep the game going.
+The end of a Battle, and of the game: the Base is destroyed, or every Human Player is Eliminated. A CPU Partner that is not Eliminated does not keep the game going.

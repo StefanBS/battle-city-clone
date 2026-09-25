@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 from loguru import logger
 from src.core.bullet import Bullet
 from src.core.power_up import PowerUp
-from src.core.tank import Tank
+from src.core.tank import HitResult, Tank
 from src.core.player_tank import PlayerTank
 from src.core.enemy_tank import EnemyTank
 from src.core.tile import Tile, TileType
@@ -169,7 +169,7 @@ class CollisionResponseHandler:
         bullet.active = False
         if enemy.is_carrier:
             frame.outcomes.append(CarrierHit(enemy))
-        if enemy.take_damage():
+        if enemy.take_damage() is not HitResult.ABSORBED:
             logger.info(f"Enemy tank (type: {enemy.tank_type}) destroyed.")
             frame.destroyed.add(enemy)
             frame.outcomes.append(EnemyDestroyed(enemy, by=bullet.owner))
@@ -195,15 +195,10 @@ class CollisionResponseHandler:
 
         logger.debug("Enemy bullet hit player tank.")
         bullet.active = False
-        if not player.is_invincible:
-            lives_before = player.lives
-            player.take_damage()
-            # take_damage returns True only on the last life; losing any
-            # life means the tank was destroyed.
-            if player.lives < lives_before:
-                logger.info("Player tank destroyed.")
-                frame.destroyed.add(player)
-                frame.outcomes.append(PlayerDestroyed(player))
+        if player.take_damage() is not HitResult.ABSORBED:
+            logger.info("Player tank destroyed.")
+            frame.destroyed.add(player)
+            frame.outcomes.append(PlayerDestroyed(player))
         return True
 
     def _handle_bullet_vs_tile(

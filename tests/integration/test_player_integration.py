@@ -8,6 +8,7 @@ from src.utils.constants import (
     SUB_TILE_SIZE,
     BULLET_SIZE,
 )
+from src.core.tank import HitResult
 from src.core.tile import Tile, TileType
 from tests.integration.conftest import (
     fire_bullet_from,
@@ -324,9 +325,9 @@ def test_player_respawn(game_manager_fixture):
 
     # Call take_damage directly (rather than through the game loop) to isolate
     # the respawn logic from collision/bullet plumbing.
-    was_destroyed_permanently = player_tank.take_damage(amount=initial_health)
+    result = player_tank.take_damage(amount=initial_health)
 
-    assert not was_destroyed_permanently, "Tank was permanently destroyed unexpectedly."
+    assert result is HitResult.DESTROYED, f"Expected DESTROYED, got {result}."
 
     # GameManager would call respawn() in the live loop; call it directly here.
     player_tank.respawn()

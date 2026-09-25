@@ -59,7 +59,6 @@ def test_enemy_tank_initialization_properties(
     assert tank.max_health == expected["health"]
 
     assert tank.owner_type == OwnerType.ENEMY
-    assert tank.lives == 1
     assert tank.x == 0
     assert tank.y == 0
 

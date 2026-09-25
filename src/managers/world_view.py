@@ -129,7 +129,7 @@ class PlayerView:
 class EnemyView:
     """An Enemy tank as seen in the World View (pixel coordinates).
 
-    ``enemy_id`` stays the same for as long as that Enemy is alive.
+    ``enemy_id`` stays the same for as long as that Enemy is on the battlefield.
     """
 
     enemy_id: int
@@ -176,7 +176,7 @@ class WorldView:
     copied from each tile's own flags: the cells that stop tanks, those that
     stop bullets, and those a bullet can destroy. ``half_brick_cells`` are
     BRICK cells already shot down to half, which a bullet may slip past.
-    ``players`` holds only live Players: one missing from it is dead.
+    ``players`` leaves out Eliminated Players.
     """
 
     tile_size: int
@@ -197,7 +197,7 @@ class WorldView:
 
     @property
     def own_player(self) -> PlayerView | None:
-        """The Player whose input is reading this view, or None while it's dead."""
+        """The Player whose input is reading this view, or None once Eliminated."""
         for player in self.players:
             if player.player_id == self.own_player_id:
                 return player

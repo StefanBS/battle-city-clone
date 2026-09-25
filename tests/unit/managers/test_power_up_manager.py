@@ -2,6 +2,7 @@ import pytest
 import pygame
 from unittest.mock import MagicMock
 from src.core.map import Map
+from src.core.player_tank import PlayerTank
 from src.managers.enemy_manager import EnemyManager
 from src.managers.outcomes import EnemyDestroyed
 from src.managers.power_up_manager import PowerUpManager
@@ -156,9 +157,7 @@ class TestPowerUpManagerApply:
 
     @pytest.fixture
     def player(self):
-        p = MagicMock()
-        p.lives = 3
-        return p
+        return MagicMock(spec=PlayerTank)
 
     @pytest.fixture
     def enemy_manager(self):
@@ -184,9 +183,9 @@ class TestPowerUpManagerApply:
             HELMET_INVINCIBILITY_DURATION
         )
 
-    def test_extra_life_increments_lives(self, manager, player, enemy_manager):
+    def test_extra_life_gives_the_player_a_life(self, manager, player, enemy_manager):
         manager.apply(PowerUpType.EXTRA_LIFE, player, enemy_manager)
-        assert player.lives == 4
+        player.gain_life.assert_called_once_with()
 
     def test_bomb_destroys_every_enemy(self, manager, player, enemy_manager):
         enemies = [MagicMock(), MagicMock(), MagicMock()]

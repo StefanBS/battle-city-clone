@@ -6,6 +6,7 @@ from src.managers.effect_manager import EffectManager
 from src.managers.power_up_manager import PowerUpManager
 from src.core.player_tank import PlayerTank
 from src.core.enemy_tank import EnemyTank
+from src.core.tank import HitResult
 from src.core.tile import Tile, TileType
 from src.core.map import Map
 from src.core.power_up import PowerUp
@@ -58,25 +59,19 @@ def mock_enemy():
     e.owner_type = OwnerType.ENEMY
     e.tank_type = TankType.BASIC
     e.is_carrier = False
-    e.take_damage = MagicMock(return_value=False)
+    e.take_damage = MagicMock(return_value=HitResult.ABSORBED)
     e.on_movement_blocked = MagicMock()
     e.revert_move = MagicMock()
     e.rect = pygame.Rect(0, 0, 32, 32)
     return e
 
 
-def _make_player(lives=3):
-    """A mock Player whose take_damage loses a life, as Tank.take_damage does."""
+def _make_player():
+    """A mock Player that an Enemy bullet destroys."""
     p = MagicMock(spec=PlayerTank)
     p.owner_type = OwnerType.PLAYER
     p.is_invincible = False
-    p.lives = lives
-
-    def take_damage():
-        p.lives -= 1
-        return p.lives <= 0
-
-    p.take_damage = MagicMock(side_effect=take_damage)
+    p.take_damage = MagicMock(return_value=HitResult.DESTROYED)
     p.revert_move = MagicMock()
     p.rect = pygame.Rect(0, 0, 32, 32)
     return p
@@ -127,7 +122,7 @@ class TestBulletVsEnemy:
 
     def test_player_bullet_destroys_enemy(self, handler, mock_bullet, mock_enemy):
         mock_bullet.owner_type = OwnerType.PLAYER
-        mock_enemy.take_damage.return_value = True
+        mock_enemy.take_damage.return_value = HitResult.DESTROYED
         outcomes = handler.process_collisions([(mock_bullet, mock_enemy)])
         assert outcomes == [EnemyDestroyed(mock_enemy, by=mock_bullet.owner)]
 
@@ -137,7 +132,7 @@ class TestBulletVsEnemy:
         """Two bullets on one Enemy in a frame: the first gets the credit."""
         first = make_bullet()
         second = make_bullet()
-        mock_enemy.take_damage.return_value = True
+        mock_enemy.take_damage.return_value = HitResult.DESTROYED
         outcomes = handler.process_collisions(
             [(first, mock_enemy), (second, mock_enemy)]
         )
@@ -167,12 +162,24 @@ class TestBulletVsPlayer:
         assert not bullet.active
         assert outcomes == [PlayerDestroyed(mock_player)]
 
-    def test_bullet_vs_invincible_player(self, handler, make_bullet, mock_player):
+    def test_enemy_bullet_eliminates_player_on_its_last_life(
+        self, handler, make_bullet, mock_player
+    ):
+        bullet = make_bullet(owner_type=OwnerType.ENEMY)
+        mock_player.take_damage.return_value = HitResult.ELIMINATED
+        outcomes = handler.process_collisions([(bullet, mock_player)])
+        assert outcomes == [PlayerDestroyed(mock_player)]
+
+    def test_shielded_player_absorbs_enemy_bullet(
+        self, handler, make_bullet, mock_player
+    ):
+        """The tank decides what its shield does to a hit, not the handler."""
         bullet = make_bullet(owner_type=OwnerType.ENEMY)
         mock_player.is_invincible = True
+        mock_player.take_damage.return_value = HitResult.ABSORBED
         outcomes = handler.process_collisions([(bullet, mock_player)])
         assert not bullet.active
-        mock_player.take_damage.assert_not_called()
+        mock_player.take_damage.assert_called_once()
         assert outcomes == []
 
     def test_second_bullet_passes_through_destroyed_player(
@@ -185,7 +192,7 @@ class TestBulletVsPlayer:
             [(first, mock_player), (second, mock_player)]
         )
         assert outcomes == [PlayerDestroyed(mock_player)]
-        assert mock_player.lives == 2
+        mock_player.take_damage.assert_called_once()
         assert second.active
 
 
@@ -377,7 +384,7 @@ class TestTracking:
         """Same bullet in two events should only be processed once."""
         bullet = make_bullet()
         enemy2 = MagicMock(spec=EnemyTank)
-        enemy2.take_damage = MagicMock(return_value=False)
+        enemy2.take_damage = MagicMock(return_value=HitResult.ABSORBED)
         enemy2.owner_type = OwnerType.ENEMY
         handler.process_collisions(
             [

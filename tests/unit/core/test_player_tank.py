@@ -1,6 +1,7 @@
 import pytest
 import pygame
 from unittest.mock import MagicMock
+from src.core.tank import HitResult
 from src.utils.constants import (
     Direction,
     FPS,
@@ -57,32 +58,25 @@ class TestPlayerTank:
 
     def test_player_tank_respawn(self, player_tank):
         """Test player tank respawn functionality."""
-        initial_lives = player_tank.lives
-        initial_health = player_tank.max_health
         initial_pos = player_tank.initial_position
-
-        player_tank.health = player_tank.max_health
-        player_tank.lives -= 1
+        player_tank.take_damage()
 
         player_tank.respawn()
 
-        assert player_tank.lives == initial_lives - 1
-        assert player_tank.health == initial_health
         assert (player_tank.x, player_tank.y) == initial_pos
         assert player_tank.is_invincible
         assert player_tank.invincibility_timer == 0
         assert player_tank.blink_timer == 0
         assert player_tank.direction == Direction.UP
 
-    def test_player_tank_respawn_no_lives_left(self, player_tank):
-        """Test respawn does nothing if no lives are left."""
-        player_tank.lives = 0
-        player_tank.health = 0
+    def test_an_eliminated_player_does_not_respawn(self, player_tank):
+        player_tank.eliminate()
+        position = (player_tank.x, player_tank.y)
 
         player_tank.respawn()
 
-        assert player_tank.health == 0
-        assert player_tank.lives == 0
+        assert (player_tank.x, player_tank.y) == position
+        assert not player_tank.is_invincible
 
     def test_draw_with_sprite_not_invincible(self, player_tank):
         """Test drawing with sprite when not invincible."""
@@ -137,33 +131,52 @@ class TestPlayerTank:
         assert player_tank.rect.topleft != moved_rect.topleft
 
 
-class TestPlayerTankElimination:
+class TestPlayerTankLives:
     @pytest.fixture
     def player(self, create_player_tank):
         return create_player_tank(x=5, y=12)
 
-    def test_a_player_on_its_last_life_is_not_eliminated(self, player):
-        player.lives = 0
-
+    def test_a_hit_with_lives_left_destroys_and_spends_a_life(self, player):
+        assert player.take_damage() is HitResult.DESTROYED
+        assert player.lives == 2
+        assert player.health == player.max_health
         assert not player.is_eliminated
 
-    def test_a_destroyed_player_with_lives_left_is_not_eliminated(self, player):
-        player.health = 0
+    def test_a_hit_on_the_last_life_eliminates(self, player):
+        player.take_damage()
+        player.take_damage()
 
-        assert not player.is_eliminated
-
-    def test_a_destroyed_player_out_of_lives_is_eliminated(self, player):
-        player.lives = 0
-        player.health = 0
-
+        assert player.take_damage() is HitResult.ELIMINATED
+        assert player.lives == 0
         assert player.is_eliminated
 
-    def test_eliminate_takes_the_player_out_of_lives(self, player):
+    def test_a_shielded_player_absorbs_a_hit(self, player):
+        player.activate_invincibility(HELMET_INVINCIBILITY_DURATION)
+
+        assert player.take_damage() is HitResult.ABSORBED
+        assert player.lives == 3
+
+    def test_a_hit_on_an_eliminated_player_changes_nothing(self, player):
         player.eliminate()
 
+        assert player.take_damage() is HitResult.ELIMINATED
         assert player.lives == 0
-        assert player.health == 0
         assert player.is_eliminated
+
+    def test_restore_lives_rejects_fewer_than_one(self, player):
+        with pytest.raises(ValueError):
+            player.restore_lives(0)
+
+    def test_gain_life_adds_a_life(self, player):
+        player.gain_life()
+
+        assert player.lives == 4
+
+    def test_restore_lives_sets_the_carried_count(self, player):
+        player.restore_lives(5)
+
+        assert player.lives == 5
+        assert not player.is_eliminated
 
 
 class TestActivateInvincibility:
@@ -185,7 +198,6 @@ class TestActivateInvincibility:
     def test_respawn_after_helmet_restores_short_duration(self, player):
         player.activate_invincibility(HELMET_INVINCIBILITY_DURATION)
         player.is_invincible = False
-        player.lives = 2
         player.respawn()
         assert player.is_invincible is True
         assert player.invincibility_duration == SPAWN_INVINCIBILITY_DURATION
@@ -224,7 +236,6 @@ class TestStarUpgrade:
     def test_respawn_resets_star_level(self, player):
         player.apply_star()
         player.apply_star()
-        player.lives = 2
         player.respawn()
         assert player.star_level == 0
         assert player.bullet_speed == BULLET_SPEED

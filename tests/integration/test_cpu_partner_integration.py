@@ -500,11 +500,11 @@ class TestCpuPartnerGameOver:
         place_player_at(gm, 20 * SUB_TILE_SIZE, 12 * SUB_TILE_SIZE, player=p2)
         return gm
 
-    def test_game_over_when_human_out_and_cpu_partner_alive(self, arena):
+    def test_game_over_when_human_eliminated_and_cpu_partner_not(self, arena):
         gm = arena
         p1, p2 = gm.battle.player_manager.get_active_players()
-        p1.lives = 1
-        p2.lives = 3
+        p1.restore_lives(1)
+        p2.restore_lives(3)
         fire_enemy_bullet_at(gm, p1)
 
         tick(gm, FPS)
@@ -523,8 +523,7 @@ class TestCpuPartnerHud:
 
     def test_shows_cpu_out_once_eliminated(self, cpu_game):
         p2 = cpu_game.battle.player_manager.get_active_players()[1]
-        p2.lives = 0
-        p2.health = 0
+        p2.eliminate()
         labels = self.hud_labels(cpu_game)
         assert "CPU: OUT" in labels
         assert not any(label.startswith("P2") for label in labels)
@@ -564,7 +563,8 @@ class TestCpuPartnerHoldFireSoak:
         for _ in range(self.SOAK_SECONDS * FPS):
             # Keep the idle Human Player in the game so the soak runs its full
             # length; only the CPU Partner acts.
-            p1.lives = max(p1.lives, 2)
+            if p1.lives < 2:
+                p1.gain_life()
             tick(gm)
             if gm.state is not GameState.RUNNING:
                 break

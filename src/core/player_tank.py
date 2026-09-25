@@ -1,6 +1,6 @@
 import pygame
 from loguru import logger
-from .tank import Tank
+from .tank import HitResult, Tank
 from src.managers.texture_manager import TextureManager
 from src.utils.animation import is_blink_visible
 from src.utils.constants import (
@@ -51,11 +51,12 @@ class PlayerTank(Tank):
             texture_manager,
             tile_size,
             health=1,
-            lives=INITIAL_PLAYER_LIVES,
             owner_type=OwnerType.PLAYER,
             map_width_px=map_width_px,
             map_height_px=map_height_px,
         )
+        # Counts the tank on the battlefield too, so 0 means Eliminated.
+        self._lives: int = INITIAL_PLAYER_LIVES
         self.player_id: int = player_id
         self.star_level: int = 0
         self._update_sprite()
@@ -118,18 +119,60 @@ class PlayerTank(Tank):
         self.invincibility_duration = duration
 
     @property
+    def lives(self) -> int:
+        """Lives left, counting the tank on the battlefield."""
+        return self._lives
+
+    @property
     def is_eliminated(self) -> bool:
-        """Whether the player is destroyed with no lives left to respawn."""
-        return self.lives <= 0 and self.health <= 0
+        """Whether the player was destroyed on its last life."""
+        return self._lives == 0
+
+    def take_damage(self, amount: int = 1) -> HitResult:
+        """Take a hit; a destroying hit spends a life.
+
+        Args:
+            amount: Amount of damage to take (defaults to 1)
+
+        Returns:
+            ELIMINATED if the hit destroyed the player on its last life or
+            the player was already Eliminated, otherwise what the hit did
+            to the tank.
+        """
+        if self.is_eliminated:
+            return HitResult.ELIMINATED
+        result = super().take_damage(amount)
+        if result is not HitResult.DESTROYED:
+            return result
+        self._lives -= 1
+        if self._lives == 0:
+            logger.info(f"Player {self.player_id} eliminated.")
+            return HitResult.ELIMINATED
+        self._health = self.max_health
+        logger.info(f"Player {self.player_id} destroyed. Lives left: {self._lives}")
+        return HitResult.DESTROYED
+
+    def gain_life(self) -> None:
+        """Add a life (Extra Life Power-Up)."""
+        self._lives += 1
+
+    def restore_lives(self, lives: int) -> None:
+        """Restore the lives carried from the previous Battle.
+
+        Raises:
+            ValueError: If fewer than one life; use eliminate() instead.
+        """
+        if lives < 1:
+            raise ValueError(f"A Player in play needs at least 1 life, got {lives}")
+        self._lives = lives
 
     def eliminate(self) -> None:
-        """Take the player out of lives, so it no longer plays."""
-        self.lives = 0
-        self.health = 0
+        """Make the player Eliminated, so it no longer plays."""
+        self._lives = 0
 
     def respawn(self) -> None:
         """Respawn the tank at its initial position."""
-        if self.lives > 0:
+        if not self.is_eliminated:
             logger.info(
                 f"Player respawning at {self.initial_position}. Lives: {self.lives}"
             )

@@ -1,6 +1,7 @@
 import pytest
 import pygame
 from src.core.bullet import Bullet
+from src.core.tank import HitResult
 from src.utils.constants import (
     Direction,
     TILE_SIZE,
@@ -47,41 +48,28 @@ class TestTank:
         assert not hasattr(tank, "bullet")
         assert tank.max_bullets == 1
         assert tank.health == 1
-        assert tank.lives == 1
         assert not tank.is_invincible
 
-    @pytest.mark.parametrize(
-        "health,lives,expected_destroyed,post_health,post_lives",
-        [
-            (2, 1, False, 1, 1),
-            (1, 2, False, 1, 1),
-            (1, 1, True, 0, 0),
-        ],
-        ids=["survive", "lose_life", "game_over"],
-    )
-    def test_take_damage(
-        self,
-        create_tank,
-        health,
-        lives,
-        expected_destroyed,
-        post_health,
-        post_lives,
-    ):
-        """Test taking damage with various health/lives configurations."""
-        tank = create_tank(health=health, lives=lives)
-        assert tank.take_damage() == expected_destroyed
-        assert tank.health == post_health
-        assert tank.lives == post_lives
+    def test_hit_that_leaves_health_is_absorbed(self, create_tank):
+        tank = create_tank(health=2)
+
+        assert tank.take_damage() is HitResult.ABSORBED
+        assert tank.health == 1
+
+    def test_hit_that_takes_the_last_health_destroys(self, create_tank):
+        tank = create_tank(health=2)
+        tank.take_damage()
+
+        assert tank.take_damage() is HitResult.DESTROYED
+        assert tank.health == 0
 
     def test_invincibility(self, tank):
         """Test invincibility mechanics."""
         tank.is_invincible = True
         tank.invincibility_duration = 3.0
 
-        assert not tank.take_damage()
+        assert tank.take_damage() is HitResult.ABSORBED
         assert tank.health == 1
-        assert tank.lives == 1
 
         tank.update(1.0)
         assert tank.is_invincible
