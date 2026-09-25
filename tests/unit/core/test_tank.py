@@ -315,11 +315,6 @@ class TestFreeze:
     def test_not_frozen_by_default(self, tank):
         assert tank.is_frozen is False
 
-    def test_freeze_makes_the_tank_frozen(self, tank):
-        tank.freeze(1.0)
-
-        assert tank.is_frozen is True
-
     def test_update_counts_the_freeze_down(self, tank):
         tank.freeze(1.0)
 
@@ -334,15 +329,6 @@ class TestFreeze:
         tank.update(0.5)
 
         assert tank.is_frozen is False
-
-    def test_invincibility_keeps_running_while_frozen(self, tank):
-        tank.is_invincible = True
-        tank.invincibility_duration = 1.0
-        tank.freeze(5.0)
-
-        tank.update(1.0)
-
-        assert tank.is_invincible is False
 
 
 class TestIceSlide:

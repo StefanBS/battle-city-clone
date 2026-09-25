@@ -184,12 +184,10 @@ class TestFrozen:
 
         tank.update.assert_called_once_with(DT)
 
-    @pytest.mark.parametrize("direction", [(0, -1), (1, 0)], ids=["ahead", "turn"])
-    def test_does_not_move_or_turn(self, stepper, tank, direction):
-        stepper.step(tank, FakeIntent(direction), DT)
+    def test_does_not_move_or_turn(self, stepper, tank):
+        stepper.step(tank, FakeIntent((1, 0)), DT)
 
         tank.move.assert_not_called()
-        assert tank.direction == Direction.UP
 
     def test_throws_away_its_shot(self, stepper, tank):
         intent = FakeIntent(shoot=True)

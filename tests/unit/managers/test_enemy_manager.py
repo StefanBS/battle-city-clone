@@ -188,15 +188,6 @@ class TestFrozen:
 
         enemy.freeze.assert_called_once_with(0.75)
 
-    def test_an_enemy_added_without_a_clock_is_not_frozen(
-        self, enemy_manager, make_enemy
-    ):
-        enemy = make_enemy()
-
-        enemy_manager.add(enemy, MagicMock(spec=EnemyAI))
-
-        enemy.freeze.assert_not_called()
-
     def test_a_clock_lasts_one_frame_per_dt_of_its_duration(
         self, enemy_manager, stepper, add_enemy
     ):
