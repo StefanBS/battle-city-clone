@@ -23,7 +23,6 @@ class TestPowerUpEffectsIntegration:
     def _collect_power_up(self, game, power_up_type):
         """Spawn a carrier, destroy it, spawn a specific power-up, collect it."""
         carrier = spawn_carrier(game)
-        carrier.health = 0
         game.battle.enemy_manager.remove(carrier)
         game.battle.power_up_manager.spawn_power_up(
             [first_player(game), *game.battle.enemy_manager.enemies],

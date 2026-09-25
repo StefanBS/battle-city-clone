@@ -187,7 +187,7 @@ def test_enemy_bullet_hits_player_tank(
     player_tank = first_player(game_manager)
     initial_spawn_pos = player_tank.initial_position
 
-    player_tank.lives = player_initial_lives
+    player_tank.restore_lives(player_initial_lives)
     player_tank.is_invincible = player_is_invincible
     player_tank.invincibility_timer = 0
 

@@ -326,13 +326,13 @@ class TestBattleApplyOutcomes:
         p1 = players[0]
         p1.rect = pygame.Rect(64, 64, TILE_SIZE, TILE_SIZE)
         explosion_at = []
-        game.player_manager.handle_player_death.side_effect = lambda p: (
+        game.player_manager.handle_player_destroyed.side_effect = lambda p: (
             explosion_at.append(
                 game.effect_manager.spawn_at_rect.call_args.args[1].copy()
             )
         )
         game.apply_outcomes([PlayerDestroyed(p1)])
-        game.player_manager.handle_player_death.assert_called_once_with(p1)
+        game.player_manager.handle_player_destroyed.assert_called_once_with(p1)
         sound.play.assert_called_once_with("explosion")
         # The explosion is placed before the respawn moves the tank.
         assert explosion_at == [pygame.Rect(64, 64, TILE_SIZE, TILE_SIZE)]

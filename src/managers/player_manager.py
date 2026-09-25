@@ -65,7 +65,7 @@ class CarriedProgress:
     star_level: int
     score: int = 0
     eliminated: bool = False
-    """Out of lives: the Player sits out every later Battle, keeping its score."""
+    """Eliminated: the Player sits out every later Battle, keeping its score."""
 
 
 @dataclass(frozen=True)
@@ -77,7 +77,7 @@ class PlayerHudEntry:
     lives: int
     score: int
     eliminated: bool = False
-    """Out of lives: the HUD shows ``OUT`` in place of the lives."""
+    """Eliminated: the HUD shows ``OUT`` in place of the lives."""
 
 
 class PlayerManager:
@@ -86,10 +86,11 @@ class PlayerManager:
     Responsibilities:
     - Create one slot per Player, with its tank at the map's spawn point.
     - Forward pygame events to every slot's input.
-    - Each update: step every live player through TankStepper with its input.
+    - Each update: step every Player that is not Eliminated through
+      TankStepper with its input.
     - Track each Player's score, and hand lives, Stars and score to the next
       Battle as carried progress.
-    - Keep eliminated Players' tanks to itself: callers get the live tanks,
+    - Keep Eliminated Players' tanks to itself: callers get the others,
       and one HUD entry per Player.
 
     Lasts one Battle: each Battle builds its own from the carried progress.
@@ -168,7 +169,7 @@ class PlayerManager:
                 if progress.eliminated:
                     slot.tank.eliminate()
                     continue
-                slot.tank.lives = progress.lives
+                slot.tank.restore_lives(progress.lives)
                 if progress.star_level > 0:
                     slot.tank.restore_star_level(progress.star_level)
 
@@ -207,14 +208,14 @@ class PlayerManager:
             slot.input.clear_pending_shoot()
 
     def update(self, dt: float, stepper: TankStepper) -> None:
-        """Step every live player with its input and play its sounds.
+        """Step every Player still in the game with its input and play its sounds.
 
         Args:
             dt: Time step in seconds.
             stepper: Steps each tank and owns the bullets it fires.
         """
         for slot in self._slots:
-            if slot.tank.health <= 0:
+            if slot.tank.is_eliminated:
                 continue
             result = stepper.step(slot.tank, slot.input, dt)
             if result.slide_started:
@@ -236,12 +237,12 @@ class PlayerManager:
         )
 
     def get_active_players(self) -> list[PlayerTank]:
-        """Return players that are still alive (health > 0).
+        """Return the Players that are not Eliminated.
 
         Returns:
-            List of living PlayerTank instances.
+            List of PlayerTank instances still in the game.
         """
-        return [slot.tank for slot in self._slots if slot.tank.health > 0]
+        return [slot.tank for slot in self._slots if not slot.tank.is_eliminated]
 
     @property
     def score(self) -> int:
@@ -291,13 +292,13 @@ class PlayerManager:
             for slot in self._slots
         }
 
-    def handle_player_death(self, player: PlayerTank) -> None:
-        """Respawn a destroyed Player and reset its input, if it has lives left.
+    def handle_player_destroyed(self, player: PlayerTank) -> None:
+        """Respawn a destroyed Player and reset its input, unless it is Eliminated.
 
         Args:
             player: The PlayerTank that was just destroyed.
         """
-        if player.lives <= 0:
+        if player.is_eliminated:
             return
         player.respawn()
         for slot in self._slots:
@@ -305,12 +306,12 @@ class PlayerManager:
                 slot.input.reset()
 
     def is_game_over(self) -> bool:
-        """Check if every Human Player is eliminated (0 lives and dead).
+        """Check if every Human Player is Eliminated.
 
         A CPU Partner's remaining lives do not keep the game going.
 
         Returns:
-            True when every Human Player has no lives remaining and health <= 0.
+            True when every Human Player is Eliminated.
         """
         return all(
             slot.tank.is_eliminated

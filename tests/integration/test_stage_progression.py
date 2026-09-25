@@ -50,7 +50,7 @@ class TestNewGameAndNextStage:
 
     def test_next_stage_keeps_lives(self, game_manager_fixture):
         game = game_manager_fixture
-        first_player(game).lives = 5
+        first_player(game).restore_lives(5)
         game._on_victory_finished()
         assert first_player(game).lives == 5
 

@@ -249,12 +249,12 @@ class Battle:
                     # A Grenade kill is a Carrier's only drop without a hit.
                     self._drop_carrier_power_up(enemy)
                 case PlayerDestroyed(player=player):
-                    # Before handle_player_death moves it to its spawn point.
+                    # Before handle_player_destroyed moves it to its spawn point.
                     self.effect_manager.spawn_at_rect(
                         EffectType.LARGE_EXPLOSION, player.rect
                     )
                     self._sound.play("explosion")
-                    self.player_manager.handle_player_death(player)
+                    self.player_manager.handle_player_destroyed(player)
                 case BaseDestroyed():
                     pass  # Game Over is decided once all outcomes are applied.
                 case PowerUpCollected(power_up_type=power_up_type, player=player):

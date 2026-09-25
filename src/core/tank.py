@@ -1,3 +1,5 @@
+from enum import Enum, auto
+
 import pygame
 from loguru import logger
 from .game_object import GameObject
@@ -19,6 +21,17 @@ from src.utils.constants import (
 )
 
 
+class HitResult(Enum):
+    """What a hit did to the tank that took it."""
+
+    ABSORBED = auto()
+    """The tank took the hit and stays on the battlefield."""
+    DESTROYED = auto()
+    """The hit ended the tank. A Player with lives left reappears."""
+    ELIMINATED = auto()
+    """A Player destroyed on its last life."""
+
+
 class Tank(GameObject):
     """Base tank class with common functionality."""
 
@@ -29,7 +42,6 @@ class Tank(GameObject):
         texture_manager: TextureManager,
         tile_size: int = TILE_SIZE,
         health: int = 1,
-        lives: int = 1,
         speed: float = TANK_SPEED,
         bullet_speed: float = BULLET_SPEED,
         *,
@@ -46,7 +58,6 @@ class Tank(GameObject):
             texture_manager: TextureManager instance
             tile_size: Size of a tile in pixels
             health: Initial health points
-            lives: Number of lives
             speed: Movement speed in pixels per second
             bullet_speed: Speed of bullets fired by this tank
             owner_type: Whether this tank belongs to a player or enemy
@@ -66,9 +77,8 @@ class Tank(GameObject):
         self.max_bullets: int = 1
         self.power_bullets: bool = False
         self.tile_size = tile_size
-        self.health: int = health
+        self._health: int = health
         self.max_health: int = health
-        self.lives: int = lives
         self.owner_type: OwnerType = owner_type
         self.distance_since_last_toggle: float = 0
         # Store previous position for collision rollback
@@ -98,42 +108,35 @@ class Tank(GameObject):
                 f"Sprite '{sprite_name}' not found for {self.owner_type} tank."
             )
 
-    def take_damage(self, amount: int = 1) -> bool:
+    @property
+    def health(self) -> int:
+        """Hits the tank can still take before it is destroyed."""
+        return self._health
+
+    def take_damage(self, amount: int = 1) -> HitResult:
         """
-        Take damage and return whether the tank was destroyed.
+        Take a hit and report what it did to the tank.
 
         Args:
             amount: Amount of damage to take (defaults to 1)
 
         Returns:
-            True if the tank was destroyed, False otherwise
+            DESTROYED if the hit took the last health, ABSORBED otherwise
+            (including any hit while invincible).
         """
         logger.debug(
             f"Tank {self.owner_type} at ({self.x}, {self.y}) taking {amount} damage."
         )
         if self.is_invincible:
             logger.debug("Tank is invincible, ignoring damage.")
-            return False
+            return HitResult.ABSORBED
 
-        # Ensure we don't go below 0 health
-        self.health = max(0, self.health - amount)
-
-        # If health reaches 0, lose a life and reset health
-        if self.health <= 0:
-            self.lives -= 1
-            logger.info(
-                f"Tank {self.owner_type} health reached 0. Lives left: {self.lives}"
-            )
-            if self.lives > 0:
-                self.health = self.max_health
-                logger.info(
-                    f"Tank {self.owner_type} respawning with {self.health} health."
-                )
-                return False
-            logger.info(f"Tank {self.owner_type} destroyed (no lives left).")
-            return True
-        logger.debug(f"Tank {self.owner_type} health now {self.health}.")
-        return False
+        self._health = max(0, self._health - amount)
+        if self._health == 0:
+            logger.info(f"Tank {self.owner_type} destroyed.")
+            return HitResult.DESTROYED
+        logger.debug(f"Tank {self.owner_type} health now {self._health}.")
+        return HitResult.ABSORBED
 
     def shoot(self) -> Bullet | None:
         """Create and return a new bullet.

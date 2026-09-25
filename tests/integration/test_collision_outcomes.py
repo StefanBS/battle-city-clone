@@ -101,7 +101,7 @@ class TestPlayerDestroyed:
     def test_losing_the_last_life_is_game_over(self, game):
         player = first_player(game)
         player.is_invincible = False
-        player.lives = 1
+        player.restore_lives(1)
         _enemy_bullet_on(game, player.rect, _idle_enemy(game))
 
         game.update()

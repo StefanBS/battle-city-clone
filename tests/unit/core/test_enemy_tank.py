@@ -1,5 +1,6 @@
 import pytest
 from src.core.enemy_tank import get_enemy_config, _reset_enemy_config
+from src.core.tank import HitResult
 from src.utils.constants import (
     TILE_SIZE,
     OwnerType,
@@ -59,9 +60,32 @@ def test_enemy_tank_initialization_properties(
     assert tank.max_health == expected["health"]
 
     assert tank.owner_type == OwnerType.ENEMY
-    assert tank.lives == 1
     assert tank.x == 0
     assert tank.y == 0
+
+
+class TestEnemyTankDamage:
+    def test_armor_enemy_absorbs_three_hits_and_is_destroyed_by_the_fourth(
+        self, create_enemy_tank
+    ):
+        tank = create_enemy_tank(tank_type=TankType.ARMOR)
+
+        results = [tank.take_damage() for _ in range(4)]
+
+        assert results == [
+            HitResult.ABSORBED,
+            HitResult.ABSORBED,
+            HitResult.ABSORBED,
+            HitResult.DESTROYED,
+        ]
+
+    @pytest.mark.parametrize(
+        "tank_type", [TankType.BASIC, TankType.FAST, TankType.POWER]
+    )
+    def test_one_hit_destroys_other_enemies(self, create_enemy_tank, tank_type):
+        tank = create_enemy_tank(tank_type=tank_type)
+
+        assert tank.take_damage() is HitResult.DESTROYED
 
 
 class TestEnemyConfig:

@@ -109,7 +109,7 @@ class PowerUpManager:
             case PowerUpType.HELMET:
                 player.activate_invincibility(HELMET_INVINCIBILITY_DURATION)
             case PowerUpType.EXTRA_LIFE:
-                player.lives += 1
+                player.gain_life()
             case PowerUpType.BOMB:
                 outcomes = [
                     EnemyDestroyed(enemy, by=None) for enemy in enemy_manager.enemies

@@ -142,13 +142,13 @@ class TestPlayerManagerCreation:
         assert isinstance(pi._inputs[1], ControllerInput)
         assert pi._inputs[1].instance_id is None
 
-    def test_get_active_players_returns_living(
+    def test_get_active_players_leaves_out_eliminated(
         self, make_player_manager, mock_game_map
     ):
-        """get_active_players() filters out dead tanks."""
+        """get_active_players() leaves out Eliminated Players."""
         player_manager = make_player_manager(controller_instance_ids=[])
 
-        player_manager.get_active_players()[0].health = 0
+        player_manager.get_active_players()[0].eliminate()
         assert player_manager.get_active_players() == []
 
 
@@ -185,8 +185,8 @@ class TestPlayerManagerUpdate:
 
         assert self.player.y < y_before
 
-    def test_skips_dead_player(self):
-        self.player.health = 0
+    def test_skips_eliminated_player(self):
+        self.player.eliminate()
         y_before = self.player.y
         _press(self.pm, pygame.K_UP)
         _press(self.pm, pygame.K_SPACE)
@@ -322,9 +322,9 @@ class TestPlayerManagerCarriedProgress:
             controller_instance_ids=[0], mode=GameMode.TWO_PLAYERS
         )
         p1, p2 = player_manager.get_active_players()
-        p1.lives = 5
+        p1.restore_lives(5)
         p1.restore_star_level(2)
-        p2.lives = 1
+        p2.restore_lives(1)
         player_manager.add_score(300, player_id=2)
 
         assert player_manager.carried_progress == {
@@ -340,9 +340,8 @@ class TestPlayerManagerCarriedProgress:
             controller_instance_ids=[0], mode=GameMode.TWO_PLAYERS
         )
         p1, p2 = player_manager.get_active_players()
-        p1.lives = 0  # on its last life, still in play
-        p2.lives = 0
-        p2.health = 0
+        p1.restore_lives(1)  # on its last life, still in play
+        p2.eliminate()
 
         carried = player_manager.carried_progress
 
@@ -402,41 +401,27 @@ class TestPlayerManagerHud:
 
 
 # ---------------------------------------------------------------------------
-# TestPlayerManagerDeathHandling
+# TestPlayerManagerDestroyedHandling
 # ---------------------------------------------------------------------------
 
 
-class TestPlayerManagerDeathHandling:
+class TestPlayerManagerDestroyedHandling:
     def test_handle_death_with_lives_respawns(self, player_manager, mock_game_map):
-        """handle_player_death calls respawn() when lives remain."""
+        """handle_player_destroyed calls respawn() when lives remain."""
         player = MagicMock(spec=PlayerTank)
-        player.lives = 2
-        player.health = 0
+        player.is_eliminated = False
 
-        player_manager.handle_player_death(player)
+        player_manager.handle_player_destroyed(player)
 
         player.respawn.assert_called_once()
 
-    def test_handle_death_no_lives_does_not_respawn(self, player_manager):
+    def test_handle_death_of_eliminated_player_does_not_respawn(self, player_manager):
         player = MagicMock(spec=PlayerTank)
-        player.lives = 0
-        player.health = 0
+        player.is_eliminated = True
 
-        player_manager.handle_player_death(player)
+        player_manager.handle_player_destroyed(player)
 
         player.respawn.assert_not_called()
-
-    def test_no_game_over_with_no_lives_but_health_positive(
-        self, make_player_manager, mock_game_map, mock_texture_manager
-    ):
-        """Edge case: lives = 0 but health > 0 — is_game_over returns False."""
-        player_manager = make_player_manager(controller_instance_ids=[])
-
-        player = player_manager.get_active_players()[0]
-        player.lives = 0
-        player.health = 1  # unusual state: out of lives but not fully dead
-
-        assert player_manager.is_game_over() is False
 
 
 # ---------------------------------------------------------------------------
@@ -445,39 +430,34 @@ class TestPlayerManagerDeathHandling:
 
 
 class TestPlayerManagerGameOver:
-    def test_not_game_over_when_alive(
+    def test_not_game_over_at_the_start(
         self, make_player_manager, mock_game_map, mock_texture_manager
     ):
-        """is_game_over() returns False when the player is still alive."""
+        """is_game_over() returns False while the Player is in play."""
         player_manager = make_player_manager(controller_instance_ids=[])
-
-        player = player_manager.get_active_players()[0]
-        player.health = 1
-        player.lives = 2
 
         assert player_manager.is_game_over() is False
 
-    def test_game_over_when_dead_no_lives(
+    def test_game_over_when_eliminated(
         self, make_player_manager, mock_game_map, mock_texture_manager
     ):
-        """is_game_over() returns True when the player is dead with no lives."""
+        """is_game_over() returns True when the only Player is Eliminated."""
         player_manager = make_player_manager(controller_instance_ids=[])
 
         player = player_manager.get_active_players()[0]
-        player.health = 0
-        player.lives = 0
+        for _ in range(INITIAL_PLAYER_LIVES):
+            player.take_damage()
 
         assert player_manager.is_game_over() is True
 
     def test_not_game_over_when_has_lives(
         self, make_player_manager, mock_game_map, mock_texture_manager
     ):
-        """is_game_over() returns False when the player is dead but has lives left."""
+        """is_game_over() returns False when the player is destroyed with lives left."""
         player_manager = make_player_manager(controller_instance_ids=[])
 
         player = player_manager.get_active_players()[0]
-        player.health = 0
-        player.lives = 1  # dead this frame but can still respawn
+        player.take_damage()
 
         assert player_manager.is_game_over() is False
 
@@ -625,8 +605,8 @@ class TestPlayerManagerCpuPartner:
         cpu_pm.observe(self.view(cpu_pm, enemies=[far_left]))
         cpu_pm.update(self.DT, stepper)
 
-        p2.lives = 2
-        cpu_pm.handle_player_death(p2)
+        p2.take_damage()
+        cpu_pm.handle_player_destroyed(p2)
         x_after_respawn = p2.x
         # Its Firing Positions are 3 tiles right, against 6 left for far_left.
         close_right = (p2.x + 3 * TILE_SIZE, p2.y - 10 * TILE_SIZE)
@@ -639,16 +619,13 @@ class TestPlayerManagerCpuPartner:
 
     def test_game_over_when_human_out_even_if_cpu_partner_has_lives(self, cpu_pm):
         p1, p2 = cpu_pm.get_active_players()
-        p1.lives = 0
-        p1.health = 0
-        p2.lives = 3
+        p1.eliminate()
 
         assert cpu_pm.is_game_over() is True
 
-    def test_cpu_partner_out_does_not_end_game_while_human_alive(self, cpu_pm):
+    def test_cpu_partner_eliminated_does_not_end_game_while_human_plays(self, cpu_pm):
         p1, p2 = cpu_pm.get_active_players()
-        p2.lives = 0
-        p2.health = 0
+        p2.eliminate()
 
         assert cpu_pm.is_game_over() is False
 
@@ -663,31 +640,26 @@ class TestPlayerManagerTwoPlayerDeath:
         )
         return player_manager
 
-    def test_dead_player_does_not_borrow_from_partner(self, two_player_pm):
+    def test_eliminated_player_does_not_borrow_from_partner(self, two_player_pm):
         """Each player has their own life pool — no transfers between players."""
         p1 = two_player_pm.get_active_players()[0]
         p2 = two_player_pm.get_active_players()[1]
-        p1.lives = 0
-        p1.health = 0
-        p2.lives = 3
+        p1.eliminate()
 
-        two_player_pm.handle_player_death(p1)
+        two_player_pm.handle_player_destroyed(p1)
 
-        assert two_player_pm.is_game_over() is False  # p2 is still alive
+        assert two_player_pm.is_game_over() is False  # p2 still plays
         assert p2.lives == 3  # untouched
-        assert p1.lives == 0  # stays dead
+        assert p1.lives == 0  # stays Eliminated
 
     def test_game_over_only_when_both_eliminated(self, two_player_pm):
-        """is_game_over() is True only when both players are dead with 0 lives."""
+        """is_game_over() is True only when both Players are Eliminated."""
         p1 = two_player_pm.get_active_players()[0]
         p2 = two_player_pm.get_active_players()[1]
 
-        p1.lives = 0
-        p1.health = 0
-        p2.lives = 2
-        p2.health = 1
+        p1.eliminate()
+        p2.take_damage()
         assert two_player_pm.is_game_over() is False
 
-        p2.lives = 0
-        p2.health = 0
+        p2.eliminate()
         assert two_player_pm.is_game_over() is True
