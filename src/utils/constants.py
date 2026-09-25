@@ -6,6 +6,10 @@ from enum import Enum, StrEnum, auto
 
 
 class Direction(StrEnum):
+    # Set on each member in __new__ and in the loop below.
+    delta: tuple[int, int]
+    opposite: "Direction"
+
     UP = ("up", 0, -1)
     DOWN = ("down", 0, 1)
     LEFT = ("left", -1, 0)

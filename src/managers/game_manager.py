@@ -344,6 +344,7 @@ class GameManager:
         if self.current_stage >= MAX_STAGE:
             self._set_game_state(GameState.GAME_COMPLETE)
             return
+        assert self.battle is not None, "a Victory always has a Battle"
         self.current_stage += 1
         self._start_battle(self.battle.carried_progress)
         self.state = GameState.STAGE_CURTAIN_CLOSE

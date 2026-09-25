@@ -231,6 +231,7 @@ class Map:
         ts = tiled_map.tilesets[0]
         # Only iterate tiles with defined properties (sparse iteration)
         tile_ids = getattr(ts, "tiles", {})
+        gids: Iterable[int]
         if not tile_ids:
             # Fallback: iterate all GIDs if tileset doesn't expose tiles dict
             gids = range(ts.firstgid, ts.firstgid + ts.tilecount)
@@ -450,11 +451,10 @@ class Map:
             return
 
         surviving_variant = self._DIRECTION_TO_VARIANT.get(bullet_direction)
-        sprite = (
-            self._brick_variant_sprites.get(surviving_variant)
-            if surviving_variant
-            else None
-        )
+        if surviving_variant is None:
+            self.set_tile_type(tile, TileType.EMPTY)
+            return
+        sprite = self._brick_variant_sprites.get(surviving_variant)
         if not sprite:
             self.set_tile_type(tile, TileType.EMPTY)
             return
