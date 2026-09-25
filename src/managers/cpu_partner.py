@@ -7,15 +7,7 @@ from dataclasses import replace
 
 import pygame
 
-from src.managers.dodge import (
-    Awareness,
-    IncomingShot,
-    brings_a_shot_sooner,
-    can_shoot_down,
-    incoming_shots,
-    shields_base,
-    sidestep,
-)
+from src.managers.dodge import Dodge
 from src.managers.enemy_memory import EnemyMemory
 from src.managers.goal_timing import Goal, GoalKind, GoalTiming, Hesitation
 from src.managers.pathfinding import Cell, NavGrid, find_path
@@ -33,7 +25,6 @@ from src.utils.constants import (
     CPU_PARTNER_ALIGN_TOLERANCE,
     CPU_PARTNER_AMBUSH_DISTANCE,
     CPU_PARTNER_DECISION_INTERVAL,
-    CPU_PARTNER_DODGE_HORIZON,
     CPU_PARTNER_DODGE_MISS_CHANCE,
     CPU_PARTNER_DODGE_REACTION_TIME,
     CPU_PARTNER_GOAL_STICKINESS,
@@ -228,6 +219,9 @@ class CpuPartnerInput:
         nothing it has decided, learnt or planned survives a reset.
         """
         self._movement: tuple[int, int] = (0, 0)
+        # Its movement last frame if the Goal chose it, None if it Dodged: the
+        # stuck count pauses while it Dodges.
+        self._goal_movement: tuple[int, int] | None = (0, 0)
         self._shoot_requested: bool = False
         self._goal_timing = GoalTiming(
             self._decision_frames,
@@ -243,80 +237,35 @@ class CpuPartnerInput:
         self._given_up_sides: EnemyMemory[set[Direction]] = EnemyMemory()
         self._refused_shots = RefusedShots(round(CPU_PARTNER_REFUSED_SHOT_TIME * FPS))
         self._steering = Steering(round(CPU_PARTNER_STUCK_TIME * FPS))
-        self._awareness = Awareness(
-            self._dodge_reaction_frames, self._dodge_miss_chance
-        )
+        self._dodge = Dodge(self._dodge_reaction_frames, self._dodge_miss_chance)
 
     def handle_event(self, event: pygame.event.Event) -> None:
         """The CPU Partner ignores pygame events."""
 
     def observe(self, world: WorldView) -> None:
-        """Decide this frame's movement and shooting from the World View."""
+        """Decide this frame's movement and shooting from the World View.
+
+        A Dodge overrides this frame's movement and shooting, and leaves the
+        Goal and everything that times it, its stuck count included,
+        untouched (ADR 0005). Otherwise it acts on its Goal, but never steps
+        into a shot's way.
+        """
+        dodging = self._dodge.react(world)
+        if dodging is not None:
+            self._movement = dodging.movement
+            self._shoot_requested = dodging.shoot
+            self._goal_movement = None
+            return
         own = world.own_player
-        self._steering.track(None if own is None else (own.x, own.y), self._movement)
+        position = None if own is None else (own.x, own.y)
+        self._steering.track(position, self._goal_movement)
         self._movement = (0, 0)
         self._shoot_requested = False
-        if self._dodge(world):
-            return
         self._act(world)
-        self._keep_out_of_shots(world)
-        self._shoot_requested = self._hesitation.filter(self._shoot_requested)
-
-    def _dodge(self, world: WorldView) -> bool:
-        """Dodge the soonest Incoming Shot, if any; whether it dodged.
-
-        It shoots the shot down if it faces it, else sidesteps, else turns to
-        fire back at it. It never steps aside from a shot that would fly on
-        into the Base: it takes the hit instead. A Dodge overrides this
-        frame's movement and shooting but leaves the Goal and everything
-        that times it untouched (ADR 0005).
-        """
-        own = world.own_player
-        if own is None or own.shielded or own.frozen:
-            return False
-        shots = self._awareness.noticed(
-            world, incoming_shots(world, own, CPU_PARTNER_DODGE_HORIZON)
-        )
-        if not shots:
-            return False
-        shot = shots[0]
-        toward_shot = shot.bullet.direction.opposite
-        able_to_shoot_down = can_shoot_down(world, own, shot)
-        if own.direction == toward_shot and able_to_shoot_down:
-            self._fire_back_at(shot)
-            return True
-        guarding_base = shields_base(world, shot)
-        way = (
-            None
-            if guarding_base
-            else sidestep(world, own, shot, CPU_PARTNER_DODGE_HORIZON)
-        )
-        if way is not None:
-            self._movement = way.delta
-        elif able_to_shoot_down:
-            self._movement = toward_shot.delta
-            self._fire_back_at(shot)
-        return way is not None or able_to_shoot_down or guarding_base
-
-    def _keep_out_of_shots(self, world: WorldView) -> None:
-        """Hold still rather than let the Goal step into a shot's way.
-
-        Without this, the Goal steers it straight back into the lane of a shot
-        it has just sidestepped.
-        """
-        own = world.own_player
-        if own is None or own.shielded or self._movement == (0, 0):
-            return
-        direction = next(d for d in Direction if d.delta == self._movement)
-        if brings_a_shot_sooner(
-            world, own, direction, own.speed / FPS, CPU_PARTNER_DODGE_HORIZON
-        ):
+        if not self._dodge.is_step_safe(world, self._movement):
             self._movement = (0, 0)
-
-    def _fire_back_at(self, shot: IncomingShot) -> None:
-        """Fire at ``shot`` and leave it to that bullet from now on."""
-        self._shoot_requested = True
-        self._awareness.fired_back_at(shot)
+        self._goal_movement = self._movement
+        self._shoot_requested = self._hesitation.filter(self._shoot_requested)
 
     def _act(self, world: WorldView) -> None:
         """Set this frame's movement and shoot request for its Goal.
