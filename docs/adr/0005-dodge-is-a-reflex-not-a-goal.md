@@ -4,6 +4,7 @@ The CPU Partner's Dodge (shooting down or sidestepping an Incoming Shot) runs as
 
 ## Consequences
 
-- While it Dodges, the Goal's clocks pause: `GoalTiming` (decision interval, stickiness, Reaction Delay), the refused-shot count, Hesitation, and the forgetting of Cut Off Enemies and given-up sides all pick up where they left off. A long run of Dodges therefore delays a Goal switch, such as turning to Defend, by as long as it lasts.
+- While it Dodges, the Goal's clocks pause: `GoalTiming` (decision interval, stickiness, Reaction Delay), the refused-shot count, the stuck count that makes it route around tanks, Hesitation, and the forgetting of Cut Off Enemies and given-up sides all pick up where they left off. A long run of Dodges therefore delays a Goal switch, such as turning to Defend, by as long as it lasts.
+- When it doesn't Dodge, the Goal's step is still checked against Incoming Shots after the Goal acts: the CPU Partner holds still rather than step back into the way of a shot it has just sidestepped.
 - Dodge has its own, much shorter timing (a reaction time and a per-bullet chance of not noticing), separate from the Goal timers.
 - Do not "tidy" Dodge into the Goal list or route it through `GoalTiming`: the delays that make Goal switching feel human would make every Dodge too late.

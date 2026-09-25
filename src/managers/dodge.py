@@ -1,4 +1,8 @@
-"""Dodge: the CPU Partner's reflex against Incoming Shots (ADR 0005)."""
+"""Dodge: the CPU Partner's reflex against Incoming Shots (ADR 0005).
+
+Only :class:`Dodge` is public: it decides the whole Dodge, and guards the
+Goal's step against shots.
+"""
 
 import math
 import random
@@ -11,11 +15,16 @@ from src.managers.world_view import (
     PlayerView,
     WorldView,
 )
-from src.utils.constants import Direction, OwnerType
+from src.utils.constants import (
+    CPU_PARTNER_DODGE_HORIZON,
+    FPS,
+    Direction,
+    OwnerType,
+)
 
 
 @dataclass(frozen=True)
-class IncomingShot:
+class _IncomingShot:
     """An Enemy bullet that will hit ``own`` in ``time_to_hit`` seconds."""
 
     bullet: BulletView
@@ -33,9 +42,9 @@ class IncomingShot:
         return start, start + self.bullet.size
 
 
-def incoming_shots(
+def _incoming_shots(
     world: WorldView, own: PlayerView, horizon: float
-) -> list[IncomingShot]:
+) -> list[_IncomingShot]:
     """The Incoming Shots at ``own`` that hit within ``horizon`` s, soonest first.
 
     An Enemy bullet is one when ``own`` lies in its lane ahead of it, with no
@@ -59,11 +68,11 @@ def incoming_shots(
         # The distance runs from the bullet's center; its front is half ahead.
         time_to_hit = max(distance - bullet.size / 2, 0.0) / bullet.speed
         if time_to_hit <= horizon:
-            shots.append(IncomingShot(bullet, time_to_hit))
+            shots.append(_IncomingShot(bullet, time_to_hit))
     return sorted(shots, key=lambda shot: shot.time_to_hit)
 
 
-def shields_base(world: WorldView, shot: IncomingShot) -> bool:
+def _shields_base(world: WorldView, shot: _IncomingShot) -> bool:
     """Whether ``shot`` would fly on to hit the Base itself, were ``own`` gone.
 
     Only the Base counts: losing a Base Wall brick is worth less than a life.
@@ -80,7 +89,7 @@ def shields_base(world: WorldView, shot: IncomingShot) -> bool:
     )
 
 
-def can_shoot_down(world: WorldView, own: PlayerView, shot: IncomingShot) -> bool:
+def _can_shoot_down(world: WorldView, own: PlayerView, shot: _IncomingShot) -> bool:
     """Whether a bullet ``own`` fires facing ``shot`` would meet it head-on.
 
     Its bullet leaves from its middle, so a shot that would only clip the
@@ -94,8 +103,8 @@ def can_shoot_down(world: WorldView, own: PlayerView, shot: IncomingShot) -> boo
     return shot_lane[0] < own_lane[1] and own_lane[0] < shot_lane[1]
 
 
-def sidestep(
-    world: WorldView, own: PlayerView, shot: IncomingShot, horizon: float
+def _sidestep(
+    world: WorldView, own: PlayerView, shot: _IncomingShot, horizon: float
 ) -> Direction | None:
     """The way to step out of ``shot``'s lane in time, the sooner way first.
 
@@ -123,13 +132,13 @@ def sidestep(
             continue
         if not _is_way_clear(world, own, direction, distance):
             continue
-        if brings_a_shot_sooner(world, own, direction, distance, horizon):
+        if _brings_a_shot_sooner(world, own, direction, distance, horizon):
             continue
         return direction
     return None
 
 
-def brings_a_shot_sooner(
+def _brings_a_shot_sooner(
     world: WorldView,
     own: PlayerView,
     direction: Direction,
@@ -142,7 +151,8 @@ def brings_a_shot_sooner(
     along that way.
     """
     due_now = {
-        other.bullet: other.time_to_hit for other in incoming_shots(world, own, horizon)
+        other.bullet: other.time_to_hit
+        for other in _incoming_shots(world, own, horizon)
     }
     after_step = _moved(own, direction, distance)
     stepped = replace(
@@ -153,7 +163,7 @@ def brings_a_shot_sooner(
     )
     return any(
         other.time_to_hit < due_now.get(other.bullet, math.inf)
-        for other in incoming_shots(stepped, after_step, horizon)
+        for other in _incoming_shots(stepped, after_step, horizon)
     )
 
 
@@ -187,7 +197,7 @@ def _is_way_clear(
     )
 
 
-class Awareness:
+class _Awareness:
     """Which Incoming Shots the CPU Partner has noticed.
 
     It notices a shot only once the shot has been coming at it for
@@ -205,8 +215,8 @@ class Awareness:
         self._fired_back_at: set[int] = set()
 
     def noticed(
-        self, world: WorldView, shots: list[IncomingShot]
-    ) -> list[IncomingShot]:
+        self, world: WorldView, shots: list[_IncomingShot]
+    ) -> list[_IncomingShot]:
         """The ``shots`` it has noticed, in the same order."""
         flying = {b.bullet_id for b in world.bullets}
         self._seen = {i: n for i, n in self._seen.items() if i in flying}
@@ -225,6 +235,89 @@ class Awareness:
                 result.append(shot)
         return result
 
-    def fired_back_at(self, shot: IncomingShot) -> None:
+    def fired_back_at(self, shot: _IncomingShot) -> None:
         """Leave ``shot`` to the bullet just fired back at it."""
         self._fired_back_at.add(shot.bullet.bullet_id)
+
+
+@dataclass(frozen=True)
+class DodgeMove:
+    """What a Dodge does this frame, in place of what the Goal would do."""
+
+    movement: tuple[int, int]
+    shoot: bool
+
+
+class Dodge:
+    """The CPU Partner's Dodge: its reflex against Incoming Shots (ADR 0005).
+
+    It notices a shot only ``reaction_frames`` after the shot starts coming
+    at it, misses a bullet altogether with ``miss_chance``, and looks
+    ``horizon`` seconds ahead. It knows nothing of the Goal: the CPU Partner
+    asks it whether to Dodge this frame, and whether the Goal's step is safe.
+    """
+
+    def __init__(
+        self,
+        reaction_frames: int,
+        miss_chance: float,
+        horizon: float = CPU_PARTNER_DODGE_HORIZON,
+    ) -> None:
+        self._horizon = horizon
+        self._awareness = _Awareness(reaction_frames, miss_chance)
+
+    def react(self, world: WorldView) -> DodgeMove | None:
+        """This frame's Dodge against the soonest noticed shot, if it Dodges.
+
+        It shoots the shot down if it faces it, else sidesteps, else turns to
+        fire back at it. It never steps aside from a shot that would fly on
+        into the Base: it takes the hit instead. ``None`` when there is no
+        shot to Dodge, or when nothing would help; never while shielded or
+        frozen.
+        """
+        own = world.own_player
+        if own is None or own.shielded or own.frozen:
+            return None
+        shots = self._awareness.noticed(
+            world, _incoming_shots(world, own, self._horizon)
+        )
+        if not shots:
+            return None
+        shot = shots[0]
+        toward_shot = shot.bullet.direction.opposite
+        able_to_shoot_down = _can_shoot_down(world, own, shot)
+        if own.direction == toward_shot and able_to_shoot_down:
+            return self._fire_back_at(shot, (0, 0))
+        if _shields_base(world, shot):
+            if able_to_shoot_down:
+                return self._fire_back_at(shot, toward_shot.delta)
+            return DodgeMove((0, 0), False)
+        way = _sidestep(world, own, shot, self._horizon)
+        if way is not None:
+            return DodgeMove(way.delta, False)
+        if able_to_shoot_down:
+            return self._fire_back_at(shot, toward_shot.delta)
+        return None
+
+    def is_step_safe(self, world: WorldView, movement: tuple[int, int]) -> bool:
+        """Whether the Goal may take one step toward ``movement``.
+
+        A step is unsafe when it brings a shot sooner, so the Goal doesn't
+        steer the CPU Partner straight back into the lane of a shot it has
+        just sidestepped. Unlike :meth:`react`, it guards against every shot,
+        noticed or not.
+        """
+        own = world.own_player
+        if own is None or own.shielded or movement == (0, 0):
+            return True
+        direction = next(d for d in Direction if d.delta == movement)
+        return not _brings_a_shot_sooner(
+            world, own, direction, own.speed / FPS, self._horizon
+        )
+
+    def _fire_back_at(
+        self, shot: _IncomingShot, movement: tuple[int, int]
+    ) -> DodgeMove:
+        """Fire at ``shot`` and leave it to that bullet from now on."""
+        self._awareness.fired_back_at(shot)
+        return DodgeMove(movement, True)

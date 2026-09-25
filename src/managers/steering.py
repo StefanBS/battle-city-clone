@@ -27,18 +27,22 @@ class Steering:
         self._detour_around: dict[TankKey, set[Cell]] = {}
 
     def track(
-        self, position: tuple[float, float] | None, movement: tuple[int, int]
+        self, position: tuple[float, float] | None, movement: tuple[int, int] | None
     ) -> None:
         """Advance one frame: it now stands at ``position`` after ``movement``.
 
-        ``movement`` is the direction it tried to move in last frame;
-        ``position`` is ``None`` while it isn't on the battlefield.
+        ``movement`` is the direction it tried to move in last frame, or
+        ``None`` when last frame's movement wasn't its own (a Dodge's): then
+        ``position`` is only remembered, and the count neither grows nor
+        starts afresh. ``position`` is ``None`` while it isn't on the
+        battlefield.
         """
-        if movement != (0, 0) and position == self._last_position:
-            self._frames_stuck += 1
-            self._pushing = movement
-        else:
-            self._frames_stuck = 0
+        if movement is not None:
+            if movement != (0, 0) and position == self._last_position:
+                self._frames_stuck += 1
+                self._pushing = movement
+            else:
+                self._frames_stuck = 0
         self._last_position = position
 
     def detour(

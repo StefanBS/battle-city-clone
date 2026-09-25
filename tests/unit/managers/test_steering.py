@@ -55,6 +55,17 @@ class TestSteeringStuck:
         stuck(steering, 2)
         assert steering.detour({ENEMY: {(9, 10)}}, ahead_of, None) == {}
 
+    def test_a_frame_that_was_not_its_own_neither_counts_nor_resets(
+        self, steering
+    ) -> None:
+        stuck(steering, 3)
+        # Moved elsewhere by something else: only the new spot is remembered.
+        steering.track((12.0, 10.0), None)
+        assert steering.detour({ENEMY: {(9, 10)}}, ahead_of, None) == {}
+        steering.track((12.0, 10.0), LEFT)
+        tanks = {ENEMY: {(11, 10)}}
+        assert steering.detour(tanks, lambda d: {(11, 10)}, None) == tanks
+
     def test_counts_afresh_after_picking_a_detour(self, steering) -> None:
         stuck(steering, 4)
         steering.detour({}, ahead_of, None)
