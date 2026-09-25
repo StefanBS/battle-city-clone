@@ -36,6 +36,9 @@ class StepResult:
 class TankStepper:
     """Steps Players and Enemies alike: timers, ice, Slide or move, then fire.
 
+    A Frozen tank still runs its timers and finishes a Slide, but neither
+    moves, turns nor fires.
+
     Knows nothing about sound, the Clock or lives: callers decide which tanks
     to step and what to play from the returned StepResult.
     """
@@ -65,9 +68,12 @@ class TankStepper:
         Returns:
             Whether a Slide started and whether a bullet was fired.
         """
+        # Read before update(), so a freeze lasts whole frames.
+        frozen = tank.is_frozen
         tank.update(dt)
 
-        dx, dy = intent.get_movement_direction()
+        # Frozen counts as stopping, so the ordinary ice rule decides the Slide.
+        dx, dy = (0, 0) if frozen else intent.get_movement_direction()
         single_axis = (dx != 0) != (dy != 0)
 
         # Read from where the tank stands now, before deciding to Slide.
@@ -82,7 +88,9 @@ class TankStepper:
         if single_axis and not tank.is_sliding:
             tank.move(dx, dy, dt)
 
-        fired = intent.consume_shoot() and self._fire(tank)
+        # Used up even when Frozen, so the tank doesn't fire the moment it thaws.
+        wants_to_fire = intent.consume_shoot()
+        fired = wants_to_fire and not frozen and self._fire(tank)
         return StepResult(slide_started=slide_started, fired=fired)
 
     def _fire(self, tank: Tank) -> bool:

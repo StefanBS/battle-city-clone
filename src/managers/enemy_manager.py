@@ -12,7 +12,8 @@ class EnemyManager:
 
     Responsibilities:
     - Pair each Enemy that enters the battlefield with the EnemyAI that drives it.
-    - Each frame: step every Enemy through TankStepper, unless they are Frozen.
+    - Each frame: step every Enemy through TankStepper. During a Clock its AI
+      doesn't decide, and the stepper keeps the Frozen Enemy still.
     - Drop destroyed Enemies.
 
     Lasts one Battle, like PlayerManager.
@@ -54,6 +55,8 @@ class EnemyManager:
             ai = EnemyAI(
                 enemy, difficulty=self._difficulty, base_position=self._base_position
             )
+        if self.enemies_frozen:
+            enemy.freeze(self._freeze_timer)
         self.enemies.append(enemy)
         self._enemy_ais[enemy.enemy_id] = ai
 
@@ -72,10 +75,12 @@ class EnemyManager:
     def freeze(self, duration: float) -> None:
         """Make every Enemy Frozen for ``duration`` seconds (Clock Power-Up)."""
         self._freeze_timer = duration
+        for enemy in self.enemies:
+            enemy.freeze(duration)
 
     @property
     def enemies_frozen(self) -> bool:
-        """Whether the Enemies are Frozen, so step_enemies leaves them be."""
+        """Whether a Clock is in effect, so every Enemy is Frozen."""
         return self._freeze_timer > 0
 
     def step_enemies(
@@ -91,18 +96,22 @@ class EnemyManager:
         Returns:
             Whether any Enemy fired, so the caller can play the sound.
         """
-        if self.enemies_frozen:
-            # Counted down after the check, so a Clock lasts whole frames.
+        # Counted down after the check, so a Clock lasts whole frames, the
+        # same way each Enemy's own freeze does.
+        frozen = self.enemies_frozen
+        if frozen:
             self._freeze_timer -= dt
-            return False
         fired = False
         for enemy in self.enemies:
-            nearest = min(
-                players,
-                key=lambda p: abs(p.x - enemy.x) + abs(p.y - enemy.y),
-                default=None,
-            )
             ai = self._enemy_ais[enemy.enemy_id]
-            ai.update(dt, (nearest.x, nearest.y) if nearest is not None else None)
+            # While Frozen the AI's timers pause; the stepper keeps it still.
+            if not frozen:
+                nearest = min(
+                    players,
+                    key=lambda p: abs(p.x - enemy.x) + abs(p.y - enemy.y),
+                    default=None,
+                )
+                target = (nearest.x, nearest.y) if nearest is not None else None
+                ai.update(dt, target)
             fired = stepper.step(enemy, ai, dt).fired or fired
         return fired

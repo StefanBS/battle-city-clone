@@ -174,6 +174,15 @@ def fire_bullet_from(game, tank):
     return next(b for b in game.battle.tank_stepper.bullets if b.owner is tank)
 
 
+def place_ice_patch(game, grid_x, grid_y, width=4, height=4):
+    """Place a patch of ice tiles at the given sub-tile grid position."""
+    for dy in range(height):
+        for dx in range(width):
+            tile = game.battle.map.get_tile_at(grid_x + dx, grid_y + dy)
+            if tile is not None:
+                game.battle.map.set_tile_type(tile, TileType.ICE)
+
+
 def place_player_at(game, x, y, player=None):
     """Place the (first) player at pixel coords, syncing prev_x/prev_y and rect."""
     p = player if player is not None else first_player(game)
