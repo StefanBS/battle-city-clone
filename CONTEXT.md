@@ -58,7 +58,7 @@ The Enemies a Stage sends against the Players, by type and count. They enter the
 _Avoid_: Wave, spawn queue
 
 **Enemy Spawn Point**:
-One of the fixed spots on a map where Enemies appear. A tank standing on it stops Enemies from spawning there.
+One of the fixed spots on a map where Enemies appear. A tank covering any part of it stops Enemies from spawning there.
 
 **Carrier**:
 An Enemy that flashes red and makes a Power-Up appear the first time a Player's bullet hits it, or when a Grenade destroys it. It then stops flashing and is an ordinary Enemy.

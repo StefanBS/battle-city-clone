@@ -8,13 +8,8 @@ import math
 import random
 from dataclasses import dataclass, replace
 
-from src.managers.world_view import (
-    BulletView,
-    Footprint,
-    Placed,
-    PlayerView,
-    WorldView,
-)
+from src.managers.footprint import Footprint, Placed, moved, swept_cells
+from src.managers.world_view import BulletView, PlayerView, WorldView
 from src.utils.constants import (
     CPU_PARTNER_DODGE_HORIZON,
     FPS,
@@ -154,7 +149,7 @@ def _brings_a_shot_sooner(
         other.bullet: other.time_to_hit
         for other in _incoming_shots(world, own, horizon)
     }
-    after_step = _moved(own, direction, distance)
+    after_step = moved(own, direction.delta, distance)
     stepped = replace(
         world,
         players=tuple(
@@ -167,26 +162,16 @@ def _brings_a_shot_sooner(
     )
 
 
-def _moved(own: PlayerView, direction: Direction, distance: float) -> PlayerView:
-    dx, dy = direction.delta
-    return replace(own, x=own.x + dx * distance, y=own.y + dy * distance)
-
-
 def _is_way_clear(
     world: WorldView, own: PlayerView, direction: Direction, distance: float
 ) -> bool:
     """Whether ``own`` can drive ``distance`` px toward ``direction`` unhindered."""
-    end = _moved(own, direction, distance)
-    left, top = min(own.x, end.x), min(own.y, end.y)
-    right, bottom = max(own.x, end.x) + own.size, max(own.y, end.y) + own.size
-    size = world.tile_size
-    cells = (
-        (x, y)
-        for x in range(math.floor(left / size), math.ceil(right / size))
-        for y in range(math.floor(top / size), math.ceil(bottom / size))
-    )
+    cells = swept_cells(own, direction.delta, distance, world.tile_size)
     if any(world.blocks_tanks(c) for c in cells):
         return False
+    end = moved(own, direction.delta, distance)
+    left, top = min(own.x, end.x), min(own.y, end.y)
+    right, bottom = max(own.x, end.x) + own.size, max(own.y, end.y) + own.size
     tanks: list[Placed] = [
         *world.enemies,
         *(p for p in world.players if p.player_id != own.player_id),

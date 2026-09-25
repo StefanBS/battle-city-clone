@@ -227,9 +227,8 @@ class TestBaseThreats:
         assert world.base_threats == ()
 
 
-class TestFootprints:
-    def test_covered_cells_of_an_unaligned_tank(self) -> None:
+class TestCellOf:
+    def test_an_unaligned_tank_is_at_its_nearest_cell(self) -> None:
         world = make_world()
         enemy = EnemyView(enemy_id=0, x=px(3) + 4, y=px(5), direction=Direction.UP)
-        assert world.covered_cells(enemy) == {(x, y) for x in (3, 4, 5) for y in (5, 6)}
         assert world.cell_of(enemy) == (3, 5)
