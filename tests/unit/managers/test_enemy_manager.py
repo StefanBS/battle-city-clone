@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 from src.managers.enemy_manager import EnemyManager
 from src.core.enemy_ai import EnemyAI
 from src.core.enemy_tank import EnemyTank
@@ -8,6 +8,8 @@ from src.managers.tank_stepper import StepResult, TankStepper
 from src.utils.constants import Difficulty
 
 DT = 1.0 / 60
+# Exact in binary, so a Clock's countdown has no rounding.
+CLOCK_DT = 0.25
 
 
 @pytest.fixture
@@ -32,6 +34,7 @@ def make_enemy():
         enemy = MagicMock(spec=EnemyTank)
         enemy.x, enemy.y = x, y
         enemy.enemy_id = next(next_id)
+        enemy.is_frozen = False
         return enemy
 
     return _make
@@ -141,7 +144,6 @@ class TestClear:
         enemy = make_enemy()
         enemy_manager.add(enemy, MagicMock(spec=EnemyAI))
 
-        assert enemy_manager.enemies_frozen
         enemy.freeze.assert_called_once_with(5.0)
 
 
@@ -191,41 +193,55 @@ class TestFrozen:
         first.freeze.assert_called_once_with(5.0)
         second.freeze.assert_called_once_with(5.0)
 
-    def test_frozen_enemies_are_stepped_without_their_ai_deciding(
+    def test_a_frozen_enemy_is_stepped_without_its_ai_deciding(
         self, enemy_manager, stepper, add_enemy
     ):
-        enemy, ai = add_enemy(100, 100)
-        enemy_manager.freeze(5.0)
+        frozen, frozen_ai = add_enemy(100, 100)
+        frozen.is_frozen = True
+        moving, moving_ai = add_enemy(200, 100)
 
-        fired = enemy_manager.step_enemies(DT, stepper, [_player(0, 0)])
+        enemy_manager.step_enemies(DT, stepper, [_player(0, 0)])
 
-        assert fired is False
-        ai.update.assert_not_called()
-        stepper.step.assert_called_once_with(enemy, ai, DT)
+        frozen_ai.update.assert_not_called()
+        moving_ai.update.assert_called_once()
+        assert stepper.step.call_args_list == [
+            call(frozen, frozen_ai, DT),
+            call(moving, moving_ai, DT),
+        ]
 
-    def test_an_enemy_added_during_a_clock_is_frozen_for_the_time_left(
-        self, enemy_manager, stepper, make_enemy
+    def test_an_enemy_appearing_after_every_enemy_is_gone_is_still_frozen(
+        self, enemy_manager, stepper, add_enemy, make_enemy
     ):
-        dt = 0.25  # Exact in binary, so the countdown has no rounding.
+        first, _ = add_enemy(100, 100)
         enemy_manager.freeze(1.0)
-        enemy_manager.step_enemies(dt, stepper, [])
+        enemy_manager.remove(first)
+        enemy_manager.step_enemies(CLOCK_DT, stepper, [])
 
         enemy = make_enemy()
         enemy_manager.add(enemy, MagicMock(spec=EnemyAI))
 
         enemy.freeze.assert_called_once_with(0.75)
 
-    def test_a_clock_lasts_one_frame_per_dt_of_its_duration(
-        self, enemy_manager, stepper, add_enemy
+    def test_an_enemy_added_during_a_clock_is_frozen_for_the_time_left(
+        self, enemy_manager, stepper, make_enemy
     ):
-        dt = 0.25  # Exact in binary, so the countdown has no rounding.
-        _, ai = add_enemy(100, 100)
-        enemy_manager.freeze(3 * dt)
+        enemy_manager.freeze(1.0)
+        enemy_manager.step_enemies(CLOCK_DT, stepper, [])
 
-        frozen_frames = 0
-        while not ai.update.called:
-            enemy_manager.step_enemies(dt, stepper, [])
-            frozen_frames += 0 if ai.update.called else 1
+        enemy = make_enemy()
+        enemy_manager.add(enemy, MagicMock(spec=EnemyAI))
 
-        assert frozen_frames == 3
-        assert not enemy_manager.enemies_frozen
+        enemy.freeze.assert_called_once_with(0.75)
+
+    @pytest.mark.parametrize("frames, frozen", [(2, True), (3, False)])
+    def test_a_clock_lasts_one_frame_per_dt_of_its_duration(
+        self, enemy_manager, stepper, make_enemy, frames, frozen
+    ):
+        enemy_manager.freeze(3 * CLOCK_DT)
+        for _ in range(frames):
+            enemy_manager.step_enemies(CLOCK_DT, stepper, [])
+
+        enemy = make_enemy()
+        enemy_manager.add(enemy, MagicMock(spec=EnemyAI))
+
+        assert enemy.freeze.called is frozen

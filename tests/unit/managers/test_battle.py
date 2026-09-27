@@ -256,6 +256,16 @@ class TestBattleWorldView:
 
         assert [p.player_id for p in view.players] == [1]
 
+    def test_shows_whether_each_enemy_is_frozen(self, battle, make_enemy):
+        frozen, moving = make_enemy(), make_enemy()
+        battle.add_enemy(frozen, _idle_ai())
+        battle.add_enemy(moving, _idle_ai())
+        frozen.freeze(5.0)
+
+        view = battle.world_view()
+
+        assert [e.frozen for e in view.enemies] == [True, False]
+
 
 class TestBattleScene:
     """What the Renderer draws comes from one read-only scene."""
