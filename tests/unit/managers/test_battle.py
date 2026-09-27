@@ -17,9 +17,7 @@ from src.managers.outcomes import (
     PlayerDestroyed,
     PowerUpCollected,
 )
-from src.managers.power_up_manager import PowerUpManager
 from src.managers.sound_manager import SoundManager
-from src.managers.spawn_manager import SpawnManager
 from src.managers.texture_manager import TextureManager
 from src.states.game_mode import GameMode
 from src.utils.constants import (
@@ -28,7 +26,6 @@ from src.utils.constants import (
     TILE_SIZE,
     Difficulty,
     Direction,
-    EffectType,
     PowerUpType,
     TankType,
 )
@@ -88,13 +85,13 @@ def battle(make_battle):
 def make_enemy(battle, texture_manager):
     """Build a real Enemy in the Battle's top-left corner, not yet on the field."""
 
-    def _make(is_carrier=False):
+    def _make(tank_type=TankType.BASIC, is_carrier=False):
         return EnemyTank(
             0,
             0,
             TILE_SIZE,
             texture_manager,
-            tank_type=TankType.BASIC,
+            tank_type=tank_type,
             map_width_px=battle.map.width_px,
             map_height_px=battle.map.height_px,
             is_carrier=is_carrier,
@@ -103,16 +100,31 @@ def make_enemy(battle, texture_manager):
     return _make
 
 
-def _stub_spawning(battle, appeared=(), exhausted=False):
-    """Replace the Battle's SpawnManager with one that hands over ``appeared``."""
-    battle.spawn_manager = MagicMock(spec=SpawnManager)
-    battle.spawn_manager.take_appeared.return_value = list(appeared)
-    battle.spawn_manager.is_exhausted = exhausted
+def _idle_ai(fires=False):
+    """An Enemy AI that stands still, and fires every frame if ``fires``."""
+    ai = MagicMock(spec=EnemyAI)
+    ai.get_movement_direction.return_value = (0, 0)
+    ai.consume_shoot.return_value = fires
+    return ai
+
+
+def _hold_roster(battle):
+    """One Enemy still to come that never comes on its own."""
+    battle.replace_roster({TankType.BASIC: 1}, spawn_interval=float("inf"))
+
+
+def _let_appear(battle, max_frames=5 * FPS):
+    """Step the Battle until an Enemy is on the battlefield."""
+    for _ in range(max_frames):
+        if battle.scene().enemies:
+            return
+        battle.step(DT)
+    raise AssertionError("No Enemy appeared")
 
 
 class TestBattleSetup:
     def test_players_start_invincible(self, battle):
-        assert all(p.is_invincible for p in battle.player_manager.get_active_players())
+        assert all(p.is_invincible for p in battle.scene().players)
 
     def test_settings_difficulty_is_used_without_a_map_override(
         self, make_battle, texture_manager
@@ -132,66 +144,79 @@ class TestBattleSetup:
             make_battle(difficulty=Difficulty.EASY, game_map=game_map)
         assert enemies.call_args.kwargs["difficulty"] is Difficulty.NORMAL
 
-    def test_enemies_steer_toward_the_stage_base(self, battle):
-        base_rect = battle.map.get_base().rect
-        assert battle.enemy_manager.base_position == (
+    def test_enemies_steer_toward_the_stage_base(self, make_battle, texture_manager):
+        game_map = Map(LEVEL_01, texture_manager)
+        base_rect = game_map.get_base().rect
+        with patch("src.managers.battle.EnemyManager", wraps=EnemyManager) as enemies:
+            make_battle(game_map=game_map)
+        assert enemies.call_args.kwargs["base_position"] == (
             float(base_rect.centerx),
             float(base_rect.centery),
         )
 
 
 class TestBattleSpawning:
-    """Enemies that Appear are brought onto the EnemyManager's battlefield."""
+    """Enemies that Appear are brought onto the battlefield."""
 
-    def test_enemies_that_appeared_are_brought_onto_the_battlefield(
-        self, battle, make_enemy
-    ):
-        enemy = make_enemy()
-        _stub_spawning(battle, [enemy])
+    def test_an_enemy_that_appears_is_brought_onto_the_battlefield(self, battle):
+        battle.replace_roster({TankType.FAST: 1}, spawn_interval=float("inf"))
+        assert battle.start_spawning()
 
-        battle.bring_in_spawns()
+        _let_appear(battle)
 
-        assert battle.enemy_manager.enemies == (enemy,)
+        (enemy,) = battle.scene().enemies
+        assert enemy.tank_type is TankType.FAST
 
-    def test_an_ordinary_enemy_appearing_keeps_the_power_ups(self, battle, make_enemy):
-        battle.power_up_manager = MagicMock(spec=PowerUpManager, active_power_ups=[])
-        _stub_spawning(battle, [make_enemy()])
+    def test_an_ordinary_enemy_appearing_keeps_the_power_ups(self, battle):
+        battle.replace_roster({TankType.BASIC: 1}, spawn_interval=float("inf"))
+        assert battle.start_spawning()
+        battle.drop_power_up(PowerUpType.STAR)
+        (power_up,) = battle.scene().power_ups
 
-        battle.bring_in_spawns()
+        _let_appear(battle)
 
-        battle.power_up_manager.clear.assert_not_called()
+        assert battle.scene().power_ups == (power_up,)
 
-    def test_spawning_is_blocked_by_every_tank_including_one_that_just_appeared(
-        self, battle, make_enemy
-    ):
-        already_there = make_enemy()
-        battle.enemy_manager.add(already_there)
-        appeared = make_enemy()
-        _stub_spawning(battle, [appeared])
-
-        battle.step(DT)
-
-        battle.spawn_manager.advance.assert_called_once_with(
-            DT,
-            [*battle.player_manager.get_active_players(), already_there, appeared],
+    def test_a_carrier_appearing_clears_the_power_ups(self, battle):
+        battle.replace_roster(
+            {TankType.BASIC: 1}, carrier_indices=(0,), spawn_interval=float("inf")
         )
+        assert battle.start_spawning()
+        battle.drop_power_up(PowerUpType.STAR)
+
+        _let_appear(battle)
+
+        assert battle.scene().power_ups == ()
+
+    def test_an_enemy_that_just_appeared_blocks_its_spawn_point(
+        self, make_battle, texture_manager
+    ):
+        # One Enemy Spawn Point, and the next Enemy due every frame: only a
+        # tank on that point holds it back.
+        game_map = Map(LEVEL_01, texture_manager)
+        game_map.spawn_points = game_map.spawn_points[:1]
+        game_map.enemy_composition = {TankType.BASIC: 2}
+        game_map.spawn_interval = 0.0
+        battle = make_battle(game_map=game_map)
+
+        _let_appear(battle)
+
+        # No spawn animation started in the frame the first Enemy Appeared.
+        assert battle.scene().effects == ()
 
 
 class TestBattleResult:
     def test_no_victory_while_an_enemy_is_on_the_battlefield(self, battle, make_enemy):
-        _stub_spawning(battle, exhausted=True)
-        battle.enemy_manager.add(make_enemy())
+        battle.replace_roster({})
+        battle.add_enemy(make_enemy(), _idle_ai())
 
         assert battle.step(DT) is None
 
     def test_stepping_an_ended_battle_does_nothing(self, battle):
-        _stub_spawning(battle, exhausted=True)
-        battle.enemy_manager.clear()
+        battle.replace_roster({})
         battle.step(DT)
-        battle.player_manager.handle_event(
-            pygame.event.Event(pygame.KEYDOWN, key=pygame.K_UP)
-        )
-        player = battle.player_manager.get_active_players()[0]
+        battle.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_UP))
+        player = battle.scene().players[0]
         y_before = player.y
 
         assert battle.step(DT) is BattleResult.VICTORY
@@ -368,7 +393,7 @@ class TestBattleSetupCalls:
 
 class TestBattleInput:
     def test_events_reach_the_players_inputs(self, battle):
-        player = battle.player_manager.get_active_players()[0]
+        player = battle.scene().players[0]
         y_before = player.y
 
         battle.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_UP))
@@ -382,60 +407,61 @@ class TestBattleInput:
 
         battle.step(DT)
 
-        assert battle.tank_stepper.bullets == []
+        assert battle.scene().bullets == ()
 
 
 class TestBattleSounds:
-    @pytest.mark.parametrize("enemy_fired", [True, False])
-    def test_enemy_shot_plays_the_shoot_sound(self, battle, sound, enemy_fired):
-        with patch.object(
-            battle.enemy_manager, "step_enemies", return_value=enemy_fired
-        ) as step_enemies:
-            battle.step(DT)
-
-        step_enemies.assert_called_once_with(
-            DT, battle.tank_stepper, battle.player_manager.get_active_players()
-        )
-        assert (call("shoot") in sound.play.call_args_list) is enemy_fired
-
-    def test_blink_starts_in_the_frame_a_power_up_drops(self, battle, sound):
-        carrier = MagicMock(spec=EnemyTank, is_carrier=True)
-        battle.collision_response_handler = MagicMock()
-        battle.collision_response_handler.process_collisions.return_value = [
-            CarrierHit(carrier)
-        ]
+    @pytest.mark.parametrize("enemy_fires", [True, False])
+    def test_an_enemy_shot_plays_the_shoot_sound(
+        self, battle, sound, make_enemy, enemy_fires
+    ):
+        _hold_roster(battle)
+        battle.add_enemy(make_enemy(), _idle_ai(fires=enemy_fires))
 
         battle.step(DT)
 
-        sound.update_powerup_blink.assert_called_with(True)
+        assert (call("shoot") in sound.play.call_args_list) is enemy_fires
+
+    def test_blink_starts_in_the_frame_a_power_up_drops(
+        self, battle, sound, make_enemy
+    ):
+        _hold_roster(battle)
+        carrier = make_enemy(is_carrier=True)
+        battle.add_enemy(carrier, _idle_ai())
+        player = battle.scene().players[0]
+        # A Player bullet already on the Carrier: it hits this frame.
+        battle.add_bullet(
+            Bullet(carrier.rect.centerx, carrier.rect.centery, Direction.UP, player)
+        )
+        sound.update_powerup_blink.reset_mock()
+
+        battle.step(DT)
+
+        sound.update_powerup_blink.assert_called_once_with(True)
 
 
 class TestBattleApplyOutcomes:
     """Battle.apply_outcomes is the one place outcomes take effect."""
 
     @pytest.fixture
-    def game(self, battle):
-        battle.power_up_manager = MagicMock(spec=PowerUpManager)
-        battle.power_up_manager.apply.return_value = []
-        battle.effect_manager = MagicMock()
-        battle.player_manager = MagicMock()
-        battle.enemy_manager = EnemyManager()
+    def battle(self, make_battle):
+        battle = make_battle(mode=GameMode.TWO_PLAYERS)
+        _hold_roster(battle)
         return battle
 
     @pytest.fixture
-    def players(self, game):
-        p1, p2 = MagicMock(player_id=1), MagicMock(player_id=2)
-        game.player_manager.get_active_players.return_value = [p1, p2]
-        return p1, p2
+    def players(self, battle):
+        return battle.scene().players
 
     @staticmethod
-    def _enemy(game, tank_type=TankType.BASIC, is_carrier=False):
-        enemy = MagicMock(spec=EnemyTank, tank_type=tank_type, is_carrier=is_carrier)
-        enemy.stop_carrying.side_effect = lambda: setattr(enemy, "is_carrier", False)
-        enemy.rect = pygame.Rect(0, 0, TILE_SIZE, TILE_SIZE)
-        enemy.enemy_id = id(enemy)
-        game.enemy_manager.add(enemy, MagicMock(spec=EnemyAI))
+    def _enemy(battle, make_enemy, tank_type=TankType.BASIC, is_carrier=False):
+        enemy = make_enemy(tank_type, is_carrier=is_carrier)
+        battle.add_enemy(enemy, _idle_ai())
         return enemy
+
+    @staticmethod
+    def _scores(battle):
+        return {pid: p.score for pid, p in battle.carried_progress.items()}
 
     @pytest.mark.parametrize(
         "tank_type,points",
@@ -446,63 +472,72 @@ class TestBattleApplyOutcomes:
             (TankType.ARMOR, 400),
         ],
     )
-    def test_enemy_destroyed_by_player(self, game, players, sound, tank_type, points):
-        enemy = self._enemy(game, tank_type)
-        game.apply_outcomes([EnemyDestroyed(enemy, by=players[1])])
-        assert enemy not in game.enemy_manager.enemies
-        game.player_manager.add_score.assert_called_once_with(points, player_id=2)
-        game.effect_manager.spawn_at_rect.assert_called_once_with(
-            EffectType.LARGE_EXPLOSION, enemy.rect
-        )
+    def test_enemy_destroyed_by_player(
+        self, battle, make_enemy, players, sound, tank_type, points
+    ):
+        enemy = self._enemy(battle, make_enemy, tank_type)
+        effects_before = len(battle.scene().effects)
+
+        battle.apply_outcomes([EnemyDestroyed(enemy, by=players[1])])
+
+        assert enemy not in battle.scene().enemies
+        assert self._scores(battle) == {1: 0, 2: points}
+        effects = battle.scene().effects
+        assert len(effects) == effects_before + 1
+        assert (effects[-1].x, effects[-1].y) == enemy.rect.center
         sound.play.assert_called_once_with("explosion")
 
-    def test_enemy_destroyed_twice_applies_once(self, game, players):
-        enemy = self._enemy(game)
-        game.apply_outcomes(
+    def test_enemy_destroyed_twice_applies_once(self, battle, make_enemy, players):
+        enemy = self._enemy(battle, make_enemy)
+        effects_before = len(battle.scene().effects)
+
+        battle.apply_outcomes(
             [EnemyDestroyed(enemy, by=players[0]), EnemyDestroyed(enemy, by=None)]
         )
-        game.player_manager.add_score.assert_called_once_with(100, player_id=1)
-        game.effect_manager.spawn_at_rect.assert_called_once()
 
-    def test_carrier_drop_avoids_every_player(self, game, players):
-        carrier = self._enemy(game, is_carrier=True)
-        other = self._enemy(game)
-        game.apply_outcomes([EnemyDestroyed(carrier, by=players[0])])
-        game.power_up_manager.spawn_power_up.assert_called_once_with([*players, other])
+        assert self._scores(battle) == {1: 100, 2: 0}
+        assert len(battle.scene().effects) == effects_before + 1
 
-    def test_carrier_hit_drops_once(self, game, players):
-        carrier = self._enemy(game, is_carrier=True)
-        game.apply_outcomes(
-            [
-                CarrierHit(carrier),
-                CarrierHit(carrier),
-                EnemyDestroyed(carrier, by=players[0]),
-            ]
+    def test_carrier_drop_avoids_every_tank(self, battle, make_enemy, players):
+        carrier = self._enemy(battle, make_enemy, is_carrier=True)
+        other = self._enemy(battle, make_enemy)
+        other.set_position(3 * TILE_SIZE, 0)
+        other.rect.topleft = (3 * TILE_SIZE, 0)
+
+        battle.apply_outcomes([EnemyDestroyed(carrier, by=players[0])])
+
+        (power_up,) = battle.scene().power_ups
+        for tank in (*players, other):
+            assert not power_up.rect.colliderect(tank.rect)
+
+    def test_carrier_hit_drops_once(self, battle, make_enemy, players):
+        carrier = self._enemy(battle, make_enemy, is_carrier=True)
+        battle.apply_outcomes([CarrierHit(carrier)])
+        (dropped,) = battle.scene().power_ups
+
+        battle.apply_outcomes(
+            [CarrierHit(carrier), EnemyDestroyed(carrier, by=players[0])]
         )
-        game.power_up_manager.spawn_power_up.assert_called_once()
-        carrier.stop_carrying.assert_called_once_with()
 
-    def test_player_destroyed(self, game, players, sound):
+        assert battle.scene().power_ups == (dropped,)
+        assert not carrier.is_carrier
+
+    def test_player_destroyed(self, battle, players, sound):
         p1 = players[0]
-        p1.rect = pygame.Rect(64, 64, TILE_SIZE, TILE_SIZE)
-        explosion_at = []
-        game.player_manager.handle_player_destroyed.side_effect = lambda p: (
-            explosion_at.append(
-                game.effect_manager.spawn_at_rect.call_args.args[1].copy()
-            )
-        )
-        game.apply_outcomes([PlayerDestroyed(p1)])
-        game.player_manager.handle_player_destroyed.assert_called_once_with(p1)
+        p1.set_position(64, 64)
+        p1.rect.topleft = (64, 64)
+
+        battle.apply_outcomes([PlayerDestroyed(p1)])
+
         sound.play.assert_called_once_with("explosion")
         # The explosion is placed before the respawn moves the tank.
-        assert explosion_at == [pygame.Rect(64, 64, TILE_SIZE, TILE_SIZE)]
+        explosion = battle.scene().effects[-1]
+        assert (explosion.x, explosion.y) == (64 + TILE_SIZE / 2, 64 + TILE_SIZE / 2)
+        assert (p1.x, p1.y) == p1.initial_position
 
-    def test_power_up_collected(self, game, players, sound):
-        game.apply_outcomes([PowerUpCollected(PowerUpType.STAR, players[1])])
-        game.player_manager.add_score.assert_called_once_with(
-            POWERUP_COLLECT_POINTS, player_id=2
-        )
+    def test_power_up_collected(self, battle, players, sound):
+        battle.apply_outcomes([PowerUpCollected(PowerUpType.STAR, players[1])])
+
+        assert self._scores(battle) == {1: 0, 2: POWERUP_COLLECT_POINTS}
         sound.play.assert_called_once_with("powerup")
-        game.power_up_manager.apply.assert_called_once_with(
-            PowerUpType.STAR, players[1], game.enemy_manager
-        )
+        assert players[1].star_level == 1
