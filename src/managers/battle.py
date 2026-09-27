@@ -348,6 +348,9 @@ class Battle:
     ) -> None:
         """Give the Battle a fresh Roster, with nothing Spawning yet.
 
+        An Enemy already Spawning is dropped and never Appears, though its
+        spawn animation still plays to the end.
+
         Args:
             composition: How many Enemies of each type are still to come. An
                 empty one means the Roster is used up.
@@ -371,7 +374,10 @@ class Battle:
         return self._spawn_manager.start_spawning(self._tanks_on_battlefield())
 
     def add_bullet(self, bullet: Bullet) -> None:
-        """Put a bullet in flight, as if its owner had just fired it."""
+        """Put a bullet in flight as it is, outside its owner's Bullet Cap.
+
+        No shoot sound plays; firing within the cap is ``step_tank``'s job.
+        """
         self._tank_stepper.bullets.append(bullet)
 
     def drop_power_up(
