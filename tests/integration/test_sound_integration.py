@@ -70,8 +70,6 @@ class TestPowerupBlinkWiring:
     def test_update_runs_with_active_powerups(self, game_manager_fixture):
         """Verify update() doesn't error when powerups are active."""
         gm = game_manager_fixture
-        gm.battle.power_up_manager.spawn_power_up(
-            [first_player(gm), *gm.battle.enemy_manager.enemies]
-        )
-        assert len(gm.battle.power_up_manager.active_power_ups) > 0
+        gm.battle.drop_power_up()
+        assert len(gm.battle.scene().power_ups) > 0
         gm.update()

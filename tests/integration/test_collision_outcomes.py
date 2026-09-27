@@ -16,6 +16,7 @@ from src.utils.constants import (
 from tests.integration.conftest import (
     first_player,
     place_player_at,
+    score_of,
     spawn_carrier,
     spawn_enemy_at,
     use_up_roster,
@@ -31,7 +32,7 @@ def game(game_manager_fixture):
 def _enemy_bullet_on(game, target_rect, owner):
     """An Enemy bullet sitting in the middle of ``target_rect``."""
     bullet = Bullet(target_rect.centerx, target_rect.centery, Direction.DOWN, owner)
-    game.battle.tank_stepper.bullets.append(bullet)
+    game.battle.add_bullet(bullet)
     return bullet
 
 
@@ -54,27 +55,27 @@ class TestPowerUps:
             bullet = Bullet(
                 carrier.rect.centerx, carrier.rect.centery, Direction.UP, player
             )
-            game.battle.tank_stepper.bullets.append(bullet)
+            game.battle.add_bullet(bullet)
             game.update()
 
-        assert carrier in game.battle.enemy_manager.enemies
+        assert carrier in game.battle.scene().enemies
         assert not carrier.is_carrier
-        assert len(game.battle.power_up_manager.active_power_ups) == 1
+        assert len(game.battle.scene().power_ups) == 1
 
     def test_grenade_kill_on_carrier_drops_a_power_up(self, game):
         carrier = spawn_carrier(game)
         carrier.speed = 0
         player = first_player(game)
-        game.battle.power_up_manager.spawn_power_up(
-            power_up_type=PowerUpType.BOMB, position=(int(player.x), int(player.y))
+        game.battle.drop_power_up(
+            PowerUpType.BOMB, position=(int(player.x), int(player.y))
         )
 
         game.update()
 
-        assert carrier not in game.battle.enemy_manager.enemies
-        assert len(game.battle.power_up_manager.active_power_ups) == 1
+        assert carrier not in game.battle.scene().enemies
+        assert len(game.battle.scene().power_ups) == 1
         # The Grenade kill scores nothing; only the pickup does.
-        assert game.battle.player_manager.get_score(1) == POWERUP_COLLECT_POINTS
+        assert score_of(game) == POWERUP_COLLECT_POINTS
 
 
 class TestPlayerDestroyed:
@@ -111,6 +112,5 @@ class TestBaseDestroyed:
         game.update()
 
         assert game.battle.map.is_base_destroyed
-        assert game.battle.spawn_manager.is_exhausted
-        assert not game.battle.enemy_manager.enemies
+        assert not game.battle.scene().enemies
         assert game.state == GameState.GAME_OVER_ANIMATION

@@ -2,9 +2,11 @@
 transitions with the curtain, game complete and the Game Over wipe."""
 
 import pytest
+from src.managers.outcomes import EnemyDestroyed
 from src.states.game_state import GameState
 from src.utils.constants import (
     CURTAIN_CLOSE_DURATION,
+    ENEMY_POINTS,
     CURTAIN_OPEN_DURATION,
     CURTAIN_STAGE_DISPLAY,
     FPS,
@@ -12,8 +14,14 @@ from src.utils.constants import (
     GAME_OVER_RISE_DURATION,
     MAX_STAGE,
     VICTORY_PAUSE_DURATION,
+    TankType,
 )
-from tests.integration.conftest import first_player, use_up_roster
+from tests.integration.conftest import (
+    first_player,
+    use_up_roster,
+    spawn_enemy_at,
+    total_score,
+)
 
 
 def run_until(game, state, max_frames):
@@ -33,20 +41,26 @@ def frames(seconds):
     return int(seconds * FPS) + 2
 
 
+def _score_a_kill(game):
+    """P1 destroys a basic Enemy."""
+    enemy = spawn_enemy_at(game, 0, 0)
+    game.battle.apply_outcomes([EnemyDestroyed(enemy, by=first_player(game))])
+
+
 class TestNewGameAndNextStage:
     def test_new_game_resets_stage_and_score(self, game_manager_fixture):
         game = game_manager_fixture
         game.current_stage = 3
-        game.battle.player_manager.add_score(500)
+        _score_a_kill(game)
         game._new_game()
         assert game.current_stage == 1
-        assert game.battle.player_manager.score == 0
+        assert total_score(game) == 0
 
     def test_next_stage_keeps_score(self, game_manager_fixture):
         game = game_manager_fixture
-        game.battle.player_manager.add_score(500)
+        _score_a_kill(game)
         game._on_victory_finished()
-        assert game.battle.player_manager.score == 500
+        assert total_score(game) == ENEMY_POINTS[TankType.BASIC]
 
     def test_next_stage_keeps_lives(self, game_manager_fixture):
         game = game_manager_fixture

@@ -26,11 +26,11 @@ _DIRECTION_TO_KEY = {direction: key for key, direction in KEY_TO_DIRECTION.items
 
 def _set_input(game, direction):
     """Simulate holding exactly one direction key (or none)."""
-    player_manager = game.battle.player_manager
+    battle = game.battle
     for key in _DIRECTION_TO_KEY.values():
-        player_manager.handle_event(pygame.event.Event(pygame.KEYUP, key=key))
+        battle.handle_event(pygame.event.Event(pygame.KEYUP, key=key))
     if direction is not None:
-        player_manager.handle_event(
+        battle.handle_event(
             pygame.event.Event(pygame.KEYDOWN, key=_DIRECTION_TO_KEY[direction])
         )
 

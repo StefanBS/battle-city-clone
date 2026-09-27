@@ -4,6 +4,7 @@ import pytest
 import pygame
 from unittest.mock import MagicMock, call, patch
 
+from src.core.bullet import Bullet
 from src.core.enemy_ai import EnemyAI
 from src.core.enemy_tank import EnemyTank
 from src.core.map import Map
@@ -26,6 +27,7 @@ from src.utils.constants import (
     POWERUP_COLLECT_POINTS,
     TILE_SIZE,
     Difficulty,
+    Direction,
     EffectType,
     PowerUpType,
     TankType,
@@ -256,6 +258,112 @@ class TestBattleScene:
 
         assert scene.enemies == ()
         assert scene.power_ups == ()
+
+
+class _FireInPlace:
+    """A TankIntent that stands still and fires."""
+
+    def get_movement_direction(self):
+        return (0, 0)
+
+    def consume_shoot(self):
+        return True
+
+
+class TestBattleSetupCalls:
+    """The calls that arrange a running Battle for a test."""
+
+    def test_an_added_enemy_is_on_the_battlefield(self, battle, make_enemy):
+        enemy = make_enemy()
+
+        battle.add_enemy(enemy)
+
+        assert battle.scene().enemies == (enemy,)
+
+    def test_an_added_enemy_is_driven_by_the_ai_it_is_given(self, battle, make_enemy):
+        enemy = make_enemy()
+        ai = MagicMock(spec=EnemyAI)
+        ai.get_movement_direction.return_value = (0, 0)
+        ai.consume_shoot.return_value = False
+
+        battle.add_enemy(enemy, ai)
+        battle.step(DT)
+
+        ai.update.assert_called_once()
+        assert ai.update.call_args.args[0] == DT
+
+    def test_clearing_enemies_leaves_the_battlefield_empty(self, battle, make_enemy):
+        battle.add_enemy(make_enemy())
+
+        battle.clear_enemies()
+
+        assert battle.scene().enemies == ()
+
+    def test_an_empty_roster_with_a_clear_battlefield_is_a_victory(self, battle):
+        battle.replace_roster({})
+
+        assert battle.step(DT) is BattleResult.VICTORY
+
+    def test_a_held_roster_sends_no_enemy_on_its_own(self, battle):
+        battle.replace_roster({TankType.BASIC: 1}, spawn_interval=float("inf"))
+
+        for _ in range(3 * FPS):
+            battle.step(DT)
+
+        assert battle.scene().enemies == ()
+        assert battle.result is None
+
+    def test_start_spawning_brings_in_the_roster_s_carrier(self, battle):
+        battle.replace_roster(
+            {TankType.BASIC: 1}, carrier_indices=(0,), spawn_interval=float("inf")
+        )
+
+        assert battle.start_spawning() is True
+        while not battle.scene().enemies:
+            battle.step(DT)
+
+        (enemy,) = battle.scene().enemies
+        assert enemy.is_carrier
+
+    def test_start_spawning_fails_once_the_roster_is_used_up(self, battle):
+        battle.replace_roster({TankType.BASIC: 1}, spawn_interval=float("inf"))
+
+        assert battle.start_spawning() is True
+        assert battle.start_spawning() is False
+
+    def test_an_added_bullet_is_in_flight(self, battle):
+        player = battle.scene().players[0]
+        bullet = Bullet(200, 200, Direction.UP, player)
+
+        battle.add_bullet(bullet)
+
+        assert battle.scene().bullets == (bullet,)
+
+    def test_a_dropped_power_up_lands_where_and_as_asked(self, battle):
+        battle.drop_power_up(PowerUpType.STAR, position=(64, 96))
+
+        (power_up,) = battle.scene().power_ups
+        assert (power_up.power_up_type, power_up.x, power_up.y) == (
+            PowerUpType.STAR,
+            64,
+            96,
+        )
+
+    def test_a_dropped_power_up_avoids_every_player(self, battle):
+        battle.drop_power_up()
+
+        (power_up,) = battle.scene().power_ups
+        player = battle.scene().players[0]
+        assert not power_up.rect.colliderect(player.rect)
+
+    def test_step_tank_fires_within_the_bullet_cap(self, battle):
+        player = battle.scene().players[0]
+
+        battle.step_tank(player, _FireInPlace(), DT)
+        battle.step_tank(player, _FireInPlace(), DT)
+
+        (bullet,) = battle.scene().bullets
+        assert bullet.owner is player
 
 
 class TestBattleInput:

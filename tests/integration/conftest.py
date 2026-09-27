@@ -5,7 +5,6 @@ from src.core.enemy_ai import EnemyAI
 from src.core.enemy_tank import EnemyTank
 from src.core.tile import Tile, TileType
 from src.managers.game_manager import GameManager
-from src.managers.spawn_manager import SpawnManager
 from src.utils.constants import (
     Difficulty,
     FPS,
@@ -40,7 +39,17 @@ def first_player(game):
     Most integration tests are single-player and just want \"the\" player;
     this centralises the get_active_players()[0] lookup.
     """
-    return game.battle.player_manager.get_active_players()[0]
+    return game.battle.scene().players[0]
+
+
+def score_of(game, player_id=1):
+    """A Player's score so far in the running Battle."""
+    return game.battle.carried_progress[player_id].score
+
+
+def total_score(game):
+    """Every Player's score so far in the running Battle, added up."""
+    return sum(p.score for p in game.battle.carried_progress.values())
 
 
 def use_roster(game, composition, carrier_indices=(), spawn_interval=None):
@@ -51,16 +60,10 @@ def use_roster(game, composition, carrier_indices=(), spawn_interval=None):
     ``carrier_indices`` says which Enemies, by draw order, are Carriers. The
     next Enemy starts Spawning after ``spawn_interval`` (the map's by default).
     """
-    battle = game.battle
-    battle.spawn_manager = SpawnManager(
-        texture_manager=game.texture_manager,
-        game_map=battle.map,
-        enemy_composition=composition,
-        spawn_interval=(
-            spawn_interval if spawn_interval is not None else battle.map.spawn_interval
-        ),
-        effect_manager=battle.effect_manager,
-        powerup_carrier_indices=carrier_indices,
+    game.battle.replace_roster(
+        composition,
+        carrier_indices=tuple(carrier_indices),
+        spawn_interval=spawn_interval,
     )
 
 
@@ -74,28 +77,28 @@ def hold_roster(game, composition):
 
 
 def let_spawning_enemies_appear(game, max_ticks=120):
-    """Let every Spawning Enemy Appear, without starting any new spawn.
+    """Step the Battle until every Spawning Enemy has Appeared.
 
-    Only the spawn animations run; tanks and bullets don't move.
+    Real frames run, so tanks and bullets move too. Callers hold the Roster,
+    so no new spawn starts meanwhile. The frame after the last animation ends
+    brings its Enemy onto the battlefield.
     """
     dt = 1.0 / FPS
     battle = game.battle
     for _ in range(max_ticks):
-        battle.bring_in_spawns()
-        if battle.spawn_manager.is_exhausted or not battle.effect_manager.effects:
+        no_animation_left = not battle.scene().effects
+        battle.step(dt)
+        if no_animation_left:
             break
-        battle.effect_manager.update(dt)
 
 
 def spawn_carrier(game):
     """Bring a Carrier onto a battlefield with no other Enemy, and return it."""
-    game.battle.enemy_manager.clear()
+    game.battle.clear_enemies()
     use_roster(game, {TankType.BASIC: 1}, carrier_indices=(0,))
-    assert game.battle.spawn_manager.start_spawning(
-        game.battle.player_manager.get_active_players()
-    )
+    assert game.battle.start_spawning()
     let_spawning_enemies_appear(game)
-    (carrier,) = game.battle.enemy_manager.enemies
+    (carrier,) = game.battle.scene().enemies
     return carrier
 
 
@@ -153,15 +156,20 @@ def spawn_enemy_with_ai(
     if direction is not None:
         enemy.direction = direction
     if replace:
-        game.battle.enemy_manager.clear()
+        game.battle.clear_enemies()
+    base = game.battle.map.get_base()
     ai = EnemyAI(
         enemy,
         difficulty=difficulty,
-        base_position=game.battle.enemy_manager.base_position,
+        base_position=(
+            (float(base.rect.centerx), float(base.rect.centery))
+            if base is not None
+            else None
+        ),
         shoot_interval=None if fires else float("inf"),
         direction_change_interval=None if turns else float("inf"),
     )
-    game.battle.enemy_manager.add(enemy, ai)
+    game.battle.add_enemy(enemy, ai)
     return enemy, ai
 
 
@@ -181,8 +189,8 @@ def fire_bullet_from(game, tank):
     The shot respects the Bullet Cap, so at the cap this returns the bullet
     already in flight.
     """
-    game.battle.tank_stepper.step(tank, _FireInPlace(), 1.0 / FPS)
-    return next(b for b in game.battle.tank_stepper.bullets if b.owner is tank)
+    game.battle.step_tank(tank, _FireInPlace(), 1.0 / FPS)
+    return next(b for b in game.battle.scene().bullets if b.owner is tank)
 
 
 def place_ice_patch(game, grid_x, grid_y, width=4, height=4):
@@ -204,13 +212,13 @@ def place_player_at(game, x, y, player=None):
 
 def clear_enemies(game):
     """Clear the battlefield of Enemies, with one still to come that never does."""
-    game.battle.enemy_manager.clear()
+    game.battle.clear_enemies()
     hold_roster(game, {TankType.BASIC: 1})
 
 
 def use_up_roster(game):
     """Clear the battlefield with no Enemy left to come: the Battle can be won."""
-    game.battle.enemy_manager.clear()
+    game.battle.clear_enemies()
     use_roster(game, {})
 
 
@@ -226,6 +234,6 @@ def tick_for(game, seconds):
 
 
 def send_event(game, event):
-    """Dispatch an event to both the input handler and the player manager."""
+    """Dispatch an event to both the input handler and the Battle's Players."""
     game.input_handler.handle_event(event)
-    game.battle.player_manager.handle_event(event)
+    game.battle.handle_event(event)

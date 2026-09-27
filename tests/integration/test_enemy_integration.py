@@ -32,56 +32,51 @@ def test_enemy_spawning_rules(game_manager_fixture):
 
     for _ in range(60):
         game_manager.update()
-        if game_manager.battle.enemy_manager.enemies:
+        if game_manager.battle.scene().enemies:
             break
-    assert len(game_manager.battle.enemy_manager.enemies) == 1, (
+    assert len(game_manager.battle.scene().enemies) == 1, (
         "GameManager should have 1 enemy after spawn animation completes."
     )
-    initial_enemy = game_manager.battle.enemy_manager.enemies[0]
+    initial_enemy = game_manager.battle.scene().enemies[0]
     initial_enemy_pos = initial_enemy.get_position()
     assert initial_enemy_pos in spawn_points_pixels, (
         f"Initial enemy spawned at {initial_enemy_pos}, which is not in valid spawn "
         f"points {spawn_points_pixels}"
     )
-    assert game_manager.battle.spawn_manager.remaining == roster_size - 1
 
-    game_manager.battle.enemy_manager.clear()
-    hold_roster(game_manager, game_manager.battle.map.enemy_composition)
-    spawn_manager = game_manager.battle.spawn_manager
-    players = game_manager.battle.player_manager.get_active_players()
+    # A fresh Roster: every one of its Enemies comes, and no more.
+    battle = game_manager.battle
+    battle.clear_enemies()
+    hold_roster(game_manager, battle.map.enemy_composition)
+    appeared = 0
 
     for _ in range(roster_size * 3):
-        if spawn_manager.remaining == 0:
+        if appeared == roster_size:
             break
-        remaining_before = spawn_manager.remaining
 
         # Clear enemies so they don't block spawn points on the small test map.
-        game_manager.battle.enemy_manager.clear()
+        battle.clear_enemies()
 
-        if spawn_manager.start_spawning(players):
-            assert spawn_manager.remaining == remaining_before - 1
+        # A blocked spawn point starts nothing and uses up no Enemy.
+        if battle.start_spawning():
+            appeared += 1
             let_spawning_enemies_appear(game_manager)
-            (new_enemy,) = game_manager.battle.enemy_manager.enemies
+            (new_enemy,) = game_manager.battle.scene().enemies
             new_enemy_pos = new_enemy.get_position()
             assert new_enemy_pos in spawn_points_pixels, (
                 f"Enemy spawned at {new_enemy_pos}, "
                 f"which is not in valid spawn points "
                 f"{spawn_points_pixels}"
             )
-        else:
-            assert spawn_manager.remaining == remaining_before, (
-                "The Roster shrank even though the spawn failed."
-            )
 
-    assert spawn_manager.remaining == 0
-    enemies_before = game_manager.battle.enemy_manager.enemies
+    assert appeared == roster_size
+    enemies_before = battle.scene().enemies
 
-    assert not spawn_manager.start_spawning(players), (
+    assert not battle.start_spawning(), (
         "Spawn succeeded unexpectedly with the Roster used up."
     )
     let_spawning_enemies_appear(game_manager)
-    assert game_manager.battle.enemy_manager.enemies == enemies_before
-    assert spawn_manager.is_exhausted
+    assert battle.scene().enemies == enemies_before
 
 
 def test_enemy_spawn_blocked(game_manager_fixture):
@@ -101,34 +96,27 @@ def test_enemy_spawn_blocked(game_manager_fixture):
         blocked_spawn_point_pixels[0], blocked_spawn_point_pixels[1]
     )
     player_tank.prev_x, player_tank.prev_y = blocked_spawn_point_pixels
+    # Real frames run while Enemies Appear; keep the Enemies' shots from
+    # sending the parked Player back to its own spawn point.
+    player_tank.activate_invincibility(float("inf"))
 
-    game_manager.battle.enemy_manager.clear()
+    game_manager.battle.clear_enemies()
     hold_roster(game_manager, game_manager.battle.map.enemy_composition)
-    spawn_manager = game_manager.battle.spawn_manager
-    players = game_manager.battle.player_manager.get_active_players()
 
     # Attempt more times than there are spawn points so the selection cycles.
     for _ in range(len(spawn_points_pixels) * 5):
-        if spawn_manager.remaining == 0:
-            break
-
-        spawned_count_before = len(game_manager.battle.enemy_manager.enemies)
-        if spawn_manager.start_spawning(players):
+        spawned_count_before = len(game_manager.battle.scene().enemies)
+        if game_manager.battle.start_spawning():
             let_spawning_enemies_appear(game_manager)
-            assert (
-                len(game_manager.battle.enemy_manager.enemies)
-                == spawned_count_before + 1
-            )
-            new_enemy = game_manager.battle.enemy_manager.enemies[-1]
+            assert len(game_manager.battle.scene().enemies) == spawned_count_before + 1
+            new_enemy = game_manager.battle.scene().enemies[-1]
             assert new_enemy.get_position() != blocked_spawn_point_pixels, (
                 f"Enemy spawned at the blocked point {blocked_spawn_point_pixels}."
             )
         else:
-            assert (
-                len(game_manager.battle.enemy_manager.enemies) == spawned_count_before
-            )
+            assert len(game_manager.battle.scene().enemies) == spawned_count_before
 
-    for i, enemy in enumerate(game_manager.battle.enemy_manager.enemies):
+    for i, enemy in enumerate(game_manager.battle.scene().enemies):
         assert enemy.get_position() != blocked_spawn_point_pixels, (
             f"Enemy {i} is located at the blocked spawn point "
             f"{blocked_spawn_point_pixels}."
@@ -339,7 +327,7 @@ def test_enemy_shooting(game_manager_fixture):
 
         enemy_bullets = [
             b
-            for b in game_manager.battle.tank_stepper.bullets
+            for b in game_manager.battle.scene().bullets
             if b.owner_type == OwnerType.ENEMY and b.active
         ]
         if not bullet_fired and len(enemy_bullets) > 0:

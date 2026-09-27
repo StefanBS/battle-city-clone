@@ -30,7 +30,7 @@ from src.managers.player_manager import (
 )
 from src.managers.power_up_manager import PowerUpManager
 from src.managers.spawn_manager import SpawnManager
-from src.managers.tank_stepper import TankStepper
+from src.managers.tank_stepper import StepResult, TankIntent, TankStepper
 from src.managers.world_view import WorldView, build_world_view
 from src.states.game_mode import GameMode
 from src.utils.constants import (
@@ -39,15 +39,19 @@ from src.utils.constants import (
     SPAWN_INVINCIBILITY_DURATION,
     Difficulty,
     EffectType,
+    PowerUpType,
+    TankType,
 )
 
 if TYPE_CHECKING:
     from src.core.bullet import Bullet
+    from src.core.enemy_ai import EnemyAI
     from src.core.effect import Effect
     from src.core.enemy_tank import EnemyTank
     from src.core.map import Map
     from src.core.player_tank import PlayerTank
     from src.core.power_up import PowerUp
+    from src.core.tank import Tank
     from src.managers.sound_manager import SoundManager
     from src.managers.texture_manager import TextureManager
 
@@ -111,6 +115,7 @@ class Battle:
         """
         self.map = game_map
         self._sound = sound
+        self._texture_manager = texture_manager
         self._result: BattleResult | None = None
 
         self.collision_manager = CollisionManager()
@@ -144,13 +149,10 @@ class Battle:
                 else None
             ),
         )
-        self.spawn_manager = SpawnManager(
-            texture_manager=texture_manager,
-            game_map=game_map,
-            enemy_composition=game_map.enemy_composition,
-            spawn_interval=game_map.spawn_interval,
-            effect_manager=self.effect_manager,
-            powerup_carrier_indices=game_map.powerup_carrier_indices,
+        self.spawn_manager = self._spawn_manager_for(
+            game_map.enemy_composition,
+            game_map.spawn_interval,
+            game_map.powerup_carrier_indices,
         )
         # Owns every bullet, so no bullet outlives the Battle.
         self.tank_stepper = TankStepper(game_map)
@@ -318,6 +320,94 @@ class Battle:
             self.enemy_manager.add(enemy)
         if any(enemy.is_carrier for enemy in enemies):
             self.power_up_manager.clear()
+
+    def add_enemy(self, enemy: EnemyTank, ai: EnemyAI | None = None) -> None:
+        """Put an Enemy on the battlefield without it Spawning.
+
+        Args:
+            enemy: The Enemy to put on the battlefield.
+            ai: The AI to drive it; one for the Stage's difficulty and Base
+                when not given.
+        """
+        self.enemy_manager.add(enemy, ai)
+
+    def clear_enemies(self) -> None:
+        """Take every Enemy off the battlefield, as if it had never been there."""
+        self.enemy_manager.clear()
+
+    def replace_roster(
+        self,
+        composition: dict[TankType, int],
+        carrier_indices: tuple[int, ...] = (),
+        spawn_interval: float | None = None,
+    ) -> None:
+        """Give the Battle a fresh Roster, with nothing Spawning yet.
+
+        Args:
+            composition: How many Enemies of each type are still to come. An
+                empty one means the Roster is used up.
+            carrier_indices: Which Enemies, by draw order, are Carriers.
+            spawn_interval: Seconds before the next Enemy starts Spawning,
+                the map's by default; ``inf`` means none comes on its own.
+        """
+        self.spawn_manager = self._spawn_manager_for(
+            composition,
+            spawn_interval if spawn_interval is not None else self.map.spawn_interval,
+            carrier_indices,
+        )
+
+    def start_spawning(self) -> bool:
+        """Start the next Enemy of the Roster Spawning now.
+
+        Returns:
+            True if an Enemy started Spawning; False if the Roster is used up
+            or the chosen Enemy Spawn Point is blocked.
+        """
+        return self.spawn_manager.start_spawning(
+            [*self.player_manager.get_active_players(), *self.enemy_manager.enemies]
+        )
+
+    def add_bullet(self, bullet: Bullet) -> None:
+        """Put a bullet in flight, as if its owner had just fired it."""
+        self.tank_stepper.bullets.append(bullet)
+
+    def drop_power_up(
+        self,
+        power_up_type: PowerUpType | None = None,
+        position: tuple[int, int] | None = None,
+    ) -> None:
+        """Make a Power-Up appear, replacing any already on the battlefield.
+
+        Args:
+            power_up_type: Which Power-Up; a random one when not given.
+            position: Where it lands, in pixels; a free spot clear of every
+                tank when not given.
+        """
+        self.power_up_manager.spawn_power_up(
+            [*self.player_manager.get_active_players(), *self.enemy_manager.enemies],
+            power_up_type=power_up_type,
+            position=position,
+        )
+
+    def step_tank(self, tank: Tank, intent: TankIntent, dt: float) -> StepResult:
+        """Step one tank through a frame on its own, firing within its Bullet Cap."""
+        return self.tank_stepper.step(tank, intent, dt)
+
+    def _spawn_manager_for(
+        self,
+        composition: dict[TankType, int],
+        spawn_interval: float,
+        carrier_indices: tuple[int, ...] | None,
+    ) -> SpawnManager:
+        """A SpawnManager for this Battle's map sending ``composition``."""
+        return SpawnManager(
+            texture_manager=self._texture_manager,
+            game_map=self.map,
+            enemy_composition=composition,
+            spawn_interval=spawn_interval,
+            effect_manager=self.effect_manager,
+            powerup_carrier_indices=carrier_indices,
+        )
 
     def _drop_carrier_power_up(self, enemy: EnemyTank) -> None:
         """Make a Carrier's Power-Up appear; a Carrier drops only once."""

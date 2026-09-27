@@ -10,8 +10,7 @@ import random
 import pytest
 import pygame
 
-from src.core.bullet import Bullet
-from src.core.tile import Tile, TileType
+from src.core.tile import TileType
 from src.managers.footprint import Footprint, blocks_spawn_point
 from src.managers.game_manager import GameManager
 from src.states.game_mode import GameMode
@@ -24,6 +23,7 @@ from src.utils.constants import (
     OwnerType,
     PowerUpType,
 )
+from src.managers.collision_response_handler import CollisionResponseHandler
 from tests.integration.conftest import (
     clear_enemies,
     clear_tiles,
@@ -32,6 +32,7 @@ from tests.integration.conftest import (
     send_event,
     spawn_enemy_at,
     tick,
+    score_of,
 )
 
 
@@ -77,7 +78,7 @@ def open_field(game) -> None:
 class TestCpuPartnerSetup:
     def test_cpu_partner_spawns_at_p2_spawn_point(self, cpu_game):
         gm = cpu_game
-        p2 = gm.battle.player_manager.get_active_players()[1]
+        p2 = gm.battle.scene().players[1]
         assert gm.battle.map.player_spawn_2 is not None
         assert (p2.x, p2.y) == gm.battle.map.grid_to_pixels(
             *gm.battle.map.player_spawn_2
@@ -88,7 +89,7 @@ class TestCpuPartnerSetup:
         clear_enemies(gm)
         # No spawn points to Ambush at: the CPU Partner has nothing to do.
         gm.battle.map.spawn_points = []
-        p1, p2 = gm.battle.player_manager.get_active_players()
+        p1, p2 = gm.battle.scene().players
         p2_start = (p2.x, p2.y)
 
         send_event(gm, key_down_event(pygame.K_LEFT))
@@ -141,7 +142,7 @@ class TestWorldView:
     def test_reports_tank_and_bullet_speeds(self, cpu_game):
         gm = cpu_game
         enemy = spawn_enemy_at(gm, 4, 6)
-        p2 = gm.battle.player_manager.get_active_players()[1]
+        p2 = gm.battle.scene().players[1]
 
         view = gm.battle.world_view().for_player(2)
 
@@ -160,13 +161,13 @@ class TestWorldView:
 
         assert [b.speed for b in first] == [enemy.bullet_speed]
         assert [b.bullet_id for b in later] == [b.bullet_id for b in first]
-        other = fire_bullet_from(gm, gm.battle.player_manager.get_active_players()[0])
+        other = fire_bullet_from(gm, gm.battle.scene().players[0])
         ids = {b.bullet_id for b in gm.battle.world_view().bullets}
         assert len(ids) == 2 and other.active
 
     def test_reports_whether_a_player_is_shielded(self, cpu_game):
         gm = cpu_game
-        p1, p2 = gm.battle.player_manager.get_active_players()
+        p1, p2 = gm.battle.scene().players
         p1.is_invincible = False
         p2.activate_invincibility(5.0)
 
@@ -176,7 +177,7 @@ class TestWorldView:
 
     def test_reports_whether_a_player_is_at_its_bullet_cap(self, cpu_game):
         gm = cpu_game
-        p1, p2 = gm.battle.player_manager.get_active_players()
+        p1, p2 = gm.battle.scene().players
         fire_bullet_from(gm, p2)
 
         view = gm.battle.world_view()
@@ -199,7 +200,7 @@ class TestWorldView:
         view = gm.battle.world_view()
 
         enemy.set_position(100, 100)
-        p2 = gm.battle.player_manager.get_active_players()[1]
+        p2 = gm.battle.scene().players[1]
         p2.set_position(0, 0)
 
         assert (view.enemies[0].x, view.enemies[0].y) == (
@@ -216,7 +217,7 @@ class TestCpuPartnerHunt:
         gm = cpu_game
         open_field(gm)
         clear_enemies(gm)
-        p1, p2 = gm.battle.player_manager.get_active_players()
+        p1, p2 = gm.battle.scene().players
         place_player_at(gm, 0, 0, player=p1)
         place_player_at(gm, 16 * SUB_TILE_SIZE, 16 * SUB_TILE_SIZE, player=p2)
         enemy = spawn_enemy_at(gm, 4, 6, fires=False)
@@ -224,12 +225,12 @@ class TestCpuPartnerHunt:
 
         for _ in range(10 * FPS):
             tick(gm)
-            if enemy not in gm.battle.enemy_manager.enemies:
+            if enemy not in gm.battle.scene().enemies:
                 break
 
-        assert enemy not in gm.battle.enemy_manager.enemies
-        assert gm.battle.player_manager.get_score(2) > 0
-        assert gm.battle.player_manager.get_score(1) == 0
+        assert enemy not in gm.battle.scene().enemies
+        assert score_of(gm, 2) > 0
+        assert score_of(gm, 1) == 0
 
     def test_still_hunts_after_stage_change(self, cpu_game):
         gm = cpu_game
@@ -237,7 +238,7 @@ class TestCpuPartnerHunt:
         gm.state = GameState.RUNNING
         open_field(gm)
         clear_enemies(gm)
-        p1, p2 = gm.battle.player_manager.get_active_players()
+        p1, p2 = gm.battle.scene().players
         place_player_at(gm, 0, 0, player=p1)
         place_player_at(gm, 16 * SUB_TILE_SIZE, 16 * SUB_TILE_SIZE, player=p2)
         enemy = spawn_enemy_at(gm, 16, 4, fires=False)
@@ -245,7 +246,7 @@ class TestCpuPartnerHunt:
 
         tick(gm, 3 * FPS)
 
-        assert enemy not in gm.battle.enemy_manager.enemies
+        assert enemy not in gm.battle.scene().enemies
 
 
 def set_tiles(game_map, positions, tile_type) -> None:
@@ -267,7 +268,7 @@ class TestCpuPartnerPathfinding:
         set_tiles(
             gm.battle.map, [(x, y) for x in (8, 9) for y in range(8)], TileType.BRICK
         )
-        p1, p2 = gm.battle.player_manager.get_active_players()
+        p1, p2 = gm.battle.scene().players
         place_player_at(gm, 24 * SUB_TILE_SIZE, 0, player=p1)
         place_player_at(gm, 16 * SUB_TILE_SIZE, 16 * SUB_TILE_SIZE, player=p2)
         enemy = spawn_enemy_at(gm, 4, 4, fires=False)
@@ -275,11 +276,11 @@ class TestCpuPartnerPathfinding:
 
         for _ in range(15 * FPS):
             tick(gm)
-            if enemy not in gm.battle.enemy_manager.enemies:
+            if enemy not in gm.battle.scene().enemies:
                 break
 
-        assert enemy not in gm.battle.enemy_manager.enemies
-        assert gm.battle.player_manager.get_score(2) > 0
+        assert enemy not in gm.battle.scene().enemies
+        assert score_of(gm, 2) > 0
 
 
 class TestCpuPartnerGivesWay:
@@ -300,7 +301,7 @@ class TestCpuPartnerGivesWay:
             ],
             TileType.STEEL,
         )
-        p1, p2 = gm.battle.player_manager.get_active_players()
+        p1, p2 = gm.battle.scene().players
         place_player_at(gm, 4 * SUB_TILE_SIZE, 12 * SUB_TILE_SIZE, player=p1)
         place_player_at(gm, 4 * SUB_TILE_SIZE, 20 * SUB_TILE_SIZE, player=p2)
         enemy = spawn_enemy_at(gm, 12, 2, fires=False)
@@ -308,11 +309,11 @@ class TestCpuPartnerGivesWay:
 
         for _ in range(15 * FPS):
             tick(gm)
-            if enemy not in gm.battle.enemy_manager.enemies:
+            if enemy not in gm.battle.scene().enemies:
                 break
 
-        assert enemy not in gm.battle.enemy_manager.enemies
-        assert gm.battle.player_manager.get_score(2) > 0
+        assert enemy not in gm.battle.scene().enemies
+        assert score_of(gm, 2) > 0
         assert (p1.x, p1.y) == (4 * SUB_TILE_SIZE, 12 * SUB_TILE_SIZE)
 
 
@@ -330,7 +331,7 @@ class TestCpuPartnerFiringPosition:
             if not (4 <= x <= 5 and 4 <= y <= 5)
         ]
         set_tiles(gm.battle.map, moat, TileType.WATER)
-        p1, p2 = gm.battle.player_manager.get_active_players()
+        p1, p2 = gm.battle.scene().players
         place_player_at(gm, 24 * SUB_TILE_SIZE, 0, player=p1)
         place_player_at(gm, 16 * SUB_TILE_SIZE, 16 * SUB_TILE_SIZE, player=p2)
         enemy = spawn_enemy_at(gm, 4, 4, fires=False)
@@ -338,11 +339,11 @@ class TestCpuPartnerFiringPosition:
 
         for _ in range(10 * FPS):
             tick(gm)
-            if enemy not in gm.battle.enemy_manager.enemies:
+            if enemy not in gm.battle.scene().enemies:
                 break
 
-        assert enemy not in gm.battle.enemy_manager.enemies
-        assert gm.battle.player_manager.get_score(2) > 0
+        assert enemy not in gm.battle.scene().enemies
+        assert score_of(gm, 2) > 0
 
 
 class TestCpuPartnerDefend:
@@ -350,7 +351,7 @@ class TestCpuPartnerDefend:
         gm = cpu_game
         open_field(gm)
         clear_enemies(gm)
-        p1, p2 = gm.battle.player_manager.get_active_players()
+        p1, p2 = gm.battle.scene().players
         place_player_at(gm, 0, 0, player=p1)
         place_player_at(gm, 20 * SUB_TILE_SIZE, 16 * SUB_TILE_SIZE, player=p2)
         # One Enemy lined up straight above the CPU Partner, far from the
@@ -362,12 +363,12 @@ class TestCpuPartnerDefend:
 
         for _ in range(10 * FPS):
             tick(gm)
-            if threat not in gm.battle.enemy_manager.enemies:
+            if threat not in gm.battle.scene().enemies:
                 break
 
-        assert threat not in gm.battle.enemy_manager.enemies
-        assert far in gm.battle.enemy_manager.enemies
-        assert gm.battle.player_manager.get_score(2) > 0
+        assert threat not in gm.battle.scene().enemies
+        assert far in gm.battle.scene().enemies
+        assert score_of(gm, 2) > 0
 
 
 # The first roll under this seed is above the Dodge miss chance, and noticing
@@ -390,7 +391,7 @@ class TestCpuPartnerDodge:
         clear_enemies(gm)
         # No Enemy Spawn Point to Ambush at: it stands still until the shot.
         gm.battle.map.spawn_points = []
-        p1, p2 = gm.battle.player_manager.get_active_players()
+        p1, p2 = gm.battle.scene().players
         place_player_at(gm, 0, 0, player=p1)
         place_player_at(gm, 16 * SUB_TILE_SIZE, 10 * SUB_TILE_SIZE, player=p2)
         p2.is_invincible = False
@@ -417,7 +418,7 @@ class TestCpuPartnerDodge:
         open_field(gm)
         clear_enemies(gm)
         gm.battle.map.spawn_points = []
-        p1, p2 = gm.battle.player_manager.get_active_players()
+        p1, p2 = gm.battle.scene().players
         place_player_at(gm, 0, 0, player=p1)
         place_player_at(gm, 16 * SUB_TILE_SIZE, 10 * SUB_TILE_SIZE, player=p2)
         p2.direction = Direction.LEFT
@@ -446,27 +447,26 @@ class TestCpuPartnerGrabPowerUp:
         gm = cpu_game
         open_field(gm)
         clear_enemies(gm)
-        p1, p2 = gm.battle.player_manager.get_active_players()
+        p1, p2 = gm.battle.scene().players
         place_player_at(gm, 0, 0, player=p1)
         place_player_at(gm, 16 * SUB_TILE_SIZE, 16 * SUB_TILE_SIZE, player=p2)
         # An Enemy lined up straight above the CPU Partner, far from the
         # Base, and a Power-Up a few sub-tiles off to its right.
         enemy = spawn_enemy_at(gm, 16, 4, fires=False)
         enemy.speed = 0
-        gm.battle.power_up_manager.spawn_power_up(
-            power_up_type=PowerUpType.STAR,
-            position=gm.battle.map.grid_to_pixels(22, 16),
+        gm.battle.drop_power_up(
+            PowerUpType.STAR, position=gm.battle.map.grid_to_pixels(22, 16)
         )
 
         for _ in range(5 * FPS):
             tick(gm)
-            if not gm.battle.power_up_manager.active_power_ups:
+            if not gm.battle.scene().power_ups:
                 break
 
-        assert not gm.battle.power_up_manager.active_power_ups
+        assert not gm.battle.scene().power_ups
         assert p2.star_level == 1
         assert p1.star_level == 0
-        assert enemy in gm.battle.enemy_manager.enemies
+        assert enemy in gm.battle.scene().enemies
 
 
 def fire_enemy_bullet_at(gm, player) -> None:
@@ -484,14 +484,14 @@ class TestCpuPartnerGameOver:
         gm = cpu_game
         open_field(gm)
         clear_enemies(gm)
-        p1, p2 = gm.battle.player_manager.get_active_players()
+        p1, p2 = gm.battle.scene().players
         place_player_at(gm, 4 * SUB_TILE_SIZE, 12 * SUB_TILE_SIZE, player=p1)
         place_player_at(gm, 20 * SUB_TILE_SIZE, 12 * SUB_TILE_SIZE, player=p2)
         return gm
 
     def test_game_over_when_human_eliminated_and_cpu_partner_not(self, arena):
         gm = arena
-        p1, p2 = gm.battle.player_manager.get_active_players()
+        p1, p2 = gm.battle.scene().players
         p1.restore_lives(1)
         p2.restore_lives(3)
         fire_enemy_bullet_at(gm, p1)
@@ -511,19 +511,42 @@ class TestCpuPartnerHud:
         return {text for _, text, _ in gm.renderer._text_cache}
 
     def test_shows_cpu_out_once_eliminated(self, cpu_game):
-        p2 = cpu_game.battle.player_manager.get_active_players()[1]
+        p2 = cpu_game.battle.scene().players[1]
         p2.eliminate()
         labels = self.hud_labels(cpu_game)
         assert "CPU: OUT" in labels
         assert not any(label.startswith("P2") for label in labels)
 
 
+@pytest.fixture
+def player_bullet_tile_hits(monkeypatch):
+    """Every tile that stops a Player bullet, recorded as ``(x, y)``.
+
+    Requested before the game fixture, so the Battle's collision handler is
+    built with the recording in place. The real handler still responds.
+    """
+    hits: list[tuple[int, int]] = []
+    real_handler = CollisionResponseHandler._handle_bullet_vs_tile
+
+    def recording_handler(self, bullet, tile, frame):
+        if bullet.owner_type is OwnerType.PLAYER and tile.blocks_bullets:
+            hits.append((tile.x, tile.y))
+        return real_handler(self, bullet, tile, frame)
+
+    monkeypatch.setattr(
+        CollisionResponseHandler, "_handle_bullet_vs_tile", recording_handler
+    )
+    return hits
+
+
 class TestCpuPartnerHoldFireSoak:
     SOAK_SECONDS = 90
 
-    def test_player_bullets_never_hit_base_or_base_wall(self, seeded_cpu_game):
+    def test_player_bullets_never_hit_base_or_base_wall(
+        self, player_bullet_tile_hits, seeded_cpu_game
+    ):
         gm = seeded_cpu_game
-        p1 = gm.battle.player_manager.get_active_players()[0]
+        p1 = gm.battle.scene().players[0]
         protected = {
             (t.x, t.y) for t in gm.battle.map.get_tiles_by_type([TileType.BASE])
         }
@@ -531,23 +554,6 @@ class TestCpuPartnerHoldFireSoak:
             (t.x, t.y)
             for t in gm.battle.map.get_base_surrounding_tiles(include_empty=True)
         }
-
-        # Record every Player bullet that hits a protected tile, then let the
-        # real handler respond as usual.
-        forbidden_hits: list[tuple[int, int]] = []
-        handlers = gm.battle.collision_response_handler._handlers
-        real_handler = handlers[(Bullet, Tile)]
-
-        def recording_handler(bullet, tile, enemies_to_remove):
-            if (
-                bullet.owner_type is OwnerType.PLAYER
-                and tile.blocks_bullets
-                and (tile.x, tile.y) in protected
-            ):
-                forbidden_hits.append((tile.x, tile.y))
-            return real_handler(bullet, tile, enemies_to_remove)
-
-        handlers[(Bullet, Tile)] = recording_handler
 
         for _ in range(self.SOAK_SECONDS * FPS):
             # Keep the idle Human Player in the game so the soak runs its full
@@ -558,8 +564,8 @@ class TestCpuPartnerHoldFireSoak:
             if gm.state is not GameState.RUNNING:
                 break
 
-        assert forbidden_hits == []
-        assert gm.battle.player_manager.get_score(2) > 0
+        assert [hit for hit in player_bullet_tile_hits if hit in protected] == []
+        assert score_of(gm, 2) > 0
 
 
 class TestCpuPartnerAmbush:
@@ -567,7 +573,7 @@ class TestCpuPartnerAmbush:
         gm = cpu_game
         open_field(gm)
         clear_enemies(gm)
-        p1, p2 = gm.battle.player_manager.get_active_players()
+        p1, p2 = gm.battle.scene().players
         place_player_at(gm, 0, 24 * SUB_TILE_SIZE, player=p1)
         place_player_at(gm, 16 * SUB_TILE_SIZE, 16 * SUB_TILE_SIZE, player=p2)
 
@@ -592,7 +598,7 @@ class TestCpuPartnerAmbush:
         )
         assert p2.direction == facing
         for spawn_point in gm.battle.map.spawn_points:
-            for player in gm.battle.player_manager.get_active_players():
+            for player in gm.battle.scene().players:
                 footprint = Footprint(player.rect.x, player.rect.y, player.rect.width)
                 assert not blocks_spawn_point(
                     footprint, spawn_point, gm.battle.map.tile_size

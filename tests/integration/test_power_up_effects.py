@@ -15,7 +15,7 @@ from src.managers.outcomes import PowerUpCollected
 from tests.integration.conftest import (
     first_player,
     let_spawning_enemies_appear,
-    spawn_carrier,
+    spawn_enemy_at,
 )
 
 
@@ -25,16 +25,11 @@ class TestPowerUpEffectsIntegration:
         return game_manager_fixture
 
     def _collect_power_up(self, game, power_up_type):
-        """Spawn a carrier, destroy it, spawn a specific power-up, collect it."""
-        carrier = spawn_carrier(game)
-        game.battle.enemy_manager.remove(carrier)
-        game.battle.power_up_manager.spawn_power_up(
-            [first_player(game), *game.battle.enemy_manager.enemies],
-            power_up_type=power_up_type,
-        )
-        assert len(game.battle.power_up_manager.active_power_ups) == 1
+        """Drop a specific power-up and put the Player on it to collect it."""
+        game.battle.drop_power_up(power_up_type)
+        assert len(game.battle.scene().power_ups) == 1
         # Move player to power-up location to trigger collision
-        pu = game.battle.power_up_manager.active_power_ups[0]
+        pu = game.battle.scene().power_ups[0]
         first_player(game).set_position(pu.x, pu.y)
         first_player(game).rect.topleft = (round(pu.x), round(pu.y))
 
@@ -54,11 +49,11 @@ class TestPowerUpEffectsIntegration:
 
     def test_bomb_effect(self, game):
         let_spawning_enemies_appear(game)
-        enemies_before = len(game.battle.enemy_manager.enemies)
+        enemies_before = len(game.battle.scene().enemies)
         assert enemies_before > 0
         self._collect_power_up(game, PowerUpType.BOMB)
         game.update()
-        assert len(game.battle.enemy_manager.enemies) == 0
+        assert len(game.battle.scene().enemies) == 0
 
 
 class TestRemainingPowerUpEffects:
@@ -70,13 +65,14 @@ class TestRemainingPowerUpEffects:
         game.battle.apply_outcomes(
             [PowerUpCollected(PowerUpType.CLOCK, first_player(game))]
         )
-        assert game.battle.enemy_manager.enemies_frozen is True
+        enemy = spawn_enemy_at(game, 0, 0)
+        game.update()
+        assert enemy.is_frozen is True
 
     def test_shovel_effect(self, game):
         game.battle.apply_outcomes(
             [PowerUpCollected(PowerUpType.SHOVEL, first_player(game))]
         )
-        assert game.battle.power_up_manager.shovel_timer > 0
         tiles = game.battle.map.get_base_surrounding_tiles()
         steel_tiles = [t for t in tiles if t.type == TileType.STEEL]
         assert len(steel_tiles) > 0

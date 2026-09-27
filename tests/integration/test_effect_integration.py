@@ -5,7 +5,8 @@ plays through frames over multiple updates, and is cleaned up.
 """
 
 from src.core.tile import TileType
-from src.utils.constants import EffectType, FPS
+from src.managers.outcomes import PlayerDestroyed
+from src.utils.constants import FPS
 from tests.integration.conftest import clear_enemies, fire_bullet_from, first_player
 
 
@@ -38,31 +39,32 @@ class TestEffectLifecycle:
         effect_spawned = False
         for _ in range(30):
             gm.update()
-            if gm.battle.effect_manager.effects:
+            if gm.battle.scene().effects:
                 effect_spawned = True
                 break
 
         assert effect_spawned, (
             "Expected an explosion effect after bullet-tile collision"
         )
-        assert len(gm.battle.effect_manager.effects) >= 1
+        assert len(gm.battle.scene().effects) >= 1
 
         for _ in range(60):
-            gm.battle.effect_manager.update(dt)
-            if not gm.battle.effect_manager.effects:
+            gm.battle.step(dt)
+            if not gm.battle.scene().effects:
                 break
 
-        assert len(gm.battle.effect_manager.effects) == 0, (
+        assert len(gm.battle.scene().effects) == 0, (
             "Effect should have expired after playing through all frames"
         )
 
-    def test_effect_manager_reset_on_game_reset(self, game_manager_fixture):
-        """Resetting the game creates a fresh EffectManager."""
+    def test_effects_do_not_outlive_a_game_reset(self, game_manager_fixture):
+        """Resetting the game leaves no effect from the game before behind."""
         gm = game_manager_fixture
 
-        gm.battle.effect_manager.spawn(EffectType.SMALL_EXPLOSION, 100.0, 100.0)
-        old_effect_manager = gm.battle.effect_manager
+        gm.battle.apply_outcomes([PlayerDestroyed(first_player(gm))])
+        assert len(gm.battle.scene().effects) == 2
 
         gm._reset_game()
 
-        assert gm.battle.effect_manager is not old_effect_manager
+        # Only the new Battle's first Enemy's spawn animation plays.
+        assert len(gm.battle.scene().effects) == 1

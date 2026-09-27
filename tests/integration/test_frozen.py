@@ -43,13 +43,17 @@ class _EngineRecorder(SoundManager):
         super().update_engine(any_moving)
 
 
+def _open_field(gm):
+    """No Enemies to come and an open field across rows 4-13."""
+    clear_enemies(gm)
+    clear_tiles(gm.battle.map, [(x, y) for x in range(26) for y in range(4, 14)])
+
+
 @pytest.fixture
 def game(game_manager_fixture):
     """A Battle with no Enemies to come and an open field across rows 4-13."""
-    gm = game_manager_fixture
-    clear_enemies(gm)
-    clear_tiles(gm.battle.map, [(x, y) for x in range(26) for y in range(4, 14)])
-    return gm
+    _open_field(game_manager_fixture)
+    return game_manager_fixture
 
 
 def _clock(game):
@@ -59,7 +63,7 @@ def _clock(game):
 
 
 def _hold(game, direction):
-    game.battle.player_manager.handle_event(
+    game.battle.handle_event(
         pygame.event.Event(pygame.KEYDOWN, key=_DIRECTION_TO_KEY[direction])
     )
 
@@ -77,7 +81,10 @@ def _driving_enemy(game, grid_x, grid_y, direction):
 class TestClockFreezesEnemies:
     def test_engine_sound_stops_and_the_enemy_is_not_moving(self, game):
         recorder = _EngineRecorder()
-        game.battle._sound = recorder
+        # The Battle plays sounds through the SoundManager it is built with.
+        game.sound_manager = recorder
+        game._reset_game()
+        _open_field(game)
         enemy = _driving_enemy(game, 4, 6, Direction.RIGHT)
         assert recorder.engine_running is True
 
@@ -109,22 +116,18 @@ class TestClockFreezesEnemies:
         tick(game, FPS)
         # A one-Enemy Roster: no more spawns while the Clock runs out.
         use_roster(game, {TankType.BASIC: 1})
-        game.battle.spawn_manager.start_spawning(
-            game.battle.player_manager.get_active_players()
-        )
+        assert game.battle.start_spawning()
         let_spawning_enemies_appear(game)
-        (enemy,) = game.battle.enemy_manager.enemies
+        (enemy,) = game.battle.scene().enemies
         appeared_at = (enemy.x, enemy.y)
-        enemy_manager = game.battle.enemy_manager
 
+        # Frozen, where it Appeared, until the Clock runs out.
         for _ in range(int(CLOCK_FREEZE_DURATION * FPS)):
-            if not enemy_manager.enemies_frozen:
+            if not enemy.is_frozen:
                 break
-            assert enemy.is_frozen is True
             assert (enemy.x, enemy.y) == appeared_at
             tick(game)
 
-        assert enemy_manager.enemies_frozen is False
         assert enemy.is_frozen is False
 
 

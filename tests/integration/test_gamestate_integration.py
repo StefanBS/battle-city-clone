@@ -15,6 +15,7 @@ from tests.integration.conftest import (
     place_player_at,
     spawn_enemy_at,
     use_up_roster,
+    total_score,
 )
 
 
@@ -33,9 +34,9 @@ def test_initial_game_state(game_manager_fixture):
     )
 
     # The first Enemy of the Roster is Spawning, not on the battlefield yet.
-    roster_size = sum(game_manager.battle.map.enemy_composition.values())
-    assert game_manager.battle.spawn_manager.remaining == roster_size - 1
-    assert not game_manager.battle.enemy_manager.enemies
+    # Its spawn animation is the only effect playing.
+    assert len(game_manager.battle.scene().effects) == 1
+    assert not game_manager.battle.scene().enemies
 
     game_map = game_manager.battle.map
     base_tile = game_map.get_base()
@@ -227,14 +228,14 @@ def test_victory_condition(game_manager_fixture):
 def test_score_accumulates_on_enemy_kill(game_manager_fixture):
     """Test that score increases when the player destroys an enemy."""
     gm = game_manager_fixture
-    assert gm.battle.player_manager.score == 0
+    assert total_score(gm) == 0
 
     for _ in range(60):
         gm.update()
-        if gm.battle.enemy_manager.enemies:
+        if gm.battle.scene().enemies:
             break
 
-    enemy = gm.battle.enemy_manager.enemies[0]
+    enemy = gm.battle.scene().enemies[0]
     tank_type = enemy.tank_type
     expected_points = ENEMY_POINTS.get(tank_type, 0)
 
@@ -245,7 +246,7 @@ def test_score_accumulates_on_enemy_kill(game_manager_fixture):
     fire_bullet_from(gm, player)
 
     clear_enemies(gm)
-    gm.battle.enemy_manager.add(enemy)
+    gm.battle.add_enemy(enemy)
 
     # Enemy AI chooses random directions; freeze it so it can't dodge the bullet.
     # Wear the Enemy down to its last hit so the one bullet destroys it.
@@ -255,10 +256,10 @@ def test_score_accumulates_on_enemy_kill(game_manager_fixture):
 
     for _ in range(60):
         gm.update()
-        if enemy not in gm.battle.enemy_manager.enemies:
+        if enemy not in gm.battle.scene().enemies:
             break
 
-    assert gm.battle.player_manager.score == expected_points, (
+    assert total_score(gm) == expected_points, (
         f"Expected score {expected_points} after killing {tank_type} enemy, "
-        f"got {gm.battle.player_manager.score}"
+        f"got {total_score(gm)}"
     )
