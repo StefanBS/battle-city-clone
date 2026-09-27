@@ -2,6 +2,54 @@
 
 A Python and Pygame implementation of the classic NES game Battle City, featuring all 35 stages, four enemy tank types, power-ups, two-player co-op, a computer-controlled partner, sound effects, gamepad support, and more.
 
+<p align="center">
+  <img src="docs/images/title-screen.png" alt="Title screen with the 1 Player + CPU mode selected" width="400">
+  <img src="docs/images/battle-cpu-partner.png" alt="Stage 1 in 1 Player + CPU mode, the CPU Partner in green" width="400">
+</p>
+
+## Installation
+
+Download the latest build from the [Releases page](https://github.com/StefanBS/battle-city-clone/releases/latest). Each release also has a `SHA256SUMS` file to check your download against.
+
+### Windows
+
+1. Download `BattleCitySetup-<version>.exe`.
+2. Run it. It installs for your user only, so it doesn't need administrator rights.
+3. The installer isn't code-signed, so Windows SmartScreen may warn you. Choose **More info**, then **Run anyway**.
+4. Start **Battle City** from the Start menu.
+
+To check the download in PowerShell, compare the hash with the one in `SHA256SUMS`:
+
+```powershell
+Get-FileHash .\BattleCitySetup-<version>.exe -Algorithm SHA256
+```
+
+### Linux
+
+The game ships as a Flatpak bundle. It needs [Flatpak](https://flatpak.org/setup/) and the Flathub remote, which provides the runtime it's built on:
+
+```bash
+flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+flatpak install --user BattleCity-v<version>.flatpak
+flatpak run com.battlecity.BattleCity
+```
+
+The game also appears in your desktop's application menu. To remove it, run `flatpak uninstall --user com.battlecity.BattleCity`.
+
+### macOS
+
+There's no packaged macOS build yet, so run the game from source. [uv](https://docs.astral.sh/uv/) downloads the right Python version for you:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+git clone https://github.com/StefanBS/battle-city-clone.git
+cd battle-city-clone
+uv sync
+uv run python main.py
+```
+
+The same steps work on Linux. On Windows, install uv with `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"` and then run the same `git clone`, `uv sync` and `uv run` commands.
+
 ## Features
 
 - **35 stages** authored in [Tiled](https://www.mapeditor.org/) with varied enemy compositions
@@ -81,6 +129,8 @@ battle-city-clone/
 │   │   ├── steering.py                    # CPU Partner: getting unstuck
 │   │   ├── refused_shots.py               # CPU Partner: giving up on unsafe shots
 │   │   ├── enemy_memory.py                # CPU Partner: per-Enemy memory until it moves
+│   │   ├── dodge.py                       # CPU Partner: Dodge reflex against Incoming Shots
+│   │   ├── footprint.py                   # Grid cells a tank covers; blocked Enemy Spawn Points
 │   │   ├── input_handler.py               # Menu and system input (SDL GameController API)
 │   │   ├── menu_controller.py             # Declarative menu navigation (items + callbacks)
 │   │   ├── collision_manager.py           # Collision detection and event queuing
@@ -120,7 +170,8 @@ battle-city-clone/
 │
 ├── docs/
 │   ├── cpu-partner.md                     # How the CPU Partner decides (state diagrams)
-│   └── adr/                               # Architecture decision records
+│   ├── adr/                               # Architecture decision records
+│   └── images/                            # README screenshots
 │
 ├── installer/                             # Platform-specific packaging
 ├── main.py                                # Entry point
@@ -139,8 +190,9 @@ battle-city-clone/
   - [0002](docs/adr/0002-one-stepping-path-for-all-tanks.md) Every tank goes through one stepping path
   - [0003](docs/adr/0003-collision-response-returns-outcomes.md) Collision response returns outcomes
   - [0004](docs/adr/0004-a-battle-owns-one-stage.md) A Battle owns one Stage
+  - [0005](docs/adr/0005-dodge-is-a-reflex-not-a-goal.md) Dodge is a reflex, not a Goal
 
-## Setup
+## Development Setup
 
 Requires Python 3.13+.
 
@@ -181,12 +233,15 @@ pytest tests/unit/core/test_tank.py
 pytest tests/unit/core/test_tank.py::TestTank::test_shoot
 ```
 
-## Linting and Formatting
+## Linting, Formatting and Type Checking
 
 ```bash
 ruff check src/ tests/
 ruff format src/ tests/
+mypy src
 ```
+
+The pre-commit hooks and CI run all three.
 
 ## Building
 
@@ -196,3 +251,5 @@ To build a standalone executable:
 uv pip install -e ".[build]"
 pyinstaller battle-city.spec
 ```
+
+Release builds are made by CI when a `v*` tag is pushed: a Windows installer (PyInstaller + Inno Setup, `installer/windows/`) and a Linux Flatpak (`installer/linux/`).
