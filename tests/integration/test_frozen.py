@@ -121,6 +121,7 @@ class TestClockFreezesEnemies:
         (enemy,) = game.battle.scene().enemies
         appeared_at = (enemy.x, enemy.y)
 
+        assert enemy.is_frozen is True
         # Frozen, where it Appeared, until the Clock runs out.
         for _ in range(int(CLOCK_FREEZE_DURATION * FPS)):
             if not enemy.is_frozen:
