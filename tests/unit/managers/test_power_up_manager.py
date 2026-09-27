@@ -43,12 +43,13 @@ class TestPowerUpManager:
 
     def test_spawn_replaces_existing_power_up(self, manager, mock_player_tank):
         manager.spawn_power_up([mock_player_tank], power_up_type=PowerUpType.CLOCK)
-        manager.spawn_power_up([mock_player_tank], power_up_type=PowerUpType.BOMB)
-        assert [p.power_up_type for p in manager.active_power_ups] == [PowerUpType.BOMB]
+        manager.spawn_power_up([mock_player_tank], power_up_type=PowerUpType.GRENADE)
+        types = [p.power_up_type for p in manager.active_power_ups]
+        assert types == [PowerUpType.GRENADE]
 
     def test_spawn_with_specific_type(self, manager, mock_player_tank):
-        manager.spawn_power_up([mock_player_tank], power_up_type=PowerUpType.BOMB)
-        assert manager.active_power_ups[0].power_up_type == PowerUpType.BOMB
+        manager.spawn_power_up([mock_player_tank], power_up_type=PowerUpType.GRENADE)
+        assert manager.active_power_ups[0].power_up_type == PowerUpType.GRENADE
 
     def test_spawn_at_explicit_position(self, manager):
         manager.spawn_power_up(position=(64, 96), power_up_type=PowerUpType.STAR)
@@ -187,10 +188,10 @@ class TestPowerUpManagerApply:
         manager.apply(PowerUpType.EXTRA_LIFE, player, enemy_manager)
         player.gain_life.assert_called_once_with()
 
-    def test_bomb_destroys_every_enemy(self, manager, player, enemy_manager):
+    def test_grenade_destroys_every_enemy(self, manager, player, enemy_manager):
         enemies = [MagicMock(), MagicMock(), MagicMock()]
         enemy_manager.enemies = list(enemies)
-        outcomes = manager.apply(PowerUpType.BOMB, player, enemy_manager)
+        outcomes = manager.apply(PowerUpType.GRENADE, player, enemy_manager)
         assert outcomes == [EnemyDestroyed(e, by=None) for e in enemies]
         enemy_manager.remove.assert_not_called()
 

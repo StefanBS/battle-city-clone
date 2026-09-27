@@ -75,7 +75,7 @@ class EffectType(Enum):
 class PowerUpType(StrEnum):
     HELMET = "helmet"
     STAR = "star"
-    BOMB = "bomb"
+    GRENADE = "grenade"
     CLOCK = "clock"
     SHOVEL = "shovel"
     EXTRA_LIFE = "extra_life"

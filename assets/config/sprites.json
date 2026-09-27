@@ -141,7 +141,7 @@
     "powerup_clock": { "grid": [34, 14] },
     "powerup_shovel": { "grid": [36, 14] },
     "powerup_star": { "grid": [38, 14] },
-    "powerup_bomb": { "grid": [40, 14] },
+    "powerup_grenade": { "grid": [40, 14] },
     "powerup_extra_life": { "grid": [42, 14] }
   },
   "bullets": {

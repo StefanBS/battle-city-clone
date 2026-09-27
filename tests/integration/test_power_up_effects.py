@@ -47,11 +47,11 @@ class TestPowerUpEffectsIntegration:
         game.update()
         assert first_player(game).lives == lives_before + 1
 
-    def test_bomb_effect(self, game):
+    def test_grenade_effect(self, game):
         let_spawning_enemies_appear(game)
         enemies_before = len(game.battle.scene().enemies)
         assert enemies_before > 0
-        self._collect_power_up(game, PowerUpType.BOMB)
+        self._collect_power_up(game, PowerUpType.GRENADE)
         game.update()
         assert len(game.battle.scene().enemies) == 0
 
