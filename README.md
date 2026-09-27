@@ -191,6 +191,7 @@ battle-city-clone/
   - [0003](docs/adr/0003-collision-response-returns-outcomes.md) Collision response returns outcomes
   - [0004](docs/adr/0004-a-battle-owns-one-stage.md) A Battle owns one Stage
   - [0005](docs/adr/0005-dodge-is-a-reflex-not-a-goal.md) Dodge is a reflex, not a Goal
+  - [0006](docs/adr/0006-spawning-and-the-enemies-on-the-battlefield-stay-separate.md) Spawning and the Enemies on the battlefield stay separate
 
 ## Development Setup
 
