@@ -13,6 +13,7 @@ from src.utils.constants import (
     SUB_TILE_SIZE,
 )
 from tests.integration.conftest import (
+    clear_enemies,
     first_player,
     place_ice_patch,
     place_player_at,
@@ -52,9 +53,7 @@ def _steel_wall_right_of(game, tank):
 @pytest.fixture
 def game(game_manager_fixture):
     gm = game_manager_fixture
-    gm.battle.enemy_manager.enemies.clear()
-    gm.battle.spawn_manager._pending_spawns.clear()
-    gm.battle.spawn_manager._spawn_queue.clear()
+    clear_enemies(gm)
     return gm
 
 

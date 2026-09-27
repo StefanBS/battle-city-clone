@@ -12,7 +12,11 @@ from src.utils.constants import (
 )
 from src.core.tile import TileType
 from src.managers.outcomes import PowerUpCollected
-from tests.integration.conftest import first_player, flush_pending_spawns, spawn_carrier
+from tests.integration.conftest import (
+    first_player,
+    let_spawning_enemies_appear,
+    spawn_carrier,
+)
 
 
 class TestPowerUpEffectsIntegration:
@@ -49,7 +53,7 @@ class TestPowerUpEffectsIntegration:
         assert first_player(game).lives == lives_before + 1
 
     def test_bomb_effect(self, game):
-        flush_pending_spawns(game)
+        let_spawning_enemies_appear(game)
         enemies_before = len(game.battle.enemy_manager.enemies)
         assert enemies_before > 0
         self._collect_power_up(game, PowerUpType.BOMB)

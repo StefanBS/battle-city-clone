@@ -13,7 +13,7 @@ from src.utils.constants import (
     MAX_STAGE,
     VICTORY_PAUSE_DURATION,
 )
-from tests.integration.conftest import first_player
+from tests.integration.conftest import first_player, use_up_roster
 
 
 def run_until(game, state, max_frames):
@@ -69,11 +69,7 @@ class TestStageTransition:
         game = game_manager_fixture
         assert game.current_stage == 1
 
-        game.battle.enemy_manager.enemies = []
-        game.battle.spawn_manager._pending_spawns = []
-        game.battle.spawn_manager.total_enemy_spawns = (
-            game.battle.spawn_manager.max_enemy_spawns
-        )
+        use_up_roster(game)
         game.update()
         assert game.state == GameState.VICTORY
 

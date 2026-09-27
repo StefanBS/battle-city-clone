@@ -14,6 +14,7 @@ from tests.integration.conftest import (
     first_player,
     place_player_at,
     spawn_enemy_at,
+    use_up_roster,
 )
 
 
@@ -31,16 +32,10 @@ def test_initial_game_state(game_manager_fixture):
         f"got {first_player(game_manager).lives}"
     )
 
-    # Spawn animation may still be running, so count pending spawns too.
-    total_enemies = len(game_manager.battle.enemy_manager.enemies) + len(
-        game_manager.battle.spawn_manager._pending_spawns
-    )
-    assert total_enemies == 1, (
-        f"Expected 1 initial enemy (active or pending), got {total_enemies}"
-    )
-
-    spawns = game_manager.battle.spawn_manager.total_enemy_spawns
-    assert spawns == 1, f"Expected initial total_enemy_spawns 1, got {spawns}"
+    # The first Enemy of the Roster is Spawning, not on the battlefield yet.
+    roster_size = sum(game_manager.battle.map.enemy_composition.values())
+    assert game_manager.battle.spawn_manager.remaining == roster_size - 1
+    assert not game_manager.battle.enemy_manager.enemies
 
     game_map = game_manager.battle.map
     base_tile = game_map.get_base()
@@ -216,10 +211,7 @@ def test_victory_condition(game_manager_fixture):
     and the total spawn count has reached the maximum."""
     game_manager = game_manager_fixture
 
-    clear_enemies(game_manager, reset_total=False)
-    game_manager.battle.spawn_manager.total_enemy_spawns = (
-        game_manager.battle.spawn_manager.max_enemy_spawns
-    )
+    use_up_roster(game_manager)
 
     assert game_manager.state == GameState.RUNNING, (
         "Test setup assumes starting in RUNNING state."
@@ -252,8 +244,8 @@ def test_score_accumulates_on_enemy_kill(game_manager_fixture):
 
     fire_bullet_from(gm, player)
 
-    gm.battle.enemy_manager.enemies = [enemy]
-    gm.battle.spawn_manager._pending_spawns = []
+    clear_enemies(gm)
+    gm.battle.enemy_manager.add(enemy)
 
     # Enemy AI chooses random directions; freeze it so it can't dodge the bullet.
     # Wear the Enemy down to its last hit so the one bullet destroys it.

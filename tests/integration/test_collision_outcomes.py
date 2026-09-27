@@ -14,11 +14,11 @@ from src.utils.constants import (
     TankType,
 )
 from tests.integration.conftest import (
-    clear_enemies,
     first_player,
     place_player_at,
     spawn_carrier,
     spawn_enemy_at,
+    use_up_roster,
 )
 
 
@@ -40,14 +40,6 @@ def _idle_enemy(game):
     enemy = spawn_enemy_at(game, 0, 0, fires=False, turns=False)
     enemy.speed = 0
     return enemy
-
-
-def _stop_spawning(game):
-    """No Enemies left to spawn, so the stage can be won."""
-    clear_enemies(game, reset_total=False)
-    game.battle.spawn_manager.total_enemy_spawns = (
-        game.battle.spawn_manager.max_enemy_spawns
-    )
 
 
 class TestPowerUps:
@@ -111,11 +103,10 @@ class TestPlayerDestroyed:
 
 class TestBaseDestroyed:
     def test_game_over_wins_over_victory_in_the_same_frame(self, game):
-        _stop_spawning(game)
         base_rect = game.battle.map.get_base().rect
-        # The bullet's owner is not on the battlefield, so no Enemies remain.
         _enemy_bullet_on(game, base_rect, spawn_enemy_at(game, 0, 0))
-        clear_enemies(game, reset_total=False)
+        # The bullet's owner is not on the battlefield, so no Enemies remain.
+        use_up_roster(game)
 
         game.update()
 

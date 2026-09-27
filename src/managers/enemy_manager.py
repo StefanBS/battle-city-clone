@@ -33,10 +33,15 @@ class EnemyManager:
         """
         self._difficulty = difficulty
         self._base_position = base_position
-        self.enemies: list[EnemyTank] = []
+        self._enemies: list[EnemyTank] = []
         # Keyed by enemy_id, which is never reused.
         self._enemy_ais: dict[int, EnemyAI] = {}
         self._freeze_timer: float = 0.0
+
+    @property
+    def enemies(self) -> tuple[EnemyTank, ...]:
+        """The Enemies on the battlefield, in the order they were added."""
+        return tuple(self._enemies)
 
     @property
     def base_position(self) -> tuple[float, float] | None:
@@ -57,7 +62,7 @@ class EnemyManager:
             )
         if self.enemies_frozen:
             enemy.freeze(self._freeze_timer)
-        self.enemies.append(enemy)
+        self._enemies.append(enemy)
         self._enemy_ais[enemy.enemy_id] = ai
 
     def remove(self, enemy: EnemyTank) -> bool:
@@ -67,15 +72,23 @@ class EnemyManager:
             Whether the Enemy was still on the battlefield.
         """
         self._enemy_ais.pop(enemy.enemy_id, None)
-        if enemy not in self.enemies:
+        if enemy not in self._enemies:
             return False
-        self.enemies.remove(enemy)
+        self._enemies.remove(enemy)
         return True
+
+    def clear(self) -> None:
+        """Take every Enemy, and the AI driving it, off the battlefield.
+
+        A Clock in effect keeps running: Enemies added later are still Frozen.
+        """
+        self._enemies.clear()
+        self._enemy_ais.clear()
 
     def freeze(self, duration: float) -> None:
         """Make every Enemy Frozen for ``duration`` seconds (Clock Power-Up)."""
         self._freeze_timer = duration
-        for enemy in self.enemies:
+        for enemy in self._enemies:
             enemy.freeze(duration)
 
     @property

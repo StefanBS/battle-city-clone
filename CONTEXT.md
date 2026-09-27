@@ -60,6 +60,13 @@ _Avoid_: Wave, spawn queue
 **Enemy Spawn Point**:
 One of the fixed spots on a map where Enemies appear. A tank covering any part of it stops Enemies from spawning there.
 
+**Spawning**:
+An Enemy drawn from the Roster while its spawn animation plays at an Enemy Spawn Point. It is not on the battlefield yet and can't be hit, but it blocks that Enemy Spawn Point.
+
+**Appear**:
+What a Spawning Enemy does when its animation ends: it becomes an Enemy on the battlefield. The first Enemy starts Spawning as soon as the Battle begins, and each later one a spawn interval after the previous one started, or as soon after that as a free Enemy Spawn Point is picked.
+_Avoid_: Materialize, enter
+
 **Carrier**:
 An Enemy that flashes red and makes a Power-Up appear the first time a Player's bullet hits it, or when a Grenade destroys it. It then stops flashing and is an ordinary Enemy.
 _Avoid_: Flashing tank, bonus tank
