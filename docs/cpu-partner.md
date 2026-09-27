@@ -188,7 +188,11 @@ flowchart TD
 - **Can slip away** (`can_evade_shot`): the Enemy is in a corridor walled on
   both sides of the Line of Fire, and can drive to an exit and clear the
   bullet's lane before the bullet arrives. Frozen or stationary Enemies can't
-  slip away, and neither can an Enemy on open ground.
+  slip away, and neither can an Enemy on open ground. It reads Frozen per
+  Enemy from the World View. A Frozen Enemy still finishing a Slide can't slip
+  away either: a Slide across the Line of Fire stops at the corridor wall, one
+  along it keeps the Enemy in the Line of Fire, and it can't turn into an
+  exit.
 - **Hesitation**: each time it starts aiming, there is a 10% chance
   (`CPU_PARTNER_HESITATION_CHANCE`) it holds fire for 0.3 s. This happens after
   the logic above and doesn't count as a refused shot.

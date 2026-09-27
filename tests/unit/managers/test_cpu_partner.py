@@ -371,7 +371,7 @@ def corridor_view(
     extra_tiles: dict[Cell, TileType] | None = None,
     bullet_speed: float | None = None,
     enemy_speed: float | None = None,
-    enemies_frozen: bool = False,
+    enemy_frozen: bool = False,
 ) -> WorldView:
     """World View of the Enemy in a corridor with the given right-wall gaps."""
     tiles = {(11, y): TileType.STEEL for y in range(21)}
@@ -381,7 +381,7 @@ def corridor_view(
         enemies=[CORRIDOR_ENEMY],
         tiles=tiles | (extra_tiles or {}),
     )
-    enemy = replace(view.enemies[0], direction=enemy_facing)
+    enemy = replace(view.enemies[0], direction=enemy_facing, frozen=enemy_frozen)
     if enemy_speed is not None:
         enemy = replace(enemy, speed=enemy_speed)
     own = view.players[1]
@@ -391,7 +391,6 @@ def corridor_view(
         view,
         enemies=(enemy,),
         players=(view.players[0], own),
-        enemies_frozen=enemies_frozen,
     )
 
 
@@ -437,8 +436,9 @@ class TestCpuPartnerHoldFireNearCorridorExit:
         cpu.observe(corridor_view(right_openings=(4, 5), enemy_speed=0))
         assert cpu.consume_shoot() is True
 
-    def test_fires_when_enemies_are_frozen(self, cpu) -> None:
-        cpu.observe(corridor_view(right_openings=(6, 7), enemies_frozen=True))
+    def test_fires_at_a_frozen_enemy_near_an_exit(self, cpu) -> None:
+        # Even one still Sliding toward the exit: it can't turn into it.
+        cpu.observe(corridor_view(right_openings=(6, 7), enemy_frozen=True))
         assert cpu.consume_shoot() is True
 
     def test_star_bullet_beats_the_enemy_to_a_near_exit(self, cpu) -> None:
@@ -607,15 +607,13 @@ def blocked_view(
     A frozen Enemy is parked at ``blocker`` (just left of the CPU Partner by
     default; none if ``None``) and the Human Player at ``human``.
     """
-    return replace(
-        make_view(
-            own=(12, 12, Direction.LEFT),
-            enemies=[(12, 2)] + ([blocker] if blocker else []),
-            human=human,
-            tiles=tiles,
-        ),
-        enemies_frozen=True,
+    view = make_view(
+        own=(12, 12, Direction.LEFT),
+        enemies=[(12, 2)] + ([blocker] if blocker else []),
+        human=human,
+        tiles=tiles,
     )
+    return replace(view, enemies=tuple(replace(e, frozen=True) for e in view.enemies))
 
 
 def observe_stuck(

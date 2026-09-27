@@ -115,8 +115,12 @@ def can_evade_shot(world: WorldView, own: PlayerView, target: EnemyView) -> bool
     tank and clear the bullet's lane before the bullet arrives. It drives the
     way it faces, or either way when it faces a wall. On open ground there
     are no exits to judge by, so the shot is taken.
+
+    A Frozen Enemy can't evade, even one still finishing a Slide: a Slide
+    across the Line of Fire stops at the corridor wall, one along it keeps
+    the Enemy in the Line of Fire, and it can't turn into an exit.
     """
-    if world.enemies_frozen or target.speed <= 0:
+    if target.frozen or target.speed <= 0:
         return False
     line = world.line_of_fire(own, own.direction)
     horizontal, lane = line.horizontal, line.lane

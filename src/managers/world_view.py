@@ -115,6 +115,7 @@ class EnemyView:
     x: float
     y: float
     direction: Direction
+    frozen: bool = False
     tank_type: TankType = TankType.BASIC
     size: int = TILE_SIZE
     speed: float = TANK_SPEED
@@ -167,7 +168,6 @@ class WorldView:
     base_wall_cells: frozenset[tuple[int, int]] = frozenset()
     half_brick_cells: frozenset[tuple[int, int]] = frozenset()
     enemies: tuple[EnemyView, ...] = ()
-    enemies_frozen: bool = False
     enemy_spawn_points: tuple[tuple[int, int], ...] = ()
     power_ups: tuple[PowerUpView, ...] = ()
     bullets: tuple[BulletView, ...] = ()
@@ -335,7 +335,6 @@ def build_world_view(
     game_map: Map,
     players: Iterable[PlayerTank],
     enemies: Iterable[EnemyTank],
-    enemies_frozen: bool,
     power_ups: Iterable[PowerUp],
     bullets: Iterable[Bullet],
 ) -> WorldView:
@@ -372,13 +371,13 @@ def build_world_view(
                 x=e.x,
                 y=e.y,
                 direction=e.direction,
+                frozen=e.is_frozen,
                 tank_type=e.tank_type,
                 size=e.width,
                 speed=e.speed,
             )
             for e in enemies
         ),
-        enemies_frozen=enemies_frozen,
         enemy_spawn_points=tuple(game_map.spawn_points),
         power_ups=tuple(
             PowerUpView(x=p.x, y=p.y, power_up_type=p.power_up_type, size=p.width)

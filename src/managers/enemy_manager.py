@@ -12,8 +12,10 @@ class EnemyManager:
 
     Responsibilities:
     - Pair each Enemy that enters the battlefield with the EnemyAI that drives it.
-    - Each frame: step every Enemy through TankStepper. During a Clock its AI
-      doesn't decide, and the stepper keeps the Frozen Enemy still.
+    - Each frame: step every Enemy through TankStepper. A Frozen Enemy's AI
+      doesn't decide, and the stepper keeps the Enemy still.
+    - Keep the time left on a Clock, so Enemies that appear during it are
+      Frozen too, even once every Enemy is gone.
     - Drop destroyed Enemies.
 
     Lasts one Battle, like PlayerManager.
@@ -36,7 +38,7 @@ class EnemyManager:
         self._enemies: list[EnemyTank] = []
         # Keyed by enemy_id, which is never reused.
         self._enemy_ais: dict[int, EnemyAI] = {}
-        self._freeze_timer: float = 0.0
+        self._clock_time_left: float = 0.0
 
     @property
     def enemies(self) -> tuple[EnemyTank, ...]:
@@ -60,8 +62,8 @@ class EnemyManager:
             ai = EnemyAI(
                 enemy, difficulty=self._difficulty, base_position=self._base_position
             )
-        if self.enemies_frozen:
-            enemy.freeze(self._freeze_timer)
+        if self._clock_time_left > 0:
+            enemy.freeze(self._clock_time_left)
         self._enemies.append(enemy)
         self._enemy_ais[enemy.enemy_id] = ai
 
@@ -87,14 +89,9 @@ class EnemyManager:
 
     def freeze(self, duration: float) -> None:
         """Make every Enemy Frozen for ``duration`` seconds (Clock Power-Up)."""
-        self._freeze_timer = duration
+        self._clock_time_left = duration
         for enemy in self._enemies:
             enemy.freeze(duration)
-
-    @property
-    def enemies_frozen(self) -> bool:
-        """Whether a Clock is in effect, so every Enemy is Frozen."""
-        return self._freeze_timer > 0
 
     def step_enemies(
         self, dt: float, stepper: TankStepper, players: list[PlayerTank]
@@ -109,16 +106,14 @@ class EnemyManager:
         Returns:
             Whether any Enemy fired, so the caller can play the sound.
         """
-        # Counted down after the check, so a Clock lasts whole frames, the
-        # same way each Enemy's own freeze does.
-        frozen = self.enemies_frozen
-        if frozen:
-            self._freeze_timer -= dt
+        # Counted down here, like each Enemy's own freeze, so an Enemy that
+        # appears later gets the same time left as those already Frozen.
+        self._clock_time_left = max(0.0, self._clock_time_left - dt)
         fired = False
         for enemy in self.enemies:
             ai = self._enemy_ais[enemy.enemy_id]
             # While Frozen the AI's timers pause; the stepper keeps it still.
-            if not frozen:
+            if not enemy.is_frozen:
                 nearest = min(
                     players,
                     key=lambda p: abs(p.x - enemy.x) + abs(p.y - enemy.y),

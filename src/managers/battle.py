@@ -191,7 +191,6 @@ class Battle:
             self._map,
             players=self._player_manager.get_active_players(),
             enemies=self._enemy_manager.enemies,
-            enemies_frozen=self._enemy_manager.enemies_frozen,
             power_ups=self._power_up_manager.active_power_ups,
             bullets=self._tank_stepper.bullets,
         )
