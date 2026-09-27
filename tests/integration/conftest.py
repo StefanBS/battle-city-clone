@@ -5,10 +5,10 @@ from src.core.enemy_ai import EnemyAI
 from src.core.enemy_tank import EnemyTank
 from src.core.tile import Tile, TileType
 from src.managers.game_manager import GameManager
+from src.managers.spawn_manager import SpawnManager
 from src.utils.constants import (
     Difficulty,
     FPS,
-    POWERUP_CARRIER_INDICES,
     SUB_TILE_SIZE,
     TILE_SIZE,
     TankType,
@@ -43,49 +43,52 @@ def first_player(game):
     return game.battle.player_manager.get_active_players()[0]
 
 
-def flush_pending_spawns(game, max_ticks=120):
-    """Tick effect updates until all pending spawn animations finish.
+def use_roster(game, composition, carrier_indices=(), spawn_interval=None):
+    """Give the running Battle a fresh Roster, with nothing Spawning yet.
 
-    This is needed because SpawnManager uses spawn animations (EffectManager),
-    so tanks only reach EnemyManager once the animation completes.
+    An empty ``composition`` means no Enemy will come: the Roster counts as
+    used up, so the Battle ends in Victory once the battlefield is clear.
+    ``carrier_indices`` says which Enemies, by draw order, are Carriers. The
+    next Enemy starts Spawning after ``spawn_interval`` (the map's by default);
+    ``float("inf")`` means never, unless a test calls ``start_spawning``.
+    """
+    battle = game.battle
+    battle.spawn_manager = SpawnManager(
+        texture_manager=game.texture_manager,
+        game_map=battle.map,
+        enemy_composition=composition,
+        spawn_interval=(
+            spawn_interval if spawn_interval is not None else battle.map.spawn_interval
+        ),
+        effect_manager=battle.effect_manager,
+        powerup_carrier_indices=carrier_indices,
+    )
 
-    NOTE: Accesses private internals (SpawnManager._pending_spawns and
-    _materialize_enemy, Battle._enter_battlefield) because the public API
-    (update) also advances the spawn timer and may trigger additional spawns.
-    If those internals change, this helper must be updated accordingly.
+
+def let_spawning_enemies_appear(game, max_ticks=120):
+    """Let every Spawning Enemy Appear, without starting any new spawn.
+
+    Only the spawn animations run; tanks and bullets don't move.
     """
     dt = 1.0 / FPS
-    sm = game.battle.spawn_manager
-    em = game.battle.effect_manager
+    battle = game.battle
     for _ in range(max_ticks):
-        if not sm._pending_spawns:
+        battle.bring_in_spawns()
+        if battle.spawn_manager.is_exhausted or not battle.effect_manager.effects:
             break
-        em.update(dt)
-        ready = [p for p in sm._pending_spawns if p.ready]
-        sm._pending_spawns = [p for p in sm._pending_spawns if not p.ready]
-        game.battle._enter_battlefield([sm._materialize_enemy(p) for p in ready])
+        battle.effect_manager.update(dt)
 
 
 def spawn_carrier(game):
-    """Spawn enemies until a carrier appears, return the carrier.
-
-    Clears active enemies between spawn attempts to avoid blocking
-    the small test map's spawn points.
-    """
-    first_carrier_index = POWERUP_CARRIER_INDICES[0]
-    max_attempts = first_carrier_index + 2
-    for _ in range(max_attempts):
-        if game.battle.spawn_manager.total_enemy_spawns > first_carrier_index:
-            break
-        game.battle.enemy_manager.enemies = []
-        game.battle.spawn_manager._pending_spawns = []
-        game.battle.spawn_manager.spawn_enemy(
-            game.battle.player_manager.get_active_players(), game.battle.map
-        )
-        flush_pending_spawns(game)
-    carriers = [e for e in game.battle.enemy_manager.enemies if e.is_carrier]
-    assert carriers, "No carrier found"
-    return carriers[0]
+    """Bring a Carrier onto a battlefield with no other Enemy, and return it."""
+    game.battle.enemy_manager.clear()
+    use_roster(game, {TankType.BASIC: 1}, carrier_indices=(0,))
+    assert game.battle.spawn_manager.start_spawning(
+        game.battle.player_manager.get_active_players()
+    )
+    let_spawning_enemies_appear(game)
+    (carrier,) = game.battle.enemy_manager.enemies
+    return carrier
 
 
 def clear_tiles(game_map, positions):
@@ -142,7 +145,7 @@ def spawn_enemy_with_ai(
     if direction is not None:
         enemy.direction = direction
     if replace:
-        game.battle.enemy_manager.enemies = []
+        game.battle.enemy_manager.clear()
     ai = EnemyAI(
         enemy,
         difficulty=difficulty,
@@ -191,12 +194,20 @@ def place_player_at(game, x, y, player=None):
     p.rect.topleft = (round(x), round(y))
 
 
-def clear_enemies(game, reset_total=True):
-    """Reset the Enemies, _pending_spawns, and optionally total_enemy_spawns."""
-    game.battle.enemy_manager.enemies = []
-    game.battle.spawn_manager._pending_spawns = []
-    if reset_total:
-        game.battle.spawn_manager.total_enemy_spawns = 0
+def clear_enemies(game):
+    """Clear the battlefield of Enemies, with one still to come that never does.
+
+    The Battle goes on: the Roster is not used up, but its spawn interval is
+    endless.
+    """
+    game.battle.enemy_manager.clear()
+    use_roster(game, {TankType.BASIC: 1}, spawn_interval=float("inf"))
+
+
+def use_up_roster(game):
+    """Clear the battlefield with no Enemy left to come: the Battle can be won."""
+    game.battle.enemy_manager.clear()
+    use_roster(game, {})
 
 
 def tick(game, n=1):

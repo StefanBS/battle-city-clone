@@ -83,8 +83,8 @@ class Renderer:
     def render(
         self,
         game_map,
-        player_tanks: list,
-        enemy_tanks: list,
+        player_tanks: Sequence,
+        enemy_tanks: Sequence,
         bullets: Sequence,
         effect_manager,
         state: GameState,

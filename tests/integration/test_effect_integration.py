@@ -6,7 +6,7 @@ plays through frames over multiple updates, and is cleaned up.
 
 from src.core.tile import TileType
 from src.utils.constants import EffectType, FPS
-from tests.integration.conftest import fire_bullet_from, first_player
+from tests.integration.conftest import clear_enemies, fire_bullet_from, first_player
 
 
 class TestEffectLifecycle:
@@ -31,7 +31,7 @@ class TestEffectLifecycle:
         player.rect.topleft = (round(player.x), round(player.y))
 
         # Clear enemies so they don't interfere (e.g., shoot the player instead).
-        gm.battle.enemy_manager.enemies.clear()
+        clear_enemies(gm)
 
         fire_bullet_from(gm, player)
 

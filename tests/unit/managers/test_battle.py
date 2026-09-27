@@ -18,6 +18,7 @@ from src.managers.outcomes import (
 )
 from src.managers.power_up_manager import PowerUpManager
 from src.managers.sound_manager import SoundManager
+from src.managers.spawn_manager import SpawnManager
 from src.managers.texture_manager import TextureManager
 from src.states.game_mode import GameMode
 from src.utils.constants import (
@@ -122,6 +123,11 @@ class TestBattleSetup:
             make_battle(difficulty=Difficulty.EASY, game_map=game_map)
         assert enemies.call_args.kwargs["difficulty"] is Difficulty.NORMAL
 
+    def test_the_first_enemy_starts_spawning_when_the_battle_begins(self, battle):
+        roster_size = sum(battle.map.enemy_composition.values())
+
+        assert battle.spawn_manager.remaining == roster_size - 1
+
     def test_enemies_steer_toward_the_stage_base(self, battle):
         base_rect = battle.map.get_base().rect
         assert battle.enemy_manager.base_position == (
@@ -131,40 +137,61 @@ class TestBattleSetup:
 
 
 class TestBattleSpawning:
-    """Enemies the SpawnManager materializes enter the EnemyManager's battlefield."""
+    """Enemies that Appear are brought onto the EnemyManager's battlefield."""
 
     @staticmethod
-    def _materialize(battle, *enemies):
-        battle.spawn_manager = MagicMock()
-        battle.spawn_manager.update.return_value = list(enemies)
+    def _appearing(battle, *enemies):
+        battle.spawn_manager = MagicMock(spec=SpawnManager)
+        battle.spawn_manager.take_appeared.return_value = list(enemies)
         battle.spawn_manager.is_exhausted = False
 
-    def test_spawning_is_blocked_by_every_tank_on_the_battlefield(
+    def test_enemies_that_appeared_are_brought_onto_the_battlefield(
         self, battle, make_enemy
     ):
         enemy = make_enemy()
-        battle.enemy_manager.add(enemy)
-        self._materialize(battle)
+        self._appearing(battle, enemy)
 
-        battle.step(DT)
+        battle.bring_in_spawns()
 
-        _, tanks, _ = battle.spawn_manager.update.call_args.args
-        assert tanks == [*battle.player_manager.get_active_players(), enemy]
+        assert battle.enemy_manager.enemies == (enemy,)
+
+    def test_a_carrier_appearing_clears_the_power_ups(self, battle, make_enemy):
+        battle.power_up_manager = MagicMock(spec=PowerUpManager, active_power_ups=[])
+        self._appearing(battle, make_enemy(is_carrier=True))
+
+        battle.bring_in_spawns()
+
+        battle.power_up_manager.clear.assert_called_once_with()
 
     def test_an_ordinary_enemy_appearing_keeps_the_power_ups(self, battle, make_enemy):
         battle.power_up_manager = MagicMock(spec=PowerUpManager, active_power_ups=[])
-        self._materialize(battle, make_enemy())
+        self._appearing(battle, make_enemy())
+
+        battle.bring_in_spawns()
+
+        battle.power_up_manager.clear.assert_not_called()
+
+    def test_spawning_is_blocked_by_every_tank_including_one_that_just_appeared(
+        self, battle, make_enemy
+    ):
+        already_there = make_enemy()
+        battle.enemy_manager.add(already_there)
+        appeared = make_enemy()
+        self._appearing(battle, appeared)
 
         battle.step(DT)
 
-        battle.power_up_manager.clear.assert_not_called()
+        battle.spawn_manager.advance.assert_called_once_with(
+            DT,
+            [*battle.player_manager.get_active_players(), already_there, appeared],
+        )
 
 
 class TestBattleResult:
     @staticmethod
     def _roster_spent(battle):
-        battle.spawn_manager = MagicMock()
-        battle.spawn_manager.update.return_value = []
+        battle.spawn_manager = MagicMock(spec=SpawnManager)
+        battle.spawn_manager.take_appeared.return_value = []
         battle.spawn_manager.is_exhausted = True
 
     def test_no_victory_while_an_enemy_is_on_the_battlefield(self, battle, make_enemy):
@@ -175,7 +202,7 @@ class TestBattleResult:
 
     def test_stepping_an_ended_battle_does_nothing(self, battle):
         self._roster_spent(battle)
-        battle.enemy_manager.enemies.clear()
+        battle.enemy_manager.clear()
         battle.step(DT)
         battle.player_manager.handle_event(
             pygame.event.Event(pygame.KEYDOWN, key=pygame.K_UP)

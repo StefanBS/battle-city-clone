@@ -17,13 +17,15 @@ from src.utils.constants import (
     TankType,
 )
 from tests.integration.conftest import (
+    clear_enemies,
     clear_tiles,
     first_player,
-    flush_pending_spawns,
+    let_spawning_enemies_appear,
     place_ice_patch,
     place_player_at,
     spawn_enemy_at,
     tick,
+    use_roster,
 )
 
 _DIRECTION_TO_KEY = {direction: key for key, direction in KEY_TO_DIRECTION.items()}
@@ -45,9 +47,7 @@ class _EngineRecorder(SoundManager):
 def game(game_manager_fixture):
     """A Battle with no Enemies to come and an open field across rows 4-13."""
     gm = game_manager_fixture
-    gm.battle.enemy_manager.enemies.clear()
-    gm.battle.spawn_manager._pending_spawns.clear()
-    gm.battle.spawn_manager._spawn_queue.clear()
+    clear_enemies(gm)
     clear_tiles(gm.battle.map, [(x, y) for x in range(26) for y in range(4, 14)])
     return gm
 
@@ -105,16 +105,14 @@ class TestClockFreezesEnemies:
     def test_an_enemy_that_appears_during_a_clock_is_frozen_for_the_time_left(
         self, game
     ):
-        spawn_manager = game.battle.spawn_manager
         _clock(game)
         tick(game, FPS)
-        spawn_manager._spawn_queue.append(TankType.BASIC)
-        spawn_manager.spawn_enemy(
-            game.battle.player_manager.get_active_players(), game.battle.map
+        # A one-Enemy Roster: no more spawns while the Clock runs out.
+        use_roster(game, {TankType.BASIC: 1})
+        game.battle.spawn_manager.start_spawning(
+            game.battle.player_manager.get_active_players()
         )
-        flush_pending_spawns(game)
-        # The Roster is empty; no more spawns while the Clock runs out.
-        spawn_manager.max_enemy_spawns = spawn_manager.total_enemy_spawns
+        let_spawning_enemies_appear(game)
         (enemy,) = game.battle.enemy_manager.enemies
         appeared_at = (enemy.x, enemy.y)
         enemy_manager = game.battle.enemy_manager

@@ -12,6 +12,7 @@ import pygame
 
 from src.core.bullet import Bullet
 from src.core.tile import Tile, TileType
+from src.managers.footprint import Footprint, blocks_spawn_point
 from src.managers.game_manager import GameManager
 from src.states.game_mode import GameMode
 from src.states.game_state import GameState
@@ -85,7 +86,6 @@ class TestCpuPartnerSetup:
     def test_keyboard_drives_p1_only(self, cpu_game, key_down_event):
         gm = cpu_game
         clear_enemies(gm)
-        gm.battle.spawn_manager.spawn_interval = float("inf")
         # No spawn points to Ambush at: the CPU Partner has nothing to do.
         gm.battle.map.spawn_points = []
         p1, p2 = gm.battle.player_manager.get_active_players()
@@ -216,7 +216,6 @@ class TestCpuPartnerHunt:
         gm = cpu_game
         open_field(gm)
         clear_enemies(gm)
-        gm.battle.spawn_manager.spawn_interval = float("inf")
         p1, p2 = gm.battle.player_manager.get_active_players()
         place_player_at(gm, 0, 0, player=p1)
         place_player_at(gm, 16 * SUB_TILE_SIZE, 16 * SUB_TILE_SIZE, player=p2)
@@ -238,7 +237,6 @@ class TestCpuPartnerHunt:
         gm.state = GameState.RUNNING
         open_field(gm)
         clear_enemies(gm)
-        gm.battle.spawn_manager.spawn_interval = float("inf")
         p1, p2 = gm.battle.player_manager.get_active_players()
         place_player_at(gm, 0, 0, player=p1)
         place_player_at(gm, 16 * SUB_TILE_SIZE, 16 * SUB_TILE_SIZE, player=p2)
@@ -261,7 +259,6 @@ class TestCpuPartnerPathfinding:
         gm = cpu_game
         open_field(gm)
         clear_enemies(gm)
-        gm.battle.spawn_manager.spawn_interval = float("inf")
         # The Enemy sits in the top-left corner, walled in by steel below
         # and by brick on its right. Lining up from below leads nowhere.
         set_tiles(
@@ -290,7 +287,6 @@ class TestCpuPartnerGivesWay:
         gm = cpu_game
         open_field(gm)
         clear_enemies(gm)
-        gm.battle.spawn_manager.spawn_interval = float("inf")
         # A steel wall across rows 12-13 with a near gap at columns 4-5 and
         # a far one at columns 20-21. The Human Player sits in the near gap.
         gaps = (4, 5, 20, 21)
@@ -325,7 +321,6 @@ class TestCpuPartnerFiringPosition:
         gm = cpu_game
         open_field(gm)
         clear_enemies(gm)
-        gm.battle.spawn_manager.spawn_interval = float("inf")
         # A moat of water two sub-tiles wide rings the Enemy: no tank can
         # reach it, but a bullet flies straight across.
         moat = [
@@ -355,7 +350,6 @@ class TestCpuPartnerDefend:
         gm = cpu_game
         open_field(gm)
         clear_enemies(gm)
-        gm.battle.spawn_manager.spawn_interval = float("inf")
         p1, p2 = gm.battle.player_manager.get_active_players()
         place_player_at(gm, 0, 0, player=p1)
         place_player_at(gm, 20 * SUB_TILE_SIZE, 16 * SUB_TILE_SIZE, player=p2)
@@ -394,7 +388,6 @@ class TestCpuPartnerDodge:
         gm = cpu_game
         open_field(gm)
         clear_enemies(gm)
-        gm.battle.spawn_manager.spawn_interval = float("inf")
         # No Enemy Spawn Point to Ambush at: it stands still until the shot.
         gm.battle.map.spawn_points = []
         p1, p2 = gm.battle.player_manager.get_active_players()
@@ -423,7 +416,6 @@ class TestCpuPartnerDodge:
         gm = cpu_game
         open_field(gm)
         clear_enemies(gm)
-        gm.battle.spawn_manager.spawn_interval = float("inf")
         gm.battle.map.spawn_points = []
         p1, p2 = gm.battle.player_manager.get_active_players()
         place_player_at(gm, 0, 0, player=p1)
@@ -454,7 +446,6 @@ class TestCpuPartnerGrabPowerUp:
         gm = cpu_game
         open_field(gm)
         clear_enemies(gm)
-        gm.battle.spawn_manager.spawn_interval = float("inf")
         p1, p2 = gm.battle.player_manager.get_active_players()
         place_player_at(gm, 0, 0, player=p1)
         place_player_at(gm, 16 * SUB_TILE_SIZE, 16 * SUB_TILE_SIZE, player=p2)
@@ -493,7 +484,6 @@ class TestCpuPartnerGameOver:
         gm = cpu_game
         open_field(gm)
         clear_enemies(gm)
-        gm.battle.spawn_manager.spawn_interval = float("inf")
         p1, p2 = gm.battle.player_manager.get_active_players()
         place_player_at(gm, 4 * SUB_TILE_SIZE, 12 * SUB_TILE_SIZE, player=p1)
         place_player_at(gm, 20 * SUB_TILE_SIZE, 12 * SUB_TILE_SIZE, player=p2)
@@ -577,7 +567,6 @@ class TestCpuPartnerAmbush:
         gm = cpu_game
         open_field(gm)
         clear_enemies(gm)
-        gm.battle.spawn_manager.spawn_interval = float("inf")
         p1, p2 = gm.battle.player_manager.get_active_players()
         place_player_at(gm, 0, 24 * SUB_TILE_SIZE, player=p1)
         place_player_at(gm, 16 * SUB_TILE_SIZE, 16 * SUB_TILE_SIZE, player=p2)
@@ -603,11 +592,8 @@ class TestCpuPartnerAmbush:
         )
         assert p2.direction == facing
         for spawn_point in gm.battle.map.spawn_points:
-            assert not gm.battle.spawn_manager._is_spawn_blocked(
-                spawn_point,
-                [
-                    *gm.battle.player_manager.get_active_players(),
-                    *gm.battle.enemy_manager.enemies,
-                ],
-                gm.battle.map,
-            )
+            for player in gm.battle.player_manager.get_active_players():
+                footprint = Footprint(player.rect.x, player.rect.y, player.rect.width)
+                assert not blocks_spawn_point(
+                    footprint, spawn_point, gm.battle.map.tile_size
+                )

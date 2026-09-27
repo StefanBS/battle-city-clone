@@ -118,6 +118,37 @@ class TestRemove:
         assert enemy_manager.remove(enemy) is False
 
 
+class TestClear:
+    def test_cleared_enemies_leave_the_battlefield_and_are_no_longer_driven(
+        self, enemy_manager, add_enemy, stepper
+    ):
+        add_enemy(0, 0)
+        add_enemy(200, 0)
+
+        enemy_manager.clear()
+
+        assert list(enemy_manager.enemies) == []
+        enemy_manager.step_enemies(DT, stepper, [])
+        stepper.step.assert_not_called()
+
+    def test_a_clock_in_effect_outlasts_a_clear(
+        self, enemy_manager, add_enemy, make_enemy
+    ):
+        add_enemy(0, 0)
+        enemy_manager.freeze(5.0)
+
+        enemy_manager.clear()
+        enemy = make_enemy()
+        enemy_manager.add(enemy, MagicMock(spec=EnemyAI))
+
+        assert enemy_manager.enemies_frozen
+        enemy.freeze.assert_called_once_with(5.0)
+
+    def test_the_enemies_cannot_be_replaced_from_outside(self, enemy_manager):
+        with pytest.raises(AttributeError):
+            enemy_manager.enemies = []  # type: ignore[misc]
+
+
 class TestStepEnemies:
     """Each frame, every Enemy's AI decides and TankStepper steps the Enemy."""
 

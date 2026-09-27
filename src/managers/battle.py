@@ -122,7 +122,6 @@ class Battle:
             game_map=game_map,
             enemy_composition=game_map.enemy_composition,
             spawn_interval=game_map.spawn_interval,
-            tanks=self.player_manager.get_active_players(),
             effect_manager=self.effect_manager,
             powerup_carrier_indices=game_map.powerup_carrier_indices,
         )
@@ -131,6 +130,8 @@ class Battle:
 
         for player in self.player_manager.get_active_players():
             player.activate_invincibility(SPAWN_INVINCIBILITY_DURATION)
+        # The first Enemy starts Spawning as the Battle begins.
+        self.spawn_manager.start_spawning(self.player_manager.get_active_players())
 
     @property
     def result(self) -> BattleResult | None:
@@ -191,11 +192,10 @@ class Battle:
 
         self.tank_stepper.update_bullets(dt)
 
-        self._enter_battlefield(
-            self.spawn_manager.update(
-                dt, [*active_players, *self.enemy_manager.enemies], self.map
-            )
-        )
+        # Enemies that just Appeared are on the battlefield before the timer
+        # runs, so they block their spawn point too.
+        self.bring_in_spawns()
+        self.spawn_manager.advance(dt, [*active_players, *self.enemy_manager.enemies])
         self.power_up_manager.update(dt)
 
         # Built AFTER updates so newly fired bullets are included
@@ -268,11 +268,13 @@ class Battle:
                         )
                     )
 
-    def _enter_battlefield(self, enemies: list[EnemyTank]) -> None:
-        """Put newly materialized Enemies on the battlefield.
+    def bring_in_spawns(self) -> None:
+        """Put the Enemies that have Appeared on the battlefield.
 
-        A Carrier appearing clears the Power-Ups already on the field.
+        Starts no new spawn. A Carrier appearing clears the Power-Ups already
+        on the field.
         """
+        enemies = self.spawn_manager.take_appeared()
         for enemy in enemies:
             self.enemy_manager.add(enemy)
         if any(enemy.is_carrier for enemy in enemies):
