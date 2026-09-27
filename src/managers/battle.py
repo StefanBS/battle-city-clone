@@ -113,22 +113,22 @@ class Battle:
             texture_manager: Texture atlas for tanks, tiles and effects.
             sound: Where the Battle plays its sounds.
         """
-        self.map = game_map
+        self._map = game_map
         self._sound = sound
         self._texture_manager = texture_manager
         self._result: BattleResult | None = None
 
-        self.collision_manager = CollisionManager()
-        self.effect_manager = EffectManager(texture_manager)
+        self._collision_manager = CollisionManager()
+        self._effect_manager = EffectManager(texture_manager)
         # Must be created before CollisionResponseHandler.
-        self.power_up_manager = PowerUpManager(texture_manager, game_map)
-        self.collision_response_handler = CollisionResponseHandler(
+        self._power_up_manager = PowerUpManager(texture_manager, game_map)
+        self._collision_response_handler = CollisionResponseHandler(
             game_map=game_map,
-            effect_manager=self.effect_manager,
-            power_up_manager=self.power_up_manager,
+            effect_manager=self._effect_manager,
+            power_up_manager=self._power_up_manager,
             sound_manager=sound,
         )
-        self.player_manager = PlayerManager(
+        self._player_manager = PlayerManager(
             texture_manager,
             sound,
             game_map,
@@ -137,7 +137,7 @@ class Battle:
             carried=carried,
         )
         base_tile = game_map.get_base()
-        self.enemy_manager = EnemyManager(
+        self._enemy_manager = EnemyManager(
             difficulty=(
                 game_map.difficulty_override
                 if game_map.difficulty_override is not None
@@ -149,18 +149,23 @@ class Battle:
                 else None
             ),
         )
-        self.spawn_manager = self._spawn_manager_for(
+        self._spawn_manager = self._spawn_manager_for(
             game_map.enemy_composition,
             game_map.spawn_interval,
             game_map.powerup_carrier_indices,
         )
         # Owns every bullet, so no bullet outlives the Battle.
-        self.tank_stepper = TankStepper(game_map)
+        self._tank_stepper = TankStepper(game_map)
 
-        for player in self.player_manager.get_active_players():
+        for player in self._player_manager.get_active_players():
             player.activate_invincibility(SPAWN_INVINCIBILITY_DURATION)
         # The first Enemy starts Spawning as the Battle begins.
-        self.spawn_manager.start_spawning(self.player_manager.get_active_players())
+        self._spawn_manager.start_spawning(self._player_manager.get_active_players())
+
+    @property
+    def map(self) -> Map:
+        """The Stage's map, which the Battle was built on."""
+        return self._map
 
     @property
     def result(self) -> BattleResult | None:
@@ -170,37 +175,37 @@ class Battle:
     @property
     def carried_progress(self) -> dict[int, CarriedProgress]:
         """What each Player takes into the next Battle, by player id."""
-        return self.player_manager.carried_progress
+        return self._player_manager.carried_progress
 
     def handle_event(self, event: pygame.event.Event) -> None:
         """Pass a pygame event to every Player's input."""
-        self.player_manager.handle_event(event)
+        self._player_manager.handle_event(event)
 
     def clear_pending_shoot(self) -> None:
         """Drop any buffered shoot input, e.g. after leaving a menu."""
-        self.player_manager.clear_pending_shoot()
+        self._player_manager.clear_pending_shoot()
 
     def world_view(self) -> WorldView:
         """Snapshot the current battlefield for the Players' inputs."""
         return build_world_view(
-            self.map,
-            players=self.player_manager.get_active_players(),
-            enemies=self.enemy_manager.enemies,
-            enemies_frozen=self.enemy_manager.enemies_frozen,
-            power_ups=self.power_up_manager.active_power_ups,
-            bullets=self.tank_stepper.bullets,
+            self._map,
+            players=self._player_manager.get_active_players(),
+            enemies=self._enemy_manager.enemies,
+            enemies_frozen=self._enemy_manager.enemies_frozen,
+            power_ups=self._power_up_manager.active_power_ups,
+            bullets=self._tank_stepper.bullets,
         )
 
     def scene(self) -> BattleScene:
         """What the Battle shows this frame, for the Renderer."""
         return BattleScene(
-            map=self.map,
-            players=tuple(self.player_manager.get_active_players()),
-            enemies=tuple(self.enemy_manager.enemies),
-            bullets=tuple(self.tank_stepper.bullets),
-            power_ups=tuple(self.power_up_manager.active_power_ups),
-            effects=tuple(self.effect_manager.effects),
-            hud_entries=self.player_manager.hud_entries,
+            map=self._map,
+            players=tuple(self._player_manager.get_active_players()),
+            enemies=tuple(self._enemy_manager.enemies),
+            bullets=tuple(self._tank_stepper.bullets),
+            power_ups=tuple(self._power_up_manager.active_power_ups),
+            effects=tuple(self._effect_manager.effects),
+            hud_entries=self._player_manager.hud_entries,
         )
 
     def step(self, dt: float) -> BattleResult | None:
@@ -216,53 +221,53 @@ class Battle:
         if self._result is not None:
             return self._result
 
-        self.map.update(dt)
-        self.player_manager.observe(self.world_view())
-        self.player_manager.update(dt, self.tank_stepper)
+        self._map.update(dt)
+        self._player_manager.observe(self.world_view())
+        self._player_manager.update(dt, self._tank_stepper)
 
-        active_players = self.player_manager.get_active_players()
+        active_players = self._player_manager.get_active_players()
 
-        if self.enemy_manager.step_enemies(dt, self.tank_stepper, active_players):
+        if self._enemy_manager.step_enemies(dt, self._tank_stepper, active_players):
             self._sound.play("shoot")
 
         # Engine sound: plays when any tank is moving
         any_moving = any(p.is_moving for p in active_players) or any(
-            e.is_moving for e in self.enemy_manager.enemies
+            e.is_moving for e in self._enemy_manager.enemies
         )
         self._sound.update_engine(any_moving)
 
-        self.tank_stepper.update_bullets(dt)
+        self._tank_stepper.update_bullets(dt)
 
         # Enemies that just Appeared are on the battlefield before the timer
         # runs, so they block their spawn point too.
         self.bring_in_spawns()
-        self.spawn_manager.advance(dt, [*active_players, *self.enemy_manager.enemies])
-        self.power_up_manager.update(dt)
+        self._spawn_manager.advance(dt, [*active_players, *self._enemy_manager.enemies])
+        self._power_up_manager.update(dt)
 
         # Built AFTER updates so newly fired bullets are included
-        self.collision_manager.check_collisions(
+        self._collision_manager.check_collisions(
             player_tanks=active_players,
-            enemy_tanks=self.enemy_manager.enemies,
-            bullets=self.tank_stepper.bullets,
-            tank_blocking_tiles=self.map.get_blocking_tiles(),
-            bullet_blocking_tiles=self.map.get_bullet_blocking_tiles(),
-            player_base=self.map.get_base(),
-            power_ups=self.power_up_manager.active_power_ups,
+            enemy_tanks=self._enemy_manager.enemies,
+            bullets=self._tank_stepper.bullets,
+            tank_blocking_tiles=self._map.get_blocking_tiles(),
+            bullet_blocking_tiles=self._map.get_bullet_blocking_tiles(),
+            player_base=self._map.get_base(),
+            power_ups=self._power_up_manager.active_power_ups,
         )
 
-        events = self.collision_manager.get_collision_events()
-        self.apply_outcomes(self.collision_response_handler.process_collisions(events))
+        events = self._collision_manager.get_collision_events()
+        self.apply_outcomes(self._collision_response_handler.process_collisions(events))
 
         # Powerup blink sound: plays when any powerup is active
-        self._sound.update_powerup_blink(bool(self.power_up_manager.active_power_ups))
+        self._sound.update_powerup_blink(bool(self._power_up_manager.active_power_ups))
 
-        self.effect_manager.update(dt)
+        self._effect_manager.update(dt)
 
         # The only place Game Over is decided; it wins over Victory.
-        if self.map.is_base_destroyed or self.player_manager.is_game_over():
+        if self._map.is_base_destroyed or self._player_manager.is_game_over():
             logger.info("Game over.")
             self._result = BattleResult.GAME_OVER
-        elif self.spawn_manager.is_exhausted and not self.enemy_manager.enemies:
+        elif self._spawn_manager.is_exhausted and not self._enemy_manager.enemies:
             logger.info("All enemies defeated. Victory!")
             self._result = BattleResult.VICTORY
         return self._result
@@ -276,14 +281,14 @@ class Battle:
                     self._drop_carrier_power_up(enemy)
                 case EnemyDestroyed(enemy=enemy, by=by):
                     # A bullet and a Grenade can both destroy it in one frame.
-                    if not self.enemy_manager.remove(enemy):
+                    if not self._enemy_manager.remove(enemy):
                         continue
-                    self.effect_manager.spawn_at_rect(
+                    self._effect_manager.spawn_at_rect(
                         EffectType.LARGE_EXPLOSION, enemy.rect
                     )
                     self._sound.play("explosion")
                     if by is not None:
-                        self.player_manager.add_score(
+                        self._player_manager.add_score(
                             ENEMY_POINTS.get(enemy.tank_type, 0),
                             player_id=by.player_id,
                         )
@@ -291,21 +296,21 @@ class Battle:
                     self._drop_carrier_power_up(enemy)
                 case PlayerDestroyed(player=player):
                     # Before handle_player_destroyed moves it to its spawn point.
-                    self.effect_manager.spawn_at_rect(
+                    self._effect_manager.spawn_at_rect(
                         EffectType.LARGE_EXPLOSION, player.rect
                     )
                     self._sound.play("explosion")
-                    self.player_manager.handle_player_destroyed(player)
+                    self._player_manager.handle_player_destroyed(player)
                 case BaseDestroyed():
                     pass  # Game Over is decided once all outcomes are applied.
                 case PowerUpCollected(power_up_type=power_up_type, player=player):
-                    self.player_manager.add_score(
+                    self._player_manager.add_score(
                         POWERUP_COLLECT_POINTS, player_id=player.player_id
                     )
                     self._sound.play("powerup")
                     queue.extend(
-                        self.power_up_manager.apply(
-                            power_up_type, player, self.enemy_manager
+                        self._power_up_manager.apply(
+                            power_up_type, player, self._enemy_manager
                         )
                     )
 
@@ -315,11 +320,11 @@ class Battle:
         Starts no new spawn. A Carrier appearing clears the Power-Ups already
         on the field.
         """
-        enemies = self.spawn_manager.take_appeared()
+        enemies = self._spawn_manager.take_appeared()
         for enemy in enemies:
-            self.enemy_manager.add(enemy)
+            self._enemy_manager.add(enemy)
         if any(enemy.is_carrier for enemy in enemies):
-            self.power_up_manager.clear()
+            self._power_up_manager.clear()
 
     def add_enemy(self, enemy: EnemyTank, ai: EnemyAI | None = None) -> None:
         """Put an Enemy on the battlefield without it Spawning.
@@ -329,11 +334,11 @@ class Battle:
             ai: The AI to drive it; one for the Stage's difficulty and Base
                 when not given.
         """
-        self.enemy_manager.add(enemy, ai)
+        self._enemy_manager.add(enemy, ai)
 
     def clear_enemies(self) -> None:
         """Take every Enemy off the battlefield, as if it had never been there."""
-        self.enemy_manager.clear()
+        self._enemy_manager.clear()
 
     def replace_roster(
         self,
@@ -350,9 +355,9 @@ class Battle:
             spawn_interval: Seconds before the next Enemy starts Spawning,
                 the map's by default; ``inf`` means none comes on its own.
         """
-        self.spawn_manager = self._spawn_manager_for(
+        self._spawn_manager = self._spawn_manager_for(
             composition,
-            spawn_interval if spawn_interval is not None else self.map.spawn_interval,
+            spawn_interval if spawn_interval is not None else self._map.spawn_interval,
             carrier_indices,
         )
 
@@ -363,13 +368,13 @@ class Battle:
             True if an Enemy started Spawning; False if the Roster is used up
             or the chosen Enemy Spawn Point is blocked.
         """
-        return self.spawn_manager.start_spawning(
-            [*self.player_manager.get_active_players(), *self.enemy_manager.enemies]
+        return self._spawn_manager.start_spawning(
+            [*self._player_manager.get_active_players(), *self._enemy_manager.enemies]
         )
 
     def add_bullet(self, bullet: Bullet) -> None:
         """Put a bullet in flight, as if its owner had just fired it."""
-        self.tank_stepper.bullets.append(bullet)
+        self._tank_stepper.bullets.append(bullet)
 
     def drop_power_up(
         self,
@@ -383,15 +388,15 @@ class Battle:
             position: Where it lands, in pixels; a free spot clear of every
                 tank when not given.
         """
-        self.power_up_manager.spawn_power_up(
-            [*self.player_manager.get_active_players(), *self.enemy_manager.enemies],
+        self._power_up_manager.spawn_power_up(
+            [*self._player_manager.get_active_players(), *self._enemy_manager.enemies],
             power_up_type=power_up_type,
             position=position,
         )
 
     def step_tank(self, tank: Tank, intent: TankIntent, dt: float) -> StepResult:
         """Step one tank through a frame on its own, firing within its Bullet Cap."""
-        return self.tank_stepper.step(tank, intent, dt)
+        return self._tank_stepper.step(tank, intent, dt)
 
     def _spawn_manager_for(
         self,
@@ -402,10 +407,10 @@ class Battle:
         """A SpawnManager for this Battle's map sending ``composition``."""
         return SpawnManager(
             texture_manager=self._texture_manager,
-            game_map=self.map,
+            game_map=self._map,
             enemy_composition=composition,
             spawn_interval=spawn_interval,
-            effect_manager=self.effect_manager,
+            effect_manager=self._effect_manager,
             powerup_carrier_indices=carrier_indices,
         )
 
@@ -414,9 +419,9 @@ class Battle:
         if not enemy.is_carrier:
             return
         enemy.stop_carrying()
-        self.power_up_manager.spawn_power_up(
+        self._power_up_manager.spawn_power_up(
             [
-                *self.player_manager.get_active_players(),
-                *self.enemy_manager.enemies,
+                *self._player_manager.get_active_players(),
+                *self._enemy_manager.enemies,
             ]
         )
