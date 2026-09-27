@@ -12,7 +12,7 @@ class TestPowerUpSprites:
         "powerup_clock",
         "powerup_shovel",
         "powerup_star",
-        "powerup_bomb",
+        "powerup_grenade",
         "powerup_extra_life",
     ]
 

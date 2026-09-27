@@ -67,7 +67,7 @@ class TestPowerUps:
         carrier.speed = 0
         player = first_player(game)
         game.battle.drop_power_up(
-            PowerUpType.BOMB, position=(int(player.x), int(player.y))
+            PowerUpType.GRENADE, position=(int(player.x), int(player.y))
         )
 
         game.update()

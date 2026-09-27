@@ -98,7 +98,7 @@ class PowerUpManager:
         Args:
             power_up_type: The collected power-up type.
             player: The collecting player (recipient for player-targeted effects).
-            enemy_manager: Used by BOMB and CLOCK to affect enemies.
+            enemy_manager: Used by GRENADE and CLOCK to affect enemies.
 
         Returns:
             The outcomes the effect causes: an ``EnemyDestroyed`` with no
@@ -110,7 +110,7 @@ class PowerUpManager:
                 player.activate_invincibility(HELMET_INVINCIBILITY_DURATION)
             case PowerUpType.EXTRA_LIFE:
                 player.gain_life()
-            case PowerUpType.BOMB:
+            case PowerUpType.GRENADE:
                 outcomes = [
                     EnemyDestroyed(enemy, by=None) for enemy in enemy_manager.enemies
                 ]
