@@ -2,10 +2,24 @@ import pytest
 import pygame
 from unittest.mock import MagicMock, patch
 
+from src.managers.battle import BattleScene
 from src.managers.player_manager import PlayerHudEntry
 from src.managers.renderer import Renderer
 from src.states.game_state import GameState
 from src.utils.constants import Difficulty
+
+
+def _scene(**parts):
+    """A BattleScene with a mock map and nothing else unless given."""
+    return BattleScene(
+        map=parts.get("map", MagicMock()),
+        players=parts.get("players", ()),
+        enemies=parts.get("enemies", ()),
+        bullets=parts.get("bullets", ()),
+        power_ups=parts.get("power_ups", ()),
+        effects=parts.get("effects", ()),
+        hud_entries=parts.get("hud_entries", ()),
+    )
 
 
 @pytest.fixture
@@ -52,19 +66,23 @@ class TestRendererRender:
         mock_bullet1.active = True
         mock_bullet2 = MagicMock()
         mock_bullet2.active = False
+        mock_power_up = MagicMock()
+        mock_effect = MagicMock()
 
         with (
             patch("pygame.transform.scale") as mock_scale,
             patch("pygame.display.flip"),
         ):
             mock_scale.return_value = MagicMock()
-            mock_effect_manager = MagicMock()
             renderer.render(
-                mock_map,
-                [mock_player],
-                [mock_enemy1, mock_enemy2],
-                [mock_bullet1, mock_bullet2],
-                mock_effect_manager,
+                _scene(
+                    map=mock_map,
+                    players=(mock_player,),
+                    enemies=(mock_enemy1, mock_enemy2),
+                    bullets=(mock_bullet1, mock_bullet2),
+                    power_ups=(mock_power_up,),
+                    effects=(mock_effect,),
+                ),
                 GameState.RUNNING,
             )
 
@@ -74,6 +92,8 @@ class TestRendererRender:
         mock_enemy2.draw.assert_called_once_with(renderer.map_surface)
         mock_bullet1.draw.assert_called_once_with(renderer.map_surface)
         mock_bullet2.draw.assert_not_called()
+        mock_power_up.draw.assert_called_once_with(renderer.map_surface)
+        mock_effect.draw.assert_called_once_with(renderer.map_surface)
 
     def test_render_draws_the_hud_from_the_hud_entries(self, renderer):
         hud = (
@@ -86,9 +106,7 @@ class TestRendererRender:
             patch("pygame.transform.scale"),
             patch("pygame.display.flip"),
         ):
-            renderer.render(
-                MagicMock(), [], [], [], MagicMock(), GameState.RUNNING, hud
-            )
+            renderer.render(_scene(hud_entries=hud), GameState.RUNNING)
 
         mock_draw_hud.assert_called_once_with(hud)
 
@@ -102,8 +120,7 @@ class TestRendererRender:
             patch("pygame.display.flip"),
         ):
             mock_scale.return_value = MagicMock()
-            mock_em = MagicMock()
-            renderer.render(mock_map, [], [], [], mock_em, GameState.VICTORY)
+            renderer.render(_scene(map=mock_map), GameState.VICTORY)
 
         mock_draw_v.assert_called_once()
 
@@ -117,8 +134,7 @@ class TestRendererRender:
             patch("pygame.display.flip"),
         ):
             mock_scale.return_value = MagicMock()
-            mock_em = MagicMock()
-            renderer.render(mock_map, [], [], [], mock_em, GameState.RUNNING)
+            renderer.render(_scene(map=mock_map), GameState.RUNNING)
 
         mock_draw_v.assert_not_called()
 
@@ -132,8 +148,7 @@ class TestRendererRender:
             patch("pygame.display.flip") as mock_flip,
         ):
             mock_scale.return_value = mock_scaled
-            mock_em = MagicMock()
-            renderer.render(mock_map, [], [], [], mock_em, GameState.RUNNING)
+            renderer.render(_scene(map=mock_map), GameState.RUNNING)
 
         mock_scale.assert_called_once_with(
             renderer.game_surface, (1024, 1024), renderer.screen

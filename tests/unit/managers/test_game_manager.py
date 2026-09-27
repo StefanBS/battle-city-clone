@@ -514,6 +514,18 @@ class TestPauseAndOptionsStateMachine:
             gm._pause_menu.labels, gm._pause_menu.selection
         )
 
+    def test_render_running_draws_the_battle_scene(self, game_manager):
+        """RUNNING renders what the Battle's scene shows, with no overlay."""
+        gm = game_manager
+        gm.state = GameState.RUNNING
+        gm.renderer = MagicMock()
+        gm.render()
+        gm.renderer.render.assert_called_once_with(
+            gm.battle.scene.return_value,
+            GameState.RUNNING,
+            game_over_rise_progress=None,
+        )
+
     def test_render_options_calls_render_options_menu(self, game_manager):
         """OPTIONS_MENU state renders options menu."""
         gm = game_manager

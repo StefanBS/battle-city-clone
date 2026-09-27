@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections import deque
 from collections.abc import Mapping
+from dataclasses import dataclass
 from enum import Enum, auto
 from typing import TYPE_CHECKING
 
@@ -22,7 +23,11 @@ from src.managers.outcomes import (
     PlayerDestroyed,
     PowerUpCollected,
 )
-from src.managers.player_manager import CarriedProgress, PlayerManager
+from src.managers.player_manager import (
+    CarriedProgress,
+    PlayerHudEntry,
+    PlayerManager,
+)
 from src.managers.power_up_manager import PowerUpManager
 from src.managers.spawn_manager import SpawnManager
 from src.managers.tank_stepper import TankStepper
@@ -37,8 +42,12 @@ from src.utils.constants import (
 )
 
 if TYPE_CHECKING:
+    from src.core.bullet import Bullet
+    from src.core.effect import Effect
     from src.core.enemy_tank import EnemyTank
     from src.core.map import Map
+    from src.core.player_tank import PlayerTank
+    from src.core.power_up import PowerUp
     from src.managers.sound_manager import SoundManager
     from src.managers.texture_manager import TextureManager
 
@@ -48,6 +57,24 @@ class BattleResult(Enum):
 
     GAME_OVER = auto()
     VICTORY = auto()
+
+
+@dataclass(frozen=True, kw_only=True)
+class BattleScene:
+    """What a Battle shows this frame, for the Renderer to draw.
+
+    Unlike the World View, which holds values for the Players' inputs to
+    decide from, it holds the live objects, since they draw themselves. It is
+    read-only by type: nothing in it is for changing.
+    """
+
+    map: Map
+    players: tuple[PlayerTank, ...]
+    enemies: tuple[EnemyTank, ...]
+    bullets: tuple[Bullet, ...]
+    power_ups: tuple[PowerUp, ...]
+    effects: tuple[Effect, ...]
+    hud_entries: tuple[PlayerHudEntry, ...]
 
 
 class Battle:
@@ -160,6 +187,18 @@ class Battle:
             enemies_frozen=self.enemy_manager.enemies_frozen,
             power_ups=self.power_up_manager.active_power_ups,
             bullets=self.tank_stepper.bullets,
+        )
+
+    def scene(self) -> BattleScene:
+        """What the Battle shows this frame, for the Renderer."""
+        return BattleScene(
+            map=self.map,
+            players=tuple(self.player_manager.get_active_players()),
+            enemies=tuple(self.enemy_manager.enemies),
+            bullets=tuple(self.tank_stepper.bullets),
+            power_ups=tuple(self.power_up_manager.active_power_ups),
+            effects=tuple(self.effect_manager.effects),
+            hud_entries=self.player_manager.hud_entries,
         )
 
     def step(self, dt: float) -> BattleResult | None:

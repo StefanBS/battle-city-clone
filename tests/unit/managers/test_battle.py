@@ -215,6 +215,49 @@ class TestBattleWorldView:
         assert [p.player_id for p in view.players] == [1]
 
 
+class TestBattleScene:
+    """What the Renderer draws comes from one read-only scene."""
+
+    def test_shows_the_stage_map_and_every_live_player(self, make_battle):
+        battle = make_battle(mode=GameMode.TWO_PLAYERS)
+
+        scene = battle.scene()
+
+        assert scene.map is battle.map
+        assert [p.player_id for p in scene.players] == [1, 2]
+
+    def test_shows_what_the_hud_needs_for_each_player(self, make_battle):
+        battle = make_battle(
+            mode=GameMode.TWO_PLAYERS,
+            carried={2: CarriedProgress(lives=0, star_level=0, eliminated=True)},
+        )
+
+        entries = battle.scene().hud_entries
+
+        assert [(e.label, e.eliminated) for e in entries] == [
+            ("P1", False),
+            ("P2", True),
+        ]
+
+    def test_shows_the_spawn_animation_of_the_first_enemy(self, battle):
+        # The first Enemy starts Spawning as the Battle begins.
+        assert len(battle.scene().effects) == 1
+
+    def test_shows_a_bullet_in_flight(self, battle):
+        battle.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_SPACE))
+
+        battle.step(DT)
+
+        (bullet,) = battle.scene().bullets
+        assert bullet.owner is battle.scene().players[0]
+
+    def test_starts_with_no_enemies_or_power_ups(self, battle):
+        scene = battle.scene()
+
+        assert scene.enemies == ()
+        assert scene.power_ups == ()
+
+
 class TestBattleInput:
     def test_events_reach_the_players_inputs(self, battle):
         player = battle.player_manager.get_active_players()[0]
