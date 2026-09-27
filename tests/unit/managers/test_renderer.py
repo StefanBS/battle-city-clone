@@ -2,6 +2,12 @@ import pytest
 import pygame
 from unittest.mock import MagicMock, patch
 
+from src.core.bullet import Bullet
+from src.core.effect import Effect
+from src.core.enemy_tank import EnemyTank
+from src.core.map import Map
+from src.core.player_tank import PlayerTank
+from src.core.power_up import PowerUp
 from src.managers.battle import BattleScene
 from src.managers.player_manager import PlayerHudEntry
 from src.managers.renderer import Renderer
@@ -12,7 +18,7 @@ from src.utils.constants import Difficulty
 def _scene(**parts):
     """A BattleScene with a mock map and nothing else unless given."""
     return BattleScene(
-        map=parts.get("map", MagicMock()),
+        map=parts.get("map", MagicMock(spec=Map)),
         players=parts.get("players", ()),
         enemies=parts.get("enemies", ()),
         bullets=parts.get("bullets", ()),
@@ -56,18 +62,18 @@ class TestRendererRender:
 
     def test_render_calls_draw_methods(self, renderer):
         """Render calls draw methods on map_surface."""
-        mock_map = MagicMock()
-        mock_player = MagicMock()
+        mock_map = MagicMock(spec=Map)
+        mock_player = MagicMock(spec=PlayerTank)
 
-        mock_enemy1 = MagicMock()
-        mock_enemy2 = MagicMock()
+        mock_enemy1 = MagicMock(spec=EnemyTank)
+        mock_enemy2 = MagicMock(spec=EnemyTank)
 
-        mock_bullet1 = MagicMock()
+        mock_bullet1 = MagicMock(spec=Bullet)
         mock_bullet1.active = True
-        mock_bullet2 = MagicMock()
+        mock_bullet2 = MagicMock(spec=Bullet)
         mock_bullet2.active = False
-        mock_power_up = MagicMock()
-        mock_effect = MagicMock()
+        mock_power_up = MagicMock(spec=PowerUp)
+        mock_effect = MagicMock(spec=Effect)
 
         with (
             patch("pygame.transform.scale") as mock_scale,
@@ -112,7 +118,7 @@ class TestRendererRender:
 
     def test_render_victory_overlay(self, renderer):
         """Victory overlay is drawn when state is VICTORY."""
-        mock_map = MagicMock()
+        mock_map = MagicMock(spec=Map)
 
         with (
             patch.object(renderer, "_draw_victory") as mock_draw_v,
@@ -126,7 +132,7 @@ class TestRendererRender:
 
     def test_render_running_no_overlay(self, renderer):
         """No overlay is drawn when state is RUNNING."""
-        mock_map = MagicMock()
+        mock_map = MagicMock(spec=Map)
 
         with (
             patch.object(renderer, "_draw_victory") as mock_draw_v,
@@ -140,7 +146,7 @@ class TestRendererRender:
 
     def test_render_scales_and_flips(self, renderer):
         """Render scales game_surface to screen and flips display."""
-        mock_map = MagicMock()
+        mock_map = MagicMock(spec=Map)
         mock_scaled = MagicMock()
 
         with (

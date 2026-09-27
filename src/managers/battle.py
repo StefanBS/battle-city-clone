@@ -149,7 +149,7 @@ class Battle:
                 else None
             ),
         )
-        self._spawn_manager = self._spawn_manager_for(
+        self._spawn_manager = self._new_spawn_manager(
             game_map.enemy_composition,
             game_map.spawn_interval,
             game_map.powerup_carrier_indices,
@@ -241,7 +241,7 @@ class Battle:
         # Enemies that just Appeared are on the battlefield before the timer
         # runs, so they block their spawn point too.
         self.bring_in_spawns()
-        self._spawn_manager.advance(dt, [*active_players, *self._enemy_manager.enemies])
+        self._spawn_manager.advance(dt, self._tanks_on_battlefield())
         self._power_up_manager.update(dt)
 
         # Built AFTER updates so newly fired bullets are included
@@ -355,7 +355,7 @@ class Battle:
             spawn_interval: Seconds before the next Enemy starts Spawning,
                 the map's by default; ``inf`` means none comes on its own.
         """
-        self._spawn_manager = self._spawn_manager_for(
+        self._spawn_manager = self._new_spawn_manager(
             composition,
             spawn_interval if spawn_interval is not None else self._map.spawn_interval,
             carrier_indices,
@@ -368,9 +368,7 @@ class Battle:
             True if an Enemy started Spawning; False if the Roster is used up
             or the chosen Enemy Spawn Point is blocked.
         """
-        return self._spawn_manager.start_spawning(
-            [*self._player_manager.get_active_players(), *self._enemy_manager.enemies]
-        )
+        return self._spawn_manager.start_spawning(self._tanks_on_battlefield())
 
     def add_bullet(self, bullet: Bullet) -> None:
         """Put a bullet in flight, as if its owner had just fired it."""
@@ -389,16 +387,25 @@ class Battle:
                 tank when not given.
         """
         self._power_up_manager.spawn_power_up(
-            [*self._player_manager.get_active_players(), *self._enemy_manager.enemies],
+            self._tanks_on_battlefield(),
             power_up_type=power_up_type,
             position=position,
         )
 
     def step_tank(self, tank: Tank, intent: TankIntent, dt: float) -> StepResult:
-        """Step one tank through a frame on its own, firing within its Bullet Cap."""
+        """Step one tank through a frame on its own, firing within its Bullet Cap.
+
+        Args:
+            tank: The tank to step, Player or Enemy.
+            intent: Where it moves and whether it fires this frame.
+            dt: Time step in seconds.
+
+        Returns:
+            Whether the tank started a Slide and whether it fired.
+        """
         return self._tank_stepper.step(tank, intent, dt)
 
-    def _spawn_manager_for(
+    def _new_spawn_manager(
         self,
         composition: dict[TankType, int],
         spawn_interval: float,
@@ -419,9 +426,11 @@ class Battle:
         if not enemy.is_carrier:
             return
         enemy.stop_carrying()
-        self._power_up_manager.spawn_power_up(
-            [
-                *self._player_manager.get_active_players(),
-                *self._enemy_manager.enemies,
-            ]
-        )
+        self._power_up_manager.spawn_power_up(self._tanks_on_battlefield())
+
+    def _tanks_on_battlefield(self) -> list[Tank]:
+        """Every live Player and Enemy: what blocks spawn points and drops."""
+        return [
+            *self._player_manager.get_active_players(),
+            *self._enemy_manager.enemies,
+        ]

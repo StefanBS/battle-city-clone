@@ -110,6 +110,8 @@ tests/
 
 **Per-call collaborator exception:** within-module mocks are allowed for a collaborator the unit under test is handed on each call, when the test is about what the unit asks of it. The collaborator's own behavior is covered by its own tests. Example: `test_enemy_manager.py` mocks the `TankStepper` passed to `step_enemies`, to check which Enemy is stepped with which AI.
 
+**Battle exception:** `test_battle.py` uses real collaborators and real `core/` entities, since a `Battle` is what puts one Stage's pieces together and its frame rules are tested against it directly (ADR-0004). Only I/O (`TextureManager`, `SoundManager`) and the Enemy AIs handed to `add_enemy` are mocked. Tests arrange a Battle through its public calls and read it through `scene()`, never by swapping a collaborator.
+
 ### Integration Tests
 
 Real objects only, no mocks. `SDL_VIDEODRIVER=dummy` for headless execution.

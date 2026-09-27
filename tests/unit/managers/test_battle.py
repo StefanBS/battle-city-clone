@@ -204,6 +204,21 @@ class TestBattleSpawning:
         # No spawn animation started in the frame the first Enemy Appeared.
         assert battle.scene().effects == ()
 
+    def test_an_enemy_already_on_the_spawn_point_blocks_it(
+        self, make_battle, make_enemy, texture_manager
+    ):
+        game_map = Map(LEVEL_01, texture_manager)
+        game_map.spawn_points = game_map.spawn_points[:1]
+        battle = make_battle(game_map=game_map)
+        battle.replace_roster({TankType.BASIC: 1}, spawn_interval=float("inf"))
+        (spawn_x, spawn_y) = game_map.spawn_points[0]
+        parked = make_enemy()
+        parked.set_position(spawn_x * game_map.tile_size, spawn_y * game_map.tile_size)
+        parked.rect.topleft = (round(parked.x), round(parked.y))
+        battle.add_enemy(parked, _idle_ai())
+
+        assert battle.start_spawning() is False
+
 
 class TestBattleResult:
     def test_no_victory_while_an_enemy_is_on_the_battlefield(self, battle, make_enemy):
@@ -307,9 +322,7 @@ class TestBattleSetupCalls:
 
     def test_an_added_enemy_is_driven_by_the_ai_it_is_given(self, battle, make_enemy):
         enemy = make_enemy()
-        ai = MagicMock(spec=EnemyAI)
-        ai.get_movement_direction.return_value = (0, 0)
-        ai.consume_shoot.return_value = False
+        ai = _idle_ai()
 
         battle.add_enemy(enemy, ai)
         battle.step(DT)
