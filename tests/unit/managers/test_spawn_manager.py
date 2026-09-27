@@ -213,9 +213,6 @@ class TestSpawnManager:
     def test_an_empty_roster_is_exhausted_from_the_start(self, make_spawn_manager):
         assert make_spawn_manager({}).is_exhausted
 
-    def test_spawn_points_are_the_maps(self, spawn_manager):
-        assert spawn_manager.spawn_points == SPAWN_POINTS
-
 
 class TestSpawnAnimation:
     """Tests for Spawning Enemies and their animation."""

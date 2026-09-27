@@ -49,8 +49,7 @@ def use_roster(game, composition, carrier_indices=(), spawn_interval=None):
     An empty ``composition`` means no Enemy will come: the Roster counts as
     used up, so the Battle ends in Victory once the battlefield is clear.
     ``carrier_indices`` says which Enemies, by draw order, are Carriers. The
-    next Enemy starts Spawning after ``spawn_interval`` (the map's by default);
-    ``float("inf")`` means never, unless a test calls ``start_spawning``.
+    next Enemy starts Spawning after ``spawn_interval`` (the map's by default).
     """
     battle = game.battle
     battle.spawn_manager = SpawnManager(
@@ -63,6 +62,15 @@ def use_roster(game, composition, carrier_indices=(), spawn_interval=None):
         effect_manager=battle.effect_manager,
         powerup_carrier_indices=carrier_indices,
     )
+
+
+def hold_roster(game, composition):
+    """Give the running Battle a Roster none of whose Enemies ever come on their own.
+
+    The Battle goes on, since the Roster is not used up; a test brings an
+    Enemy in with ``start_spawning``.
+    """
+    use_roster(game, composition, spawn_interval=float("inf"))
 
 
 def let_spawning_enemies_appear(game, max_ticks=120):
@@ -195,13 +203,9 @@ def place_player_at(game, x, y, player=None):
 
 
 def clear_enemies(game):
-    """Clear the battlefield of Enemies, with one still to come that never does.
-
-    The Battle goes on: the Roster is not used up, but its spawn interval is
-    endless.
-    """
+    """Clear the battlefield of Enemies, with one still to come that never does."""
     game.battle.enemy_manager.clear()
-    use_roster(game, {TankType.BASIC: 1}, spawn_interval=float("inf"))
+    hold_roster(game, {TankType.BASIC: 1})
 
 
 def use_up_roster(game):

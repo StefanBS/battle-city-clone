@@ -102,11 +102,6 @@ class SpawnManager:
         return roster
 
     @property
-    def spawn_points(self) -> list[Cell]:
-        """The map's Enemy Spawn Points."""
-        return self._map.spawn_points
-
-    @property
     def remaining(self) -> int:
         """How many Enemies of the Roster have not started Spawning yet."""
         return len(self._roster)
@@ -153,7 +148,7 @@ class SpawnManager:
             logger.trace("Roster used up, skipping spawn.")
             return False
 
-        spawn_point = random.choice(self.spawn_points)
+        spawn_point = random.choice(self._map.spawn_points)
         if self._is_spawn_blocked(spawn_point, tanks):
             logger.warning(f"Spawn point {spawn_point} was blocked.")
             return False

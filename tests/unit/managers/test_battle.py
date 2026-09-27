@@ -101,6 +101,13 @@ def make_enemy(battle, texture_manager):
     return _make
 
 
+def _stub_spawning(battle, appeared=(), exhausted=False):
+    """Replace the Battle's SpawnManager with one that hands over ``appeared``."""
+    battle.spawn_manager = MagicMock(spec=SpawnManager)
+    battle.spawn_manager.take_appeared.return_value = list(appeared)
+    battle.spawn_manager.is_exhausted = exhausted
+
+
 class TestBattleSetup:
     def test_players_start_invincible(self, battle):
         assert all(p.is_invincible for p in battle.player_manager.get_active_players())
@@ -139,17 +146,11 @@ class TestBattleSetup:
 class TestBattleSpawning:
     """Enemies that Appear are brought onto the EnemyManager's battlefield."""
 
-    @staticmethod
-    def _appearing(battle, *enemies):
-        battle.spawn_manager = MagicMock(spec=SpawnManager)
-        battle.spawn_manager.take_appeared.return_value = list(enemies)
-        battle.spawn_manager.is_exhausted = False
-
     def test_enemies_that_appeared_are_brought_onto_the_battlefield(
         self, battle, make_enemy
     ):
         enemy = make_enemy()
-        self._appearing(battle, enemy)
+        _stub_spawning(battle, [enemy])
 
         battle.bring_in_spawns()
 
@@ -157,7 +158,7 @@ class TestBattleSpawning:
 
     def test_a_carrier_appearing_clears_the_power_ups(self, battle, make_enemy):
         battle.power_up_manager = MagicMock(spec=PowerUpManager, active_power_ups=[])
-        self._appearing(battle, make_enemy(is_carrier=True))
+        _stub_spawning(battle, [make_enemy(is_carrier=True)])
 
         battle.bring_in_spawns()
 
@@ -165,7 +166,7 @@ class TestBattleSpawning:
 
     def test_an_ordinary_enemy_appearing_keeps_the_power_ups(self, battle, make_enemy):
         battle.power_up_manager = MagicMock(spec=PowerUpManager, active_power_ups=[])
-        self._appearing(battle, make_enemy())
+        _stub_spawning(battle, [make_enemy()])
 
         battle.bring_in_spawns()
 
@@ -177,7 +178,7 @@ class TestBattleSpawning:
         already_there = make_enemy()
         battle.enemy_manager.add(already_there)
         appeared = make_enemy()
-        self._appearing(battle, appeared)
+        _stub_spawning(battle, [appeared])
 
         battle.step(DT)
 
@@ -188,20 +189,14 @@ class TestBattleSpawning:
 
 
 class TestBattleResult:
-    @staticmethod
-    def _roster_spent(battle):
-        battle.spawn_manager = MagicMock(spec=SpawnManager)
-        battle.spawn_manager.take_appeared.return_value = []
-        battle.spawn_manager.is_exhausted = True
-
     def test_no_victory_while_an_enemy_is_on_the_battlefield(self, battle, make_enemy):
-        self._roster_spent(battle)
+        _stub_spawning(battle, exhausted=True)
         battle.enemy_manager.add(make_enemy())
 
         assert battle.step(DT) is None
 
     def test_stepping_an_ended_battle_does_nothing(self, battle):
-        self._roster_spent(battle)
+        _stub_spawning(battle, exhausted=True)
         battle.enemy_manager.clear()
         battle.step(DT)
         battle.player_manager.handle_event(

@@ -15,23 +15,9 @@ from tests.integration.conftest import (
     let_spawning_enemies_appear,
     spawn_enemy_at,
     spawn_enemy_with_ai,
-    use_roster,
+    hold_roster,
 )
 import random
-
-
-def _full_roster_on_hold(game_manager):
-    """A clear battlefield and the Stage's whole Roster still to come.
-
-    Nothing starts Spawning on its own; the test calls ``start_spawning``.
-    """
-    game_manager.battle.enemy_manager.clear()
-    use_roster(
-        game_manager,
-        game_manager.battle.map.enemy_composition,
-        spawn_interval=float("inf"),
-    )
-    return game_manager.battle.spawn_manager
 
 
 def test_enemy_spawning_rules(game_manager_fixture):
@@ -41,7 +27,7 @@ def test_enemy_spawning_rules(game_manager_fixture):
 
     spawn_points_pixels = [
         (gx * SUB_TILE_SIZE, gy * SUB_TILE_SIZE)
-        for gx, gy in game_manager.battle.spawn_manager.spawn_points
+        for gx, gy in game_manager.battle.map.spawn_points
     ]
 
     for _ in range(60):
@@ -59,7 +45,9 @@ def test_enemy_spawning_rules(game_manager_fixture):
     )
     assert game_manager.battle.spawn_manager.remaining == roster_size - 1
 
-    spawn_manager = _full_roster_on_hold(game_manager)
+    game_manager.battle.enemy_manager.clear()
+    hold_roster(game_manager, game_manager.battle.map.enemy_composition)
+    spawn_manager = game_manager.battle.spawn_manager
     players = game_manager.battle.player_manager.get_active_players()
 
     for _ in range(roster_size * 3):
@@ -101,7 +89,7 @@ def test_enemy_spawn_blocked(game_manager_fixture):
     game_manager = game_manager_fixture
     player_tank = first_player(game_manager)
 
-    spawn_points_grid = game_manager.battle.spawn_manager.spawn_points
+    spawn_points_grid = game_manager.battle.map.spawn_points
     spawn_points_pixels = [
         (gx * SUB_TILE_SIZE, gy * SUB_TILE_SIZE) for gx, gy in spawn_points_grid
     ]
@@ -114,7 +102,9 @@ def test_enemy_spawn_blocked(game_manager_fixture):
     )
     player_tank.prev_x, player_tank.prev_y = blocked_spawn_point_pixels
 
-    spawn_manager = _full_roster_on_hold(game_manager)
+    game_manager.battle.enemy_manager.clear()
+    hold_roster(game_manager, game_manager.battle.map.enemy_composition)
+    spawn_manager = game_manager.battle.spawn_manager
     players = game_manager.battle.player_manager.get_active_players()
 
     # Attempt more times than there are spawn points so the selection cycles.
