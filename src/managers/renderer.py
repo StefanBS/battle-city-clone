@@ -19,6 +19,7 @@ from src.utils.constants import (
 from src.utils.paths import resource_path
 
 if TYPE_CHECKING:
+    from src.managers.battle import BattleScene
     from src.managers.player_manager import PlayerHudEntry
 
 
@@ -82,48 +83,41 @@ class Renderer:
 
     def render(
         self,
-        game_map,
-        player_tanks: Sequence,
-        enemy_tanks: Sequence,
-        bullets: Sequence,
-        effect_manager,
+        scene: BattleScene,
         state: GameState,
-        hud_entries: Sequence[PlayerHudEntry] = (),
-        power_ups: Sequence = (),
         game_over_rise_progress: float | None = None,
     ) -> None:
         """Render the complete game frame.
 
         Args:
-            game_map: The game map to draw.
-            player_tanks: The live player tanks.
-            enemy_tanks: List of enemy tanks.
-            bullets: Every bullet in flight.
-            state: Current game state.
-            hud_entries: What the HUD shows for each Player, P1 first.
-            power_ups: Active power-ups to draw.
+            scene: What the Battle shows this frame.
+            state: Current game state, for the Victory and Game Complete
+                overlays.
+            game_over_rise_progress: How far the Game Over text has risen,
+                from 0 to 1, or None when it isn't showing.
         """
         self.game_surface.fill(GRAY)
         self.map_surface.fill(BLACK)
 
-        game_map.draw(self.map_surface)
+        scene.map.draw(self.map_surface)
 
-        for player_tank in player_tanks:
+        for player_tank in scene.players:
             player_tank.draw(self.map_surface)
-        for enemy in enemy_tanks:
+        for enemy in scene.enemies:
             enemy.draw(self.map_surface)
-        for power_up in power_ups:
+        for power_up in scene.power_ups:
             power_up.draw(self.map_surface)
-        for bullet in bullets:
+        for bullet in scene.bullets:
             if bullet.active:
                 bullet.draw(self.map_surface)
 
-        game_map.draw_overlay(self.map_surface)
-        effect_manager.draw(self.map_surface)
+        scene.map.draw_overlay(self.map_surface)
+        for effect in scene.effects:
+            effect.draw(self.map_surface)
 
         self.game_surface.blit(self.map_surface, (self.map_offset_x, self.map_offset_y))
 
-        self._draw_hud(hud_entries)
+        self._draw_hud(scene.hud_entries)
 
         if state == GameState.VICTORY:
             self._draw_victory()

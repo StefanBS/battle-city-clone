@@ -1,6 +1,7 @@
 import pytest
 import pygame
 from unittest.mock import MagicMock, patch
+from src.managers.renderer import Renderer
 from src.managers.settings_manager import SettingsManager
 from src.managers.sound_manager import SoundManager
 from src.states.game_state import GameState
@@ -508,17 +509,29 @@ class TestPauseAndOptionsStateMachine:
         """PAUSED state renders pause menu overlay."""
         gm = game_manager
         gm.state = GameState.PAUSED
-        gm.renderer = MagicMock()
+        gm.renderer = MagicMock(spec=Renderer)
         gm.render()
         gm.renderer.render_pause_menu.assert_called_once_with(
             gm._pause_menu.labels, gm._pause_menu.selection
+        )
+
+    def test_render_running_draws_the_battle_scene(self, game_manager):
+        """RUNNING renders what the Battle's scene shows, with no overlay."""
+        gm = game_manager
+        gm.state = GameState.RUNNING
+        gm.renderer = MagicMock(spec=Renderer)
+        gm.render()
+        gm.renderer.render.assert_called_once_with(
+            gm.battle.scene.return_value,
+            GameState.RUNNING,
+            game_over_rise_progress=None,
         )
 
     def test_render_options_calls_render_options_menu(self, game_manager):
         """OPTIONS_MENU state renders options menu."""
         gm = game_manager
         gm.state = GameState.OPTIONS_MENU
-        gm.renderer = MagicMock()
+        gm.renderer = MagicMock(spec=Renderer)
         gm.settings_manager = MagicMock()
         gm.settings_manager.master_volume = 0.7
         gm.settings_manager.difficulty = Difficulty.NORMAL
@@ -530,7 +543,7 @@ class TestPauseAndOptionsStateMachine:
     def test_render_title_uses_title_selection(self, game_manager_at_title):
         """TITLE_SCREEN renders with _title_selection."""
         gm = game_manager_at_title
-        gm.renderer = MagicMock()
+        gm.renderer = MagicMock(spec=Renderer)
         gm._title_menu.selection = 2
         gm.render()
         gm.renderer.render_title_screen.assert_called_once_with(

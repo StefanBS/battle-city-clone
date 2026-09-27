@@ -2,6 +2,10 @@ import pytest
 from src.utils.constants import Direction, FPS, SUB_TILE_SIZE
 from src.states.game_state import GameState
 from src.core.tile import BrickVariant, Tile, TileDefaults, TileType
+from src.managers.collision_manager import CollisionManager
+from src.managers.collision_response_handler import CollisionResponseHandler
+from src.managers.effect_manager import EffectManager
+from src.managers.power_up_manager import PowerUpManager
 from tests.integration.conftest import (
     clear_tiles,
     fire_bullet_from,
@@ -123,7 +127,7 @@ def test_player_bullet_destroys_enemy_tank(game_manager_fixture, mocker):
     enemy_tank = spawn_enemy_at(game_manager, enemy_x_grid, enemy_y_grid)
     # Prevent enemy shooting so its bullets don't interfere with the player bullet.
     enemy_tank.shoot = lambda: None
-    initial_enemy_count = len(game_manager.battle.enemy_manager.enemies)
+    initial_enemy_count = len(game_manager.battle.scene().enemies)
 
     # Player below enemy (2 sub-tiles = 1 tank height).
     place_player_at(
@@ -146,20 +150,20 @@ def test_player_bullet_destroys_enemy_tank(game_manager_fixture, mocker):
         if not bullet.active:
             bullet_became_inactive_during_loop = True
             break
-        if enemy_tank not in game_manager.battle.enemy_manager.enemies:
+        if enemy_tank not in game_manager.battle.scene().enemies:
             if not bullet.active:
                 bullet_became_inactive_during_loop = True
             break
 
-    if enemy_tank in game_manager.battle.enemy_manager.enemies:
+    if enemy_tank in game_manager.battle.scene().enemies:
         assert bullet_became_inactive_during_loop, (
             "Bullet remained active but enemy was not destroyed."
         )
 
-    assert enemy_tank not in game_manager.battle.enemy_manager.enemies, (
+    assert enemy_tank not in game_manager.battle.scene().enemies, (
         "Enemy tank was not removed after being hit."
     )
-    assert len(game_manager.battle.enemy_manager.enemies) == initial_enemy_count - 1, (
+    assert len(game_manager.battle.scene().enemies) == initial_enemy_count - 1, (
         "Enemy count did not decrease by one."
     )
 
@@ -320,7 +324,7 @@ def test_enemy_bullet_hits_other_enemy(game_manager_fixture, mocker):
     )
     enemy2 = spawn_enemy_at(game_manager, enemy2_x_grid, enemy2_y_grid, replace=False)
 
-    initial_enemy_count = len(game_manager.battle.enemy_manager.enemies)
+    initial_enemy_count = len(game_manager.battle.scene().enemies)
     initial_enemy2_health = enemy2.health
 
     bullet = fire_bullet_from(game_manager, enemy1)
@@ -345,13 +349,13 @@ def test_enemy_bullet_hits_other_enemy(game_manager_fixture, mocker):
         f"Got: {enemy2.health}"
     )
 
-    assert enemy2 in game_manager.battle.enemy_manager.enemies, (
+    assert enemy2 in game_manager.battle.scene().enemies, (
         "Enemy2 was removed from the list."
     )
 
-    assert len(game_manager.battle.enemy_manager.enemies) == initial_enemy_count, (
+    assert len(game_manager.battle.scene().enemies) == initial_enemy_count, (
         f"Enemy count changed. Expected: {initial_enemy_count}, "
-        f"Got: {len(game_manager.battle.enemy_manager.enemies)}"
+        f"Got: {len(game_manager.battle.scene().enemies)}"
     )
 
 
@@ -382,13 +386,25 @@ def test_player_tank_vs_enemy_tank_no_overlap(game_manager_fixture, mocker):
     # Pin the enemy so only the player moves; we want to test the collision, not AI.
     enemy_tank.speed = 0
 
+    # Only this pair's collision is under test, so it gets its own detector
+    # and handler rather than the Battle's.
+    battle_map = game_manager.battle.map
+    effects = EffectManager(game_manager.texture_manager)
+    collisions = CollisionManager()
+    responses = CollisionResponseHandler(
+        game_map=battle_map,
+        effect_manager=effects,
+        power_up_manager=PowerUpManager(game_manager.texture_manager, battle_map),
+        sound_manager=game_manager.sound_manager,
+    )
+
     dt = 1.0 / FPS
     for _ in range(30):
         player_tank.update(dt)
         player_tank.move(0, -1, dt)
         enemy_tank.update(dt)
 
-        game_manager.battle.collision_manager.check_collisions(
+        collisions.check_collisions(
             player_tanks=[player_tank],
             enemy_tanks=[enemy_tank],
             bullets=[],
@@ -396,8 +412,7 @@ def test_player_tank_vs_enemy_tank_no_overlap(game_manager_fixture, mocker):
             bullet_blocking_tiles=[],
             player_base=None,
         )
-        events = game_manager.battle.collision_manager.get_collision_events()
-        game_manager.battle.collision_response_handler.process_collisions(events)
+        responses.process_collisions(collisions.get_collision_events())
 
     assert not player_tank.rect.colliderect(enemy_tank.rect), (
         f"Player rect {player_tank.rect} overlaps enemy rect {enemy_tank.rect}"

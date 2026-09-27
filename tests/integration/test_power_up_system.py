@@ -4,8 +4,9 @@ Uses real objects (no mocks) with SDL_VIDEODRIVER=dummy for headless execution.
 """
 
 import pytest
-from src.utils.constants import POWERUP_TIMEOUT
-from tests.integration.conftest import first_player, spawn_carrier
+from src.managers.outcomes import EnemyDestroyed
+from src.utils.constants import FPS, POWERUP_TIMEOUT
+from tests.integration.conftest import clear_enemies, spawn_carrier
 
 
 class TestPowerUpIntegration:
@@ -25,23 +26,19 @@ class TestPowerUpIntegration:
 
     def test_destroying_carrier_spawns_power_up(self, game, carrier):
         """Killing a carrier enemy should spawn a power-up on the map."""
-        game.battle.enemy_manager.remove(carrier)
-        game.battle.power_up_manager.spawn_power_up(
-            [first_player(game), *game.battle.enemy_manager.enemies]
-        )
-        assert len(game.battle.power_up_manager.active_power_ups) == 1
+        game.battle.apply_outcomes([EnemyDestroyed(carrier, by=None)])
+        assert len(game.battle.scene().power_ups) == 1
 
-    def test_power_up_timeout(self, game, carrier):
+    def test_power_up_timeout(self, game):
         """Power-up should disappear after timeout."""
-        game.battle.enemy_manager.remove(carrier)
-        game.battle.power_up_manager.spawn_power_up(
-            [first_player(game), *game.battle.enemy_manager.enemies]
-        )
-        game.battle.power_up_manager.update(POWERUP_TIMEOUT + 0.1)
-        assert len(game.battle.power_up_manager.active_power_ups) == 0
+        clear_enemies(game)
+        game.battle.drop_power_up()
+        for _ in range(int((POWERUP_TIMEOUT + 0.1) * FPS)):
+            game.battle.step(1.0 / FPS)
+        assert len(game.battle.scene().power_ups) == 0
 
     def test_carrier_spawning_clears_power_up(self, game):
         """A new carrier appearing removes the power-up on the battlefield."""
-        game.battle.power_up_manager.spawn_power_up([first_player(game)])
+        game.battle.drop_power_up()
         spawn_carrier(game)
-        assert game.battle.power_up_manager.active_power_ups == []
+        assert game.battle.scene().power_ups == ()

@@ -111,12 +111,3 @@ class EffectManager:
         for effect in self.effects:
             effect.update(dt)
         self.effects = [e for e in self.effects if e.active]
-
-    def draw(self, surface: pygame.Surface) -> None:
-        """Draw all active effects.
-
-        Args:
-            surface: Surface to draw on.
-        """
-        for effect in self.effects:
-            effect.draw(surface)
