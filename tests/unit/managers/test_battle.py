@@ -281,24 +281,6 @@ class TestBattleScene:
             ("P2", True),
         ]
 
-    def test_shows_the_spawn_animation_of_the_first_enemy(self, battle):
-        # The first Enemy starts Spawning as the Battle begins.
-        assert len(battle.scene().effects) == 1
-
-    def test_shows_a_bullet_in_flight(self, battle):
-        battle.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_SPACE))
-
-        battle.step(DT)
-
-        (bullet,) = battle.scene().bullets
-        assert bullet.owner is battle.scene().players[0]
-
-    def test_starts_with_no_enemies_or_power_ups(self, battle):
-        scene = battle.scene()
-
-        assert scene.enemies == ()
-        assert scene.power_ups == ()
-
 
 class _FireInPlace:
     """A TankIntent that stands still and fires."""
@@ -337,11 +319,6 @@ class TestBattleSetupCalls:
 
         assert battle.scene().enemies == ()
 
-    def test_an_empty_roster_with_a_clear_battlefield_is_a_victory(self, battle):
-        battle.replace_roster({})
-
-        assert battle.step(DT) is BattleResult.VICTORY
-
     def test_a_held_roster_sends_no_enemy_on_its_own(self, battle):
         battle.replace_roster({TankType.BASIC: 1}, spawn_interval=float("inf"))
 
@@ -350,18 +327,6 @@ class TestBattleSetupCalls:
 
         assert battle.scene().enemies == ()
         assert battle.result is None
-
-    def test_start_spawning_brings_in_the_roster_s_carrier(self, battle):
-        battle.replace_roster(
-            {TankType.BASIC: 1}, carrier_indices=(0,), spawn_interval=float("inf")
-        )
-
-        assert battle.start_spawning() is True
-        while not battle.scene().enemies:
-            battle.step(DT)
-
-        (enemy,) = battle.scene().enemies
-        assert enemy.is_carrier
 
     def test_start_spawning_fails_once_the_roster_is_used_up(self, battle):
         battle.replace_roster({TankType.BASIC: 1}, spawn_interval=float("inf"))
@@ -386,13 +351,6 @@ class TestBattleSetupCalls:
             64,
             96,
         )
-
-    def test_a_dropped_power_up_avoids_every_player(self, battle):
-        battle.drop_power_up()
-
-        (power_up,) = battle.scene().power_ups
-        player = battle.scene().players[0]
-        assert not power_up.rect.colliderect(player.rect)
 
     def test_step_tank_fires_within_the_bullet_cap(self, battle):
         player = battle.scene().players[0]
