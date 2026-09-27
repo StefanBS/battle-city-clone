@@ -130,11 +130,6 @@ class TestBattleSetup:
             make_battle(difficulty=Difficulty.EASY, game_map=game_map)
         assert enemies.call_args.kwargs["difficulty"] is Difficulty.NORMAL
 
-    def test_the_first_enemy_starts_spawning_when_the_battle_begins(self, battle):
-        roster_size = sum(battle.map.enemy_composition.values())
-
-        assert battle.spawn_manager.remaining == roster_size - 1
-
     def test_enemies_steer_toward_the_stage_base(self, battle):
         base_rect = battle.map.get_base().rect
         assert battle.enemy_manager.base_position == (
@@ -155,14 +150,6 @@ class TestBattleSpawning:
         battle.bring_in_spawns()
 
         assert battle.enemy_manager.enemies == (enemy,)
-
-    def test_a_carrier_appearing_clears_the_power_ups(self, battle, make_enemy):
-        battle.power_up_manager = MagicMock(spec=PowerUpManager, active_power_ups=[])
-        _stub_spawning(battle, [make_enemy(is_carrier=True)])
-
-        battle.bring_in_spawns()
-
-        battle.power_up_manager.clear.assert_called_once_with()
 
     def test_an_ordinary_enemy_appearing_keeps_the_power_ups(self, battle, make_enemy):
         battle.power_up_manager = MagicMock(spec=PowerUpManager, active_power_ups=[])

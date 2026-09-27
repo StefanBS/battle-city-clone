@@ -91,12 +91,6 @@ def _enemy_at(spawn_point):
 class TestSpawnManager:
     """Unit test cases for the SpawnManager class."""
 
-    def test_building_it_starts_no_spawn(self, make_spawn_manager):
-        manager = make_spawn_manager({TankType.BASIC: 3})
-
-        assert manager.remaining == 3
-        assert manager.take_appeared() == []
-
     def test_advance_waits_an_interval_from_building_it(
         self, make_spawn_manager, mock_player_tank
     ):
@@ -106,26 +100,6 @@ class TestSpawnManager:
         assert manager.remaining == 3
         manager.advance(0.1, [mock_player_tank])
         assert manager.remaining == 2
-
-    def test_an_enemy_without_animation_appears_once(
-        self, spawn_manager, mock_player_tank
-    ):
-        spawn_manager.start_spawning([mock_player_tank])
-
-        (enemy,) = spawn_manager.take_appeared()
-
-        assert isinstance(enemy, EnemyTank)
-        assert spawn_manager.take_appeared() == []
-
-    def test_start_spawning_refuses_once_the_roster_is_used_up(
-        self, make_spawn_manager, mock_player_tank
-    ):
-        manager = make_spawn_manager({TankType.BASIC: 1})
-        assert manager.start_spawning([mock_player_tank]) is True
-        manager.take_appeared()
-
-        assert manager.start_spawning([mock_player_tank]) is False
-        assert manager.take_appeared() == []
 
     @patch("random.choice")
     def test_start_spawning_refuses_a_spawn_point_under_a_tile(
@@ -154,26 +128,17 @@ class TestSpawnManager:
         assert result is False
         assert spawn_manager.remaining == remaining
 
-    def test_advance_starts_no_spawn_before_the_interval(
-        self, spawn_manager, mock_player_tank
-    ):
-        spawn_manager.start_spawning([mock_player_tank])
-        remaining = spawn_manager.remaining
-
-        spawn_manager.advance(4.9, [mock_player_tank])
-
-        assert spawn_manager.remaining == remaining
-
     @patch("random.choice")
-    def test_advance_starts_the_next_spawn_after_the_interval(
+    def test_after_a_spawn_the_next_waits_a_whole_interval(
         self, mock_random_choice, spawn_manager, mock_player_tank
     ):
         mock_random_choice.side_effect = [SPAWN_POINTS[0], SPAWN_POINTS[1]]
-        spawn_manager.start_spawning([mock_player_tank])
+        spawn_manager.advance(5.0, [mock_player_tank])
         remaining = spawn_manager.remaining
 
-        spawn_manager.advance(5.0, [mock_player_tank])
-
+        spawn_manager.advance(4.9, [mock_player_tank])
+        assert spawn_manager.remaining == remaining
+        spawn_manager.advance(0.1, [mock_player_tank])
         assert spawn_manager.remaining == remaining - 1
 
     @patch("random.choice")

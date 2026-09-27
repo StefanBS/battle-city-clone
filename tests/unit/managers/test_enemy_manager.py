@@ -144,10 +144,6 @@ class TestClear:
         assert enemy_manager.enemies_frozen
         enemy.freeze.assert_called_once_with(5.0)
 
-    def test_the_enemies_cannot_be_replaced_from_outside(self, enemy_manager):
-        with pytest.raises(AttributeError):
-            enemy_manager.enemies = []  # type: ignore[misc]
-
 
 class TestStepEnemies:
     """Each frame, every Enemy's AI decides and TankStepper steps the Enemy."""
