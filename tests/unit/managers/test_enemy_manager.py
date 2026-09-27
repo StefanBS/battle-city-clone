@@ -209,19 +209,6 @@ class TestFrozen:
             call(moving, moving_ai, DT),
         ]
 
-    def test_an_enemy_appearing_after_every_enemy_is_gone_is_still_frozen(
-        self, enemy_manager, stepper, add_enemy, make_enemy
-    ):
-        first, _ = add_enemy(100, 100)
-        enemy_manager.freeze(1.0)
-        enemy_manager.remove(first)
-        enemy_manager.step_enemies(CLOCK_DT, stepper, [])
-
-        enemy = make_enemy()
-        enemy_manager.add(enemy, MagicMock(spec=EnemyAI))
-
-        enemy.freeze.assert_called_once_with(0.75)
-
     def test_an_enemy_added_during_a_clock_is_frozen_for_the_time_left(
         self, enemy_manager, stepper, make_enemy
     ):

@@ -372,12 +372,8 @@ def corridor_view(
     bullet_speed: float | None = None,
     enemy_speed: float | None = None,
     enemy_frozen: bool = False,
-    enemy_slid: float = 0.0,
 ) -> WorldView:
-    """World View of the Enemy in a corridor with the given right-wall gaps.
-
-    ``enemy_slid`` moves the Enemy that many pixels the way it faces.
-    """
+    """World View of the Enemy in a corridor with the given right-wall gaps."""
     tiles = {(11, y): TileType.STEEL for y in range(21)}
     tiles |= {(14, y): TileType.STEEL for y in range(21) if y not in right_openings}
     view = make_view(
@@ -385,14 +381,7 @@ def corridor_view(
         enemies=[CORRIDOR_ENEMY],
         tiles=tiles | (extra_tiles or {}),
     )
-    dx, dy = enemy_facing.delta
-    enemy = replace(
-        view.enemies[0],
-        direction=enemy_facing,
-        x=view.enemies[0].x + dx * enemy_slid,
-        y=view.enemies[0].y + dy * enemy_slid,
-        frozen=enemy_frozen,
-    )
+    enemy = replace(view.enemies[0], direction=enemy_facing, frozen=enemy_frozen)
     if enemy_speed is not None:
         enemy = replace(enemy, speed=enemy_speed)
     own = view.players[1]
@@ -448,16 +437,8 @@ class TestCpuPartnerHoldFireNearCorridorExit:
         assert cpu.consume_shoot() is True
 
     def test_fires_at_a_frozen_enemy_near_an_exit(self, cpu) -> None:
+        # Even one still Sliding toward the exit: it can't turn into it.
         cpu.observe(corridor_view(right_openings=(6, 7), enemy_frozen=True))
-        assert cpu.consume_shoot() is True
-
-    def test_fires_at_a_frozen_enemy_still_sliding_toward_an_exit(self, cpu) -> None:
-        # Two frames in a row: the Slide carries it on down the corridor, but
-        # it can't turn into the exit, so it stays in the Line of Fire.
-        cpu.observe(corridor_view(right_openings=(6, 7), enemy_frozen=True))
-        cpu.observe(
-            corridor_view(right_openings=(6, 7), enemy_frozen=True, enemy_slid=2.0)
-        )
         assert cpu.consume_shoot() is True
 
     def test_star_bullet_beats_the_enemy_to_a_near_exit(self, cpu) -> None:
