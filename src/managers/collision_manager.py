@@ -5,15 +5,17 @@ See ``docs/adr/0003-collision-response-returns-outcomes.md``.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from enum import Enum, auto
-from typing import TYPE_CHECKING, Any
+from functools import partial
+from typing import TYPE_CHECKING
 
+import pygame
 from loguru import logger
 
 from src.core.bullet import Bullet
 from src.core.enemy_tank import EnemyTank
+from src.core.game_object import GameObject
 from src.core.map import Map
 from src.core.player_tank import PlayerTank
 from src.core.power_up import PowerUp
@@ -39,30 +41,6 @@ if TYPE_CHECKING:
     from src.managers.sound_manager import SoundManager
 
 
-class _Kind(Enum):
-    """What collided with what; the first object of the pair comes first."""
-
-    BULLET_VS_ENEMY = auto()
-    BULLET_VS_PLAYER = auto()
-    BULLET_VS_TILE = auto()
-    BULLET_VS_BULLET = auto()
-    TANK_VS_TILE = auto()
-    TANK_VS_TANK = auto()
-    PLAYER_VS_POWER_UP = auto()
-
-
-_BULLET_KINDS = frozenset(
-    {
-        _Kind.BULLET_VS_ENEMY,
-        _Kind.BULLET_VS_PLAYER,
-        _Kind.BULLET_VS_TILE,
-        _Kind.BULLET_VS_BULLET,
-    }
-)
-
-_Event = tuple[_Kind, Any, Any]
-
-
 @dataclass
 class _Frame:
     """What one ``resolve`` call has produced so far."""
@@ -71,7 +49,11 @@ class _Frame:
     # Tanks destroyed earlier in the frame: bullets pass through them.
     destroyed: set[Tank] = field(default_factory=set)
     # Tanks already stopped this frame, by a tile or another tank.
-    reverted: set[Tank] = field(default_factory=set)
+    stopped: set[Tank] = field(default_factory=set)
+
+
+# One collision found, waiting to be responded to.
+_Collision = Callable[[_Frame], None]
 
 
 class CollisionManager:
@@ -114,7 +96,10 @@ class CollisionManager:
         Returns:
             The frame's outcomes, in the order they happened.
         """
-        return self._respond(self._detect(players, enemies, bullets))
+        frame = _Frame()
+        for collision in self._detect(players, enemies, bullets):
+            collision(frame)
+        return frame.outcomes
 
     # --- Detection -------------------------------------------------------
 
@@ -123,31 +108,35 @@ class CollisionManager:
         players: Sequence[PlayerTank],
         enemies: Sequence[EnemyTank],
         bullets: Sequence[Bullet],
-    ) -> list[_Event]:
+    ) -> list[_Collision]:
         """Find every collision, in the order they are responded to.
 
         Bullets come first: a bullet stopped by one thing can't also hit
         another, and a tile a bullet hits is damaged before any tank is
         stopped. Then tanks against tiles and each other, then Power-Ups.
         """
-        events: list[_Event] = []
+        collisions: list[_Collision] = []
         seen: set[tuple[int, int]] = set()
 
-        def add(kind: _Kind, a: Any, b: Any) -> None:
-            # A pair found twice (e.g. the Base is also a bullet-blocking tile)
-            # is responded to once, as the kind it was first found as.
-            if (id(a), id(b)) in seen or (id(b), id(a)) in seen:
-                return
-            seen.add((id(a), id(b)))
-            events.append((kind, a, b))
-
-        def overlapping(
-            kind: _Kind, group_a: Sequence[Any], group_b: Sequence[Any]
+        def add[A, B](
+            respond: Callable[[A, B, _Frame], None], first: A, second: B
         ) -> None:
-            for a in group_a:
-                for b in group_b:
-                    if a.rect.colliderect(b.rect):
-                        add(kind, a, b)
+            # A pair found twice (e.g. the Base is also a bullet-blocking tile)
+            # is responded to once, as it was first found.
+            if (id(first), id(second)) in seen or (id(second), id(first)) in seen:
+                return
+            seen.add((id(first), id(second)))
+            collisions.append(partial(respond, first, second))
+
+        def overlapping[A: GameObject | Tile, B: GameObject | Tile](
+            respond: Callable[[A, B, _Frame], None],
+            firsts: Sequence[A],
+            seconds: Sequence[B],
+        ) -> None:
+            for first in firsts:
+                for second in seconds:
+                    if first.rect.colliderect(second.rect):
+                        add(respond, first, second)
 
         player_bullets = [b for b in bullets if b.owner_type == OwnerType.PLAYER]
         enemy_bullets = [b for b in bullets if b.owner_type == OwnerType.ENEMY]
@@ -155,73 +144,38 @@ class CollisionManager:
         base = self._map.get_base()
         tanks: list[Tank] = [*players, *enemies]
 
-        overlapping(_Kind.BULLET_VS_ENEMY, player_bullets, enemies)
-        overlapping(_Kind.BULLET_VS_TILE, player_bullets, bullet_blocking_tiles)
+        overlapping(self._bullet_vs_enemy, player_bullets, enemies)
+        overlapping(self._bullet_vs_tile, player_bullets, bullet_blocking_tiles)
         # Swept rects, so bullets heading at each other can't pass through
         # one another between frames.
         for player_bullet in player_bullets:
             for enemy_bullet in enemy_bullets:
                 if player_bullet.swept_rect.colliderect(enemy_bullet.swept_rect):
-                    add(_Kind.BULLET_VS_BULLET, player_bullet, enemy_bullet)
-        overlapping(_Kind.BULLET_VS_TILE, enemy_bullets, bullet_blocking_tiles)
+                    add(self._bullet_vs_bullet, player_bullet, enemy_bullet)
+        overlapping(self._bullet_vs_tile, enemy_bullets, bullet_blocking_tiles)
         if base is not None:
-            overlapping(_Kind.BULLET_VS_TILE, player_bullets, [base])
-            overlapping(_Kind.BULLET_VS_TILE, enemy_bullets, [base])
+            overlapping(self._bullet_vs_tile, player_bullets, [base])
+            overlapping(self._bullet_vs_tile, enemy_bullets, [base])
+        # Player by Player, an Enemy's bullet before a Player's.
         for player in players:
-            overlapping(_Kind.BULLET_VS_PLAYER, enemy_bullets, [player])
-            overlapping(_Kind.BULLET_VS_PLAYER, player_bullets, [player])
+            overlapping(self._bullet_vs_player, enemy_bullets, [player])
+            overlapping(self._bullet_vs_player, player_bullets, [player])
 
-        overlapping(_Kind.TANK_VS_TILE, tanks, self._map.get_blocking_tiles())
-        for i, tank_a in enumerate(tanks):
-            overlapping(_Kind.TANK_VS_TANK, [tank_a], tanks[i + 1 :])
+        overlapping(self._tank_vs_tile, tanks, self._map.get_blocking_tiles())
+        for i, tank in enumerate(tanks):
+            overlapping(self._tank_vs_tank, [tank], tanks[i + 1 :])
 
         overlapping(
-            _Kind.PLAYER_VS_POWER_UP, players, self._power_up_manager.active_power_ups
+            self._player_vs_power_up, players, self._power_up_manager.active_power_ups
         )
-        return events
+        return collisions
 
     # --- Response --------------------------------------------------------
-
-    def _respond(self, events: list[_Event]) -> list[BattleOutcome]:
-        """Respond to each collision in order, skipping those already settled.
-
-        A bullet responds once: after it has stopped, later collisions with it
-        are skipped. A tank is stopped once: a tank already stopped this frame
-        isn't stopped again.
-        """
-        frame = _Frame()
-        for kind, a, b in events:
-            if kind in _BULLET_KINDS:
-                if not a.active or (isinstance(b, Bullet) and not b.active):
-                    continue
-                self._respond_to_bullet(kind, a, b, frame)
-            elif kind is _Kind.PLAYER_VS_POWER_UP:
-                self._player_vs_power_up(a, b, frame)
-            elif kind is _Kind.TANK_VS_TANK:
-                if (a not in frame.reverted or b not in frame.reverted) and (
-                    self._tank_vs_tank(a, b)
-                ):
-                    frame.reverted.update((a, b))
-            elif kind is _Kind.TANK_VS_TILE:
-                if a not in frame.reverted and self._tank_vs_tile(a, b):
-                    frame.reverted.add(a)
-        return frame.outcomes
-
-    def _respond_to_bullet(
-        self, kind: _Kind, bullet: Bullet, other: Any, frame: _Frame
-    ) -> None:
-        match kind:
-            case _Kind.BULLET_VS_ENEMY:
-                self._bullet_vs_enemy(bullet, other, frame)
-            case _Kind.BULLET_VS_PLAYER:
-                self._bullet_vs_player(bullet, other, frame)
-            case _Kind.BULLET_VS_TILE:
-                self._bullet_vs_tile(bullet, other, frame)
-            case _Kind.BULLET_VS_BULLET:
-                self._bullet_vs_bullet(bullet, other)
+    # Responded to in the order found. A bullet responds once: once it has
+    # stopped, later collisions with it do nothing. A tank is stopped once.
 
     def _bullet_vs_enemy(self, bullet: Bullet, enemy: EnemyTank, frame: _Frame) -> None:
-        if enemy in frame.destroyed:
+        if not bullet.active or enemy in frame.destroyed:
             return
         logger.debug(f"Player bullet hit enemy tank (type: {enemy.tank_type})")
         bullet.active = False
@@ -235,7 +189,7 @@ class CollisionManager:
     def _bullet_vs_player(
         self, bullet: Bullet, player: PlayerTank, frame: _Frame
     ) -> None:
-        if bullet.owner is player or player in frame.destroyed:
+        if not bullet.active or bullet.owner is player or player in frame.destroyed:
             return
 
         if bullet.owner_type == OwnerType.PLAYER:
@@ -252,7 +206,7 @@ class CollisionManager:
             frame.outcomes.append(PlayerDestroyed(player))
 
     def _bullet_vs_tile(self, bullet: Bullet, tile: Tile, frame: _Frame) -> None:
-        if not tile.blocks_bullets:
+        if not bullet.active or not tile.blocks_bullets:
             return
 
         logger.debug(f"Bullet hit {tile.type.name} tile at ({tile.x}, {tile.y})")
@@ -274,7 +228,11 @@ class CollisionManager:
             self._map.destroy_base()
             frame.outcomes.append(BaseDestroyed())
 
-    def _bullet_vs_bullet(self, bullet_a: Bullet, bullet_b: Bullet) -> None:
+    def _bullet_vs_bullet(
+        self, bullet_a: Bullet, bullet_b: Bullet, frame: _Frame
+    ) -> None:
+        if not bullet_a.active or not bullet_b.active:
+            return
         logger.debug("Bullet hit bullet. Both deactivated.")
         bullet_a.active = False
         bullet_b.active = False
@@ -300,8 +258,10 @@ class CollisionManager:
         """
         return not mover.prev_rect.colliderect(other.rect)
 
-    def _tank_vs_tank(self, tank_a: Tank, tank_b: Tank) -> bool:
-        """Stop whichever tank closed the gap; return whether any was stopped."""
+    def _tank_vs_tank(self, tank_a: Tank, tank_b: Tank, frame: _Frame) -> None:
+        """Stop whichever tank closed the gap."""
+        if tank_a in frame.stopped and tank_b in frame.stopped:
+            return
         a_caused = self._caused_collision(tank_a, tank_b)
         b_caused = self._caused_collision(tank_b, tank_a)
         neither = not a_caused and not b_caused
@@ -309,21 +269,23 @@ class CollisionManager:
         # Pre-existing overlap (e.g. from spawn): let both tanks move
         # freely so they can separate instead of getting permanently stuck.
         if neither and tank_a.prev_rect.colliderect(tank_b.prev_rect):
-            return False
+            return
 
         if neither or a_caused:
-            tank_a.revert_move()
-            tank_a.on_movement_blocked()
+            self._stop(tank_a)
         if neither or b_caused:
-            tank_b.revert_move()
-            tank_b.on_movement_blocked()
-        return True
+            self._stop(tank_b)
+        frame.stopped.update((tank_a, tank_b))
+
+    def _tank_vs_tile(self, tank: Tank, tile: Tile, frame: _Frame) -> None:
+        """Stop a tank flush against a tile that blocks it."""
+        if tank in frame.stopped or not tile.blocks_tanks:
+            return
+        self._stop(tank, tile.rect)
+        frame.stopped.add(tank)
 
     @staticmethod
-    def _tank_vs_tile(tank: Tank, tile: Tile) -> bool:
-        """Stop a tank flush against a tile that blocks it."""
-        if not tile.blocks_tanks:
-            return False
-        tank.revert_move(tile.rect)
+    def _stop(tank: Tank, obstacle_rect: pygame.Rect | None = None) -> None:
+        """Move a tank back (flush against ``obstacle_rect``, if given)."""
+        tank.revert_move(obstacle_rect)
         tank.on_movement_blocked()
-        return True

@@ -128,6 +128,13 @@ def step_move(tank, dx, dy):
     tank.move(dx, dy, DT)
 
 
+def count_blocks(enemy):
+    """Count, in the returned list's length, how often ``enemy`` is blocked."""
+    blocks = []
+    enemy.movement_blocked_listener = lambda: blocks.append(enemy)
+    return blocks
+
+
 def stand_still(tank):
     """One frame of ``tank`` not moving."""
     tank.update(DT)
@@ -297,6 +304,20 @@ class TestBulletVsPlayer:
         assert not target.is_frozen
         assert not bullet.active
 
+    def test_an_enemy_bullet_stopped_by_a_brick_does_not_hit_the_player(
+        self, collisions, game_map, make_player, make_enemy
+    ):
+        player = make_player(96, 96)
+        brick = place(game_map, TileType.BRICK, 6, 6)
+        lives = player.lives
+        bullet = bullet_on(brick.rect, make_enemy(300, 300), Direction.DOWN)
+
+        outcomes = collisions.resolve(players=[player], enemies=[], bullets=[bullet])
+
+        assert outcomes == []
+        assert player.lives == lives
+        assert not bullet.active
+
     def test_a_players_own_bullet_does_not_hit_it(self, collisions, make_player):
         player = make_player(100, 100)
         bullet = bullet_on(player.rect, player)
@@ -384,6 +405,20 @@ class TestBulletVsBullet:
         assert not enemy_bullet.active
         assert effects.effects == []
 
+    def test_a_bullet_that_hit_an_enemy_does_not_stop_an_enemy_bullet(
+        self, collisions, make_player, make_enemy
+    ):
+        player, enemy = make_player(0, 300), make_enemy(96, 96)
+        player_bullet = bullet_on(enemy.rect, player)
+        enemy_bullet = bullet_on(enemy.rect, make_enemy(300, 0), Direction.DOWN)
+
+        outcomes = collisions.resolve(
+            players=[player], enemies=[enemy], bullets=[player_bullet, enemy_bullet]
+        )
+
+        assert outcomes == [EnemyDestroyed(enemy, by=player)]
+        assert enemy_bullet.active
+
 
 class TestTankVsTile:
     @pytest.mark.parametrize("tile_type", [TileType.STEEL, TileType.WATER])
@@ -405,13 +440,13 @@ class TestTankVsTile:
         place(game_map, TileType.STEEL, 4, 5)
         place(game_map, TileType.STEEL, 5, 5)
         enemy = make_enemy(64, 96)
-        enemy.movement_blocked_listener = MagicMock()
+        blocks = count_blocks(enemy)
         step_move(enemy, 0, -1)
 
         collisions.resolve(players=[], enemies=[enemy], bullets=[])
 
         assert enemy.y == 96
-        enemy.movement_blocked_listener.assert_called_once()
+        assert len(blocks) == 1
 
     def test_tank_moves_over_a_bush(self, collisions, game_map, make_player):
         place(game_map, TileType.BUSH, 4, 5)
@@ -454,16 +489,15 @@ class TestTankVsTank:
         self, collisions, make_enemy, standing_first
     ):
         standing, mover = make_enemy(96, 128), make_enemy(96, 96)
-        standing.movement_blocked_listener = MagicMock()
-        mover.movement_blocked_listener = MagicMock()
+        standing_blocks, mover_blocks = count_blocks(standing), count_blocks(mover)
         stand_still(standing)
         step_move(mover, 0, 1)
         enemies = [standing, mover] if standing_first else [mover, standing]
 
         collisions.resolve(players=[], enemies=enemies, bullets=[])
 
-        standing.movement_blocked_listener.assert_not_called()
-        mover.movement_blocked_listener.assert_called_once()
+        assert standing_blocks == []
+        assert len(mover_blocks) == 1
         assert (mover.x, mover.y) == (96, 96)
 
     def test_tank_moving_across_keeps_its_move(
@@ -490,6 +524,28 @@ class TestTankVsTank:
 
         assert (left.x, left.y) == (96, 96)
         assert (right.x, right.y) == (128, 96)
+
+    def test_tanks_both_stopped_by_tiles_are_not_stopped_again_by_each_other(
+        self, collisions, game_map, make_player, make_enemy
+    ):
+        # The Player drives up into steel; the Enemy drives left into the
+        # steel beside it, and into the Player's side.
+        place(game_map, TileType.STEEL, 4, 5)
+        place(game_map, TileType.STEEL, 5, 5)
+        place(game_map, TileType.STEEL, 5, 8)
+        player, enemy = make_player(64, 96), make_enemy()
+        enemy.x, enemy.y = 96.5, 112
+        blocks = count_blocks(enemy)
+        step_move(player, 0, -1)
+        step_move(enemy, -1, 0)
+        assert player.rect.colliderect(enemy.rect)
+
+        collisions.resolve(players=[player], enemies=[enemy], bullets=[])
+
+        # Flush against the steel, not moved back to where it started.
+        assert (enemy.x, enemy.y) == (96, 112)
+        assert (player.x, player.y) == (64, 96)
+        assert len(blocks) == 1
 
     def test_tanks_already_overlapping_are_free_to_separate(
         self, collisions, make_enemy
