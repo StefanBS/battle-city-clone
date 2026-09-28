@@ -293,6 +293,28 @@ class TestTank:
         assert bullet.sprite is None
 
 
+class TestBulletCap:
+    """A tank at its Bullet Cap has as many of its own bullets in flight as it may."""
+
+    @pytest.mark.parametrize("cap", [1, 2])
+    def test_reaches_the_cap_with_that_many_bullets_in_flight(self, create_tank, cap):
+        tank = create_tank()
+        tank.max_bullets = cap
+        bullets = [tank.shoot() for _ in range(cap - 1)]
+        assert not tank.is_at_bullet_cap(bullets)
+        assert tank.is_at_bullet_cap([*bullets, tank.shoot()])
+
+    def test_other_tanks_bullets_do_not_count(self, create_tank):
+        tank = create_tank()
+        assert not tank.is_at_bullet_cap([create_tank().shoot()])
+
+    def test_spent_bullets_do_not_count(self, create_tank):
+        tank = create_tank()
+        bullet = tank.shoot()
+        bullet.active = False
+        assert not tank.is_at_bullet_cap([bullet])
+
+
 class TestFreeze:
     """Frozen is state on the tank; update() counts it down."""
 

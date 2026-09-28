@@ -55,7 +55,7 @@ def tank():
     tank.max_bullets = 1
     tank.start_slide.return_value = True
     tank.shoot.side_effect = lambda: _bullet(tank)
-    tank.is_at_bullet_cap.side_effect = lambda b: Tank.is_at_bullet_cap(tank, b)
+    tank.is_at_bullet_cap.return_value = False
     return tank
 
 
@@ -243,39 +243,26 @@ class TestFiring:
 
         assert calls == ["move", "shoot"]
 
-    @pytest.mark.parametrize("cap", [1, 2])
-    def test_bullet_cap_blocks_extra_shot(self, stepper, tank, cap):
-        tank.max_bullets = cap
-        for _ in range(cap):
-            stepper.step(tank, FakeIntent(shoot=True), DT)
+    def test_does_not_fire_a_tank_at_its_bullet_cap(self, stepper, tank):
+        tank.is_at_bullet_cap.return_value = True
 
         result = stepper.step(tank, FakeIntent(shoot=True), DT)
 
         assert result.fired is False
-        assert len(stepper.bullets) == cap
+        tank.shoot.assert_not_called()
+        assert stepper.bullets == []
 
-    def test_cap_counts_only_own_bullets(self, stepper, tank):
-        other = MagicMock(spec=Tank)
-        other.max_bullets = 1
-        other.shoot.side_effect = lambda: _bullet(other)
-        other.is_at_bullet_cap.side_effect = lambda b: Tank.is_at_bullet_cap(other, b)
-        other.x = other.y = 0.0
-        other.width = other.height = TILE_SIZE
-        other.direction = Direction.UP
-        other.is_sliding = False
-        stepper.step(other, FakeIntent(shoot=True), DT)
-
-        result = stepper.step(tank, FakeIntent(shoot=True), DT)
-
-        assert result.fired is True
-
-    def test_inactive_bullet_frees_the_cap(self, stepper, tank):
+    def test_asks_the_tank_about_its_cap_with_every_bullet_in_flight(
+        self, stepper, tank
+    ):
+        asked_with = []
+        tank.is_at_bullet_cap.side_effect = lambda b: asked_with.append(list(b))
         stepper.step(tank, FakeIntent(shoot=True), DT)
-        stepper.bullets[0].active = False
+        in_flight = list(stepper.bullets)
 
-        result = stepper.step(tank, FakeIntent(shoot=True), DT)
+        stepper.step(tank, FakeIntent(shoot=True), DT)
 
-        assert result.fired is True
+        assert asked_with == [[], in_flight]
 
     def test_shot_the_tank_cannot_fire_is_not_reported(self, stepper, tank):
         tank.shoot.side_effect = None
