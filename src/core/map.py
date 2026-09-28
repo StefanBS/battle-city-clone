@@ -5,7 +5,7 @@ import pytmx
 from pytmx.util_pygame import load_pygame
 from loguru import logger
 from .tile import BrickVariant, Tile, TileDefaults, TileType
-from src.managers.texture_manager import TextureManager
+from src.core.sprite_atlas import SpriteAtlas
 from src.utils.constants import (
     Difficulty,
     Direction,
@@ -90,7 +90,7 @@ class Map:
         Direction.UP: BrickVariant.TOP,
     }
 
-    def __init__(self, map_file: str, texture_manager: TextureManager) -> None:
+    def __init__(self, map_file: str, texture_manager: SpriteAtlas) -> None:
         self.tile_size = SUB_TILE_SIZE
         self.texture_manager = texture_manager
         self.tiles: list[list[Tile | None]] = []

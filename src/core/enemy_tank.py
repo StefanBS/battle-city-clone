@@ -12,7 +12,7 @@ from src.utils.constants import (
     OwnerType,
     TankType,
 )
-from src.managers.texture_manager import TextureManager
+from src.core.sprite_atlas import SpriteAtlas
 
 
 # Define the structure for the properties dictionary
@@ -59,7 +59,7 @@ class EnemyTank(Tank):
         x: int,
         y: int,
         tile_size: int,
-        texture_manager: TextureManager,
+        texture_manager: SpriteAtlas,
         tank_type: TankType,
         *,
         map_width_px: int,
@@ -73,7 +73,7 @@ class EnemyTank(Tank):
             x: Initial x position
             y: Initial y position
             tile_size: Size of a tile in pixels
-            texture_manager: Instance of TextureManager
+            texture_manager: Instance of SpriteAtlas
             tank_type: The type of enemy tank ('basic', 'fast', 'power', 'armor')
             map_width_px: Map width in pixels (for boundary clamping)
             map_height_px: Map height in pixels (for boundary clamping)

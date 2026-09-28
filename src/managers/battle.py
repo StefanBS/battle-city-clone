@@ -54,9 +54,9 @@ if TYPE_CHECKING:
     from src.core.map import Map
     from src.core.player_tank import PlayerTank
     from src.core.power_up import PowerUp
+    from src.core.sprite_atlas import SpriteAtlas
     from src.core.tank import Tank
-    from src.managers.sound_manager import SoundManager
-    from src.managers.texture_manager import TextureManager
+    from src.managers.sound_player import SoundPlayer
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -93,8 +93,8 @@ class Battle:
         carried: Mapping[int, CarriedProgress],
         difficulty: Difficulty,
         controller_instance_ids: list[int],
-        texture_manager: TextureManager,
-        sound: SoundManager,
+        texture_manager: SpriteAtlas,
+        sound: SoundPlayer,
     ) -> None:
         """Set up the Stage's collaborators and put its Players on the map.
 

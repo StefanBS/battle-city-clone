@@ -8,6 +8,7 @@ from loguru import logger
 from src.core.effect import Effect
 from src.core.enemy_tank import EnemyTank
 from src.core.map import Map
+from src.core.sprite_atlas import SpriteAtlas
 from src.core.tank import Tank
 from src.managers.effect_manager import EffectManager
 from src.managers.footprint import (
@@ -16,7 +17,6 @@ from src.managers.footprint import (
     blocks_spawn_point,
     spawn_point_footprint,
 )
-from src.managers.texture_manager import TextureManager
 from src.utils.constants import (
     EffectType,
     POWERUP_CARRIER_INDICES,
@@ -57,7 +57,7 @@ class SpawnManager:
 
     def __init__(
         self,
-        texture_manager: TextureManager,
+        texture_manager: SpriteAtlas,
         game_map: Map,
         enemy_composition: dict[TankType, int],
         spawn_interval: float,
@@ -67,7 +67,7 @@ class SpawnManager:
         """Initialize the SpawnManager.
 
         Args:
-            texture_manager: TextureManager for loading enemy sprites.
+            texture_manager: SpriteAtlas for loading enemy sprites.
             game_map: The game map (spawn points, dimensions, collision).
             enemy_composition: The Stage's Roster: how many Enemies of each type.
             spawn_interval: Seconds between one Enemy starting to Spawn and

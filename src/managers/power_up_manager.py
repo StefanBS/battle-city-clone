@@ -12,7 +12,7 @@ from src.core.player_tank import PlayerTank
 from src.core.power_up import PowerUp
 from src.core.map import Map
 from src.core.tank import Tank
-from src.managers.texture_manager import TextureManager
+from src.core.sprite_atlas import SpriteAtlas
 from src.utils.constants import (
     HELMET_INVINCIBILITY_DURATION,
     PowerUpType,
@@ -33,7 +33,7 @@ class PowerUpManager:
 
     def __init__(
         self,
-        texture_manager: TextureManager,
+        texture_manager: SpriteAtlas,
         game_map: Map,
     ) -> None:
         self._texture_manager = texture_manager

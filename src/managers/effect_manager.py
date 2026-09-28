@@ -1,7 +1,7 @@
 import pygame
 from loguru import logger
 from src.core.effect import Effect
-from src.managers.texture_manager import TextureManager
+from src.core.sprite_atlas import SpriteAtlas
 from src.utils.constants import (
     ATLAS_BG_COLOR,
     EffectType,
@@ -15,11 +15,11 @@ from src.utils.constants import (
 class EffectManager:
     """Manages transient visual effects (explosions, etc.)."""
 
-    def __init__(self, texture_manager: TextureManager) -> None:
+    def __init__(self, texture_manager: SpriteAtlas) -> None:
         """Initialize the EffectManager.
 
         Args:
-            texture_manager: TextureManager for loading sprites.
+            texture_manager: SpriteAtlas for loading sprites.
         """
         self.effects: list[Effect] = []
         self._effect_data: dict[EffectType, tuple[list[pygame.Surface], float]] = {}
@@ -41,7 +41,7 @@ class EffectManager:
         result.blit(copy, (0, 0))
         return result
 
-    def _build_frame_cache(self, texture_manager: TextureManager) -> None:
+    def _build_frame_cache(self, texture_manager: SpriteAtlas) -> None:
         """Pre-load and cache sprite frames for each effect type.
 
         Small explosion uses 3 frames at 32x32.

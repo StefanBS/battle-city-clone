@@ -38,7 +38,7 @@ from src.utils.constants import (
 
 if TYPE_CHECKING:
     from src.managers.power_up_manager import PowerUpManager
-    from src.managers.sound_manager import SoundManager
+    from src.managers.sound_player import SoundPlayer
 
 
 @dataclass
@@ -69,7 +69,7 @@ class CollisionManager:
         game_map: Map,
         effect_manager: EffectManager,
         power_up_manager: PowerUpManager,
-        sound_manager: SoundManager,
+        sound_manager: SoundPlayer,
     ) -> None:
         self._map = game_map
         self._effect_manager = effect_manager

@@ -22,9 +22,9 @@ from src.states.game_mode import GameMode
 
 if TYPE_CHECKING:
     from src.core.map import Map
-    from src.managers.sound_manager import SoundManager
+    from src.core.sprite_atlas import SpriteAtlas
+    from src.managers.sound_player import SoundPlayer
     from src.managers.tank_stepper import TankStepper
-    from src.managers.texture_manager import TextureManager
     from src.managers.world_view import WorldView
 
 
@@ -98,8 +98,8 @@ class PlayerManager:
 
     def __init__(
         self,
-        texture_manager: TextureManager,
-        sound_manager: SoundManager,
+        texture_manager: SpriteAtlas,
+        sound_manager: SoundPlayer,
         game_map: Map,
         controller_instance_ids: list[int],
         mode: GameMode = GameMode.ONE_PLAYER,

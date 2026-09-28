@@ -5,7 +5,7 @@ import pygame
 from loguru import logger
 from .game_object import GameObject
 from .bullet import Bullet
-from src.managers.texture_manager import TextureManager
+from src.core.sprite_atlas import SpriteAtlas
 from src.utils.animation import is_blink_visible
 from src.utils.constants import (
     Direction,
@@ -40,7 +40,7 @@ class Tank(GameObject):
         self,
         x: float,
         y: float,
-        texture_manager: TextureManager,
+        texture_manager: SpriteAtlas,
         tile_size: int = TILE_SIZE,
         health: int = 1,
         speed: float = TANK_SPEED,
@@ -56,7 +56,7 @@ class Tank(GameObject):
         Args:
             x: Initial x position
             y: Initial y position
-            texture_manager: TextureManager instance
+            texture_manager: SpriteAtlas instance
             tile_size: Size of a tile in pixels
             health: Initial health points
             speed: Movement speed in pixels per second

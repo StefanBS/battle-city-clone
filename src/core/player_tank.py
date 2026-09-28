@@ -1,7 +1,7 @@
 import pygame
 from loguru import logger
 from .tank import HitResult, Tank
-from src.managers.texture_manager import TextureManager
+from src.core.sprite_atlas import SpriteAtlas
 from src.utils.animation import is_blink_visible
 from src.utils.constants import (
     Direction,
@@ -26,7 +26,7 @@ class PlayerTank(Tank):
         x: int,
         y: int,
         tile_size: int,
-        texture_manager: TextureManager,
+        texture_manager: SpriteAtlas,
         *,
         map_width_px: int,
         map_height_px: int,
@@ -39,7 +39,7 @@ class PlayerTank(Tank):
             x: Initial x position
             y: Initial y position
             tile_size: Size of a tile in pixels
-            texture_manager: Instance of TextureManager
+            texture_manager: Instance of SpriteAtlas
             map_width_px: Map width in pixels (for boundary clamping)
             map_height_px: Map height in pixels (for boundary clamping)
         """
