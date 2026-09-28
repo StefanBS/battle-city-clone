@@ -17,6 +17,7 @@ from src.managers.enemy_manager import EnemyManager
 from src.managers.outcomes import (
     BaseDestroyed,
     CarrierHit,
+    ClockStarted,
     CollisionOutcome,
     EnemyDestroyed,
     GrenadeDetonated,
@@ -301,16 +302,14 @@ class Battle:
                         EnemyDestroyed(enemy, by=None)
                         for enemy in self._enemy_manager.enemies
                     )
+                case ClockStarted():
+                    self._enemy_manager.start_clock()
                 case PowerUpCollected(power_up_type=power_up_type, player=player):
                     self._player_manager.add_score(
                         POWERUP_COLLECT_POINTS, player_id=player.player_id
                     )
                     self._sound.play("powerup")
-                    queue.extend(
-                        self._power_up_manager.apply(
-                            power_up_type, player, self._enemy_manager
-                        )
-                    )
+                    queue.extend(self._power_up_manager.apply(power_up_type, player))
 
     def bring_in_spawns(self) -> None:
         """Put the Enemies that have Appeared on the battlefield.

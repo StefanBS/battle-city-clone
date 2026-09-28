@@ -4,7 +4,7 @@ from src.core.enemy_ai import EnemyAI
 from src.core.enemy_tank import EnemyTank
 from src.core.player_tank import PlayerTank
 from src.managers.tank_stepper import TankStepper
-from src.utils.constants import Difficulty
+from src.utils.constants import CLOCK_FREEZE_DURATION, Difficulty
 
 
 class EnemyManager:
@@ -87,11 +87,14 @@ class EnemyManager:
         self._enemies.clear()
         self._enemy_ais.clear()
 
-    def freeze(self, duration: float) -> None:
-        """Make every Enemy Frozen for ``duration`` seconds (Clock Power-Up)."""
-        self._clock_time_left = duration
+    def start_clock(self) -> None:
+        """Start a Clock: every Enemy is Frozen until it runs out.
+
+        A Clock already in effect starts over.
+        """
+        self._clock_time_left = CLOCK_FREEZE_DURATION
         for enemy in self._enemies:
-            enemy.freeze(duration)
+            enemy.freeze(CLOCK_FREEZE_DURATION)
 
     def step_enemies(
         self, dt: float, stepper: TankStepper, players: list[PlayerTank]

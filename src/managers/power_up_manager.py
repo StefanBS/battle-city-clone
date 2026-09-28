@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import random
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
 
 import pygame
 from loguru import logger
@@ -16,7 +15,6 @@ from src.core.tank import Tank
 from src.managers.texture_manager import TextureManager
 from src.utils.animation import is_blink_visible
 from src.utils.constants import (
-    CLOCK_FREEZE_DURATION,
     HELMET_INVINCIBILITY_DURATION,
     PowerUpType,
     SHOVEL_DURATION,
@@ -26,10 +24,7 @@ from src.utils.constants import (
 )
 from src.core.tile import BrickVariant, Tile, TileType
 
-from src.managers.outcomes import CollisionOutcome, GrenadeDetonated
-
-if TYPE_CHECKING:
-    from src.managers.enemy_manager import EnemyManager
+from src.managers.outcomes import ClockStarted, CollisionOutcome, GrenadeDetonated
 
 
 class PowerUpManager:
@@ -88,21 +83,20 @@ class PowerUpManager:
         self._tick_shovel(dt)
 
     def apply(
-        self,
-        power_up_type: PowerUpType,
-        player: PlayerTank,
-        enemy_manager: EnemyManager,
+        self, power_up_type: PowerUpType, player: PlayerTank
     ) -> list[CollisionOutcome]:
-        """Dispatch a power-up effect.
+        """Give the collecting Player a Power-Up's effect.
+
+        Changes nothing but the Player. An effect on the whole battlefield
+        comes back as an outcome for the Battle to apply.
 
         Args:
             power_up_type: The collected power-up type.
-            player: The collecting player (recipient for player-targeted effects).
-            enemy_manager: Used by CLOCK to affect enemies.
+            player: The collecting Player.
 
         Returns:
-            The outcomes the effect causes on the battlefield:
-            ``GrenadeDetonated`` for a Grenade, otherwise nothing.
+            ``GrenadeDetonated`` for a Grenade, ``ClockStarted`` for a Clock,
+            otherwise nothing.
         """
         outcomes: list[CollisionOutcome] = []
         match power_up_type:
@@ -113,7 +107,7 @@ class PowerUpManager:
             case PowerUpType.GRENADE:
                 outcomes = [GrenadeDetonated()]
             case PowerUpType.CLOCK:
-                enemy_manager.freeze(CLOCK_FREEZE_DURATION)
+                outcomes = [ClockStarted()]
             case PowerUpType.SHOVEL:
                 self.apply_shovel()
             case PowerUpType.STAR:

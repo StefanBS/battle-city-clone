@@ -54,6 +54,11 @@ class GrenadeDetonated:
     """A Grenade went off: every Enemy on the battlefield is destroyed."""
 
 
+@dataclass(frozen=True)
+class ClockStarted:
+    """A Clock went off: every Enemy is Frozen, and so are those that Appear."""
+
+
 CollisionOutcome = (
     CarrierHit
     | EnemyDestroyed
@@ -61,4 +66,5 @@ CollisionOutcome = (
     | BaseDestroyed
     | PowerUpCollected
     | GrenadeDetonated
+    | ClockStarted
 )

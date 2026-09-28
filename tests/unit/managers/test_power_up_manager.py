@@ -3,12 +3,10 @@ import pygame
 from unittest.mock import MagicMock
 from src.core.map import Map
 from src.core.player_tank import PlayerTank
-from src.managers.enemy_manager import EnemyManager
-from src.managers.outcomes import GrenadeDetonated
+from src.managers.outcomes import ClockStarted, GrenadeDetonated
 from src.managers.power_up_manager import PowerUpManager
 from src.core.tile import BrickVariant, TileType
 from src.utils.constants import (
-    CLOCK_FREEZE_DURATION,
     HELMET_INVINCIBILITY_DURATION,
     POWERUP_TIMEOUT,
     PowerUpType,
@@ -161,12 +159,6 @@ class TestPowerUpManagerApply:
         return MagicMock(spec=PlayerTank)
 
     @pytest.fixture
-    def enemy_manager(self):
-        em = MagicMock(spec=EnemyManager)
-        em.enemies = []
-        return em
-
-    @pytest.fixture
     def manager(self, mock_texture_manager):
         """Real PowerUpManager with mocked deps.
 
@@ -178,28 +170,27 @@ class TestPowerUpManagerApply:
         m.apply_shovel = MagicMock()
         return m
 
-    def test_helmet_grants_invincibility(self, manager, player, enemy_manager):
-        manager.apply(PowerUpType.HELMET, player, enemy_manager)
+    def test_helmet_grants_invincibility(self, manager, player):
+        manager.apply(PowerUpType.HELMET, player)
         player.activate_invincibility.assert_called_once_with(
             HELMET_INVINCIBILITY_DURATION
         )
 
-    def test_extra_life_gives_the_player_a_life(self, manager, player, enemy_manager):
-        manager.apply(PowerUpType.EXTRA_LIFE, player, enemy_manager)
+    def test_extra_life_gives_the_player_a_life(self, manager, player):
+        manager.apply(PowerUpType.EXTRA_LIFE, player)
         player.gain_life.assert_called_once_with()
 
-    def test_grenade_returns_grenade_detonated(self, manager, player, enemy_manager):
-        outcomes = manager.apply(PowerUpType.GRENADE, player, enemy_manager)
+    def test_grenade_returns_grenade_detonated(self, manager, player):
+        outcomes = manager.apply(PowerUpType.GRENADE, player)
         assert outcomes == [GrenadeDetonated()]
 
-    def test_clock_freezes_enemies(self, manager, player, enemy_manager):
-        manager.apply(PowerUpType.CLOCK, player, enemy_manager)
-        enemy_manager.freeze.assert_called_once_with(CLOCK_FREEZE_DURATION)
+    def test_clock_returns_clock_started(self, manager, player):
+        assert manager.apply(PowerUpType.CLOCK, player) == [ClockStarted()]
 
-    def test_shovel_delegates_to_apply_shovel(self, manager, player, enemy_manager):
-        manager.apply(PowerUpType.SHOVEL, player, enemy_manager)
+    def test_shovel_delegates_to_apply_shovel(self, manager, player):
+        manager.apply(PowerUpType.SHOVEL, player)
         manager.apply_shovel.assert_called_once_with()
 
-    def test_star_applies_to_player(self, manager, player, enemy_manager):
-        manager.apply(PowerUpType.STAR, player, enemy_manager)
+    def test_star_applies_to_player(self, manager, player):
+        manager.apply(PowerUpType.STAR, player)
         player.apply_star.assert_called_once_with()

@@ -5,7 +5,7 @@ from src.core.enemy_ai import EnemyAI
 from src.core.enemy_tank import EnemyTank
 from src.core.player_tank import PlayerTank
 from src.managers.tank_stepper import StepResult, TankStepper
-from src.utils.constants import Difficulty
+from src.utils.constants import CLOCK_FREEZE_DURATION, Difficulty
 
 DT = 1.0 / 60
 # Exact in binary, so a Clock's countdown has no rounding.
@@ -138,13 +138,13 @@ class TestClear:
         self, enemy_manager, add_enemy, make_enemy
     ):
         add_enemy(0, 0)
-        enemy_manager.freeze(5.0)
+        enemy_manager.start_clock()
 
         enemy_manager.clear()
         enemy = make_enemy()
         enemy_manager.add(enemy, MagicMock(spec=EnemyAI))
 
-        enemy.freeze.assert_called_once_with(5.0)
+        enemy.freeze.assert_called_once_with(CLOCK_FREEZE_DURATION)
 
 
 class TestStepEnemies:
@@ -188,10 +188,24 @@ class TestFrozen:
         first, _ = add_enemy(0, 0)
         second, _ = add_enemy(200, 0)
 
-        enemy_manager.freeze(5.0)
+        enemy_manager.start_clock()
 
-        first.freeze.assert_called_once_with(5.0)
-        second.freeze.assert_called_once_with(5.0)
+        first.freeze.assert_called_once_with(CLOCK_FREEZE_DURATION)
+        second.freeze.assert_called_once_with(CLOCK_FREEZE_DURATION)
+
+    def test_a_second_clock_starts_it_over(
+        self, enemy_manager, stepper, add_enemy, make_enemy
+    ):
+        first, _ = add_enemy(0, 0)
+        enemy_manager.start_clock()
+        enemy_manager.step_enemies(CLOCK_DT, stepper, [])
+
+        enemy_manager.start_clock()
+        later = make_enemy()
+        enemy_manager.add(later, MagicMock(spec=EnemyAI))
+
+        assert first.freeze.call_args_list == [call(CLOCK_FREEZE_DURATION)] * 2
+        later.freeze.assert_called_once_with(CLOCK_FREEZE_DURATION)
 
     def test_a_frozen_enemy_is_stepped_without_its_ai_deciding(
         self, enemy_manager, stepper, add_enemy
@@ -212,20 +226,20 @@ class TestFrozen:
     def test_an_enemy_added_during_a_clock_is_frozen_for_the_time_left(
         self, enemy_manager, stepper, make_enemy
     ):
-        enemy_manager.freeze(1.0)
+        enemy_manager.start_clock()
         enemy_manager.step_enemies(CLOCK_DT, stepper, [])
 
         enemy = make_enemy()
         enemy_manager.add(enemy, MagicMock(spec=EnemyAI))
 
-        enemy.freeze.assert_called_once_with(0.75)
+        enemy.freeze.assert_called_once_with(CLOCK_FREEZE_DURATION - CLOCK_DT)
 
-    @pytest.mark.parametrize("frames, frozen", [(2, True), (3, False)])
+    @pytest.mark.parametrize("frames_short, frozen", [(1, True), (0, False)])
     def test_a_clock_lasts_one_frame_per_dt_of_its_duration(
-        self, enemy_manager, stepper, make_enemy, frames, frozen
+        self, enemy_manager, stepper, make_enemy, frames_short, frozen
     ):
-        enemy_manager.freeze(3 * CLOCK_DT)
-        for _ in range(frames):
+        enemy_manager.start_clock()
+        for _ in range(int(CLOCK_FREEZE_DURATION / CLOCK_DT) - frames_short):
             enemy_manager.step_enemies(CLOCK_DT, stepper, [])
 
         enemy = make_enemy()

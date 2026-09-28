@@ -13,6 +13,7 @@ from src.managers.enemy_manager import EnemyManager
 from src.managers.player_manager import CarriedProgress
 from src.managers.outcomes import (
     CarrierHit,
+    ClockStarted,
     EnemyDestroyed,
     GrenadeDetonated,
     PlayerDestroyed,
@@ -524,6 +525,15 @@ class TestBattleApplyOutcomes:
         battle.apply_outcomes([GrenadeDetonated()])
 
         assert len(battle.scene().power_ups) == 1
+
+    def test_clock_freezes_every_enemy_and_those_that_appear(self, battle, make_enemy):
+        on_field = self._enemy(battle, make_enemy)
+
+        battle.apply_outcomes([ClockStarted()])
+        later = self._enemy(battle, make_enemy)
+
+        assert on_field.is_frozen
+        assert later.is_frozen
 
     def test_player_destroyed(self, battle, players, sound):
         p1 = players[0]
