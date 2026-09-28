@@ -24,6 +24,7 @@ from tests.integration.conftest import (
     place_ice_patch,
     place_player_at,
     spawn_enemy_at,
+    start_game,
     tick,
     use_roster,
 )
@@ -79,11 +80,9 @@ def _driving_enemy(game, grid_x, grid_y, direction):
 
 
 class TestClockFreezesEnemies:
-    def test_engine_sound_stops_and_the_enemy_is_not_moving(self, game):
+    def test_engine_sound_stops_and_the_enemy_is_not_moving(self):
         recorder = _EngineRecorder()
-        # The Battle plays sounds through the SoundManager it is built with.
-        game.sound_manager = recorder
-        game._reset_game()
+        game = start_game(sound_manager=recorder)
         _open_field(game)
         enemy = _driving_enemy(game, 4, 6, Direction.RIGHT)
         assert recorder.engine_running is True

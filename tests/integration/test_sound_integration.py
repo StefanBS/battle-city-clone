@@ -1,6 +1,6 @@
 """Integration tests for sound effect wiring with real game objects."""
 
-from src.states.game_state import GameState
+from src.states.screen import Screen
 from src.utils.constants import FPS
 from tests.integration.conftest import first_player
 
@@ -11,7 +11,7 @@ class TestEngineSoundWiring:
     def test_engine_sound_updates_during_gameplay(self, game_manager_fixture):
         """Verify update() calls update_engine without error during RUNNING."""
         gm = game_manager_fixture
-        assert gm.state == GameState.RUNNING
+        assert gm.flow.screen == Screen.RUNNING
         for _ in range(5):
             gm.update()
 
@@ -30,38 +30,6 @@ class TestEngineSoundWiring:
         assert first_player(gm).is_moving is True
         first_player(gm).update(dt)
         assert first_player(gm).is_moving is False
-
-
-class TestVictoryTransition:
-    """Victory state transition stops loops and plays victory sound."""
-
-    def test_victory_goes_through_set_game_state(self, game_manager_fixture):
-        """Verify victory sets correct state and timer."""
-        gm = game_manager_fixture
-        gm._set_game_state(GameState.VICTORY)
-        assert gm.state == GameState.VICTORY
-        assert gm._state_timer == 0.0
-
-
-class TestGameOverTransition:
-    """Game over transition stops loops and plays game over sound."""
-
-    def test_game_over_goes_through_set_game_state(self, game_manager_fixture):
-        """Verify game over sets GAME_OVER_ANIMATION state."""
-        gm = game_manager_fixture
-        gm._set_game_state(GameState.GAME_OVER)
-        assert gm.state == GameState.GAME_OVER_ANIMATION
-        assert gm._state_timer == 0.0
-
-
-class TestQuitCleansUp:
-    """Quit game cleans up looping sounds."""
-
-    def test_quit_game_sets_exit_state(self, game_manager_fixture):
-        """Verify _quit_game transitions to EXIT."""
-        gm = game_manager_fixture
-        gm._quit_game()
-        assert gm.state == GameState.EXIT
 
 
 class TestPowerupBlinkWiring:

@@ -5,7 +5,6 @@ from __future__ import annotations
 from collections import deque
 from collections.abc import Mapping
 from dataclasses import dataclass
-from enum import Enum, auto
 from typing import TYPE_CHECKING
 
 import pygame
@@ -32,6 +31,7 @@ from src.managers.power_up_manager import PowerUpManager
 from src.managers.spawn_manager import SpawnManager
 from src.managers.tank_stepper import StepResult, TankIntent, TankStepper
 from src.managers.world_view import WorldView, build_world_view
+from src.states.battle_result import BattleResult
 from src.states.game_mode import GameMode
 from src.utils.constants import (
     ENEMY_POINTS,
@@ -54,13 +54,6 @@ if TYPE_CHECKING:
     from src.core.tank import Tank
     from src.managers.sound_manager import SoundManager
     from src.managers.texture_manager import TextureManager
-
-
-class BattleResult(Enum):
-    """How a Battle ended."""
-
-    GAME_OVER = auto()
-    VICTORY = auto()
 
 
 @dataclass(frozen=True, kw_only=True)

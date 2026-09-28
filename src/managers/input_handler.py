@@ -27,6 +27,7 @@ _DIRECTION_TO_MENU_ACTION: dict[Direction, MenuAction] = {
 _CTRL_MENU_BUTTONS: dict[int, MenuAction] = {
     pygame.CONTROLLER_BUTTON_A: MenuAction.CONFIRM,
     pygame.CONTROLLER_BUTTON_B: MenuAction.BACK,
+    pygame.CONTROLLER_BUTTON_START: MenuAction.PAUSE,
 }
 
 _CONFIRM_KEYS: tuple[int, ...] = (pygame.K_RETURN, pygame.K_r)
@@ -103,6 +104,8 @@ class InputHandler:
             self._menu_actions.append(_DIRECTION_TO_MENU_ACTION[direction])
         if event.key in _CONFIRM_KEYS:
             self._menu_actions.append(MenuAction.CONFIRM)
+        elif event.key == pygame.K_ESCAPE:
+            self._menu_actions.append(MenuAction.PAUSE)
 
     def _handle_device_event(self, event: pygame.event.Event) -> None:
         if event.type == pygame.CONTROLLERDEVICEADDED:

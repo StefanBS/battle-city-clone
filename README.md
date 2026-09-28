@@ -116,7 +116,8 @@ battle-city-clone/
 │   │   └── power_up.py                    # Power-up entity (blink, timeout, collection)
 │   │
 │   ├── managers/                          # Game systems
-│   │   ├── game_manager.py                # Main loop and screen flow (menus, pause, curtain)
+│   │   ├── game_manager.py                # Main loop; pygame adapter around the Screen Flow
+│   │   ├── screen_flow.py                 # Screens, menus, curtain and which Stage comes next
 │   │   ├── battle.py                      # One Stage: frame pipeline, outcomes, Game Over / Victory
 │   │   ├── tank_stepper.py                # Steps every tank through a frame; owns the bullets
 │   │   ├── player_manager.py              # Player slots: tanks, inputs, lives, and score
@@ -145,7 +146,8 @@ battle-city-clone/
 │   │   └── settings_manager.py            # Persistent game settings (volume, difficulty)
 │   │
 │   ├── states/
-│   │   ├── game_state.py                  # GameState enum (TITLE_SCREEN, RUNNING, PAUSED, ...)
+│   │   ├── screen.py                      # Screen enum (TITLE_SCREEN, RUNNING, PAUSED, ...)
+│   │   ├── battle_result.py               # BattleResult enum (Game Over, Victory)
 │   │   └── game_mode.py                   # GameMode enum (1 Player, 2 Players, 1 Player + CPU)
 │   │
 │   └── utils/

@@ -1,12 +1,11 @@
 from enum import Enum
 
 
-class GameState(Enum):
-    """Possible states of the game."""
+class Screen(Enum):
+    """The screens of the Screen Flow."""
 
     TITLE_SCREEN = 0
     RUNNING = 1
-    GAME_OVER = 2
     VICTORY = 3
     EXIT = 4
     STAGE_CURTAIN_CLOSE = 5

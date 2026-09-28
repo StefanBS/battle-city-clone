@@ -177,6 +177,7 @@ class TestMenuActionMaps:
             pytest.param(_key(pygame.K_RIGHT), MenuAction.RIGHT, id="k_right"),
             pytest.param(_key(pygame.K_RETURN), MenuAction.CONFIRM, id="k_return"),
             pytest.param(_key(pygame.K_r), MenuAction.CONFIRM, id="k_r"),
+            pytest.param(_key(pygame.K_ESCAPE), MenuAction.PAUSE, id="k_escape"),
             pytest.param(
                 _button(pygame.CONTROLLER_BUTTON_DPAD_UP), MenuAction.UP, id="dpad_up"
             ),
@@ -199,6 +200,9 @@ class TestMenuActionMaps:
                 _button(pygame.CONTROLLER_BUTTON_A), MenuAction.CONFIRM, id="a"
             ),
             pytest.param(_button(pygame.CONTROLLER_BUTTON_B), MenuAction.BACK, id="b"),
+            pytest.param(
+                _button(pygame.CONTROLLER_BUTTON_START), MenuAction.PAUSE, id="start"
+            ),
         ],
     )
     def test_key_or_button_produces_menu_action(
