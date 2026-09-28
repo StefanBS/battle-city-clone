@@ -206,6 +206,7 @@ class CollisionManager:
             frame.outcomes.append(PlayerDestroyed(player))
 
     def _bullet_vs_tile(self, bullet: Bullet, tile: Tile, frame: _Frame) -> None:
+        # The tile may have been shot away earlier this frame.
         if not bullet.active or not tile.blocks_bullets:
             return
 
@@ -279,6 +280,7 @@ class CollisionManager:
 
     def _tank_vs_tile(self, tank: Tank, tile: Tile, frame: _Frame) -> None:
         """Stop a tank flush against a tile that blocks it."""
+        # The tile may have been shot away earlier this frame.
         if tank in frame.stopped or not tile.blocks_tanks:
             return
         self._stop(tank, tile.rect)

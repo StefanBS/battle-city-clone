@@ -369,6 +369,22 @@ class TestBulletVsTile:
         assert game_map.is_base_destroyed
         assert not bullet.active
 
+    def test_a_second_bullet_passes_where_the_first_emptied_the_brick(
+        self, collisions, game_map, make_player
+    ):
+        player = make_player(0, 300)
+        brick = place(game_map, TileType.BRICK, 6, 6)
+        collisions.resolve(
+            players=[], enemies=[], bullets=[bullet_on(brick.rect, player)]
+        )
+        first, second = bullet_on(brick.rect, player), bullet_on(brick.rect, player)
+
+        collisions.resolve(players=[], enemies=[], bullets=[first, second])
+
+        assert brick.type is TileType.EMPTY
+        assert not first.active
+        assert second.active
+
     def test_bullet_hits_an_enemy_before_the_brick_under_it(
         self, collisions, game_map, make_player, make_enemy
     ):
@@ -433,6 +449,28 @@ class TestTankVsTile:
         collisions.resolve(players=[player], enemies=[], bullets=[])
 
         assert player.y == 96
+
+    def test_tank_is_not_stopped_by_a_brick_shot_away_this_frame(
+        self, collisions, game_map, make_player, make_enemy
+    ):
+        shooter = make_enemy(300, 0)
+        brick = place(game_map, TileType.BRICK, 4, 5)
+        # Leave the bottom half, in the Player's way.
+        collisions.resolve(
+            players=[],
+            enemies=[],
+            bullets=[bullet_on(brick.rect, shooter, Direction.DOWN)],
+        )
+        player = make_player(64, 96)
+        step_move(player, 0, -1)
+        moved_to = player.y
+        assert player.rect.colliderect(brick.rect)
+        bullet = bullet_on(brick.rect, shooter, Direction.DOWN)
+
+        collisions.resolve(players=[player], enemies=[], bullets=[bullet])
+
+        assert brick.type is TileType.EMPTY
+        assert player.y == moved_to
 
     def test_tank_against_two_tiles_is_stopped_once(
         self, collisions, game_map, make_enemy
