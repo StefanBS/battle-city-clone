@@ -251,11 +251,6 @@ class PlayerManager:
         """
         return [slot.tank for slot in self._slots if not slot.tank.is_eliminated]
 
-    @property
-    def score(self) -> int:
-        """Total score across all players."""
-        return sum(slot.score for slot in self._slots)
-
     def add_score(self, points: int, player_id: int = 1) -> None:
         """Add points to a specific player's score.
 
@@ -270,18 +265,6 @@ class PlayerManager:
         if slot is None:
             raise KeyError(f"No player slot with id {player_id}")
         slot.score += points
-
-    def get_score(self, player_id: int) -> int:
-        """Get a specific player's score.
-
-        Args:
-            player_id: The player whose score to retrieve.
-
-        Returns:
-            The player's current score, or 0 if not found.
-        """
-        slot = self._find_slot(player_id)
-        return slot.score if slot is not None else 0
 
     def _find_slot(self, player_id: int) -> PlayerSlot | None:
         return next((s for s in self._slots if s.player_id == player_id), None)

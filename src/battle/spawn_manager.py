@@ -102,11 +102,6 @@ class SpawnManager:
         return roster
 
     @property
-    def remaining(self) -> int:
-        """How many Enemies of the Roster have not started Spawning yet."""
-        return len(self._roster)
-
-    @property
     def is_exhausted(self) -> bool:
         """Whether the whole Roster has Appeared: nothing left to spawn."""
         return not self._roster and not self._spawning

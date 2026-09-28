@@ -267,7 +267,7 @@ class TestPlayerManagerScore:
         player_manager = make_player_manager(controller_instance_ids=[])
         player_manager.add_score(200)
         player_manager.add_score(300)
-        assert player_manager.score == 500
+        assert player_manager.carried_progress[1].score == 500
 
     def test_add_score_for_a_missing_slot_raises(self, player_manager):
         with pytest.raises(KeyError):
@@ -287,8 +287,8 @@ class TestPlayerManagerScore:
             },
         )
 
-        assert player_manager.get_score(1) == 100
-        assert player_manager.get_score(2) == 200
+        assert player_manager.carried_progress[1].score == 100
+        assert player_manager.carried_progress[2].score == 200
 
 
 # ---------------------------------------------------------------------------
@@ -311,7 +311,7 @@ class TestPlayerManagerCarriedProgress:
         player = player_manager.get_active_players()[0]
         assert player.lives == INITIAL_PLAYER_LIVES
         assert player.star_level == 0
-        assert player_manager.score == 0
+        assert player_manager.carried_progress[1].score == 0
 
     def test_carried_progress_reports_each_slot(
         self, make_player_manager, mock_game_map
@@ -362,7 +362,7 @@ class TestPlayerManagerCarriedProgress:
 
         assert [p.player_id for p in player_manager.get_active_players()] == [1]
         assert player_manager.hud_entries[1].eliminated is True
-        assert player_manager.get_score(2) == 700
+        assert player_manager.carried_progress[2].score == 700
         assert player_manager.carried_progress[2].eliminated is True
 
 
@@ -534,11 +534,14 @@ class TestPlayerManagerTwoPlayerCreation:
         player_manager = make_player_manager(
             controller_instance_ids=[0], mode=GameMode.TWO_PLAYERS
         )
+        assert player_manager.carried_progress[1].score == 0
+        assert player_manager.carried_progress[2].score == 0
+
         player_manager.add_score(100, player_id=1)
         player_manager.add_score(200, player_id=2)
-        assert player_manager.get_score(1) == 100
-        assert player_manager.get_score(2) == 200
-        assert player_manager.score == 300
+
+        assert player_manager.carried_progress[1].score == 100
+        assert player_manager.carried_progress[2].score == 200
 
     def test_2p_no_controllers_both_keyboard(self, make_player_manager, mock_game_map):
         """2P + 0 controllers: both players fall back to keyboard (degenerate).

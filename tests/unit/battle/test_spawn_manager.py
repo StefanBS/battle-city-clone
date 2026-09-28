@@ -88,6 +88,11 @@ def _enemy_at(spawn_point):
     return enemy
 
 
+def _first(options):
+    """Stands in for ``random.choice``: the first spawn point, the first direction."""
+    return options[0]
+
+
 class TestSpawnManager:
     """Unit test cases for the SpawnManager class."""
 
@@ -97,64 +102,63 @@ class TestSpawnManager:
         manager = make_spawn_manager({TankType.BASIC: 3})
 
         manager.advance(4.9, [mock_player_tank])
-        assert manager.remaining == 3
+        assert manager.take_appeared() == []
         manager.advance(0.1, [mock_player_tank])
-        assert manager.remaining == 2
+        assert len(manager.take_appeared()) == 1
 
     @patch("random.choice")
     def test_start_spawning_refuses_a_spawn_point_under_a_tile(
-        self, mock_random_choice, spawn_manager, mock_player_tank, mock_game_map
+        self, mock_random_choice, make_spawn_manager, mock_player_tank, mock_game_map
     ):
         mock_random_choice.return_value = SPAWN_POINTS[0]
         mock_game_map.get_collidable_tiles.return_value = [
             _enemy_at(SPAWN_POINTS[0]).rect
         ]
-        remaining = spawn_manager.remaining
+        manager = make_spawn_manager({TankType.BASIC: 1})
 
-        assert spawn_manager.start_spawning([mock_player_tank]) is False
-        assert spawn_manager.remaining == remaining
+        assert manager.start_spawning([mock_player_tank]) is False
+        assert manager.take_appeared() == []
+
+        mock_game_map.get_collidable_tiles.return_value = []
+        assert manager.start_spawning([mock_player_tank]) is True
 
     @patch("random.choice")
     def test_start_spawning_refuses_a_spawn_point_under_a_tank(
-        self, mock_random_choice, spawn_manager, mock_player_tank
+        self, mock_random_choice, make_spawn_manager, mock_player_tank
     ):
         mock_random_choice.return_value = SPAWN_POINTS[0]
-        remaining = spawn_manager.remaining
+        manager = make_spawn_manager({TankType.BASIC: 1})
 
-        result = spawn_manager.start_spawning(
-            [mock_player_tank, _enemy_at(SPAWN_POINTS[0])]
-        )
+        result = manager.start_spawning([mock_player_tank, _enemy_at(SPAWN_POINTS[0])])
 
         assert result is False
-        assert spawn_manager.remaining == remaining
+        assert manager.take_appeared() == []
+        assert manager.start_spawning([mock_player_tank]) is True
 
-    @patch("random.choice")
+    @patch("random.choice", side_effect=_first)
     def test_after_a_spawn_the_next_waits_a_whole_interval(
-        self, mock_random_choice, spawn_manager, mock_player_tank
+        self, _, spawn_manager, mock_player_tank
     ):
-        mock_random_choice.side_effect = [SPAWN_POINTS[0], SPAWN_POINTS[1]]
         spawn_manager.advance(5.0, [mock_player_tank])
-        remaining = spawn_manager.remaining
+        spawn_manager.take_appeared()
 
         spawn_manager.advance(4.9, [mock_player_tank])
-        assert spawn_manager.remaining == remaining
+        assert spawn_manager.take_appeared() == []
         spawn_manager.advance(0.1, [mock_player_tank])
-        assert spawn_manager.remaining == remaining - 1
+        assert len(spawn_manager.take_appeared()) == 1
 
-    @patch("random.choice")
+    @patch("random.choice", side_effect=_first)
     def test_advance_tries_again_next_time_when_blocked(
-        self, mock_random_choice, spawn_manager, mock_player_tank
+        self, _, spawn_manager, mock_player_tank
     ):
         """A blocked spawn keeps the timer due instead of waiting a new interval."""
-        mock_random_choice.return_value = SPAWN_POINTS[0]
         blocker = _enemy_at(SPAWN_POINTS[0])
-        remaining = spawn_manager.remaining
         spawn_manager.advance(5.0, [mock_player_tank, blocker])
-        assert spawn_manager.remaining == remaining
+        assert spawn_manager.take_appeared() == []
 
         spawn_manager.advance(0.0, [mock_player_tank])
 
-        assert spawn_manager.remaining == remaining - 1
+        assert len(spawn_manager.take_appeared()) == 1
 
     def test_roster_matches_composition(self, make_spawn_manager, mock_player_tank):
         """Every Enemy in the composition Appears once, then spawning stops."""
@@ -172,7 +176,6 @@ class TestSpawnManager:
             enemies += manager.take_appeared()
 
         assert Counter(e.tank_type for e in enemies) == composition
-        assert manager.remaining == 0
         assert manager.is_exhausted
 
     def test_an_empty_roster_is_exhausted_from_the_start(self, make_spawn_manager):
@@ -226,10 +229,9 @@ class TestSpawnAnimation:
     ):
         mock_effect.active = False
         spawning.take_appeared()
-        spawning.start_spawning([mock_player_tank])
+        assert spawning.start_spawning([mock_player_tank]) is True
         mock_effect.active = True
 
-        assert spawning.remaining == 0
         assert not spawning.is_exhausted
 
     def test_exhausted_once_every_enemy_has_appeared(
@@ -242,22 +244,16 @@ class TestSpawnAnimation:
 
         assert spawning.is_exhausted
 
-    @patch("random.choice")
+    @patch("random.choice", side_effect=_first)
     def test_a_spawning_enemy_blocks_its_spawn_point(
-        self,
-        mock_random_choice,
-        make_spawn_manager,
-        mock_effect_manager,
-        mock_player_tank,
+        self, _, make_spawn_manager, mock_effect_manager, mock_player_tank
     ):
-        mock_random_choice.return_value = SPAWN_POINTS[0]
         manager = make_spawn_manager(
             {TankType.BASIC: 2}, effect_manager=mock_effect_manager
         )
         manager.start_spawning([mock_player_tank])
 
         assert manager.start_spawning([mock_player_tank]) is False
-        assert manager.remaining == 1
 
 
 class TestSpawnManagerCarrier:
