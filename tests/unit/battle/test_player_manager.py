@@ -193,7 +193,7 @@ class TestPlayerManagerUpdate:
         self.pm.update(self.DT, self.stepper)
 
         assert self.player.y == y_before
-        assert self.stepper.bullets == []
+        assert self.stepper.bullets == ()
 
     def test_fired_bullet_goes_to_the_stepper_and_plays_shoot(self):
         _press(self.pm, pygame.K_SPACE)

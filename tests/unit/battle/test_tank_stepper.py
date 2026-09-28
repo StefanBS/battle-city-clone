@@ -198,7 +198,7 @@ class TestFrozen:
         tank.shoot.assert_not_called()
         assert result.fired is False
         assert intent.shoot is False
-        assert stepper.bullets == []
+        assert stepper.bullets == ()
 
     def test_frozen_for_the_whole_frame_its_freeze_ends_in(self, stepper, tank):
         def thaw(dt):
@@ -250,7 +250,7 @@ class TestFiring:
 
         assert result.fired is False
         tank.shoot.assert_not_called()
-        assert stepper.bullets == []
+        assert stepper.bullets == ()
 
     def test_asks_the_tank_about_its_cap_with_every_bullet_in_flight(
         self, stepper, tank
@@ -271,7 +271,7 @@ class TestFiring:
         result = stepper.step(tank, FakeIntent(shoot=True), DT)
 
         assert result.fired is False
-        assert stepper.bullets == []
+        assert stepper.bullets == ()
 
 
 class TestBullets:
@@ -288,4 +288,20 @@ class TestBullets:
 
         stepper.update_bullets(DT)
 
-        assert stepper.bullets == []
+        assert stepper.bullets == ()
+
+    def test_put_in_flight_ignores_the_bullet_cap(self, stepper, tank):
+        tank.is_at_bullet_cap.return_value = True
+        bullet = _bullet(tank)
+
+        stepper.put_in_flight(bullet)
+
+        assert stepper.bullets == (bullet,)
+        tank.is_at_bullet_cap.assert_not_called()
+
+    def test_bullets_cannot_be_changed_from_outside(self, stepper, tank):
+        stepper.step(tank, FakeIntent(shoot=True), DT)
+
+        with pytest.raises(AttributeError):
+            stepper.bullets.append(_bullet(tank))  # type: ignore[attr-defined]
+        assert len(stepper.bullets) == 1

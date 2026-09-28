@@ -200,7 +200,7 @@ class Battle:
             map=self._map,
             players=tuple(self._player_manager.get_active_players()),
             enemies=tuple(self._enemy_manager.enemies),
-            bullets=tuple(self._tank_stepper.bullets),
+            bullets=self._tank_stepper.bullets,
             power_ups=tuple(self._power_up_manager.active_power_ups),
             effects=tuple(self._effect_manager.effects),
             hud_entries=self._player_manager.hud_entries,
@@ -375,9 +375,9 @@ class Battle:
     def add_bullet(self, bullet: Bullet) -> None:
         """Put a bullet in flight as it is, outside its owner's Bullet Cap.
 
-        No shoot sound plays; firing within the cap is ``step_tank``'s job.
+        No shoot sound plays; firing within the cap is ``TankStepper.step``'s job.
         """
-        self._tank_stepper.bullets.append(bullet)
+        self._tank_stepper.put_in_flight(bullet)
 
     def drop_power_up(
         self,

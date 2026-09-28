@@ -46,9 +46,9 @@ class TankStepper:
         self._bullets: list[Bullet] = []
 
     @property
-    def bullets(self) -> list[Bullet]:
-        """Every bullet in flight, Player and Enemy. Read-only view."""
-        return self._bullets
+    def bullets(self) -> tuple[Bullet, ...]:
+        """Every bullet in flight, Player and Enemy."""
+        return tuple(self._bullets)
 
     def step(self, tank: Tank, intent: TankIntent, dt: float) -> StepResult:
         """Advance ``tank`` one frame following ``intent``.
@@ -94,6 +94,10 @@ class TankStepper:
             return False
         self._bullets.append(bullet)
         return True
+
+    def put_in_flight(self, bullet: Bullet) -> None:
+        """Put ``bullet`` in flight as it is, outside its owner's Bullet Cap."""
+        self._bullets.append(bullet)
 
     def update_bullets(self, dt: float) -> None:
         """Advance every bullet and drop the inactive ones.
