@@ -12,7 +12,6 @@ from loguru import logger
 
 from src.core.base_wall import BaseWall
 from src.managers.collision_manager import CollisionManager
-from src.managers.collision_response_handler import CollisionResponseHandler
 from src.managers.effect_manager import EffectManager
 from src.managers.enemy_manager import EnemyManager
 from src.managers.outcomes import (
@@ -116,11 +115,9 @@ class Battle:
         self._result: BattleResult | None = None
 
         self._base_wall = BaseWall(game_map)
-        self._collision_manager = CollisionManager()
         self._effect_manager = EffectManager(texture_manager)
-        # Must be created before CollisionResponseHandler.
         self._power_up_manager = PowerUpManager(texture_manager, game_map)
-        self._collision_response_handler = CollisionResponseHandler(
+        self._collision_manager = CollisionManager(
             game_map=game_map,
             effect_manager=self._effect_manager,
             power_up_manager=self._power_up_manager,
@@ -242,19 +239,14 @@ class Battle:
         self._power_up_manager.update(dt)
         self._base_wall.update(dt)
 
-        # Built AFTER updates so newly fired bullets are included
-        self._collision_manager.check_collisions(
-            player_tanks=active_players,
-            enemy_tanks=self._enemy_manager.enemies,
-            bullets=self._tank_stepper.bullets,
-            tank_blocking_tiles=self._map.get_blocking_tiles(),
-            bullet_blocking_tiles=self._map.get_bullet_blocking_tiles(),
-            player_base=self._map.get_base(),
-            power_ups=self._power_up_manager.active_power_ups,
+        # After the updates, so newly fired bullets are included.
+        self.apply_outcomes(
+            self._collision_manager.resolve(
+                players=active_players,
+                enemies=self._enemy_manager.enemies,
+                bullets=self._tank_stepper.bullets,
+            )
         )
-
-        events = self._collision_manager.get_collision_events()
-        self.apply_outcomes(self._collision_response_handler.process_collisions(events))
 
         # Powerup blink sound: plays when any powerup is active
         self._sound.update_powerup_blink(bool(self._power_up_manager.active_power_ups))

@@ -4,7 +4,7 @@ The Screen Flow (menus, pause, options, curtain, the Game Over animation and whi
 
 ## Considered Options
 
-- **Sounds: an injected sink (chosen), not a frame report.** The Battle, `PlayerManager` and `CollisionResponseHandler` play sounds through the `SoundManager` they are given. This departs from #324, where the Enemy side reported "fired" and the caller played the sound. We rejected returning sound cues from `step()` (or emitting domain events that `GameManager` maps to sounds) because it meant rewiring every sound call in two more modules. It also bought no testability that a recording fake doesn't already give. If sounds ever need to depend on screen flow, revisit this.
+- **Sounds: an injected sink (chosen), not a frame report.** The Battle, `PlayerManager` and the collision response (now `CollisionManager`) play sounds through the `SoundManager` they are given. This departs from #324, where the Enemy side reported "fired" and the caller played the sound. We rejected returning sound cues from `step()` (or emitting domain events that `GameManager` maps to sounds) because it meant rewiring every sound call in two more modules. It also bought no testability that a recording fake doesn't already give. If sounds ever need to depend on screen flow, revisit this.
 
 ## Consequences
 

@@ -23,7 +23,6 @@ from src.utils.constants import (
     OwnerType,
     PowerUpType,
 )
-from src.managers.collision_response_handler import CollisionResponseHandler
 from tests.integration.conftest import (
     clear_enemies,
     clear_tiles,
@@ -517,53 +516,51 @@ class TestCpuPartnerHud:
         assert not any(label.startswith("P2") for label in labels)
 
 
-@pytest.fixture
-def player_bullet_tile_hits(monkeypatch):
-    """Every tile that stops a Player bullet, recorded as ``(x, y)``.
+def player_bullets_on(game, cells) -> list[tuple[int, int]]:
+    """The ``cells`` a Player bullet on the battlefield overlaps, as ``(x, y)``.
 
-    Requested before the game fixture, so the Battle's collision handler is
-    built with the recording in place. The real handler still responds.
+    Bullets stopped this frame are still on the battlefield until the next.
     """
-    hits: list[tuple[int, int]] = []
-    real_handler = CollisionResponseHandler._handle_bullet_vs_tile
-
-    def recording_handler(self, bullet, tile, frame):
-        if bullet.owner_type is OwnerType.PLAYER and tile.blocks_bullets:
-            hits.append((tile.x, tile.y))
-        return real_handler(self, bullet, tile, frame)
-
-    monkeypatch.setattr(
-        CollisionResponseHandler, "_handle_bullet_vs_tile", recording_handler
-    )
-    return hits
+    tiles = [game.battle.map.get_tile_at(x, y) for x, y in cells]
+    return [
+        (tile.x, tile.y)
+        for bullet in game.battle.scene().bullets
+        if bullet.owner_type is OwnerType.PLAYER
+        for tile in tiles
+        if tile is not None and bullet.rect.colliderect(tile.rect)
+    ]
 
 
 class TestCpuPartnerHoldFireSoak:
     SOAK_SECONDS = 90
 
-    def test_player_bullets_never_hit_base_or_base_wall(
-        self, player_bullet_tile_hits, seeded_cpu_game
-    ):
+    def test_player_bullets_never_hit_base_or_base_wall(self, seeded_cpu_game):
         gm = seeded_cpu_game
+        game_map = gm.battle.map
         p1 = gm.battle.scene().players[0]
-        protected = {
-            (t.x, t.y) for t in gm.battle.map.get_tiles_by_type([TileType.BASE])
-        }
+        protected = {(t.x, t.y) for t in game_map.get_tiles_by_type([TileType.BASE])}
         protected |= {
-            (t.x, t.y)
-            for t in gm.battle.map.get_base_surrounding_tiles(include_empty=True)
+            (t.x, t.y) for t in game_map.get_base_surrounding_tiles(include_empty=True)
         }
 
+        hits: list[tuple[int, int]] = []
         for _ in range(self.SOAK_SECONDS * FPS):
             # Keep the idle Human Player in the game so the soak runs its full
             # length; only the CPU Partner acts.
             if p1.lives < 2:
                 p1.gain_life()
+            # Only a tile that blocked bullets going into the frame can stop one.
+            blocking = [
+                (x, y)
+                for x, y in protected
+                if game_map.get_tile_at(x, y).blocks_bullets
+            ]
             tick(gm)
+            hits += player_bullets_on(gm, blocking)
             if gm.flow.screen is not Screen.RUNNING:
                 break
 
-        assert [hit for hit in player_bullet_tile_hits if hit in protected] == []
+        assert hits == []
         assert score_of(gm, 2) > 0
 
 
