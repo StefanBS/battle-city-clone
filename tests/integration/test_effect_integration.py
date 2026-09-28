@@ -7,7 +7,7 @@ plays through frames over multiple updates, and is cleaned up.
 import pygame
 
 from src.core.tile import TileType
-from src.managers.outcomes import PlayerDestroyed
+from src.battle.outcomes import PlayerDestroyed
 from src.states.screen import Screen
 from src.utils.constants import FPS
 from tests.integration.conftest import (

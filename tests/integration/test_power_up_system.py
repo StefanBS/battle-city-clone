@@ -4,7 +4,7 @@ Uses real objects (no mocks) with SDL_VIDEODRIVER=dummy for headless execution.
 """
 
 import pytest
-from src.managers.outcomes import EnemyDestroyed
+from src.battle.outcomes import EnemyDestroyed
 from src.utils.constants import FPS, POWERUP_TIMEOUT
 from tests.integration.conftest import clear_enemies, spawn_carrier
 

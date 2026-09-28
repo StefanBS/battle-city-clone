@@ -7,7 +7,7 @@ in the respective unit test files.
 
 import pytest
 import pygame
-from src.managers.outcomes import EnemyDestroyed
+from src.battle.outcomes import EnemyDestroyed
 from src.states.game_mode import GameMode
 from src.utils.constants import ENEMY_POINTS, FPS, TankType
 from tests.integration.conftest import (

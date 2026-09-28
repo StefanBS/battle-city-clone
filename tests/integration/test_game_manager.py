@@ -2,8 +2,8 @@
 
 import pygame
 
-from src.managers.game_manager import stage_map_path
-from src.managers.player_input import AXIS_MAX
+from src.shell.game_manager import stage_map_path
+from src.battle.player_input import AXIS_MAX
 from src.states.screen import Screen
 from tests.integration.conftest import start_game, tick
 

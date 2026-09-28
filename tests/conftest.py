@@ -7,7 +7,7 @@ from src.core.enemy_tank import EnemyTank
 from src.core.player_tank import PlayerTank
 from src.core.tank import Tank
 from src.core.tile import TileDefaults, TileType
-from src.managers.texture_manager import TextureManager
+from src.shell.texture_manager import TextureManager
 from src.utils.constants import Direction, OwnerType, TankType, TILE_SIZE
 
 

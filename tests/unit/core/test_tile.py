@@ -2,7 +2,7 @@ import pytest
 import pygame
 from unittest.mock import MagicMock
 from src.core.tile import Tile, TileType
-from src.managers.texture_manager import TextureManager
+from src.shell.texture_manager import TextureManager
 from src.utils.constants import SUB_TILE_SIZE
 
 

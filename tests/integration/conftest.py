@@ -4,7 +4,7 @@ import pygame
 from src.core.enemy_ai import EnemyAI
 from src.core.enemy_tank import EnemyTank
 from src.core.tile import Tile, TileType
-from src.managers.game_manager import GameManager
+from src.shell.game_manager import GameManager
 from src.states.game_mode import GameMode
 from src.states.screen import Screen
 from src.utils.constants import (
