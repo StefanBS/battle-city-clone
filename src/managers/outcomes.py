@@ -57,15 +57,15 @@ class GrenadeDetonated:
 
 @dataclass(frozen=True)
 class ClockStarted:
-    """A Clock went off: every Enemy is Frozen, and so are those that Appear."""
+    """A Clock was collected: every Enemy is Frozen, and so are those that Appear."""
 
 
 @dataclass(frozen=True)
 class BaseWallFortified:
-    """A Shovel went off: the Base Wall is Fortified for a while."""
+    """A Shovel was collected: the Base Wall is Fortified for a while."""
 
 
-CollisionOutcome = (
+BattleOutcome = (
     CarrierHit
     | EnemyDestroyed
     | PlayerDestroyed

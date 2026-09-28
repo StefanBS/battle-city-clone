@@ -23,7 +23,7 @@ from src.core.tile import TileType
 from src.managers.outcomes import (
     BaseWallFortified,
     ClockStarted,
-    CollisionOutcome,
+    BattleOutcome,
     GrenadeDetonated,
 )
 
@@ -80,7 +80,7 @@ class PowerUpManager:
 
     def apply(
         self, power_up_type: PowerUpType, player: PlayerTank
-    ) -> list[CollisionOutcome]:
+    ) -> list[BattleOutcome]:
         """Give the collecting Player a Power-Up's effect.
 
         Changes nothing but the Player. An effect on the whole battlefield
@@ -94,7 +94,7 @@ class PowerUpManager:
             ``GrenadeDetonated`` for a Grenade, ``ClockStarted`` for a Clock,
             ``BaseWallFortified`` for a Shovel, otherwise nothing.
         """
-        outcomes: list[CollisionOutcome] = []
+        outcomes: list[BattleOutcome] = []
         match power_up_type:
             case PowerUpType.HELMET:
                 player.activate_invincibility(HELMET_INVINCIBILITY_DURATION)

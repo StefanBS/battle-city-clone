@@ -23,7 +23,7 @@ from src.managers.effect_manager import EffectManager
 from src.managers.outcomes import (
     BaseDestroyed,
     CarrierHit,
-    CollisionOutcome,
+    BattleOutcome,
     EnemyDestroyed,
     PlayerDestroyed,
     PowerUpCollected,
@@ -34,7 +34,7 @@ from src.managers.outcomes import (
 class _Frame:
     """What one ``process_collisions`` call has produced so far."""
 
-    outcomes: list[CollisionOutcome] = field(default_factory=list)
+    outcomes: list[BattleOutcome] = field(default_factory=list)
     # Tanks destroyed earlier in the frame: bullets pass through them.
     destroyed: set[Tank] = field(default_factory=set)
 
@@ -76,9 +76,7 @@ class CollisionResponseHandler:
         if self._sound_manager is not None:
             self._sound_manager.play(name)
 
-    def process_collisions(
-        self, events: list[tuple[Any, Any]]
-    ) -> list[CollisionOutcome]:
+    def process_collisions(self, events: list[tuple[Any, Any]]) -> list[BattleOutcome]:
         """Process collision events and return their outcomes in event order."""
         if not events:
             return []

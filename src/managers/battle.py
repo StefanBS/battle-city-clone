@@ -20,7 +20,7 @@ from src.managers.outcomes import (
     BaseWallFortified,
     CarrierHit,
     ClockStarted,
-    CollisionOutcome,
+    BattleOutcome,
     EnemyDestroyed,
     GrenadeDetonated,
     PlayerDestroyed,
@@ -270,7 +270,7 @@ class Battle:
             self._result = BattleResult.VICTORY
         return self._result
 
-    def apply_outcomes(self, outcomes: list[CollisionOutcome]) -> None:
+    def apply_outcomes(self, outcomes: list[BattleOutcome]) -> None:
         """Apply a frame's outcomes, and the outcomes they cause, in order."""
         queue = deque(outcomes)
         while queue:
