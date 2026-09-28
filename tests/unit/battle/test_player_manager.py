@@ -8,13 +8,12 @@ from unittest.mock import MagicMock
 
 from src.core.map import Map
 from src.core.player_tank import PlayerTank
-from src.core.tile import TileType
 from src.battle.player_input import (
     CombinedInput,
     ControllerInput,
     KeyboardInput,
+    PlayerInput,
 )
-from src.cpu_partner.cpu_partner import CpuPartnerInput
 from src.battle.player_manager import (
     CarriedProgress,
     PlayerHudEntry,
@@ -23,14 +22,10 @@ from src.battle.player_manager import (
 )
 from src.shell.sound_manager import SoundManager
 from src.battle.tank_stepper import TankStepper
-from src.world_view.world_view import EnemyView, PlayerView, WorldView
 from src.states.game_mode import GameMode
 from src.utils.constants import (
-    CPU_PARTNER_REACTION_DELAY,
-    FPS,
     INITIAL_PLAYER_LIVES,
     TILE_SIZE,
-    Direction,
 )
 
 
@@ -56,7 +51,7 @@ def make_player_manager(mock_texture_manager, mock_sound_manager, mock_game_map)
         cpu_partner=None,
     ):
         if cpu_partner is None and mode is GameMode.ONE_PLAYER_CPU:
-            cpu_partner = CpuPartnerInput()
+            cpu_partner = MagicMock(spec=PlayerInput)
         return PlayerManager(
             mock_texture_manager,
             mock_sound_manager,
@@ -566,8 +561,6 @@ class TestPlayerManagerTwoPlayerCreation:
 
 
 class TestPlayerManagerCpuPartner:
-    DT = 1.0 / 60
-
     @pytest.fixture
     def cpu_pm(self, make_player_manager, mock_game_map):
         """PlayerManager in 1 Player + CPU mode."""
@@ -577,26 +570,9 @@ class TestPlayerManagerCpuPartner:
         )
         return player_manager
 
-    @staticmethod
-    def view(pm: PlayerManager, enemies: list[tuple[float, float]]) -> WorldView:
-        """Hand-built open-field World View of the tanks plus Enemies at pixels."""
-        return WorldView(
-            tile_size=TILE_SIZE,
-            tiles=((TileType.EMPTY,) * 26,) * 26,
-            players=tuple(
-                PlayerView(player_id=p.player_id, x=p.x, y=p.y, direction=p.direction)
-                for p in pm.get_active_players()
-            ),
-            enemies=tuple(
-                EnemyView(enemy_id=i, x=x, y=y, direction=Direction.DOWN)
-                for i, (x, y) in enumerate(enemies)
-            ),
-        )
-
     def test_p1_is_human_and_p2_is_cpu_partner(self, cpu_pm):
         assert [p.player_id for p in cpu_pm.get_active_players()] == [1, 2]
         assert isinstance(cpu_pm._slots[0].input, CombinedInput)
-        assert isinstance(cpu_pm._slots[1].input, CpuPartnerInput)
         assert [slot.kind for slot in cpu_pm._slots] == [
             PlayerKind.HUMAN,
             PlayerKind.CPU_PARTNER,
@@ -606,7 +582,7 @@ class TestPlayerManagerCpuPartner:
         self, make_player_manager, mock_game_map
     ):
         mock_game_map.player_spawn_2 = (16, 24)
-        handed = MagicMock(spec=CpuPartnerInput)
+        handed = MagicMock(spec=PlayerInput)
         player_manager = make_player_manager(
             mode=GameMode.ONE_PLAYER_CPU, cpu_partner=handed
         )
@@ -629,24 +605,20 @@ class TestPlayerManagerCpuPartner:
                 mode=GameMode.ONE_PLAYER_CPU,
             )
 
-    def test_respawn_makes_cpu_partner_choose_a_new_target(self, cpu_pm, mock_game_map):
-        p2 = cpu_pm.get_active_players()[1]
-        far_left = (p2.x - 6 * TILE_SIZE, p2.y - 10 * TILE_SIZE)
-        stepper = TankStepper(mock_game_map)
-        cpu_pm.observe(self.view(cpu_pm, enemies=[far_left]))
-        cpu_pm.update(self.DT, stepper)
+    def test_respawn_resets_the_cpu_partner_input(
+        self, make_player_manager, mock_game_map
+    ):
+        mock_game_map.player_spawn_2 = (16, 24)
+        handed = MagicMock(spec=PlayerInput)
+        player_manager = make_player_manager(
+            mode=GameMode.ONE_PLAYER_CPU, cpu_partner=handed
+        )
+        p2 = player_manager.get_active_players()[1]
 
         p2.take_damage()
-        cpu_pm.handle_player_destroyed(p2)
-        x_after_respawn = p2.x
-        # Its Firing Positions are 3 tiles right, against 6 left for far_left.
-        close_right = (p2.x + 3 * TILE_SIZE, p2.y - 10 * TILE_SIZE)
-        # Past the CPU Partner's reaction delay to its new target.
-        for _ in range(round(CPU_PARTNER_REACTION_DELAY * FPS) + 1):
-            cpu_pm.observe(self.view(cpu_pm, enemies=[far_left, close_right]))
-            cpu_pm.update(self.DT, stepper)
+        player_manager.handle_player_destroyed(p2)
 
-        assert p2.x > x_after_respawn
+        handed.reset.assert_called_once_with()
 
     def test_game_over_when_human_out_even_if_cpu_partner_has_lives(self, cpu_pm):
         p1, p2 = cpu_pm.get_active_players()

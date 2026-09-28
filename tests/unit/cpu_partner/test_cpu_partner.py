@@ -1167,6 +1167,24 @@ class TestCpuPartnerReactionDelay:
         cpu.observe(target_dead)
         assert cpu.get_movement_direction() == Direction.LEFT.delta
 
+    def test_takes_the_nearest_target_afresh_after_a_reset(self, cpu) -> None:
+        # Its Firing Positions: 6 sub-tiles right of it for the nearer Enemy,
+        # 12 left for the farther one.
+        far = make_view(own=(12, 22, Direction.UP), enemies=[(0, 2)])
+        observe_frames(cpu, far, REACTION_FRAMES)
+        cpu.observe(far)
+        assert cpu.get_movement_direction() == Direction.LEFT.delta
+        # A nearer Enemy turns up: it keeps its target while that lives.
+        both = make_view(own=(12, 22, Direction.UP), enemies=[(0, 2), (18, 2)])
+        assert observe_frames(cpu, both, 2 * REACTION_FRAMES)[-1] == (
+            Direction.LEFT.delta
+        )
+        # Respawning resets it: it takes the nearer Enemy after its delay.
+        cpu.reset()
+        observe_frames(cpu, both, REACTION_FRAMES)
+        cpu.observe(both)
+        assert cpu.get_movement_direction() == Direction.RIGHT.delta
+
     def test_keeps_at_its_goal_while_reacting_to_a_new_one(self, cpu) -> None:
         spawns = ((12, 0),)
         ambush = with_spawns(make_view(own=(12, 12, Direction.LEFT)), *spawns)
