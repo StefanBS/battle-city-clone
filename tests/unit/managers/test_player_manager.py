@@ -53,7 +53,10 @@ def make_player_manager(mock_texture_manager, mock_sound_manager, mock_game_map)
         controller_instance_ids=(),
         mode=GameMode.ONE_PLAYER,
         carried=None,
+        cpu_partner=None,
     ):
+        if cpu_partner is None and mode is GameMode.ONE_PLAYER_CPU:
+            cpu_partner = CpuPartnerInput()
         return PlayerManager(
             mock_texture_manager,
             mock_sound_manager,
@@ -61,6 +64,7 @@ def make_player_manager(mock_texture_manager, mock_sound_manager, mock_game_map)
             controller_instance_ids=list(controller_instance_ids),
             mode=mode,
             carried=carried,
+            cpu_partner=cpu_partner,
         )
 
     return _make
@@ -597,6 +601,33 @@ class TestPlayerManagerCpuPartner:
             PlayerKind.HUMAN,
             PlayerKind.CPU_PARTNER,
         ]
+
+    def test_cpu_partner_is_driven_by_the_input_it_is_handed(
+        self, make_player_manager, mock_game_map
+    ):
+        mock_game_map.player_spawn_2 = (16, 24)
+        handed = MagicMock(spec=CpuPartnerInput)
+        player_manager = make_player_manager(
+            mode=GameMode.ONE_PLAYER_CPU, cpu_partner=handed
+        )
+
+        player_manager.clear_pending_shoot()
+
+        handed.clear_pending_shoot.assert_called_once_with()
+
+    def test_cpu_partner_mode_needs_a_cpu_partner_input(
+        self, mock_texture_manager, mock_sound_manager, mock_game_map
+    ):
+        mock_game_map.player_spawn_2 = (16, 24)
+
+        with pytest.raises(ValueError):
+            PlayerManager(
+                mock_texture_manager,
+                mock_sound_manager,
+                mock_game_map,
+                controller_instance_ids=[],
+                mode=GameMode.ONE_PLAYER_CPU,
+            )
 
     def test_respawn_makes_cpu_partner_choose_a_new_target(self, cpu_pm, mock_game_map):
         p2 = cpu_pm.get_active_players()[1]

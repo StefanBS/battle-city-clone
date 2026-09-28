@@ -2,6 +2,7 @@ import os
 import pygame
 from loguru import logger
 from src.core.map import Map
+from src.states.game_mode import GameMode
 from src.states.screen import Screen
 from src.utils.constants import (
     WINDOW_TITLE,
@@ -13,6 +14,7 @@ from src.utils.constants import (
     LOGICAL_HEIGHT,
 )
 from src.managers.battle import Battle
+from src.managers.cpu_partner import CpuPartnerInput
 from src.managers.screen_flow import BattleRequest, ScreenFlow
 from src.managers.texture_manager import TextureManager
 from src.managers.input_handler import InputHandler
@@ -93,6 +95,9 @@ class GameManager:
             controller_instance_ids=self.input_handler.controller_instance_ids,
             texture_manager=self.texture_manager,
             sound=self.sound_manager,
+            cpu_partner=(
+                CpuPartnerInput() if request.mode is GameMode.ONE_PLAYER_CPU else None
+            ),
         )
 
         # Renderer (fixed logical surface with map centered inside)

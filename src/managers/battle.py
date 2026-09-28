@@ -56,6 +56,7 @@ if TYPE_CHECKING:
     from src.core.power_up import PowerUp
     from src.core.sprite_atlas import SpriteAtlas
     from src.core.tank import Tank
+    from src.managers.player_input import PlayerInput
     from src.managers.sound_player import SoundPlayer
 
 
@@ -95,6 +96,7 @@ class Battle:
         controller_instance_ids: list[int],
         texture_manager: SpriteAtlas,
         sound: SoundPlayer,
+        cpu_partner: PlayerInput | None = None,
     ) -> None:
         """Set up the Stage's collaborators and put its Players on the map.
 
@@ -108,6 +110,7 @@ class Battle:
             controller_instance_ids: Open SDL game controllers.
             texture_manager: Texture atlas for tanks, tiles and effects.
             sound: Where the Battle plays its sounds.
+            cpu_partner: The input that drives P2 in 1 Player + CPU mode.
         """
         self._map = game_map
         self._sound = sound
@@ -130,6 +133,7 @@ class Battle:
             controller_instance_ids=controller_instance_ids,
             mode=mode,
             carried=carried,
+            cpu_partner=cpu_partner,
         )
         base_tile = game_map.get_base()
         self._enemy_manager = EnemyManager(

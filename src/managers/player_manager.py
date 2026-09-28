@@ -11,7 +11,6 @@ import pygame
 from loguru import logger
 
 from src.core.player_tank import PlayerTank
-from src.managers.cpu_partner import CpuPartnerInput
 from src.managers.player_input import (
     CombinedInput,
     ControllerInput,
@@ -104,6 +103,7 @@ class PlayerManager:
         controller_instance_ids: list[int],
         mode: GameMode = GameMode.ONE_PLAYER,
         carried: Mapping[int, CarriedProgress] | None = None,
+        cpu_partner: PlayerInput | None = None,
     ) -> None:
         """Create one slot per Player, with its tank at the map's spawn point.
 
@@ -116,6 +116,11 @@ class PlayerManager:
             mode: Which slots exist and who drives each one.
             carried: Each Player's progress from the previous Battle, by player
                 id. Players without an entry start fresh.
+            cpu_partner: The input that drives P2 in 1 Player + CPU mode. The
+                shell builds it, so the Battle never imports the CPU Partner.
+
+        Raises:
+            ValueError: In 1 Player + CPU mode without a ``cpu_partner``.
         """
         self._texture_manager = texture_manager
         self._sound_manager = sound_manager
@@ -153,9 +158,11 @@ class PlayerManager:
                     for inp in self._two_player_inputs(controller_instance_ids)
                 ]
             case GameMode.ONE_PLAYER_CPU:
+                if cpu_partner is None:
+                    raise ValueError("1 Player + CPU mode needs a cpu_partner input")
                 drivers = [
                     (self._one_player_inputs()[0], PlayerKind.HUMAN),
-                    (CpuPartnerInput(), PlayerKind.CPU_PARTNER),
+                    (cpu_partner, PlayerKind.CPU_PARTNER),
                 ]
 
         self._slots: list[PlayerSlot] = [
