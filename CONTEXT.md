@@ -125,3 +125,11 @@ The end of a Battle in which every Enemy in the Stage's Roster has been destroye
 
 **Game Over**:
 The end of a Battle, and of the game: the Base is destroyed, or every Human Player is Eliminated. A CPU Partner that is not Eliminated does not keep the game going.
+
+**Game Complete**:
+The end of the game after Victory on the last Stage.
+_Avoid_: Win, ending
+
+**Screen Flow**:
+The sequence of screens around the Battles: the title screen, the curtain before each Stage, pause, options, the Game Over animation and Game Complete. It decides which Stage comes next and when a Battle starts, but nothing that happens inside one.
+_Avoid_: Game state, game loop

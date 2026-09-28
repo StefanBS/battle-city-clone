@@ -5,7 +5,7 @@ Uses real objects (no mocks) with SDL_VIDEODRIVER=dummy for headless execution.
 
 import pytest
 from src.core.bullet import Bullet
-from src.states.game_state import GameState
+from src.states.screen import Screen
 from src.utils.constants import (
     Direction,
     POWERUP_COLLECT_POINTS,
@@ -25,7 +25,7 @@ from tests.integration.conftest import (
 
 @pytest.fixture
 def game(game_manager_fixture):
-    game_manager_fixture.state = GameState.RUNNING
+    game_manager_fixture.state = Screen.RUNNING
     return game_manager_fixture
 
 
@@ -89,7 +89,7 @@ class TestPlayerDestroyed:
 
         assert (player.x, player.y) == player.initial_position
         assert player.is_invincible
-        assert game.state == GameState.RUNNING
+        assert game.flow.screen == Screen.RUNNING
 
     def test_losing_the_last_life_is_game_over(self, game):
         player = first_player(game)
@@ -99,7 +99,7 @@ class TestPlayerDestroyed:
 
         game.update()
 
-        assert game.state == GameState.GAME_OVER_ANIMATION
+        assert game.flow.screen == Screen.GAME_OVER_ANIMATION
 
 
 class TestBaseDestroyed:
@@ -113,4 +113,4 @@ class TestBaseDestroyed:
 
         assert game.battle.map.is_base_destroyed
         assert not game.battle.scene().enemies
-        assert game.state == GameState.GAME_OVER_ANIMATION
+        assert game.flow.screen == Screen.GAME_OVER_ANIMATION

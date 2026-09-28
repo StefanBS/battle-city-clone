@@ -58,7 +58,6 @@ CTRL_SHOOT_BUTTONS: tuple[int, ...] = (
     pygame.CONTROLLER_BUTTON_A,
     pygame.CONTROLLER_BUTTON_B,
 )
-CTRL_START_BUTTON: int = pygame.CONTROLLER_BUTTON_START
 
 _CONTROLLER_EVENT_TYPES: tuple[int, ...] = (
     pygame.CONTROLLERBUTTONDOWN,

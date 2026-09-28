@@ -5,6 +5,8 @@ from src.core.enemy_ai import EnemyAI
 from src.core.enemy_tank import EnemyTank
 from src.core.tile import Tile, TileType
 from src.managers.game_manager import GameManager
+from src.states.game_mode import GameMode
+from src.states.screen import Screen
 from src.utils.constants import (
     Difficulty,
     FPS,
@@ -23,14 +25,47 @@ os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 pygame.init()
 
 
+# The title menu's modes, top to bottom.
+_TITLE_MODES = (GameMode.ONE_PLAYER, GameMode.TWO_PLAYERS, GameMode.ONE_PLAYER_CPU)
+
+
+def run_until_screen(game, screen, max_frames=600):
+    """Run whole frames until the Screen Flow shows `screen`."""
+    for _ in range(max_frames):
+        if game.flow.screen is screen:
+            return
+        game.handle_events()
+        game.update()
+    raise AssertionError(f"never reached {screen.name}; on {game.flow.screen.name}")
+
+
+def start_game(mode=GameMode.ONE_PLAYER, **game_manager_kwargs):
+    """Choose `mode` on the title screen and run until its first Battle steps.
+
+    Extra keyword arguments go to ``GameManager`` (e.g. ``sound_manager=``).
+    """
+    game = GameManager(**game_manager_kwargs)
+    pygame.event.clear()
+    for _ in range(_TITLE_MODES.index(mode)):
+        pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_DOWN))
+    pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RETURN))
+    run_until_screen(game, Screen.RUNNING)
+    return game
+
+
+def reach_next_stage(game):
+    """End the running Battle in Victory and run until the next Stage's Battle steps."""
+    use_up_roster(game)
+    tick(game)
+    assert game.flow.screen is Screen.VICTORY
+    run_until_screen(game, Screen.RUNNING)
+
+
 @pytest.fixture
 def game_manager_fixture():
-    """Fixture to provide a standard GameManager instance for integration tests."""
+    """A GameManager in 1 Player mode, with the first Battle about to step."""
     pygame.init()
-    manager = GameManager()
-    # Start the game (skip title screen)
-    manager._reset_game()
-    return manager
+    return start_game()
 
 
 def first_player(game):

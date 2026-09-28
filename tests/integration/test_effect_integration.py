@@ -4,10 +4,18 @@ Verifies the full flow: collision triggers effect spawn, effect
 plays through frames over multiple updates, and is cleaned up.
 """
 
+import pygame
+
 from src.core.tile import TileType
 from src.managers.outcomes import PlayerDestroyed
+from src.states.screen import Screen
 from src.utils.constants import FPS
-from tests.integration.conftest import clear_enemies, fire_bullet_from, first_player
+from tests.integration.conftest import (
+    clear_enemies,
+    fire_bullet_from,
+    first_player,
+    run_until_screen,
+)
 
 
 class TestEffectLifecycle:
@@ -57,14 +65,20 @@ class TestEffectLifecycle:
             "Effect should have expired after playing through all frames"
         )
 
-    def test_effects_do_not_outlive_a_game_reset(self, game_manager_fixture):
-        """Resetting the game leaves no effect from the game before behind."""
+    def test_effects_do_not_outlive_a_new_game(self, game_manager_fixture):
+        """A new game leaves no effect from the game before behind."""
         gm = game_manager_fixture
 
         gm.battle.apply_outcomes([PlayerDestroyed(first_player(gm))])
         assert len(gm.battle.scene().effects) == 2
 
-        gm._reset_game()
+        # Pause, choose Title Screen, then 1 Player.
+        for key in (pygame.K_ESCAPE, pygame.K_DOWN, pygame.K_DOWN, pygame.K_RETURN):
+            pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=key))
+        gm.handle_events()
+        assert gm.flow.screen is Screen.TITLE_SCREEN
+        pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RETURN))
+        run_until_screen(gm, Screen.RUNNING)
 
         # Only the new Battle's first Enemy's spawn animation plays.
         assert len(gm.battle.scene().effects) == 1

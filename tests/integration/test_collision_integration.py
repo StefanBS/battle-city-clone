@@ -1,6 +1,6 @@
 import pytest
 from src.utils.constants import Direction, FPS, SUB_TILE_SIZE
-from src.states.game_state import GameState
+from src.states.screen import Screen
 from src.core.tile import BrickVariant, Tile, TileDefaults, TileType
 from src.managers.collision_manager import CollisionManager
 from src.managers.collision_response_handler import CollisionResponseHandler
@@ -169,19 +169,19 @@ def test_player_bullet_destroys_enemy_tank(game_manager_fixture, mocker):
 
 
 @pytest.mark.parametrize(
-    "player_initial_lives, player_is_invincible, expected_game_state, "
+    "player_initial_lives, player_is_invincible, expected_screen, "
     "expected_player_lives_after_hit",
     [
-        (1, False, GameState.GAME_OVER_ANIMATION, 0),
-        (3, False, GameState.RUNNING, 2),
-        (3, True, GameState.RUNNING, 3),
+        (1, False, Screen.GAME_OVER_ANIMATION, 0),
+        (3, False, Screen.RUNNING, 2),
+        (3, True, Screen.RUNNING, 3),
     ],
 )
 def test_enemy_bullet_hits_player_tank(
     game_manager_fixture,
     player_initial_lives,
     player_is_invincible,
-    expected_game_state,
+    expected_screen,
     expected_player_lives_after_hit,
     mocker,
 ):
@@ -237,7 +237,7 @@ def test_enemy_bullet_hits_player_tank(
         game_manager.update()
 
         current_lives = player_tank.lives
-        current_state = game_manager.state
+        current_state = game_manager.flow.screen
 
         if not player_is_invincible:
             if not enemy_bullet.active:
@@ -246,12 +246,9 @@ def test_enemy_bullet_hits_player_tank(
             if current_lives < original_player_lives:
                 interaction_processed = True
                 break
-            if current_state in (
-                GameState.GAME_OVER,
-                GameState.GAME_OVER_ANIMATION,
-            ) and expected_game_state in (
-                GameState.GAME_OVER,
-                GameState.GAME_OVER_ANIMATION,
+            if (
+                current_state is Screen.GAME_OVER_ANIMATION
+                and expected_screen is Screen.GAME_OVER_ANIMATION
             ):
                 interaction_processed = True
                 break
@@ -260,7 +257,7 @@ def test_enemy_bullet_hits_player_tank(
                 interaction_processed = True
                 break
 
-        if current_state != GameState.RUNNING and current_state != expected_game_state:
+        if current_state != Screen.RUNNING and current_state != expected_screen:
             interaction_processed = True
             break
     else:
@@ -270,20 +267,20 @@ def test_enemy_bullet_hits_player_tank(
         assert interaction_processed, (
             f"Enemy bullet interaction with vulnerable player not detected. "
             f"Bullet active: {enemy_bullet.active}, Player lives: {player_tank.lives}, "
-            f"Game state: {game_manager.state.name}"
+            f"Screen: {game_manager.flow.screen.name}"
         )
-        if player_tank.lives < original_player_lives or game_manager.state in (
-            GameState.GAME_OVER,
-            GameState.GAME_OVER_ANIMATION,
+        if (
+            player_tank.lives < original_player_lives
+            or game_manager.flow.screen is Screen.GAME_OVER_ANIMATION
         ):
             assert not enemy_bullet.active, (
                 "Enemy bullet should be inactive after "
                 "damaging player or causing game over."
             )
 
-    assert game_manager.state == expected_game_state, (
-        f"Expected game state {expected_game_state.name}, "
-        f"but got {game_manager.state.name}"
+    assert game_manager.flow.screen == expected_screen, (
+        f"Expected screen {expected_screen.name}, "
+        f"but got {game_manager.flow.screen.name}"
     )
 
     assert player_tank.lives == expected_player_lives_after_hit, (
@@ -293,7 +290,7 @@ def test_enemy_bullet_hits_player_tank(
 
     if (
         expected_player_lives_after_hit == player_initial_lives - 1
-        and expected_game_state == GameState.RUNNING
+        and expected_screen == Screen.RUNNING
     ):
         assert player_tank.get_position() == initial_spawn_pos, (
             "Player did not return to spawn position after losing a life."

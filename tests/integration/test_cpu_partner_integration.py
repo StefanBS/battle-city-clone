@@ -14,7 +14,7 @@ from src.core.tile import TileType
 from src.managers.footprint import Footprint, blocks_spawn_point
 from src.managers.game_manager import GameManager
 from src.states.game_mode import GameMode
-from src.states.game_state import GameState
+from src.states.screen import Screen
 from src.utils.constants import (
     CPU_PARTNER_AMBUSH_DISTANCE,
     FPS,
@@ -31,18 +31,17 @@ from tests.integration.conftest import (
     place_player_at,
     send_event,
     spawn_enemy_at,
+    start_game,
     tick,
     score_of,
+    reach_next_stage,
 )
 
 
 def start_cpu_game() -> GameManager:
     """Start a GameManager in 1 Player + CPU mode with the game running."""
     pygame.init()
-    gm = GameManager()
-    gm._game_mode = GameMode.ONE_PLAYER_CPU
-    gm._reset_game()
-    return gm
+    return start_game(GameMode.ONE_PLAYER_CPU)
 
 
 @pytest.fixture
@@ -234,8 +233,8 @@ class TestCpuPartnerHunt:
 
     def test_still_hunts_after_stage_change(self, cpu_game):
         gm = cpu_game
-        gm._on_victory_finished()
-        gm.state = GameState.RUNNING
+        reach_next_stage(gm)
+        assert gm.flow.stage == 2
         open_field(gm)
         clear_enemies(gm)
         p1, p2 = gm.battle.scene().players
@@ -500,7 +499,7 @@ class TestCpuPartnerGameOver:
 
         assert p1.lives == 0
         assert p2.lives == 3
-        assert gm.state in (GameState.GAME_OVER, GameState.GAME_OVER_ANIMATION)
+        assert gm.flow.screen is Screen.GAME_OVER_ANIMATION
 
 
 class TestCpuPartnerHud:
@@ -561,7 +560,7 @@ class TestCpuPartnerHoldFireSoak:
             if p1.lives < 2:
                 p1.gain_life()
             tick(gm)
-            if gm.state is not GameState.RUNNING:
+            if gm.flow.screen is not Screen.RUNNING:
                 break
 
         assert [hit for hit in player_bullet_tile_hits if hit in protected] == []

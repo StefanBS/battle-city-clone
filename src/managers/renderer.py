@@ -3,7 +3,7 @@ from __future__ import annotations
 import pygame
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
-from src.states.game_state import GameState
+from src.states.screen import Screen
 from src.utils.constants import (
     WHITE,
     BLACK,
@@ -84,14 +84,14 @@ class Renderer:
     def render(
         self,
         scene: BattleScene,
-        state: GameState,
+        showing: Screen,
         game_over_rise_progress: float | None = None,
     ) -> None:
         """Render the complete game frame.
 
         Args:
             scene: What the Battle shows this frame.
-            state: Current game state, for the Victory and Game Complete
+            showing: The Screen showing, for the Victory and Game Complete
                 overlays.
             game_over_rise_progress: How far the Game Over text has risen,
                 from 0 to 1, or None when it isn't showing.
@@ -119,9 +119,9 @@ class Renderer:
 
         self._draw_hud(scene.hud_entries)
 
-        if state == GameState.VICTORY:
+        if showing == Screen.VICTORY:
             self._draw_victory()
-        elif state == GameState.GAME_COMPLETE:
+        elif showing == Screen.GAME_COMPLETE:
             self._draw_overlay_screen("GAME COMPLETE!", GREEN, "Press R for Title")
         elif game_over_rise_progress is not None:
             self._draw_game_over_rising(game_over_rise_progress)

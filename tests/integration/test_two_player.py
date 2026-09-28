@@ -7,21 +7,22 @@ in the respective unit test files.
 
 import pytest
 import pygame
-from src.managers.game_manager import GameManager
 from src.managers.outcomes import EnemyDestroyed
 from src.states.game_mode import GameMode
 from src.utils.constants import ENEMY_POINTS, FPS, TankType
-from tests.integration.conftest import score_of, spawn_enemy_at
+from tests.integration.conftest import (
+    score_of,
+    spawn_enemy_at,
+    start_game,
+    reach_next_stage,
+)
 
 
 @pytest.fixture
 def two_player_game():
     """GameManager in 2P mode with game running."""
     pygame.init()
-    gm = GameManager()
-    gm._game_mode = GameMode.TWO_PLAYERS
-    gm._reset_game()
-    return gm
+    return start_game(GameMode.TWO_PLAYERS)
 
 
 class TestTwoPlayerSetup:
@@ -72,7 +73,7 @@ class TestTwoPlayerStageTransition:
         p2.restore_lives(4)
         p2.restore_star_level(1)
 
-        gm._start_battle(gm.battle.carried_progress)
+        reach_next_stage(gm)
 
         p1, p2 = gm.battle.scene().players
         assert (p1.lives, p1.star_level) == (5, 2)
@@ -86,7 +87,7 @@ class TestTwoPlayerStageTransition:
         gm.battle.apply_outcomes([EnemyDestroyed(enemy, by=p2)])
         p2.eliminate()
 
-        gm._start_battle(gm.battle.carried_progress)
+        reach_next_stage(gm)
 
         assert [p.player_id for p in gm.battle.scene().players] == [1]
         assert score_of(gm, 2) == ENEMY_POINTS[TankType.BASIC]

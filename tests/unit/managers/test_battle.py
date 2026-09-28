@@ -8,7 +8,7 @@ from src.core.bullet import Bullet
 from src.core.enemy_ai import EnemyAI
 from src.core.enemy_tank import EnemyTank
 from src.core.map import Map
-from src.managers.battle import Battle, BattleResult
+from src.managers.battle import Battle
 from src.managers.enemy_manager import EnemyManager
 from src.managers.player_manager import CarriedProgress
 from src.managers.outcomes import (
@@ -19,6 +19,7 @@ from src.managers.outcomes import (
 )
 from src.managers.sound_manager import SoundManager
 from src.managers.texture_manager import TextureManager
+from src.states.battle_result import BattleResult
 from src.states.game_mode import GameMode
 from src.utils.constants import (
     FPS,

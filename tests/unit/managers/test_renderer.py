@@ -11,7 +11,7 @@ from src.core.power_up import PowerUp
 from src.managers.battle import BattleScene
 from src.managers.player_manager import PlayerHudEntry
 from src.managers.renderer import Renderer
-from src.states.game_state import GameState
+from src.states.screen import Screen
 from src.utils.constants import Difficulty
 
 
@@ -89,7 +89,7 @@ class TestRendererRender:
                     power_ups=(mock_power_up,),
                     effects=(mock_effect,),
                 ),
-                GameState.RUNNING,
+                Screen.RUNNING,
             )
 
         mock_map.draw.assert_called_once_with(renderer.map_surface)
@@ -112,12 +112,12 @@ class TestRendererRender:
             patch("pygame.transform.scale"),
             patch("pygame.display.flip"),
         ):
-            renderer.render(_scene(hud_entries=hud), GameState.RUNNING)
+            renderer.render(_scene(hud_entries=hud), Screen.RUNNING)
 
         mock_draw_hud.assert_called_once_with(hud)
 
     def test_render_victory_overlay(self, renderer):
-        """Victory overlay is drawn when state is VICTORY."""
+        """Victory overlay is drawn on the VICTORY screen."""
         mock_map = MagicMock(spec=Map)
 
         with (
@@ -126,12 +126,12 @@ class TestRendererRender:
             patch("pygame.display.flip"),
         ):
             mock_scale.return_value = MagicMock()
-            renderer.render(_scene(map=mock_map), GameState.VICTORY)
+            renderer.render(_scene(map=mock_map), Screen.VICTORY)
 
         mock_draw_v.assert_called_once()
 
     def test_render_running_no_overlay(self, renderer):
-        """No overlay is drawn when state is RUNNING."""
+        """No overlay is drawn on the RUNNING screen."""
         mock_map = MagicMock(spec=Map)
 
         with (
@@ -140,7 +140,7 @@ class TestRendererRender:
             patch("pygame.display.flip"),
         ):
             mock_scale.return_value = MagicMock()
-            renderer.render(_scene(map=mock_map), GameState.RUNNING)
+            renderer.render(_scene(map=mock_map), Screen.RUNNING)
 
         mock_draw_v.assert_not_called()
 
@@ -154,7 +154,7 @@ class TestRendererRender:
             patch("pygame.display.flip") as mock_flip,
         ):
             mock_scale.return_value = mock_scaled
-            renderer.render(_scene(map=mock_map), GameState.RUNNING)
+            renderer.render(_scene(map=mock_map), Screen.RUNNING)
 
         mock_scale.assert_called_once_with(
             renderer.game_surface, (1024, 1024), renderer.screen

@@ -6,7 +6,7 @@ from src.utils.constants import (
     TILE_SIZE,
     SUB_TILE_SIZE,
 )
-from src.states.game_state import GameState
+from src.states.screen import Screen
 from src.core.tile import Tile, TileType
 from tests.integration.conftest import (
     clear_enemies,
@@ -23,8 +23,8 @@ def test_initial_game_state(game_manager_fixture):
     """Test the initial state of the GameManager after initialization."""
     game_manager = game_manager_fixture
 
-    assert game_manager.state == GameState.RUNNING, (
-        f"Expected initial state RUNNING, got {game_manager.state.name}"
+    assert game_manager.flow.screen == Screen.RUNNING, (
+        f"Expected initial screen RUNNING, got {game_manager.flow.screen.name}"
     )
 
     expected_initial_lives = 3
@@ -95,8 +95,8 @@ def test_player_bullet_hits_base(game_manager_fixture):
     bullet = fire_bullet_from(game_manager, player_tank)
     assert bullet.active, "Player bullet spawned inactive."
 
-    assert game_manager.state == GameState.RUNNING, (
-        "Game should start in RUNNING state."
+    assert game_manager.flow.screen == Screen.RUNNING, (
+        "The Battle should start on the RUNNING screen."
     )
 
     dt = 1.0 / FPS
@@ -106,7 +106,7 @@ def test_player_bullet_hits_base(game_manager_fixture):
 
     for _ in range(num_updates):
         game_manager.update()
-        if game_manager.state != GameState.RUNNING or not bullet.active:
+        if game_manager.flow.screen != Screen.RUNNING or not bullet.active:
             hit_processed = True
             break
 
@@ -120,12 +120,9 @@ def test_player_bullet_hits_base(game_manager_fixture):
 
     assert not bullet.active, "Player bullet should be inactive after hitting base."
 
-    assert game_manager.state in (
-        GameState.GAME_OVER,
-        GameState.GAME_OVER_ANIMATION,
-    ), (
-        f"Game state did not change to GAME_OVER/GAME_OVER_ANIMATION. "
-        f"Is: {game_manager.state.name}"
+    assert game_manager.flow.screen is Screen.GAME_OVER_ANIMATION, (
+        f"Screen did not change to GAME_OVER_ANIMATION. "
+        f"Is: {game_manager.flow.screen.name}"
     )
 
 
@@ -173,8 +170,8 @@ def test_enemy_bullet_destroys_base_game_over(game_manager_fixture):
     bullet = fire_bullet_from(game_manager, enemy_tank)
     assert bullet.active, "Enemy bullet spawned inactive."
 
-    assert game_manager.state == GameState.RUNNING, (
-        "Game should start in RUNNING state."
+    assert game_manager.flow.screen == Screen.RUNNING, (
+        "The Battle should start on the RUNNING screen."
     )
 
     dt = 1.0 / FPS
@@ -184,7 +181,7 @@ def test_enemy_bullet_destroys_base_game_over(game_manager_fixture):
 
     for _ in range(num_updates):
         game_manager.update()
-        if game_manager.state != GameState.RUNNING or not bullet.active:
+        if game_manager.flow.screen != Screen.RUNNING or not bullet.active:
             hit_processed = True
             break
 
@@ -198,30 +195,27 @@ def test_enemy_bullet_destroys_base_game_over(game_manager_fixture):
         f"Base tile type did not change to BASE_DESTROYED. Is: {base_tile.type.name}"
     )
 
-    assert game_manager.state in (
-        GameState.GAME_OVER,
-        GameState.GAME_OVER_ANIMATION,
-    ), (
-        f"Game state did not change to GAME_OVER/GAME_OVER_ANIMATION. "
-        f"Is: {game_manager.state.name}"
+    assert game_manager.flow.screen is Screen.GAME_OVER_ANIMATION, (
+        f"Screen did not change to GAME_OVER_ANIMATION. "
+        f"Is: {game_manager.flow.screen.name}"
     )
 
 
 def test_victory_condition(game_manager_fixture):
-    """Test that game state changes to VICTORY when all enemies are gone
+    """Test that the screen changes to VICTORY when all enemies are gone
     and the total spawn count has reached the maximum."""
     game_manager = game_manager_fixture
 
     use_up_roster(game_manager)
 
-    assert game_manager.state == GameState.RUNNING, (
+    assert game_manager.flow.screen == Screen.RUNNING, (
         "Test setup assumes starting in RUNNING state."
     )
 
     game_manager.update()
 
-    assert game_manager.state == GameState.VICTORY, (
-        f"Game state did not change to VICTORY. Is: {game_manager.state.name}"
+    assert game_manager.flow.screen == Screen.VICTORY, (
+        f"Screen did not change to VICTORY. Is: {game_manager.flow.screen.name}"
     )
 
 
