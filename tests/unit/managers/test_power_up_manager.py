@@ -3,18 +3,13 @@ import pygame
 from unittest.mock import MagicMock
 from src.core.map import Map
 from src.core.player_tank import PlayerTank
-from src.managers.enemy_manager import EnemyManager
-from src.managers.outcomes import EnemyDestroyed
+from src.managers.outcomes import BaseWallFortified, ClockStarted, GrenadeDetonated
 from src.managers.power_up_manager import PowerUpManager
-from src.core.tile import BrickVariant, TileType
+from src.core.tile import TileType
 from src.utils.constants import (
-    CLOCK_FREEZE_DURATION,
     HELMET_INVINCIBILITY_DURATION,
     POWERUP_TIMEOUT,
     PowerUpType,
-    SHOVEL_DURATION,
-    SHOVEL_FLASH_INTERVAL,
-    SHOVEL_WARNING_DURATION,
     TILE_SIZE,
 )
 
@@ -106,53 +101,6 @@ class TestPowerUpManager:
         assert len(manager.active_power_ups) == 0
 
 
-class TestShovelEffect:
-    @pytest.fixture
-    def manager(self, mock_texture_manager):
-        game_map = MagicMock()
-        mock_tiles = []
-        for _ in range(4):
-            t = MagicMock()
-            t.type = TileType.BRICK
-            t.brick_variant = BrickVariant.FULL
-            mock_tiles.append(t)
-        game_map.get_base_surrounding_tiles.return_value = mock_tiles
-        return PowerUpManager(mock_texture_manager, game_map)
-
-    def test_shovel_fortifies_base(self, manager):
-        manager.apply_shovel()
-        assert manager.shovel_timer == SHOVEL_DURATION
-        for call in manager._game_map.set_tile_type.call_args_list:
-            assert call.args[1] == TileType.STEEL
-
-    def test_shovel_reverts_after_duration(self, manager):
-        manager.apply_shovel()
-        manager._game_map.set_tile_type.reset_mock()
-        manager.update(SHOVEL_DURATION + 0.1)
-        assert manager.shovel_timer <= 0
-        for call in manager._game_map.set_tile_type.call_args_list:
-            assert call.args[1] == TileType.BRICK
-
-    def test_shovel_recollection_resets_timer(self, manager):
-        manager.apply_shovel()
-        original_tiles = manager._shovel_original_tiles
-        manager.shovel_timer = 5.0
-        manager._game_map.set_tile_type.reset_mock()
-        manager.apply_shovel()
-        assert manager.shovel_timer == SHOVEL_DURATION
-        assert manager._shovel_original_tiles is original_tiles
-        manager._game_map.set_tile_type.assert_not_called()
-
-    def test_shovel_flashes_during_warning(self, manager):
-        manager.apply_shovel()
-        manager._game_map.set_tile_type.reset_mock()
-        manager.update(SHOVEL_DURATION - SHOVEL_WARNING_DURATION + 0.5)
-        manager.update(SHOVEL_FLASH_INTERVAL + 0.01)
-        assert manager._shovel_flash_showing_steel is False
-        last_call = manager._game_map.set_tile_type.call_args_list[-1]
-        assert last_call.args[1] == TileType.BRICK
-
-
 class TestPowerUpManagerApply:
     """Power-up effect dispatch lives on PowerUpManager.apply()."""
 
@@ -161,48 +109,29 @@ class TestPowerUpManagerApply:
         return MagicMock(spec=PlayerTank)
 
     @pytest.fixture
-    def enemy_manager(self):
-        em = MagicMock(spec=EnemyManager)
-        em.enemies = []
-        return em
-
-    @pytest.fixture
     def manager(self, mock_texture_manager):
-        """Real PowerUpManager with mocked deps.
+        return PowerUpManager(mock_texture_manager, MagicMock(spec=Map))
 
-        ``apply_shovel`` is stubbed because the SHOVEL test only verifies
-        that ``apply()`` delegates — the shovel side-effects on the map
-        are covered elsewhere.
-        """
-        m = PowerUpManager(mock_texture_manager, MagicMock(spec=Map))
-        m.apply_shovel = MagicMock()
-        return m
-
-    def test_helmet_grants_invincibility(self, manager, player, enemy_manager):
-        manager.apply(PowerUpType.HELMET, player, enemy_manager)
+    def test_helmet_grants_invincibility(self, manager, player):
+        manager.apply(PowerUpType.HELMET, player)
         player.activate_invincibility.assert_called_once_with(
             HELMET_INVINCIBILITY_DURATION
         )
 
-    def test_extra_life_gives_the_player_a_life(self, manager, player, enemy_manager):
-        manager.apply(PowerUpType.EXTRA_LIFE, player, enemy_manager)
+    def test_extra_life_gives_the_player_a_life(self, manager, player):
+        manager.apply(PowerUpType.EXTRA_LIFE, player)
         player.gain_life.assert_called_once_with()
 
-    def test_grenade_destroys_every_enemy(self, manager, player, enemy_manager):
-        enemies = [MagicMock(), MagicMock(), MagicMock()]
-        enemy_manager.enemies = list(enemies)
-        outcomes = manager.apply(PowerUpType.GRENADE, player, enemy_manager)
-        assert outcomes == [EnemyDestroyed(e, by=None) for e in enemies]
-        enemy_manager.remove.assert_not_called()
+    def test_grenade_returns_grenade_detonated(self, manager, player):
+        outcomes = manager.apply(PowerUpType.GRENADE, player)
+        assert outcomes == [GrenadeDetonated()]
 
-    def test_clock_freezes_enemies(self, manager, player, enemy_manager):
-        manager.apply(PowerUpType.CLOCK, player, enemy_manager)
-        enemy_manager.freeze.assert_called_once_with(CLOCK_FREEZE_DURATION)
+    def test_clock_returns_clock_started(self, manager, player):
+        assert manager.apply(PowerUpType.CLOCK, player) == [ClockStarted()]
 
-    def test_shovel_delegates_to_apply_shovel(self, manager, player, enemy_manager):
-        manager.apply(PowerUpType.SHOVEL, player, enemy_manager)
-        manager.apply_shovel.assert_called_once_with()
+    def test_shovel_returns_base_wall_fortified(self, manager, player):
+        assert manager.apply(PowerUpType.SHOVEL, player) == [BaseWallFortified()]
 
-    def test_star_applies_to_player(self, manager, player, enemy_manager):
-        manager.apply(PowerUpType.STAR, player, enemy_manager)
+    def test_star_applies_to_player(self, manager, player):
+        manager.apply(PowerUpType.STAR, player)
         player.apply_star.assert_called_once_with()

@@ -1,7 +1,8 @@
 """Game-level consequences of a frame's collisions and Power-Ups.
 
 ``CollisionResponseHandler`` returns these instead of applying score, removals,
-respawns or Game Over itself; ``GameManager`` applies them in one place. See
+respawns or Game Over itself, and ``PowerUpManager.apply`` returns the effects a
+Power-Up has on the whole battlefield. ``Battle`` applies them in one place. See
 ``docs/adr/0003-collision-response-returns-outcomes.md``.
 """
 
@@ -49,6 +50,28 @@ class PowerUpCollected:
     player: PlayerTank
 
 
-CollisionOutcome = (
-    CarrierHit | EnemyDestroyed | PlayerDestroyed | BaseDestroyed | PowerUpCollected
+@dataclass(frozen=True)
+class GrenadeDetonated:
+    """A Grenade went off: every Enemy on the battlefield is destroyed."""
+
+
+@dataclass(frozen=True)
+class ClockStarted:
+    """A Clock was collected: every Enemy is Frozen, and so are those that Appear."""
+
+
+@dataclass(frozen=True)
+class BaseWallFortified:
+    """A Shovel was collected: the Base Wall is Fortified for a while."""
+
+
+BattleOutcome = (
+    CarrierHit
+    | EnemyDestroyed
+    | PlayerDestroyed
+    | BaseDestroyed
+    | PowerUpCollected
+    | GrenadeDetonated
+    | ClockStarted
+    | BaseWallFortified
 )

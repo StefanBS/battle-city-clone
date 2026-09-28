@@ -88,7 +88,7 @@ The eagle the Players defend. When it is destroyed, the game is lost.
 _Avoid_: Eagle, HQ
 
 **Base Wall**:
-The brick (or, after a shovel, steel) tiles directly surrounding the Base.
+The brick tiles directly surrounding the Base. While a Shovel is in effect it is **Fortified**: steel instead of brick.
 
 **Base Threat**:
 An Enemy close to the Base, or with a line of fire to the Base that is clear or blocked only by brick.
@@ -112,6 +112,14 @@ A pickup that appears on the battlefield and gives the Player who collects it an
 **Grenade**:
 The Power-Up that destroys every Enemy on the battlefield at once.
 _Avoid_: Bomb
+
+**Clock**:
+The Power-Up that makes every Enemy Frozen for a while, including those that Appear before it runs out.
+_Avoid_: Timer, freeze power-up
+
+**Shovel**:
+The Power-Up that Fortifies the Base Wall for a while, first rebuilding any of its destroyed bricks. Shortly before it runs out the wall flashes between steel and brick, then goes back to brick. Collecting another Shovel while one is in effect starts it over.
+_Avoid_: Spade
 
 ### Game flow
 

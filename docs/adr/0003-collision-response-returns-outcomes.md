@@ -5,5 +5,5 @@
 ## Consequences
 
 - Because respawn now happens after the loop, the handler keeps track of tanks destroyed so far in the frame. Bullets pass through them, and a destroyed Player can't collect a Power-Up. Without this, a Player hit by two bullets in one frame would lose two lives.
-- Applying an outcome can produce more outcomes. `PowerUpManager.apply` returns `EnemyDestroyed(by=None)` for each Enemy a Grenade destroys, and `Battle.apply_outcomes` works through a queue until it's empty. Points go to the Player named in `by`, so Grenade kills score nothing, as on the NES.
+- Applying an outcome can produce more outcomes, and `Battle.apply_outcomes` works through a queue until it's empty. Power-Up effects on the battlefield come back as outcomes: `PowerUpManager.apply` changes only the collecting Player and returns `GrenadeDetonated`, `ClockStarted` or `BaseWallFortified`. The `Battle` routes them: a Grenade becomes an `EnemyDestroyed(by=None)` for each Enemy on the battlefield, a Clock goes to `EnemyManager`, and a Shovel to `BaseWall`. Points go to the Player named in `by`, so Grenade kills score nothing, as on the NES.
 - Don't give `CollisionResponseHandler` callbacks for score or game state again. A new consequence becomes a new outcome type.
