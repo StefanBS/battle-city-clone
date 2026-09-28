@@ -3,16 +3,13 @@ import pygame
 from unittest.mock import MagicMock
 from src.core.map import Map
 from src.core.player_tank import PlayerTank
-from src.managers.outcomes import ClockStarted, GrenadeDetonated
+from src.managers.outcomes import BaseWallFortified, ClockStarted, GrenadeDetonated
 from src.managers.power_up_manager import PowerUpManager
-from src.core.tile import BrickVariant, TileType
+from src.core.tile import TileType
 from src.utils.constants import (
     HELMET_INVINCIBILITY_DURATION,
     POWERUP_TIMEOUT,
     PowerUpType,
-    SHOVEL_DURATION,
-    SHOVEL_FLASH_INTERVAL,
-    SHOVEL_WARNING_DURATION,
     TILE_SIZE,
 )
 
@@ -104,53 +101,6 @@ class TestPowerUpManager:
         assert len(manager.active_power_ups) == 0
 
 
-class TestShovelEffect:
-    @pytest.fixture
-    def manager(self, mock_texture_manager):
-        game_map = MagicMock()
-        mock_tiles = []
-        for _ in range(4):
-            t = MagicMock()
-            t.type = TileType.BRICK
-            t.brick_variant = BrickVariant.FULL
-            mock_tiles.append(t)
-        game_map.get_base_surrounding_tiles.return_value = mock_tiles
-        return PowerUpManager(mock_texture_manager, game_map)
-
-    def test_shovel_fortifies_base(self, manager):
-        manager.apply_shovel()
-        assert manager.shovel_timer == SHOVEL_DURATION
-        for call in manager._game_map.set_tile_type.call_args_list:
-            assert call.args[1] == TileType.STEEL
-
-    def test_shovel_reverts_after_duration(self, manager):
-        manager.apply_shovel()
-        manager._game_map.set_tile_type.reset_mock()
-        manager.update(SHOVEL_DURATION + 0.1)
-        assert manager.shovel_timer <= 0
-        for call in manager._game_map.set_tile_type.call_args_list:
-            assert call.args[1] == TileType.BRICK
-
-    def test_shovel_recollection_resets_timer(self, manager):
-        manager.apply_shovel()
-        original_tiles = manager._shovel_original_tiles
-        manager.shovel_timer = 5.0
-        manager._game_map.set_tile_type.reset_mock()
-        manager.apply_shovel()
-        assert manager.shovel_timer == SHOVEL_DURATION
-        assert manager._shovel_original_tiles is original_tiles
-        manager._game_map.set_tile_type.assert_not_called()
-
-    def test_shovel_flashes_during_warning(self, manager):
-        manager.apply_shovel()
-        manager._game_map.set_tile_type.reset_mock()
-        manager.update(SHOVEL_DURATION - SHOVEL_WARNING_DURATION + 0.5)
-        manager.update(SHOVEL_FLASH_INTERVAL + 0.01)
-        assert manager._shovel_flash_showing_steel is False
-        last_call = manager._game_map.set_tile_type.call_args_list[-1]
-        assert last_call.args[1] == TileType.BRICK
-
-
 class TestPowerUpManagerApply:
     """Power-up effect dispatch lives on PowerUpManager.apply()."""
 
@@ -160,15 +110,7 @@ class TestPowerUpManagerApply:
 
     @pytest.fixture
     def manager(self, mock_texture_manager):
-        """Real PowerUpManager with mocked deps.
-
-        ``apply_shovel`` is stubbed because the SHOVEL test only verifies
-        that ``apply()`` delegates — the shovel side-effects on the map
-        are covered elsewhere.
-        """
-        m = PowerUpManager(mock_texture_manager, MagicMock(spec=Map))
-        m.apply_shovel = MagicMock()
-        return m
+        return PowerUpManager(mock_texture_manager, MagicMock(spec=Map))
 
     def test_helmet_grants_invincibility(self, manager, player):
         manager.apply(PowerUpType.HELMET, player)
@@ -187,9 +129,8 @@ class TestPowerUpManagerApply:
     def test_clock_returns_clock_started(self, manager, player):
         assert manager.apply(PowerUpType.CLOCK, player) == [ClockStarted()]
 
-    def test_shovel_delegates_to_apply_shovel(self, manager, player):
-        manager.apply(PowerUpType.SHOVEL, player)
-        manager.apply_shovel.assert_called_once_with()
+    def test_shovel_returns_base_wall_fortified(self, manager, player):
+        assert manager.apply(PowerUpType.SHOVEL, player) == [BaseWallFortified()]
 
     def test_star_applies_to_player(self, manager, player):
         manager.apply(PowerUpType.STAR, player)

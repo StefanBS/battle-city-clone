@@ -8,10 +8,12 @@ from src.core.bullet import Bullet
 from src.core.enemy_ai import EnemyAI
 from src.core.enemy_tank import EnemyTank
 from src.core.map import Map
+from src.core.tile import TileType
 from src.managers.battle import Battle
 from src.managers.enemy_manager import EnemyManager
 from src.managers.player_manager import CarriedProgress
 from src.managers.outcomes import (
+    BaseWallFortified,
     CarrierHit,
     ClockStarted,
     EnemyDestroyed,
@@ -26,6 +28,7 @@ from src.states.game_mode import GameMode
 from src.utils.constants import (
     FPS,
     POWERUP_COLLECT_POINTS,
+    SHOVEL_DURATION,
     TILE_SIZE,
     Difficulty,
     Direction,
@@ -534,6 +537,16 @@ class TestBattleApplyOutcomes:
 
         assert on_field.is_frozen
         assert later.is_frozen
+
+    def test_shovel_fortifies_the_base_wall_until_it_runs_out(self, battle):
+        wall = battle.map.get_base_surrounding_tiles()
+
+        battle.apply_outcomes([BaseWallFortified()])
+        assert {tile.type for tile in wall} == {TileType.STEEL}
+
+        for _ in range(int(SHOVEL_DURATION * FPS) + 1):
+            battle.step(DT)
+        assert {tile.type for tile in wall} == {TileType.BRICK}
 
     def test_player_destroyed(self, battle, players, sound):
         p1 = players[0]

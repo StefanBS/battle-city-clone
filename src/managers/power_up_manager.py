@@ -13,18 +13,19 @@ from src.core.power_up import PowerUp
 from src.core.map import Map
 from src.core.tank import Tank
 from src.managers.texture_manager import TextureManager
-from src.utils.animation import is_blink_visible
 from src.utils.constants import (
     HELMET_INVINCIBILITY_DURATION,
     PowerUpType,
-    SHOVEL_DURATION,
-    SHOVEL_FLASH_INTERVAL,
-    SHOVEL_WARNING_DURATION,
     TILE_SIZE,
 )
-from src.core.tile import BrickVariant, Tile, TileType
+from src.core.tile import TileType
 
-from src.managers.outcomes import ClockStarted, CollisionOutcome, GrenadeDetonated
+from src.managers.outcomes import (
+    BaseWallFortified,
+    ClockStarted,
+    CollisionOutcome,
+    GrenadeDetonated,
+)
 
 
 class PowerUpManager:
@@ -38,10 +39,6 @@ class PowerUpManager:
         self._texture_manager = texture_manager
         self._game_map = game_map
         self.active_power_ups: list[PowerUp] = []
-        self.shovel_timer: float = 0.0
-        self._shovel_original_tiles: list[tuple[Tile, TileType]] = []
-        self._shovel_flash_timer: float = 0.0
-        self._shovel_flash_showing_steel: bool = True
 
     def spawn_power_up(
         self,
@@ -80,7 +77,6 @@ class PowerUpManager:
         for power_up in self.active_power_ups:
             power_up.update(dt)
         self.active_power_ups = [p for p in self.active_power_ups if p.active]
-        self._tick_shovel(dt)
 
     def apply(
         self, power_up_type: PowerUpType, player: PlayerTank
@@ -96,7 +92,7 @@ class PowerUpManager:
 
         Returns:
             ``GrenadeDetonated`` for a Grenade, ``ClockStarted`` for a Clock,
-            otherwise nothing.
+            ``BaseWallFortified`` for a Shovel, otherwise nothing.
         """
         outcomes: list[CollisionOutcome] = []
         match power_up_type:
@@ -109,7 +105,7 @@ class PowerUpManager:
             case PowerUpType.CLOCK:
                 outcomes = [ClockStarted()]
             case PowerUpType.SHOVEL:
-                self.apply_shovel()
+                outcomes = [BaseWallFortified()]
             case PowerUpType.STAR:
                 player.apply_star()
             case _:
@@ -117,53 +113,6 @@ class PowerUpManager:
                 return outcomes
         logger.info(f"Power-up applied: {power_up_type}")
         return outcomes
-
-    def apply_shovel(self) -> None:
-        """Fortify base walls with steel, restoring destroyed bricks first."""
-        if not self._shovel_original_tiles:
-            tiles = self._game_map.get_base_surrounding_tiles(include_empty=True)
-            for tile in tiles:
-                damaged = (
-                    tile.type == TileType.EMPTY
-                    or tile.brick_variant != BrickVariant.FULL
-                )
-                if damaged:
-                    self._game_map.set_tile_type(tile, TileType.BRICK)
-                    tile.brick_variant = BrickVariant.FULL
-                    tile.reset_rect()
-            # Save originals AFTER restoration so reverted tiles are BRICK, not EMPTY.
-            self._shovel_original_tiles = [(t, t.type) for t in tiles]
-            for tile in tiles:
-                self._game_map.set_tile_type(tile, TileType.STEEL)
-            logger.info(
-                f"Shovel power-up applied: base fortified for {SHOVEL_DURATION}s"
-            )
-        self.shovel_timer = SHOVEL_DURATION
-        self._shovel_flash_timer = 0.0
-        self._shovel_flash_showing_steel = True
-
-    def _tick_shovel(self, dt: float) -> None:
-        if self.shovel_timer <= 0:
-            return
-        self.shovel_timer -= dt
-        if self.shovel_timer <= 0:
-            for tile, orig_type in self._shovel_original_tiles:
-                if tile.type != TileType.EMPTY:
-                    self._game_map.set_tile_type(tile, orig_type)
-            self._shovel_original_tiles = []
-            logger.info("Shovel expired: base walls reverted")
-            return
-        if self.shovel_timer <= SHOVEL_WARNING_DURATION:
-            self._shovel_flash_timer += dt
-            should_show_steel = is_blink_visible(
-                self._shovel_flash_timer, SHOVEL_FLASH_INTERVAL
-            )
-            if should_show_steel != self._shovel_flash_showing_steel:
-                self._shovel_flash_showing_steel = should_show_steel
-                for tile, orig_type in self._shovel_original_tiles:
-                    if tile.type != TileType.EMPTY:
-                        target = TileType.STEEL if should_show_steel else orig_type
-                        self._game_map.set_tile_type(tile, target)
 
     def collect_power_up(self, power_up: PowerUp) -> PowerUpType | None:
         """Collect a specific power-up. Returns its type, or None if not found."""

@@ -59,6 +59,11 @@ class ClockStarted:
     """A Clock went off: every Enemy is Frozen, and so are those that Appear."""
 
 
+@dataclass(frozen=True)
+class BaseWallFortified:
+    """A Shovel went off: the Base Wall is Fortified for a while."""
+
+
 CollisionOutcome = (
     CarrierHit
     | EnemyDestroyed
@@ -67,4 +72,5 @@ CollisionOutcome = (
     | PowerUpCollected
     | GrenadeDetonated
     | ClockStarted
+    | BaseWallFortified
 )

@@ -10,12 +10,14 @@ from typing import TYPE_CHECKING
 import pygame
 from loguru import logger
 
+from src.core.base_wall import BaseWall
 from src.managers.collision_manager import CollisionManager
 from src.managers.collision_response_handler import CollisionResponseHandler
 from src.managers.effect_manager import EffectManager
 from src.managers.enemy_manager import EnemyManager
 from src.managers.outcomes import (
     BaseDestroyed,
+    BaseWallFortified,
     CarrierHit,
     ClockStarted,
     CollisionOutcome,
@@ -113,6 +115,7 @@ class Battle:
         self._texture_manager = texture_manager
         self._result: BattleResult | None = None
 
+        self._base_wall = BaseWall(game_map)
         self._collision_manager = CollisionManager()
         self._effect_manager = EffectManager(texture_manager)
         # Must be created before CollisionResponseHandler.
@@ -237,6 +240,7 @@ class Battle:
         self.bring_in_spawns()
         self._spawn_manager.advance(dt, self._tanks_on_battlefield())
         self._power_up_manager.update(dt)
+        self._base_wall.update(dt)
 
         # Built AFTER updates so newly fired bullets are included
         self._collision_manager.check_collisions(
@@ -304,6 +308,8 @@ class Battle:
                     )
                 case ClockStarted():
                     self._enemy_manager.start_clock()
+                case BaseWallFortified():
+                    self._base_wall.fortify()
                 case PowerUpCollected(power_up_type=power_up_type, player=player):
                     self._player_manager.add_score(
                         POWERUP_COLLECT_POINTS, player_id=player.player_id
