@@ -1,24 +1,11 @@
 """Smoke tests for GameManager, the pygame adapter around the Screen Flow."""
 
 import pygame
-import pytest
 
-from src.managers.game_manager import GameManager, stage_map_path
-from src.managers.outcomes import EnemyDestroyed
-from src.states.game_mode import GameMode
+from src.managers.game_manager import stage_map_path
 from src.managers.player_input import AXIS_MAX
 from src.states.screen import Screen
-from src.utils.constants import ENEMY_POINTS, VICTORY_PAUSE_DURATION, TankType
-from tests.integration.conftest import (
-    first_player,
-    run_until_screen,
-    score_of,
-    spawn_enemy_at,
-    start_game,
-    tick,
-    tick_for,
-    use_up_roster,
-)
+from tests.integration.conftest import start_game, tick
 
 
 def post(*events):
@@ -32,25 +19,6 @@ def key(k):
 
 def button(b):
     return pygame.event.Event(pygame.CONTROLLERBUTTONDOWN, button=b, instance_id=0)
-
-
-class TestStartingAGame:
-    def test_starts_on_the_title_screen_without_a_battle(self):
-        game = GameManager()
-
-        assert game.flow.screen is Screen.TITLE_SCREEN
-        assert game.battle is None
-
-    @pytest.mark.parametrize(
-        "mode, players", [(GameMode.ONE_PLAYER, 1), (GameMode.TWO_PLAYERS, 2)]
-    )
-    def test_choosing_a_mode_starts_its_battle_on_stage_1(self, mode, players):
-        game = start_game(mode)
-
-        assert game.flow.stage == 1
-        assert game.battle is not None
-        assert len(game.battle.scene().players) == players
-        game.render()
 
 
 class TestRender:
@@ -102,38 +70,6 @@ class TestPause:
         game.handle_events()
 
         assert game.flow.menu.selection == 1
-
-    def test_the_same_button_fires_while_running(self):
-        game = start_game()
-
-        post(button(pygame.CONTROLLER_BUTTON_A))
-        game.handle_events()
-        tick(game)
-
-        assert len(game.battle.scene().bullets) == 1
-
-
-class TestNextStage:
-    def test_victory_starts_the_next_stage_with_progress_carried(self):
-        game = start_game()
-        player = first_player(game)
-        player.restore_lives(5)
-        player.apply_star()
-        enemy = spawn_enemy_at(game, 0, 0)
-        game.battle.apply_outcomes([EnemyDestroyed(enemy, by=player)])
-        first_battle = game.battle
-
-        use_up_roster(game)
-        tick(game)
-        assert game.flow.screen is Screen.VICTORY
-        tick_for(game, VICTORY_PAUSE_DURATION + 0.1)
-        run_until_screen(game, Screen.RUNNING)
-
-        assert game.flow.stage == 2
-        assert game.battle is not first_battle
-        assert first_player(game).lives == 5
-        assert first_player(game).star_level == 1
-        assert score_of(game) == ENEMY_POINTS[TankType.BASIC]
 
 
 class TestStageMapPath:

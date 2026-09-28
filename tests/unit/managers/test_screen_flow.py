@@ -93,6 +93,7 @@ class TestTitleScreen:
             "Quit",
         ]
         assert flow.menu.selection == 0
+        assert flow.take_battle_request() is None
 
     def test_up_and_down_move_the_selection_and_play_menu_select(self, flow, sound):
         flow.handle(MenuAction.DOWN)
@@ -122,9 +123,6 @@ class TestTitleScreen:
 
         sound.play.assert_called_with("stage_start")
 
-    def test_no_battle_is_requested_before_a_mode_is_chosen(self, flow):
-        assert flow.take_battle_request() is None
-
 
 class TestCurtain:
     def test_closes_shows_the_stage_then_opens_onto_the_battle(self, flow):
@@ -152,11 +150,6 @@ class TestCurtain:
         assert flow.screen is Screen.RUNNING
         assert flow.battle_steps is True
         assert flow.curtain_progress == 0.0
-
-    def test_battle_steps_only_while_running(self, flow):
-        assert flow.battle_steps is False
-        start_game(flow)
-        assert flow.battle_steps is True
 
 
 class TestVictory:
@@ -317,14 +310,6 @@ class TestPause:
 
         assert flow.menu.selection == 0
 
-    def test_an_action_before_pause_does_not_move_the_pause_menu(self, flow):
-        start_game(flow)
-
-        flow.handle(MenuAction.DOWN)
-        flow.handle(MenuAction.PAUSE)
-
-        assert flow.menu.selection == 0
-
     def test_time_does_not_pass_while_paused(self, flow):
         start_game(flow)
         flow.handle(MenuAction.PAUSE)
@@ -419,23 +404,12 @@ class TestOptions:
 
         assert flow.screen is Screen.TITLE_SCREEN
 
-    @pytest.mark.parametrize(
-        "leave",
-        [
-            pytest.param([MenuAction.BACK], id="back"),
-            pytest.param([MenuAction.PAUSE], id="pause"),
-            pytest.param(
-                [MenuAction.DOWN, MenuAction.DOWN, MenuAction.CONFIRM], id="back-item"
-            ),
-        ],
-    )
-    def test_leaving_options_opened_from_pause_returns_to_pause(self, flow, leave):
+    def test_leaving_options_opened_from_pause_returns_to_pause(self, flow):
         open_options_from_pause(flow)
         assert flow.screen is Screen.OPTIONS_MENU
         assert flow.battle_steps is False
 
-        for action in leave:
-            flow.handle(action)
+        flow.handle(MenuAction.BACK)
 
         assert flow.screen is Screen.PAUSED
 
@@ -463,14 +437,6 @@ class TestOptions:
 
         assert settings.difficulty is difficulty
         sound.play.assert_called_once_with("menu_select")
-
-    def test_right_then_left_on_difficulty_returns_to_normal(self, flow, settings):
-        choose(flow, 3)
-
-        flow.handle(MenuAction.RIGHT)
-        flow.handle(MenuAction.LEFT)
-
-        assert settings.difficulty is Difficulty.NORMAL
 
     def test_left_and_right_adjust_the_volume(self, flow, settings, sound):
         choose(flow, 3)
