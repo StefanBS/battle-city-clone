@@ -18,8 +18,7 @@ capitalised (Goal, Firing Position, Cut Off, ...) are defined in
 | `src/managers/dodge.py` | `Dodge` (section 4): whether and how to Dodge this frame (`react`), and whether the Goal's step is safe (`is_step_safe`). It keeps what it has noticed (reaction time, missed shots) and looks `CPU_PARTNER_DODGE_HORIZON` ahead. |
 | `src/managers/pathfinding.py` | `NavGrid` and A* `find_path` over the sub-tile grid, for the tank's full footprint. Bricks are passable at extra cost (it shoots through them). Base Wall bricks never are. |
 | `src/managers/steering.py` | `Steering`: notices it is stuck and picks the tanks to route around. |
-| `src/managers/refused_shots.py` | `RefusedShots`: how long it has stayed lined up on a target without a safe shot. |
-| `src/managers/enemy_memory.py` | `EnemyMemory`: per-Enemy facts (Cut Off, given-up sides) kept until the Enemy moves. |
+| `src/managers/cut_off.py` | `CutOff`: counts each Refused Shot, gives up sides of an Enemy until it is Cut Off, and forgets both once the Enemy moves. `CpuPartnerInput` asks it which sides are open (`open_sides`) and whether an Enemy is Cut Off (`is_cut_off`). |
 
 Tuning values are the `CPU_PARTNER_*` constants in `src/utils/constants.py`.
 
@@ -138,8 +137,8 @@ at least one decision.
 
 Both Goals that target an Enemy go through the checks below every frame,
 starting from the top. Only three things carry over from one frame to the
-next: how long it has held fire, which sides of each Enemy it has given up,
-and which Enemies are Cut Off.
+next, all kept by `CutOff`: how long it has held a Refused Shot, which sides
+of each Enemy it has given up, and which Enemies are Cut Off.
 
 ```mermaid
 flowchart TD
@@ -195,8 +194,8 @@ flowchart TD
   exit.
 - **Hesitation**: each time it starts aiming, there is a 10% chance
   (`CPU_PARTNER_HESITATION_CHANCE`) it holds fire for 0.3 s. This happens after
-  the logic above and doesn't count as a refused shot.
-- **Given-up sides and Cut Off** are kept in `EnemyMemory` and forgotten as
+  the logic above and doesn't count as a Refused Shot.
+- **Given-up sides and Cut Off** are kept in `CutOff` and forgotten as
   soon as the Enemy moves to another cell. The Enemy then becomes a candidate
   for every Goal again.
 
@@ -213,7 +212,7 @@ at least 0.75 s (stickiness, then the Reaction Delay), and stepping out of a
 bullet's way takes about 0.2 s. So each frame, before its Goal, the CPU
 Partner checks for an Incoming Shot, and while it Dodges it skips its Goal
 entirely. The Goal and its target are left as they were, and every clock
-behind them pauses: `GoalTiming`, the refused-shot count, the stuck count,
+behind them pauses: `GoalTiming`, the Refused Shot count, the stuck count,
 Hesitation, and the forgetting of Cut Off Enemies and given-up sides. It
 carries on with them the frame the Dodge ends, so a long run of Dodges
 delays a Goal switch by as long as it lasts.

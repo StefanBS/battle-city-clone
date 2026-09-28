@@ -945,6 +945,15 @@ class TestCpuPartnerNoFiringPositionLeft:
         assert cpu.consume_shoot() is True
 
 
+class TestCpuPartnerReset:
+    def test_forgets_the_sides_it_gave_up_on_respawn(self, cpu) -> None:
+        view = make_view(own=(12, 20, Direction.UP), enemies=[(12, 2)], human=(13, 10))
+        observe_refused(cpu, view)
+        # Respawning resets it: it lines up below the Enemy again.
+        cpu.reset()
+        observe_refused(cpu, view)
+
+
 def with_power_up(
     view: WorldView, at: Cell, power_up_type: PowerUpType = PowerUpType.STAR
 ) -> WorldView:
@@ -1279,6 +1288,17 @@ class TestCpuPartnerDodgeLeavesTheGoal:
         # One more refused frame completes the refused shot time.
         cpu.observe(refused)
         cpu.observe(refused)
+        assert cpu.get_movement_direction() != (0, 0)
+
+    def test_a_dodge_pauses_forgetting_the_sides_it_gave_up(self, cpu) -> None:
+        view = make_view(own=(12, 20, Direction.UP), enemies=[(12, 2)], human=(13, 10))
+        observe_refused(cpu, view)
+        # The Enemy steps off its cell and back while it Dodges.
+        stepped = replace(view, enemies=(replace(view.enemies[0], y=cell(3)),))
+        shot = enemy_bullet(cell(6), cell(20) + 14, Direction.RIGHT)
+        cpu.observe(with_bullets(stepped, shot))
+        cpu.observe(view)
+        # Still given up below the Enemy: it heads for another side.
         assert cpu.get_movement_direction() != (0, 0)
 
     def test_a_dodge_neither_counts_nor_breaks_its_stuck_time(self, hunting) -> None:

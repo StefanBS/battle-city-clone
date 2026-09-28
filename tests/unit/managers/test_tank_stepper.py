@@ -275,7 +275,7 @@ class TestFiring:
 
         assert result.fired is True
 
-    def test_refused_shot_is_not_reported(self, stepper, tank):
+    def test_shot_the_tank_cannot_fire_is_not_reported(self, stepper, tank):
         tank.shoot.side_effect = None
         tank.shoot.return_value = None
 

@@ -3,12 +3,11 @@
 import itertools
 import math
 from collections.abc import Collection
-from dataclasses import dataclass
 
 import pygame
 
+from src.managers.cut_off import CutOff, RefusedShot
 from src.managers.dodge import Dodge
-from src.managers.enemy_memory import EnemyMemory
 from src.managers.goal_timing import Goal, GoalKind, GoalTiming, Hesitation
 from src.managers.footprint import (
     Cell,
@@ -20,7 +19,6 @@ from src.managers.footprint import (
     touching_cells,
 )
 from src.managers.pathfinding import NavGrid, find_path
-from src.managers.refused_shots import RefusedShots
 from src.managers.steering import Steering, TankKey
 from src.managers.world_view import (
     EnemyView,
@@ -188,15 +186,6 @@ def can_evade_shot(world: WorldView, own: PlayerView, target: EnemyView) -> bool
     return False
 
 
-@dataclass(frozen=True)
-class _RefusedShot:
-    """A shot it held this frame: lined up on ``target`` from ``own``, facing it."""
-
-    own: PlayerView
-    target: EnemyView
-    facing: Direction
-
-
 class CpuPartnerInput:
     """Computer-controlled input for the CPU Partner in the P2 slot.
 
@@ -242,11 +231,7 @@ class CpuPartnerInput:
         self._hesitation = Hesitation(
             self._hesitation_chance, round(CPU_PARTNER_HESITATION_TIME * FPS)
         )
-        # Enemies that are Cut Off, left out of its Goals until they move.
-        self._cut_off: EnemyMemory[None] = EnemyMemory()
-        # Sides of Enemies it gave up firing from, avoided until they move.
-        self._given_up_sides: EnemyMemory[set[Direction]] = EnemyMemory()
-        self._refused_shots = RefusedShots(round(CPU_PARTNER_REFUSED_SHOT_TIME * FPS))
+        self._cut_off = CutOff(round(CPU_PARTNER_REFUSED_SHOT_TIME * FPS))
         self._steering = Steering(round(CPU_PARTNER_STUCK_TIME * FPS))
         self._dodge = Dodge(self._dodge_reaction_frames, self._dodge_miss_chance)
 
@@ -273,20 +258,17 @@ class CpuPartnerInput:
         self._movement = (0, 0)
         self._shoot_requested = False
         refused = self._act(world)
-        # Counted every frame, refused or not; it can only give up on a
-        # refused shot, and the check on ``refused`` just tells mypy so.
-        refusing = None if refused is None else refused.target.enemy_id
-        if self._refused_shots.should_give_up(refusing) and refused is not None:
-            self._give_up_side(world, refused)
+        if self._cut_off.refused(world, refused):
+            self._goal_timing.abandon()
         if not self._dodge.is_step_safe(world, self._movement):
             self._movement = (0, 0)
         self._goal_movement = self._movement
         self._shoot_requested = self._hesitation.filter(self._shoot_requested)
 
-    def _act(self, world: WorldView) -> _RefusedShot | None:
+    def _act(self, world: WorldView) -> RefusedShot | None:
         """Set this frame's movement and shoot request for its Goal.
 
-        Returns the shot it held, if it was lined up on an Enemy but kept from
+        Returns the Refused Shot, if it was lined up on an Enemy but kept from
         shooting it safely.
         """
         own = world.own_player
@@ -311,7 +293,7 @@ class CpuPartnerInput:
             facing = vertical
         elif abs(dy) <= CPU_PARTNER_ALIGN_TOLERANCE:
             facing = horizontal
-        sides = self._open_sides(target)
+        sides = self._cut_off.open_sides(target)
         if (
             facing is None
             or facing.opposite not in sides
@@ -328,31 +310,7 @@ class CpuPartnerInput:
         ) and not can_evade_shot(world, own, target)
         if self._shoot_requested:
             return None
-        return _RefusedShot(own, target, facing)
-
-    def _give_up_side(self, world: WorldView, refused: _RefusedShot) -> None:
-        """Give up firing on its target from the side it held the shot on.
-
-        It moves to a Firing Position on another side; with none left, the
-        target is Cut Off.
-        """
-        own, target = refused.own, refused.target
-        self._given_up_sides.remember(
-            target.enemy_id,
-            world.cell_of(target),
-            self._given_up(target) | {refused.facing.opposite},
-        )
-        if not world.firing_positions(target, own.size, self._open_sides(target)):
-            self._give_up_on(world, target)
-
-    def _given_up(self, enemy: EnemyView) -> set[Direction]:
-        """Sides of ``enemy`` it has given up firing from."""
-        return self._given_up_sides.get(enemy.enemy_id) or set()
-
-    def _open_sides(self, enemy: EnemyView) -> list[Direction]:
-        """Sides of ``enemy`` it hasn't given up firing from."""
-        given_up = self._given_up(enemy)
-        return [side for side in Direction if side not in given_up]
+        return RefusedShot(own, target, facing)
 
     def _ambush(self, world: WorldView, own: PlayerView, spawn: Footprint) -> None:
         """Go to a Firing Position on ``spawn`` and wait there, facing it."""
@@ -426,7 +384,8 @@ class CpuPartnerInput:
             if target is None:
                 self._goal_timing.abandon()
             else:
-                self._give_up_on(world, target)
+                self._cut_off.cut_off(world, target)
+                self._goal_timing.abandon()
             return
         if len(path) < 2:
             return
@@ -450,18 +409,11 @@ class CpuPartnerInput:
         ):
             self._shoot_requested = True
 
-    def _give_up_on(self, world: WorldView, target: EnemyView) -> None:
-        """Leave ``target`` Cut Off and abandon the Goal: pick another next frame."""
-        self._cut_off.remember(target.enemy_id, world.cell_of(target), None)
-        self._goal_timing.abandon()
-
     def _update_goal(
         self, world: WorldView, own: PlayerView
     ) -> EnemyView | PowerUpView | Footprint | None:
         """Settle this frame's Goal and return what it acts on, if anything."""
-        cells = {e.enemy_id: world.cell_of(e) for e in world.enemies}
-        self._cut_off.expire(cells)
-        self._given_up_sides.expire(cells)
+        self._cut_off.forget_moved(world)
         goal = self._goal_timing.update(
             lambda: self._preferred_goal(world, own),
             lambda g: self._find_target(world, g) is not None,
@@ -498,8 +450,8 @@ class CpuPartnerInput:
         left out. Ambush keeps its current Enemy Spawn Point, else takes the
         one cheapest to reach.
         """
-        enemies = [e for e in world.enemies if e.enemy_id not in self._cut_off]
-        threats = [e for e in world.base_threats if e.enemy_id not in self._cut_off]
+        enemies = [e for e in world.enemies if not self._cut_off.is_cut_off(e)]
+        threats = [e for e in world.base_threats if not self._cut_off.is_cut_off(e)]
         if threats:
             return Goal(GoalKind.DEFEND, threats[0].enemy_id)
         power_up = self._nearest_power_up(world, own)
@@ -548,7 +500,7 @@ class CpuPartnerInput:
             position: enemy
             for enemy in reversed(enemies)
             for position in world.firing_positions(
-                enemy, own.size, self._open_sides(enemy)
+                enemy, own.size, self._cut_off.open_sides(enemy)
             )
         }
         path = find_path(self._nav_grid(world, own), world.cell_of(own), positions)
