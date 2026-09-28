@@ -113,35 +113,43 @@ battle-city-clone/
 │   │   ├── tile.py                        # Tile types, collision properties, variants
 │   │   ├── map.py                         # TMX map loading, tile grid, spawn points
 │   │   ├── effect.py                      # Visual effects (explosions, spawn)
-│   │   └── power_up.py                    # Power-up entity (blink, timeout, collection)
+│   │   ├── power_up.py                    # Power-up entity (blink, timeout, collection)
+│   │   └── sprite_atlas.py                # Where entities get sprites (Protocol)
 │   │
-│   ├── managers/                          # Game systems
+│   ├── shell/                             # Window, Screen Flow, menus, input, drawing
 │   │   ├── game_manager.py                # Main loop; pygame adapter around the Screen Flow
 │   │   ├── screen_flow.py                 # Screens, menus, curtain and which Stage comes next
+│   │   ├── input_handler.py               # Menu and system input (SDL GameController API)
+│   │   ├── menu_controller.py             # Declarative menu navigation (items + callbacks)
+│   │   ├── renderer.py                    # Rendering pipeline (logical -> display surface)
+│   │   ├── texture_manager.py             # Sprite atlas slicing and caching
+│   │   ├── sound_manager.py               # Sound effect loading and playback
+│   │   └── settings_manager.py            # Persistent game settings (volume, difficulty)
+│   │
+│   ├── battle/                            # One Stage and its collaborators
 │   │   ├── battle.py                      # One Stage: frame pipeline, outcomes, Game Over / Victory
 │   │   ├── tank_stepper.py                # Steps every tank through a frame; owns the bullets
 │   │   ├── player_manager.py              # Player slots: tanks, inputs, lives, and score
 │   │   ├── enemy_manager.py               # Enemies on the battlefield, their AIs, Frozen
 │   │   ├── player_input.py                # Per-player gameplay input (keyboard/controller)
-│   │   ├── world_view.py                  # Read-only per-frame snapshot for Player inputs
+│   │   ├── collision_manager.py           # Finds and responds to collisions; returns outcomes
+│   │   ├── outcomes.py                    # Collision outcome types
+│   │   ├── spawn_manager.py               # The Stage's Roster, spawn timer and animations
+│   │   ├── effect_manager.py              # Effect lifecycle management
+│   │   ├── power_up_manager.py            # Power-up spawning, collection, effects
+│   │   └── sound_player.py                # The sound calls the Battle makes (Protocol)
+│   │
+│   ├── cpu_partner/                       # The CPU Partner
 │   │   ├── cpu_partner.py                 # CPU Partner input (Goals, aiming, safe shots)
 │   │   ├── goal_timing.py                 # CPU Partner decision timing and hesitation
 │   │   ├── pathfinding.py                 # A* over the sub-tile grid
 │   │   ├── steering.py                    # CPU Partner: getting unstuck
 │   │   ├── cut_off.py                     # CPU Partner: Refused Shots, given-up sides, Cut Off
-│   │   ├── dodge.py                       # CPU Partner: Dodge reflex against Incoming Shots
-│   │   ├── footprint.py                   # Grid cells a tank covers; blocked Enemy Spawn Points
-│   │   ├── input_handler.py               # Menu and system input (SDL GameController API)
-│   │   ├── menu_controller.py             # Declarative menu navigation (items + callbacks)
-│   │   ├── collision_manager.py           # Finds and responds to collisions; returns outcomes
-│   │   ├── outcomes.py                    # Collision outcome types
-│   │   ├── spawn_manager.py               # The Stage's Roster, spawn timer and animations
-│   │   ├── renderer.py                    # Rendering pipeline (logical -> display surface)
-│   │   ├── texture_manager.py             # Sprite atlas slicing and caching
-│   │   ├── effect_manager.py              # Effect lifecycle management
-│   │   ├── power_up_manager.py            # Power-up spawning, collection, effects
-│   │   ├── sound_manager.py               # Sound effect loading and playback
-│   │   └── settings_manager.py            # Persistent game settings (volume, difficulty)
+│   │   └── dodge.py                       # CPU Partner: Dodge reflex against Incoming Shots
+│   │
+│   ├── world_view/                        # What the Battle hands the CPU Partner
+│   │   ├── world_view.py                  # Read-only per-frame snapshot for Player inputs
+│   │   └── footprint.py                   # Grid cells a tank covers; blocked Enemy Spawn Points
 │   │
 │   ├── states/
 │   │   ├── screen.py                      # Screen enum (TITLE_SCREEN, RUNNING, PAUSED, ...)
@@ -240,9 +248,10 @@ pytest tests/unit/core/test_tank.py::TestTank::test_shoot
 ruff check src/ tests/
 ruff format src/ tests/
 mypy src
+lint-imports
 ```
 
-The pre-commit hooks and CI run all three.
+The pre-commit hooks and CI run all four. `lint-imports` checks the package layers in `pyproject.toml`: `shell` → `battle` and `cpu_partner` → `world_view` → `core` (see ADR 0008).
 
 ## Building
 

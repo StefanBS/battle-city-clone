@@ -11,8 +11,8 @@ import pytest
 import pygame
 
 from src.core.tile import TileType
-from src.managers.footprint import Footprint, blocks_spawn_point
-from src.managers.game_manager import GameManager
+from src.world_view.footprint import Footprint, blocks_spawn_point
+from src.shell.game_manager import GameManager
 from src.states.game_mode import GameMode
 from src.states.screen import Screen
 from src.utils.constants import (

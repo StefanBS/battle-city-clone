@@ -1,7 +1,7 @@
 import pygame
 from loguru import logger
 from .tank import HitResult, Tank
-from src.managers.texture_manager import TextureManager
+from src.core.sprite_atlas import SpriteAtlas
 from src.utils.animation import is_blink_visible
 from src.utils.constants import (
     Direction,
@@ -26,7 +26,7 @@ class PlayerTank(Tank):
         x: int,
         y: int,
         tile_size: int,
-        texture_manager: TextureManager,
+        atlas: SpriteAtlas,
         *,
         map_width_px: int,
         map_height_px: int,
@@ -39,7 +39,7 @@ class PlayerTank(Tank):
             x: Initial x position
             y: Initial y position
             tile_size: Size of a tile in pixels
-            texture_manager: Instance of TextureManager
+            atlas: Where the tank gets its sprites
             map_width_px: Map width in pixels (for boundary clamping)
             map_height_px: Map height in pixels (for boundary clamping)
         """
@@ -48,7 +48,7 @@ class PlayerTank(Tank):
         super().__init__(
             x,
             y,
-            texture_manager,
+            atlas,
             tile_size,
             health=1,
             owner_type=OwnerType.PLAYER,
@@ -61,8 +61,8 @@ class PlayerTank(Tank):
         self.star_level: int = 0
         self._update_sprite()
         self._shield_frames: list[pygame.Surface] = [
-            texture_manager.get_sprite("shield_1"),
-            texture_manager.get_sprite("shield_2"),
+            atlas.get_sprite("shield_1"),
+            atlas.get_sprite("shield_2"),
         ]
 
     def apply_star(self) -> None:
@@ -107,7 +107,7 @@ class PlayerTank(Tank):
             f"{prefix}_tier{self.star_level}_{self.direction}_{self.animation_frame}"
         )
         try:
-            self.sprite = self.texture_manager.get_sprite(sprite_name)
+            self.sprite = self.atlas.get_sprite(sprite_name)
         except KeyError:
             logger.error(f"Sprite '{sprite_name}' not found for player tank.")
 

@@ -2,9 +2,9 @@ import pytest
 from src.utils.constants import Direction, FPS, SUB_TILE_SIZE
 from src.states.screen import Screen
 from src.core.tile import BrickVariant, Tile, TileDefaults, TileType
-from src.managers.collision_manager import CollisionManager
-from src.managers.effect_manager import EffectManager
-from src.managers.power_up_manager import PowerUpManager
+from src.battle.collision_manager import CollisionManager
+from src.battle.effect_manager import EffectManager
+from src.battle.power_up_manager import PowerUpManager
 from tests.integration.conftest import (
     clear_tiles,
     fire_bullet_from,
@@ -390,7 +390,7 @@ def test_player_tank_vs_enemy_tank_no_overlap(game_manager_fixture, mocker):
         game_map=battle_map,
         effect_manager=effects,
         power_up_manager=PowerUpManager(game_manager.texture_manager, battle_map),
-        sound_manager=game_manager.sound_manager,
+        sound=game_manager.sound_manager,
     )
 
     dt = 1.0 / FPS

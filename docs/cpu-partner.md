@@ -12,13 +12,13 @@ capitalised (Goal, Firing Position, Cut Off, ...) are defined in
 
 | Module | Responsibility |
 |---|---|
-| `src/managers/cpu_partner.py` | `CpuPartnerInput`: picks a Goal and turns it into a movement direction and shoot requests. Also the pure checks `is_line_of_fire_safe`, `can_evade_shot` and `ambush_positions`. |
-| `src/managers/goal_timing.py` | `GoalTiming` (when it decides, Goal stickiness, Reaction Delay) and `Hesitation` (holding back a shot now and then). |
-| `src/managers/world_view.py` | `WorldView`: the read-only snapshot it decides from. Lines of Fire, Firing Positions, Base Threats. |
-| `src/managers/dodge.py` | `Dodge` (section 4): whether and how to Dodge this frame (`react`), and whether the Goal's step is safe (`is_step_safe`). It keeps what it has noticed (reaction time, missed shots) and looks `CPU_PARTNER_DODGE_HORIZON` ahead. |
-| `src/managers/pathfinding.py` | `NavGrid` and A* `find_path` over the sub-tile grid, for the tank's full footprint. Bricks are passable at extra cost (it shoots through them). Base Wall bricks never are. |
-| `src/managers/steering.py` | `Steering`: notices it is stuck and picks the tanks to route around. |
-| `src/managers/cut_off.py` | `CutOff`: counts each Refused Shot, gives up sides of an Enemy until it is Cut Off, and forgets both once the Enemy moves. `CpuPartnerInput` asks it which sides are open (`open_sides`) and whether an Enemy is Cut Off (`is_cut_off`). |
+| `src/cpu_partner/cpu_partner.py` | `CpuPartnerInput`: picks a Goal and turns it into a movement direction and shoot requests. Also the pure checks `is_line_of_fire_safe`, `can_evade_shot` and `ambush_positions`. |
+| `src/cpu_partner/goal_timing.py` | `GoalTiming` (when it decides, Goal stickiness, Reaction Delay) and `Hesitation` (holding back a shot now and then). |
+| `src/world_view/world_view.py` | `WorldView`: the read-only snapshot it decides from. Lines of Fire, Firing Positions, Base Threats. |
+| `src/cpu_partner/dodge.py` | `Dodge` (section 4): whether and how to Dodge this frame (`react`), and whether the Goal's step is safe (`is_step_safe`). It keeps what it has noticed (reaction time, missed shots) and looks `CPU_PARTNER_DODGE_HORIZON` ahead. |
+| `src/cpu_partner/pathfinding.py` | `NavGrid` and A* `find_path` over the sub-tile grid, for the tank's full footprint. Bricks are passable at extra cost (it shoots through them). Base Wall bricks never are. |
+| `src/cpu_partner/steering.py` | `Steering`: notices it is stuck and picks the tanks to route around. |
+| `src/cpu_partner/cut_off.py` | `CutOff`: counts each Refused Shot, gives up sides of an Enemy until it is Cut Off, and forgets both once the Enemy moves. `CpuPartnerInput` asks it which sides are open (`open_sides`) and whether an Enemy is Cut Off (`is_cut_off`). |
 
 Tuning values are the `CPU_PARTNER_*` constants in `src/utils/constants.py`.
 
@@ -293,8 +293,8 @@ flowchart TD
 
 ## Testing
 
-- Unit tests: `tests/unit/managers/test_cpu_partner.py` builds `WorldView`s by
-  hand (with the builders in `tests/unit/managers/world_views.py`) and checks
+- Unit tests: `tests/unit/cpu_partner/test_cpu_partner.py` builds `WorldView`s by
+  hand (with the builders in `tests/unit/cpu_partner/world_views.py`) and checks
   the movement and shots that come out. `test_dodge.py` does the same for
   `Dodge`: every Dodge rule is tested there. `test_cpu_partner.py` keeps only
   the contract with the Goal: a Dodge overrides the frame, and the Goal and

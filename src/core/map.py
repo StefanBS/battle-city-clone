@@ -5,7 +5,7 @@ import pytmx
 from pytmx.util_pygame import load_pygame
 from loguru import logger
 from .tile import BrickVariant, Tile, TileDefaults, TileType
-from src.managers.texture_manager import TextureManager
+from src.core.sprite_atlas import SpriteAtlas
 from src.utils.constants import (
     Difficulty,
     Direction,
@@ -90,9 +90,9 @@ class Map:
         Direction.UP: BrickVariant.TOP,
     }
 
-    def __init__(self, map_file: str, texture_manager: TextureManager) -> None:
+    def __init__(self, map_file: str, atlas: SpriteAtlas) -> None:
         self.tile_size = SUB_TILE_SIZE
-        self.texture_manager = texture_manager
+        self.atlas = atlas
         self.tiles: list[list[Tile | None]] = []
         self.spawn_points: list[tuple[int, int]] = []
         self.player_spawn: tuple[int, int] = (0, 0)
@@ -392,12 +392,12 @@ class Map:
     def draw(self, surface: pygame.Surface) -> None:
         """Draw non-empty, non-overlay tiles on the given surface."""
         for tile in self._drawable_tiles:
-            tile.draw(surface, self.texture_manager)
+            tile.draw(surface, self.atlas)
 
     def draw_overlay(self, surface: pygame.Surface) -> None:
         """Draw overlay tiles (bushes) on top of tanks and bullets."""
         for tile in self._overlay_tiles:
-            tile.draw(surface, self.texture_manager)
+            tile.draw(surface, self.atlas)
 
     def get_tile_at(self, x: int, y: int) -> Tile | None:
         """Get the tile at the specified grid coordinates."""

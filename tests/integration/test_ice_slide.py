@@ -6,7 +6,7 @@ Uses real objects (no mocks) with SDL_VIDEODRIVER=dummy for headless execution.
 import pygame
 import pytest
 from src.core.tile import TileType
-from src.managers.player_input import KEY_TO_DIRECTION
+from src.battle.player_input import KEY_TO_DIRECTION
 from src.utils.constants import (
     Direction,
     ICE_SLIDE_DISTANCE,

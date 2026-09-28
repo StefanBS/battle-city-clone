@@ -2,7 +2,7 @@ from enum import Enum, StrEnum, auto
 from typing import NamedTuple
 import pygame
 from loguru import logger
-from src.managers.texture_manager import TextureManager
+from src.core.sprite_atlas import SpriteAtlas
 from src.utils.constants import SUB_TILE_SIZE
 
 
@@ -125,7 +125,7 @@ class Tile:
             return True
         return False
 
-    def draw(self, surface: pygame.Surface, texture_manager: TextureManager) -> None:
+    def draw(self, surface: pygame.Surface, atlas: SpriteAtlas) -> None:
         """Draw the tile on the given surface."""
         if self.type == TileType.EMPTY:
             return

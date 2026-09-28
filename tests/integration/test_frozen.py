@@ -5,9 +5,9 @@ Uses real objects (no mocks) with SDL_VIDEODRIVER=dummy for headless execution.
 
 import pygame
 import pytest
-from src.managers.outcomes import PowerUpCollected
-from src.managers.player_input import KEY_TO_DIRECTION
-from src.managers.sound_manager import SoundManager
+from src.battle.outcomes import PowerUpCollected
+from src.battle.player_input import KEY_TO_DIRECTION
+from src.shell.sound_manager import SoundManager
 from src.utils.constants import (
     CLOCK_FREEZE_DURATION,
     FPS,

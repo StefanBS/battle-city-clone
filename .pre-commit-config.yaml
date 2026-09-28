@@ -17,3 +17,10 @@ repos:
           language: system
           types: [python]
           pass_filenames: false
+        # Check the package layers of ADR 0008, the same run as CI.
+        - id: lint-imports
+          name: lint-imports
+          entry: uv run --no-sync lint-imports
+          language: system
+          types: [python]
+          pass_filenames: false

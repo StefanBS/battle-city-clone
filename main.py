@@ -7,7 +7,7 @@ import sys
 import pygame
 from loguru import logger
 from src.utils.paths import get_log_path
-from src.managers.game_manager import GameManager
+from src.shell.game_manager import GameManager
 
 # Configure Loguru
 logger.remove()  # Remove default stderr handler

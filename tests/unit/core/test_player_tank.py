@@ -281,7 +281,7 @@ class TestShieldAnimation:
     @pytest.fixture
     def mock_texture_manager(self):
         """Override to return distinct surfaces per sprite name."""
-        from src.managers.texture_manager import TextureManager
+        from src.shell.texture_manager import TextureManager
 
         mock_tm = MagicMock(spec=TextureManager)
         sprite_cache: dict = {}

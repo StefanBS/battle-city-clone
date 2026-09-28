@@ -36,6 +36,9 @@ jobs:
       - name: Mypy
         run: uv run --locked --extra dev mypy src
 
+      - name: Import layers
+        run: uv run --locked --extra dev lint-imports
+
   test:
     runs-on: ubuntu-latest
     steps:

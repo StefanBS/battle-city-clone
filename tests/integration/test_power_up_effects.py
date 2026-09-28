@@ -11,7 +11,7 @@ from src.utils.constants import (
     PowerUpType,
 )
 from src.core.tile import TileType
-from src.managers.outcomes import PowerUpCollected
+from src.battle.outcomes import PowerUpCollected
 from tests.integration.conftest import (
     first_player,
     let_spawning_enemies_appear,
