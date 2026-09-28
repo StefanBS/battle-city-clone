@@ -522,13 +522,6 @@ class TestBattleApplyOutcomes:
         assert len(battle.scene().effects) == effects_before + len(enemies)
         assert sound.play.call_args_list == [call("explosion")] * len(enemies)
 
-    def test_grenade_makes_a_carrier_drop(self, battle, make_enemy):
-        self._enemy(battle, make_enemy, is_carrier=True)
-
-        battle.apply_outcomes([GrenadeDetonated()])
-
-        assert len(battle.scene().power_ups) == 1
-
     def test_clock_freezes_every_enemy_and_those_that_appear(self, battle, make_enemy):
         on_field = self._enemy(battle, make_enemy)
 

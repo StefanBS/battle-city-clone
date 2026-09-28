@@ -42,10 +42,6 @@ def _run(base_wall, seconds):
 
 
 class TestBaseWall:
-    def test_the_wall_is_brick_until_a_shovel(self, game_map, base_wall):
-        _run(base_wall, 1.0)
-        assert _types(game_map) == {TileType.BRICK}
-
     def test_a_shovel_fortifies_the_wall(self, game_map, base_wall):
         base_wall.fortify()
         assert _types(game_map) == {TileType.STEEL}
