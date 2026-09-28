@@ -13,6 +13,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "import-linter>=2.15",
     "mypy",
     "pre-commit",
     "pytest>=9.0.3",
@@ -39,6 +40,33 @@ quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
+
+# The package layers of ADR 0008. Each layer imports only the layers below it;
+# battle and cpu_partner are independent. Type-only imports count too.
+[tool.importlinter]
+root_package = "src"
+
+[[tool.importlinter.contracts]]
+name = "Packages are layered: shell, then battle and cpu_partner, then world_view, then core"
+type = "layers"
+layers = [
+    "src.shell",
+    "src.battle | src.cpu_partner",
+    "src.world_view",
+    "src.core",
+]
+
+[[tool.importlinter.contracts]]
+name = "States and utils import none of the packages"
+type = "forbidden"
+source_modules = ["src.states", "src.utils"]
+forbidden_modules = [
+    "src.shell",
+    "src.battle",
+    "src.cpu_partner",
+    "src.world_view",
+    "src.core",
+]
 
 [[tool.mypy.overrides]]
 module = ["pytmx", "pytmx.*"]
