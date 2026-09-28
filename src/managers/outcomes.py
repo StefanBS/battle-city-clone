@@ -1,6 +1,6 @@
 """Game-level consequences of a frame's collisions and Power-Ups.
 
-``CollisionResponseHandler`` returns these instead of applying score, removals,
+``CollisionManager.resolve`` returns these instead of applying score, removals,
 respawns or Game Over itself, and ``PowerUpManager.apply`` returns the effects a
 Power-Up has on the whole battlefield. ``Battle`` applies them in one place. See
 ``docs/adr/0003-collision-response-returns-outcomes.md``.

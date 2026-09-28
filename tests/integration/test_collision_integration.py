@@ -3,7 +3,6 @@ from src.utils.constants import Direction, FPS, SUB_TILE_SIZE
 from src.states.screen import Screen
 from src.core.tile import BrickVariant, Tile, TileDefaults, TileType
 from src.managers.collision_manager import CollisionManager
-from src.managers.collision_response_handler import CollisionResponseHandler
 from src.managers.effect_manager import EffectManager
 from src.managers.power_up_manager import PowerUpManager
 from tests.integration.conftest import (
@@ -383,12 +382,11 @@ def test_player_tank_vs_enemy_tank_no_overlap(game_manager_fixture, mocker):
     # Pin the enemy so only the player moves; we want to test the collision, not AI.
     enemy_tank.speed = 0
 
-    # Only this pair's collision is under test, so it gets its own detector
-    # and handler rather than the Battle's.
+    # Only this pair's collision is under test, so it gets its own
+    # CollisionManager rather than the Battle's.
     battle_map = game_manager.battle.map
     effects = EffectManager(game_manager.texture_manager)
-    collisions = CollisionManager()
-    responses = CollisionResponseHandler(
+    collisions = CollisionManager(
         game_map=battle_map,
         effect_manager=effects,
         power_up_manager=PowerUpManager(game_manager.texture_manager, battle_map),
@@ -401,15 +399,7 @@ def test_player_tank_vs_enemy_tank_no_overlap(game_manager_fixture, mocker):
         player_tank.move(0, -1, dt)
         enemy_tank.update(dt)
 
-        collisions.check_collisions(
-            player_tanks=[player_tank],
-            enemy_tanks=[enemy_tank],
-            bullets=[],
-            tank_blocking_tiles=[],
-            bullet_blocking_tiles=[],
-            player_base=None,
-        )
-        responses.process_collisions(collisions.get_collision_events())
+        collisions.resolve(players=[player_tank], enemies=[enemy_tank], bullets=[])
 
     assert not player_tank.rect.colliderect(enemy_tank.rect), (
         f"Player rect {player_tank.rect} overlaps enemy rect {enemy_tank.rect}"
