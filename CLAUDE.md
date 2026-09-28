@@ -71,10 +71,10 @@ GameObject (base: position, rect, draw, update)
 - `src/battle/` — `Battle` (one Stage: frame pipeline, applying collision outcomes, Game Over / Victory), `CollisionManager` (finds and responds to a frame's collisions) and its `outcomes`, `TankStepper` (per-frame tank stepping, bullet list), `PlayerManager` (player slots: tank, input, kind, score), `PlayerInput` (keyboard, controller), `EnemyManager` (Enemies on the battlefield, their AIs, Frozen), `SpawnManager` (the Roster, spawn timer and animations), `PowerUpManager` (the Power-Up on the battlefield; `apply` gives the Player its effect), `EffectManager`, `SoundPlayer` (the sound calls the Battle makes)
 - `src/cpu_partner/` — `CpuPartnerInput` and its helpers (`goal_timing`, `pathfinding`, `steering`, `cut_off`, `dodge`)
 - `src/world_view/` — `WorldView` (what the Battle hands the CPU Partner) and `footprint` (which grid cells a tank covers, and when it blocks an Enemy Spawn Point)
-
-The packages are layered, and `lint-imports` (import-linter, contracts in `pyproject.toml`) fails when an import points the wrong way: `shell` → `battle` and `cpu_partner` (which never import each other) → `world_view` → `core`. `states` and `utils` import none of them. `core/` and the Battle annotate with the `SpriteAtlas` and `SoundPlayer` Protocols, never the shell's classes. See `docs/adr/0008-four-layered-packages-with-the-world-view-between-battle-and-cpu-partner.md`.
 - `src/states/` — `Screen` enum (the Screen Flow: TITLE_SCREEN, RUNNING, PAUSED, OPTIONS_MENU, STAGE_CURTAIN_CLOSE/OPEN, GAME_OVER_ANIMATION, VICTORY, GAME_COMPLETE, EXIT), `GameMode` enum (ONE_PLAYER, TWO_PLAYERS, ONE_PLAYER_CPU) and `BattleResult` enum (GAME_OVER, VICTORY)
 - `src/utils/constants.py` — All game constants (sizes, speeds, grid dimensions, colors)
+
+The packages are layered, and `lint-imports` (import-linter, contracts in `pyproject.toml`) fails when an import points the wrong way: `shell` → `battle` and `cpu_partner` (which never import each other) → `world_view` → `core`. `states` and `utils` import none of them. `core/` and the Battle annotate with the `SpriteAtlas` and `SoundPlayer` Protocols, never the shell's classes. See `docs/adr/0008-four-layered-packages-with-the-world-view-between-battle-and-cpu-partner.md`.
 
 ### Map and Tiles
 

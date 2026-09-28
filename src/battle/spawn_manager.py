@@ -67,7 +67,7 @@ class SpawnManager:
         """Initialize the SpawnManager.
 
         Args:
-            texture_manager: SpriteAtlas for loading enemy sprites.
+            texture_manager: Where the Enemies get their sprites.
             game_map: The game map (spawn points, dimensions, collision).
             enemy_composition: The Stage's Roster: how many Enemies of each type.
             spawn_interval: Seconds between one Enemy starting to Spawn and

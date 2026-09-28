@@ -56,7 +56,7 @@ class Tank(GameObject):
         Args:
             x: Initial x position
             y: Initial y position
-            texture_manager: SpriteAtlas instance
+            texture_manager: Where the tank gets its sprites
             tile_size: Size of a tile in pixels
             health: Initial health points
             speed: Movement speed in pixels per second

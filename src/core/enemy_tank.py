@@ -73,7 +73,7 @@ class EnemyTank(Tank):
             x: Initial x position
             y: Initial y position
             tile_size: Size of a tile in pixels
-            texture_manager: Instance of SpriteAtlas
+            texture_manager: Where the tank gets its sprites
             tank_type: The type of enemy tank ('basic', 'fast', 'power', 'armor')
             map_width_px: Map width in pixels (for boundary clamping)
             map_height_px: Map height in pixels (for boundary clamping)

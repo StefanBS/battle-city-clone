@@ -19,7 +19,7 @@ class EffectManager:
         """Initialize the EffectManager.
 
         Args:
-            texture_manager: SpriteAtlas for loading sprites.
+            texture_manager: Where the effects get their sprites.
         """
         self.effects: list[Effect] = []
         self._effect_data: dict[EffectType, tuple[list[pygame.Surface], float]] = {}

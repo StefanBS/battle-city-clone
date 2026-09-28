@@ -39,7 +39,7 @@ class PlayerTank(Tank):
             x: Initial x position
             y: Initial y position
             tile_size: Size of a tile in pixels
-            texture_manager: Instance of SpriteAtlas
+            texture_manager: Where the tank gets its sprites
             map_width_px: Map width in pixels (for boundary clamping)
             map_height_px: Map height in pixels (for boundary clamping)
         """
