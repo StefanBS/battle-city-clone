@@ -293,6 +293,36 @@ class TestTank:
         assert bullet.sprite is None
 
 
+class TestBulletCap:
+    """A tank at its Bullet Cap has as many of its own bullets in flight as it may."""
+
+    def test_no_bullets_in_flight_is_below_the_cap(self, create_tank):
+        tank = create_tank()
+        assert not tank.is_at_bullet_cap([])
+
+    def test_one_own_bullet_in_flight_reaches_a_cap_of_one(self, create_tank):
+        tank = create_tank()
+        assert tank.is_at_bullet_cap([tank.shoot()])
+
+    def test_other_tanks_bullets_do_not_count(self, create_tank):
+        tank = create_tank()
+        other = create_tank()
+        assert not tank.is_at_bullet_cap([other.shoot()])
+
+    def test_spent_bullets_do_not_count(self, create_tank):
+        tank = create_tank()
+        bullet = tank.shoot()
+        bullet.active = False
+        assert not tank.is_at_bullet_cap([bullet])
+
+    def test_a_cap_of_two_needs_two_bullets_in_flight(self, create_tank):
+        tank = create_tank()
+        tank.max_bullets = 2
+        first = tank.shoot()
+        assert not tank.is_at_bullet_cap([first])
+        assert tank.is_at_bullet_cap([first, tank.shoot()])
+
+
 class TestFreeze:
     """Frozen is state on the tank; update() counts it down."""
 

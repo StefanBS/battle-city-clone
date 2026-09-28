@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol
 
@@ -10,12 +9,6 @@ if TYPE_CHECKING:
     from src.core.bullet import Bullet
     from src.core.map import Map
     from src.core.tank import Tank
-
-
-def is_at_bullet_cap(tank: Tank, bullets: Iterable[Bullet]) -> bool:
-    """Whether ``tank`` already has as many ``bullets`` in flight as it may."""
-    in_flight = sum(1 for b in bullets if b.owner is tank and b.active)
-    return in_flight >= tank.max_bullets
 
 
 class TankIntent(Protocol):
@@ -94,7 +87,7 @@ class TankStepper:
         return StepResult(slide_started=slide_started, fired=fired)
 
     def _fire(self, tank: Tank) -> bool:
-        if is_at_bullet_cap(tank, self._bullets):
+        if tank.is_at_bullet_cap(self._bullets):
             return False
         bullet = tank.shoot()
         if bullet is None:

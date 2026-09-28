@@ -11,7 +11,6 @@ from typing import TYPE_CHECKING
 
 from src.core.tile import BrickVariant, TileType
 from src.managers.footprint import Cell, Footprint, Placed, covered_cells, size_in_cells
-from src.managers.tank_stepper import is_at_bullet_cap
 from src.utils.constants import (
     BASE_THREAT_RADIUS,
     BULLET_SIZE,
@@ -404,7 +403,7 @@ def build_world_view(
                 direction=p.direction,
                 frozen=p.is_frozen,
                 shielded=p.is_invincible,
-                can_fire=not is_at_bullet_cap(p, bullets),
+                can_fire=not p.is_at_bullet_cap(bullets),
                 size=p.width,
                 speed=p.speed,
                 bullet_speed=p.bullet_speed,

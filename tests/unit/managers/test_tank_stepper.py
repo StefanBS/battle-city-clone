@@ -55,6 +55,7 @@ def tank():
     tank.max_bullets = 1
     tank.start_slide.return_value = True
     tank.shoot.side_effect = lambda: _bullet(tank)
+    tank.is_at_bullet_cap.side_effect = lambda b: Tank.is_at_bullet_cap(tank, b)
     return tank
 
 
@@ -257,6 +258,7 @@ class TestFiring:
         other = MagicMock(spec=Tank)
         other.max_bullets = 1
         other.shoot.side_effect = lambda: _bullet(other)
+        other.is_at_bullet_cap.side_effect = lambda b: Tank.is_at_bullet_cap(other, b)
         other.x = other.y = 0.0
         other.width = other.height = TILE_SIZE
         other.direction = Direction.UP

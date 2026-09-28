@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from enum import Enum, auto
 
 import pygame
@@ -137,6 +138,11 @@ class Tank(GameObject):
             return HitResult.DESTROYED
         logger.debug(f"Tank {self.owner_type} health now {self._health}.")
         return HitResult.ABSORBED
+
+    def is_at_bullet_cap(self, bullets: Iterable[Bullet]) -> bool:
+        """Whether this tank already has as many ``bullets`` in flight as it may."""
+        in_flight = sum(1 for b in bullets if b.owner is self and b.active)
+        return in_flight >= self.max_bullets
 
     def shoot(self) -> Bullet | None:
         """Create and return a new bullet.
