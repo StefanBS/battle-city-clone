@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 from src.core.map import Map
 from src.core.player_tank import PlayerTank
 from src.managers.enemy_manager import EnemyManager
-from src.managers.outcomes import EnemyDestroyed
+from src.managers.outcomes import GrenadeDetonated
 from src.managers.power_up_manager import PowerUpManager
 from src.core.tile import BrickVariant, TileType
 from src.utils.constants import (
@@ -188,12 +188,9 @@ class TestPowerUpManagerApply:
         manager.apply(PowerUpType.EXTRA_LIFE, player, enemy_manager)
         player.gain_life.assert_called_once_with()
 
-    def test_grenade_destroys_every_enemy(self, manager, player, enemy_manager):
-        enemies = [MagicMock(), MagicMock(), MagicMock()]
-        enemy_manager.enemies = list(enemies)
+    def test_grenade_returns_grenade_detonated(self, manager, player, enemy_manager):
         outcomes = manager.apply(PowerUpType.GRENADE, player, enemy_manager)
-        assert outcomes == [EnemyDestroyed(e, by=None) for e in enemies]
-        enemy_manager.remove.assert_not_called()
+        assert outcomes == [GrenadeDetonated()]
 
     def test_clock_freezes_enemies(self, manager, player, enemy_manager):
         manager.apply(PowerUpType.CLOCK, player, enemy_manager)

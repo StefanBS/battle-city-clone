@@ -26,7 +26,7 @@ from src.utils.constants import (
 )
 from src.core.tile import BrickVariant, Tile, TileType
 
-from src.managers.outcomes import CollisionOutcome, EnemyDestroyed
+from src.managers.outcomes import CollisionOutcome, GrenadeDetonated
 
 if TYPE_CHECKING:
     from src.managers.enemy_manager import EnemyManager
@@ -98,11 +98,11 @@ class PowerUpManager:
         Args:
             power_up_type: The collected power-up type.
             player: The collecting player (recipient for player-targeted effects).
-            enemy_manager: Used by GRENADE and CLOCK to affect enemies.
+            enemy_manager: Used by CLOCK to affect enemies.
 
         Returns:
-            The outcomes the effect causes: an ``EnemyDestroyed`` with no
-            Player for every Enemy a Grenade destroys, otherwise nothing.
+            The outcomes the effect causes on the battlefield:
+            ``GrenadeDetonated`` for a Grenade, otherwise nothing.
         """
         outcomes: list[CollisionOutcome] = []
         match power_up_type:
@@ -111,9 +111,7 @@ class PowerUpManager:
             case PowerUpType.EXTRA_LIFE:
                 player.gain_life()
             case PowerUpType.GRENADE:
-                outcomes = [
-                    EnemyDestroyed(enemy, by=None) for enemy in enemy_manager.enemies
-                ]
+                outcomes = [GrenadeDetonated()]
             case PowerUpType.CLOCK:
                 enemy_manager.freeze(CLOCK_FREEZE_DURATION)
             case PowerUpType.SHOVEL:

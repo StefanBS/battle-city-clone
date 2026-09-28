@@ -14,6 +14,7 @@ from src.managers.player_manager import CarriedProgress
 from src.managers.outcomes import (
     CarrierHit,
     EnemyDestroyed,
+    GrenadeDetonated,
     PlayerDestroyed,
     PowerUpCollected,
 )
@@ -503,6 +504,26 @@ class TestBattleApplyOutcomes:
 
         assert battle.scene().power_ups == (dropped,)
         assert not carrier.is_carrier
+
+    def test_grenade_destroys_every_enemy_and_scores_nothing(
+        self, battle, make_enemy, sound
+    ):
+        enemies = [self._enemy(battle, make_enemy) for _ in range(3)]
+        effects_before = len(battle.scene().effects)
+
+        battle.apply_outcomes([GrenadeDetonated()])
+
+        assert battle.scene().enemies == ()
+        assert self._scores(battle) == {1: 0, 2: 0}
+        assert len(battle.scene().effects) == effects_before + len(enemies)
+        assert sound.play.call_args_list == [call("explosion")] * len(enemies)
+
+    def test_grenade_makes_a_carrier_drop(self, battle, make_enemy):
+        self._enemy(battle, make_enemy, is_carrier=True)
+
+        battle.apply_outcomes([GrenadeDetonated()])
+
+        assert len(battle.scene().power_ups) == 1
 
     def test_player_destroyed(self, battle, players, sound):
         p1 = players[0]

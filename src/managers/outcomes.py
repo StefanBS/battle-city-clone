@@ -49,6 +49,16 @@ class PowerUpCollected:
     player: PlayerTank
 
 
+@dataclass(frozen=True)
+class GrenadeDetonated:
+    """A Grenade went off: every Enemy on the battlefield is destroyed."""
+
+
 CollisionOutcome = (
-    CarrierHit | EnemyDestroyed | PlayerDestroyed | BaseDestroyed | PowerUpCollected
+    CarrierHit
+    | EnemyDestroyed
+    | PlayerDestroyed
+    | BaseDestroyed
+    | PowerUpCollected
+    | GrenadeDetonated
 )

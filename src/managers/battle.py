@@ -19,6 +19,7 @@ from src.managers.outcomes import (
     CarrierHit,
     CollisionOutcome,
     EnemyDestroyed,
+    GrenadeDetonated,
     PlayerDestroyed,
     PowerUpCollected,
 )
@@ -295,6 +296,11 @@ class Battle:
                     self._player_manager.handle_player_destroyed(player)
                 case BaseDestroyed():
                     pass  # Game Over is decided once all outcomes are applied.
+                case GrenadeDetonated():
+                    queue.extend(
+                        EnemyDestroyed(enemy, by=None)
+                        for enemy in self._enemy_manager.enemies
+                    )
                 case PowerUpCollected(power_up_type=power_up_type, player=player):
                     self._player_manager.add_score(
                         POWERUP_COLLECT_POINTS, player_id=player.player_id
