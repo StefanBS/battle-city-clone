@@ -49,11 +49,10 @@ def _steel_wall_right_of(battle, tank):
         )
 
 
-@pytest.fixture
-def battle(battle):
-    """A Battle with no Enemies on the battlefield."""
+@pytest.fixture(autouse=True)
+def no_enemies(battle):
+    """No Enemies on the Battle's battlefield."""
     clear_enemies(battle)
-    return battle
 
 
 class TestPlayerIceSlide:

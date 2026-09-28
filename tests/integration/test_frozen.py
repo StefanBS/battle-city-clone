@@ -38,11 +38,10 @@ def _open_field(battle):
     clear_tiles(battle.map, [(x, y) for x in range(26) for y in range(4, 14)])
 
 
-@pytest.fixture
-def battle(battle):
-    """A Battle with no Enemies to come and an open field across rows 4-13."""
+@pytest.fixture(autouse=True)
+def open_field(battle):
+    """No Enemies to come and an open field across rows 4-13 of the Battle."""
     _open_field(battle)
-    return battle
 
 
 def _clock(battle):

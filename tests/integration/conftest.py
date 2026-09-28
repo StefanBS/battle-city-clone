@@ -50,30 +50,30 @@ def texture_manager():
 class SoundRecorder:
     """Stands in for the SoundManager: remembers the sound calls a Battle makes."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.played: list[str] = []
         self.engine_running: bool | None = None
         self.power_up_blinking: bool | None = None
 
-    def play(self, name):
+    def play(self, name: str) -> None:
         self.played.append(name)
 
-    def update_engine(self, any_moving):
+    def update_engine(self, any_moving: bool) -> None:
         self.engine_running = any_moving
 
-    def update_powerup_blink(self, any_active):
+    def update_powerup_blink(self, any_active: bool) -> None:
         self.power_up_blinking = any_active
 
 
-def make_battle(mode=GameMode.ONE_PLAYER, sound=None, stage_map="level_01"):
-    """Build the first Battle of a game in `mode` on a real map.
+def make_battle(mode=GameMode.ONE_PLAYER, sound=None):
+    """Build the first Battle of a game in `mode` on the real level 01 map.
 
     ``sound`` is where the Battle plays its sounds (a ``SoundRecorder`` by
     default). The Battle has not stepped yet; its first Enemy is Spawning.
     """
     atlas = texture_manager()
     return Battle(
-        Map(resource_path(f"assets/maps/{stage_map}.tmx"), atlas),
+        Map(resource_path("assets/maps/level_01.tmx"), atlas),
         mode=mode,
         carried={},
         difficulty=Difficulty.NORMAL,
