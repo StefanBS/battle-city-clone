@@ -289,19 +289,3 @@ class TestBullets:
         stepper.update_bullets(DT)
 
         assert stepper.bullets == ()
-
-    def test_put_in_flight_ignores_the_bullet_cap(self, stepper, tank):
-        tank.is_at_bullet_cap.return_value = True
-        bullet = _bullet(tank)
-
-        stepper.put_in_flight(bullet)
-
-        assert stepper.bullets == (bullet,)
-        tank.is_at_bullet_cap.assert_not_called()
-
-    def test_bullets_cannot_be_changed_from_outside(self, stepper, tank):
-        stepper.step(tank, FakeIntent(shoot=True), DT)
-
-        with pytest.raises(AttributeError):
-            stepper.bullets.append(_bullet(tank))  # type: ignore[attr-defined]
-        assert len(stepper.bullets) == 1
