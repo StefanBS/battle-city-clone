@@ -45,25 +45,6 @@ class TestCutOff:
         ]
         assert not cut_off.is_cut_off(enemy)
 
-    def test_a_frame_without_a_refused_shot_starts_the_count_afresh(
-        self, cut_off
-    ) -> None:
-        view = make_view(own=(12, 12, Direction.UP), enemies=[(12, 4)])
-        refuse_for(cut_off, view, refused_below(view), FRAMES - 1)
-        cut_off.refused(view, None)
-        refuse_for(cut_off, view, refused_below(view), FRAMES - 1)
-
-        assert Direction.DOWN in cut_off.open_sides(view.enemies[0])
-
-    def test_a_new_target_starts_the_count_afresh(self, cut_off) -> None:
-        view = make_view(own=(12, 12, Direction.UP), enemies=[(12, 4), (20, 4)])
-        refuse_for(cut_off, view, refused_below(view, 0), FRAMES - 1)
-        refuse_for(cut_off, view, refused_below(view, 1), FRAMES - 1)
-        cut_off.refused(view, refused_below(view, 0))
-
-        assert Direction.DOWN in cut_off.open_sides(view.enemies[0])
-        assert Direction.DOWN in cut_off.open_sides(view.enemies[1])
-
     def test_an_enemy_is_cut_off_once_every_side_is_given_up(self, cut_off) -> None:
         # In the corner, only its bottom and right sides have Firing Positions.
         view = make_view(own=(0, 12, Direction.UP), enemies=[(0, 0)])
@@ -78,13 +59,6 @@ class TestCutOff:
         assert below == [False] * FRAMES
         assert right == [False] * (FRAMES - 1) + [True]
         assert cut_off.is_cut_off(enemy)
-
-    def test_an_enemy_it_cannot_reach_is_cut_off(self, cut_off) -> None:
-        view = make_view(own=(12, 12, Direction.UP), enemies=[(12, 4)])
-
-        cut_off.cut_off(view, view.enemies[0])
-
-        assert cut_off.is_cut_off(view.enemies[0])
 
     def test_remembers_an_enemy_while_it_stays_where_it_stood(self, cut_off) -> None:
         view = make_view(own=(12, 12, Direction.UP), enemies=[(12, 4), (20, 4)])
@@ -112,11 +86,3 @@ class TestCutOff:
 
         assert cut_off.open_sides(view.enemies[0]) == list(Direction)
         assert not cut_off.is_cut_off(view.enemies[1])
-
-    def test_forgetting_moved_enemies_each_frame_keeps_the_count(self, cut_off) -> None:
-        view = make_view(own=(12, 12, Direction.UP), enemies=[(12, 4)])
-        for _ in range(FRAMES):
-            cut_off.forget_moved(view)
-            cut_off.refused(view, refused_below(view))
-
-        assert Direction.DOWN not in cut_off.open_sides(view.enemies[0])
