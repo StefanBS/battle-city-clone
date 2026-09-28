@@ -45,11 +45,6 @@ class EnemyManager:
         """The Enemies on the battlefield, in the order they were added."""
         return tuple(self._enemies)
 
-    @property
-    def base_position(self) -> tuple[float, float] | None:
-        """Centre of this stage's base, or None when the map has no base."""
-        return self._base_position
-
     def add(self, enemy: EnemyTank, ai: EnemyAI | None = None) -> None:
         """Put an Enemy on the battlefield, paired with the EnemyAI that drives it.
 

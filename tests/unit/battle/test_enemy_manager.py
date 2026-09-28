@@ -90,7 +90,6 @@ class TestEnemyAIPairing:
         enemy_ai_class.assert_called_once_with(
             enemy, difficulty=Difficulty.EASY, base_position=(256.0, 480.0)
         )
-        assert enemy_manager.base_position == (256.0, 480.0)
 
     def test_added_enemy_is_driven_by_its_own_ai(
         self, enemy_manager, enemy_ai_class, make_enemy, stepper
