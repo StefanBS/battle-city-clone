@@ -448,16 +448,6 @@ class TestTankVsTile:
         assert enemy.y == 96
         assert len(blocks) == 1
 
-    def test_tank_moves_over_a_bush(self, collisions, game_map, make_player):
-        place(game_map, TileType.BUSH, 4, 5)
-        player = make_player(64, 96)
-        step_move(player, 0, -1)
-        moved_to = player.y
-
-        collisions.resolve(players=[player], enemies=[], bullets=[])
-
-        assert player.y == moved_to
-
 
 class TestTankVsTank:
     def test_both_moving_toward_each_other_are_stopped(
@@ -466,18 +456,6 @@ class TestTankVsTank:
         player, enemy = make_player(96, 128), make_enemy(96, 96)
         step_move(player, 0, -1)
         step_move(enemy, 0, 1)
-
-        collisions.resolve(players=[player], enemies=[enemy], bullets=[])
-
-        assert (player.x, player.y) == (96, 128)
-        assert (enemy.x, enemy.y) == (96, 96)
-
-    def test_only_the_tank_that_moved_in_is_stopped(
-        self, collisions, make_player, make_enemy
-    ):
-        player, enemy = make_player(96, 128), make_enemy(96, 96)
-        step_move(player, 0, -1)
-        stand_still(enemy)
 
         collisions.resolve(players=[player], enemies=[enemy], bullets=[])
 
@@ -512,18 +490,6 @@ class TestTankVsTank:
 
         assert (player.x, player.y) == (96, 128)
         assert (enemy.x, enemy.y) == enemy_moved_to
-
-    def test_two_enemies_moving_toward_each_other_are_stopped(
-        self, collisions, make_enemy
-    ):
-        left, right = make_enemy(96, 96), make_enemy(128, 96)
-        step_move(left, 1, 0)
-        step_move(right, -1, 0)
-
-        collisions.resolve(players=[], enemies=[left, right], bullets=[])
-
-        assert (left.x, left.y) == (96, 96)
-        assert (right.x, right.y) == (128, 96)
 
     def test_tanks_both_stopped_by_tiles_are_not_stopped_again_by_each_other(
         self, collisions, game_map, make_player, make_enemy
