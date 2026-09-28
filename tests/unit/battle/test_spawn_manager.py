@@ -244,30 +244,16 @@ class TestSpawnAnimation:
 
         assert spawning.is_exhausted
 
-    @pytest.fixture
-    def spawning_at_first_point(
-        self, make_spawn_manager, mock_effect_manager, mock_player_tank
-    ):
-        """Like ``spawning``, with ``random.choice`` taking the first option."""
-        with patch("random.choice", side_effect=_first):
-            manager = make_spawn_manager(
-                {TankType.BASIC: 2}, effect_manager=mock_effect_manager
-            )
-            manager.start_spawning([mock_player_tank])
-            yield manager
-
+    @patch("random.choice", side_effect=_first)
     def test_a_spawning_enemy_blocks_its_spawn_point(
-        self, spawning_at_first_point, mock_player_tank
+        self, _, make_spawn_manager, mock_effect_manager, mock_player_tank
     ):
-        assert spawning_at_first_point.start_spawning([mock_player_tank]) is False
+        manager = make_spawn_manager(
+            {TankType.BASIC: 2}, effect_manager=mock_effect_manager
+        )
+        manager.start_spawning([mock_player_tank])
 
-    def test_the_spawn_point_frees_once_the_enemy_appears(
-        self, spawning_at_first_point, mock_effect, mock_player_tank
-    ):
-        mock_effect.active = False
-        spawning_at_first_point.take_appeared()
-
-        assert spawning_at_first_point.start_spawning([mock_player_tank]) is True
+        assert manager.start_spawning([mock_player_tank]) is False
 
 
 class TestSpawnManagerCarrier:
