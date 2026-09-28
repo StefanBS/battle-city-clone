@@ -88,6 +88,11 @@ def _enemy_at(spawn_point):
     return enemy
 
 
+def _first(options):
+    """Stands in for ``random.choice``: the first spawn point, the first direction."""
+    return options[0]
+
+
 class TestSpawnManager:
     """Unit test cases for the SpawnManager class."""
 
@@ -130,8 +135,9 @@ class TestSpawnManager:
         assert manager.take_appeared() == []
         assert manager.start_spawning([mock_player_tank]) is True
 
+    @patch("random.choice", side_effect=_first)
     def test_after_a_spawn_the_next_waits_a_whole_interval(
-        self, spawn_manager, mock_player_tank
+        self, _, spawn_manager, mock_player_tank
     ):
         spawn_manager.advance(5.0, [mock_player_tank])
         spawn_manager.take_appeared()
@@ -141,16 +147,16 @@ class TestSpawnManager:
         spawn_manager.advance(0.1, [mock_player_tank])
         assert len(spawn_manager.take_appeared()) == 1
 
+    @patch("random.choice", side_effect=_first)
     def test_advance_tries_again_next_time_when_blocked(
-        self, spawn_manager, mock_player_tank
+        self, _, spawn_manager, mock_player_tank
     ):
         """A blocked spawn keeps the timer due instead of waiting a new interval."""
         blocker = _enemy_at(SPAWN_POINTS[0])
-        with patch("random.choice", return_value=SPAWN_POINTS[0]):
-            spawn_manager.advance(5.0, [mock_player_tank, blocker])
-            assert spawn_manager.take_appeared() == []
+        spawn_manager.advance(5.0, [mock_player_tank, blocker])
+        assert spawn_manager.take_appeared() == []
 
-            spawn_manager.advance(0.0, [mock_player_tank])
+        spawn_manager.advance(0.0, [mock_player_tank])
 
         assert len(spawn_manager.take_appeared()) == 1
 
@@ -238,24 +244,30 @@ class TestSpawnAnimation:
 
         assert spawning.is_exhausted
 
-    def test_a_spawning_enemy_blocks_its_spawn_point(
-        self,
-        make_spawn_manager,
-        mock_effect_manager,
-        mock_effect,
-        mock_player_tank,
+    @pytest.fixture
+    def spawning_at_first_point(
+        self, make_spawn_manager, mock_effect_manager, mock_player_tank
     ):
-        manager = make_spawn_manager(
-            {TankType.BASIC: 2}, effect_manager=mock_effect_manager
-        )
-        with patch("random.choice", return_value=SPAWN_POINTS[0]):
+        """Like ``spawning``, with ``random.choice`` taking the first option."""
+        with patch("random.choice", side_effect=_first):
+            manager = make_spawn_manager(
+                {TankType.BASIC: 2}, effect_manager=mock_effect_manager
+            )
             manager.start_spawning([mock_player_tank])
+            yield manager
 
-            assert manager.start_spawning([mock_player_tank]) is False
+    def test_a_spawning_enemy_blocks_its_spawn_point(
+        self, spawning_at_first_point, mock_player_tank
+    ):
+        assert spawning_at_first_point.start_spawning([mock_player_tank]) is False
 
+    def test_the_spawn_point_frees_once_the_enemy_appears(
+        self, spawning_at_first_point, mock_effect, mock_player_tank
+    ):
         mock_effect.active = False
-        assert len(manager.take_appeared()) == 1
-        assert manager.start_spawning([mock_player_tank]) is True
+        spawning_at_first_point.take_appeared()
+
+        assert spawning_at_first_point.start_spawning([mock_player_tank]) is True
 
 
 class TestSpawnManagerCarrier:
