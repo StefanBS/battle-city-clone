@@ -133,8 +133,7 @@ battle-city-clone/
 │   │   ├── footprint.py                   # Grid cells a tank covers; blocked Enemy Spawn Points
 │   │   ├── input_handler.py               # Menu and system input (SDL GameController API)
 │   │   ├── menu_controller.py             # Declarative menu navigation (items + callbacks)
-│   │   ├── collision_manager.py           # Collision detection and event queuing
-│   │   ├── collision_response_handler.py  # Collision physics; returns outcomes
+│   │   ├── collision_manager.py           # Finds and responds to collisions; returns outcomes
 │   │   ├── outcomes.py                    # Collision outcome types
 │   │   ├── spawn_manager.py               # The Stage's Roster, spawn timer and animations
 │   │   ├── renderer.py                    # Rendering pipeline (logical -> display surface)
