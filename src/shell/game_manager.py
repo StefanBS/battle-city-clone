@@ -93,7 +93,7 @@ class GameManager:
             carried=carried,
             difficulty=request.difficulty,
             controller_instance_ids=self.input_handler.controller_instance_ids,
-            texture_manager=self.texture_manager,
+            atlas=self.texture_manager,
             sound=self.sound_manager,
             cpu_partner=(
                 CpuPartnerInput() if request.mode is GameMode.ONE_PLAYER_CPU else None

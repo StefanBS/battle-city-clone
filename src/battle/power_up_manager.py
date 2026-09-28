@@ -33,10 +33,10 @@ class PowerUpManager:
 
     def __init__(
         self,
-        texture_manager: SpriteAtlas,
+        atlas: SpriteAtlas,
         game_map: Map,
     ) -> None:
-        self._texture_manager = texture_manager
+        self._atlas = atlas
         self._game_map = game_map
         self.active_power_ups: list[PowerUp] = []
 
@@ -64,7 +64,7 @@ class PowerUpManager:
                 return
             x, y = pos
 
-        power_up = PowerUp(x, y, power_up_type, self._texture_manager)
+        power_up = PowerUp(x, y, power_up_type, self._atlas)
         self.active_power_ups = [power_up]
         logger.info(f"Power-up spawned: {power_up_type} at ({x}, {y})")
 

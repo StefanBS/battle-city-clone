@@ -94,7 +94,7 @@ class Battle:
         carried: Mapping[int, CarriedProgress],
         difficulty: Difficulty,
         controller_instance_ids: list[int],
-        texture_manager: SpriteAtlas,
+        atlas: SpriteAtlas,
         sound: SoundPlayer,
         cpu_partner: PlayerInput | None = None,
     ) -> None:
@@ -108,26 +108,26 @@ class Battle:
             difficulty: The difficulty chosen in Settings. The map's own
                 difficulty override wins over it.
             controller_instance_ids: Open SDL game controllers.
-            texture_manager: Texture atlas for tanks, tiles and effects.
+            atlas: Texture atlas for tanks, tiles and effects.
             sound: Where the Battle plays its sounds.
             cpu_partner: The input that drives P2 in 1 Player + CPU mode.
         """
         self._map = game_map
         self._sound = sound
-        self._texture_manager = texture_manager
+        self._atlas = atlas
         self._result: BattleResult | None = None
 
         self._base_wall = BaseWall(game_map)
-        self._effect_manager = EffectManager(texture_manager)
-        self._power_up_manager = PowerUpManager(texture_manager, game_map)
+        self._effect_manager = EffectManager(atlas)
+        self._power_up_manager = PowerUpManager(atlas, game_map)
         self._collision_manager = CollisionManager(
             game_map=game_map,
             effect_manager=self._effect_manager,
             power_up_manager=self._power_up_manager,
-            sound_manager=sound,
+            sound=sound,
         )
         self._player_manager = PlayerManager(
-            texture_manager,
+            atlas,
             sound,
             game_map,
             controller_instance_ids=controller_instance_ids,
@@ -418,7 +418,7 @@ class Battle:
     ) -> SpawnManager:
         """A SpawnManager for this Battle's map sending ``composition``."""
         return SpawnManager(
-            texture_manager=self._texture_manager,
+            atlas=self._atlas,
             game_map=self._map,
             enemy_composition=composition,
             spawn_interval=spawn_interval,

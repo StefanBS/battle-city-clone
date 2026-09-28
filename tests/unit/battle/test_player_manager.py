@@ -201,7 +201,7 @@ class TestPlayerManagerUpdate:
         self.pm.update(self.DT, self.stepper)
 
         assert [b.owner for b in self.stepper.bullets] == [self.player]
-        self.pm._sound_manager.play.assert_called_once_with("shoot")
+        self.pm._sound.play.assert_called_once_with("shoot")
 
     def test_slide_plays_ice_sound(self):
         self.game_map.is_tile_slidable.return_value = True
@@ -212,7 +212,7 @@ class TestPlayerManagerUpdate:
         self.pm.update(self.DT, self.stepper)
 
         assert self.player.is_sliding is True
-        self.pm._sound_manager.play.assert_called_once_with("ice_slide")
+        self.pm._sound.play.assert_called_once_with("ice_slide")
 
     def test_two_players_each_follow_their_own_input(
         self, make_player_manager, mock_game_map

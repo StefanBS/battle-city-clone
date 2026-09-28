@@ -97,8 +97,8 @@ class PlayerManager:
 
     def __init__(
         self,
-        texture_manager: SpriteAtlas,
-        sound_manager: SoundPlayer,
+        atlas: SpriteAtlas,
+        sound: SoundPlayer,
         game_map: Map,
         controller_instance_ids: list[int],
         mode: GameMode = GameMode.ONE_PLAYER,
@@ -108,8 +108,8 @@ class PlayerManager:
         """Create one slot per Player, with its tank at the map's spawn point.
 
         Args:
-            texture_manager: Texture atlas used when creating player tanks.
-            sound_manager: Sound manager used to play audio cues.
+            atlas: Texture atlas used when creating player tanks.
+            sound: Where the Players' sounds are played.
             game_map: The map whose spawn points the tanks start on.
             controller_instance_ids: Open SDL game controllers. Must come from
                 InputHandler, the single source of truth for which are open.
@@ -122,8 +122,8 @@ class PlayerManager:
         Raises:
             ValueError: In 1 Player + CPU mode without a ``cpu_partner``.
         """
-        self._texture_manager = texture_manager
-        self._sound_manager = sound_manager
+        self._atlas = atlas
+        self._sound = sound
         carried = carried or {}
 
         map_width_px = game_map.width * game_map.tile_size
@@ -135,7 +135,7 @@ class PlayerManager:
                 x,
                 y,
                 game_map.tile_size,
-                self._texture_manager,
+                self._atlas,
                 map_width_px=map_width_px,
                 map_height_px=map_height_px,
                 player_id=pid,
@@ -226,9 +226,9 @@ class PlayerManager:
                 continue
             result = stepper.step(slot.tank, slot.input, dt)
             if result.slide_started:
-                self._sound_manager.play("ice_slide")
+                self._sound.play("ice_slide")
             if result.fired:
-                self._sound_manager.play("shoot")
+                self._sound.play("shoot")
 
     @property
     def hud_entries(self) -> tuple[PlayerHudEntry, ...]:

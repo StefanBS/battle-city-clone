@@ -75,7 +75,7 @@ def make_battle(texture_manager, sound):
             carried=carried or {},
             difficulty=difficulty,
             controller_instance_ids=[],
-            texture_manager=texture_manager,
+            atlas=texture_manager,
             sound=sound,
         )
 

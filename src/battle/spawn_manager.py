@@ -57,7 +57,7 @@ class SpawnManager:
 
     def __init__(
         self,
-        texture_manager: SpriteAtlas,
+        atlas: SpriteAtlas,
         game_map: Map,
         enemy_composition: dict[TankType, int],
         spawn_interval: float,
@@ -67,7 +67,7 @@ class SpawnManager:
         """Initialize the SpawnManager.
 
         Args:
-            texture_manager: Where the Enemies get their sprites.
+            atlas: Where the Enemies get their sprites.
             game_map: The game map (spawn points, dimensions, collision).
             enemy_composition: The Stage's Roster: how many Enemies of each type.
             spawn_interval: Seconds between one Enemy starting to Spawn and
@@ -76,7 +76,7 @@ class SpawnManager:
             powerup_carrier_indices: Which Enemies, by draw order, are Carriers.
                 Falls back to POWERUP_CARRIER_INDICES constant when not provided.
         """
-        self._texture_manager = texture_manager
+        self._atlas = atlas
         self._map = game_map
         self._roster: list[TankType] = self._shuffled_roster(enemy_composition)
         self._roster_size: int = len(self._roster)
@@ -186,7 +186,7 @@ class SpawnManager:
             spawning.x,
             spawning.y,
             TILE_SIZE,
-            self._texture_manager,
+            self._atlas,
             tank_type=spawning.tank_type,
             map_width_px=self._map.width_px,
             map_height_px=self._map.height_px,

@@ -78,7 +78,7 @@ def collisions(game_map, effects, power_ups, sound):
         game_map=game_map,
         effect_manager=effects,
         power_up_manager=power_ups,
-        sound_manager=sound,
+        sound=sound,
     )
 
 

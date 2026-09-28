@@ -59,7 +59,7 @@ class EnemyTank(Tank):
         x: int,
         y: int,
         tile_size: int,
-        texture_manager: SpriteAtlas,
+        atlas: SpriteAtlas,
         tank_type: TankType,
         *,
         map_width_px: int,
@@ -73,7 +73,7 @@ class EnemyTank(Tank):
             x: Initial x position
             y: Initial y position
             tile_size: Size of a tile in pixels
-            texture_manager: Where the tank gets its sprites
+            atlas: Where the tank gets its sprites
             tank_type: The type of enemy tank ('basic', 'fast', 'power', 'armor')
             map_width_px: Map width in pixels (for boundary clamping)
             map_height_px: Map height in pixels (for boundary clamping)
@@ -84,7 +84,7 @@ class EnemyTank(Tank):
         super().__init__(
             x,
             y,
-            texture_manager,
+            atlas,
             tile_size,
             health=props["health"],
             speed=props["speed"],
@@ -123,13 +123,13 @@ class EnemyTank(Tank):
                 f"{self._sprite_prefix}_red_{self.direction}_{self.animation_frame}"
             )
             try:
-                self.sprite = self.texture_manager.get_sprite(sprite_name)
+                self.sprite = self.atlas.get_sprite(sprite_name)
                 return
             except KeyError:
                 pass
         sprite_name = f"{self._sprite_prefix}_{self.direction}_{self.animation_frame}"
         try:
-            self.sprite = self.texture_manager.get_sprite(sprite_name)
+            self.sprite = self.atlas.get_sprite(sprite_name)
         except KeyError:
             logger.error(f"Sprite '{sprite_name}' not found for enemy tank.")
 

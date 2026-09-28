@@ -69,12 +69,12 @@ class CollisionManager:
         game_map: Map,
         effect_manager: EffectManager,
         power_up_manager: PowerUpManager,
-        sound_manager: SoundPlayer,
+        sound: SoundPlayer,
     ) -> None:
         self._map = game_map
         self._effect_manager = effect_manager
         self._power_up_manager = power_up_manager
-        self._sound_manager = sound_manager
+        self._sound = sound
 
     def resolve(
         self,
@@ -214,9 +214,9 @@ class CollisionManager:
         bullet.active = False
         self._effect_manager.spawn_at_rect(EffectType.SMALL_EXPLOSION, bullet.rect)
         if tile.type == TileType.BASE:
-            self._sound_manager.play("explosion")
+            self._sound.play("explosion")
         else:
-            self._sound_manager.play("brick_hit")
+            self._sound.play("brick_hit")
 
         if tile.type == TileType.STEEL:
             if bullet.power_bullet:
@@ -237,7 +237,7 @@ class CollisionManager:
         logger.debug("Bullet hit bullet. Both deactivated.")
         bullet_a.active = False
         bullet_b.active = False
-        self._sound_manager.play("bullet_hit_bullet")
+        self._sound.play("bullet_hit_bullet")
 
     def _player_vs_power_up(
         self, player: PlayerTank, power_up: PowerUp, frame: _Frame

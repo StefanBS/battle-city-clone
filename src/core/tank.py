@@ -40,7 +40,7 @@ class Tank(GameObject):
         self,
         x: float,
         y: float,
-        texture_manager: SpriteAtlas,
+        atlas: SpriteAtlas,
         tile_size: int = TILE_SIZE,
         health: int = 1,
         speed: float = TANK_SPEED,
@@ -56,7 +56,7 @@ class Tank(GameObject):
         Args:
             x: Initial x position
             y: Initial y position
-            texture_manager: Where the tank gets its sprites
+            atlas: Where the tank gets its sprites
             tile_size: Size of a tile in pixels
             health: Initial health points
             speed: Movement speed in pixels per second
@@ -69,7 +69,7 @@ class Tank(GameObject):
         y = round(y / tile_size) * tile_size
         logger.debug(f"Creating Tank at ({x}, {y})")
         super().__init__(x, y, TILE_SIZE, TILE_SIZE)
-        self.texture_manager = texture_manager
+        self.atlas = atlas
         self.speed = speed
         self.bullet_speed = bullet_speed
         self.map_width_px = map_width_px
@@ -103,7 +103,7 @@ class Tank(GameObject):
         """Updates the tank's sprite based on direction and animation frame."""
         sprite_name = f"{self.owner_type}_tank_{self.direction}_{self.animation_frame}"
         try:
-            self.sprite = self.texture_manager.get_sprite(sprite_name)
+            self.sprite = self.atlas.get_sprite(sprite_name)
         except KeyError:
             logger.error(
                 f"Sprite '{sprite_name}' not found for {self.owner_type} tank."
@@ -157,7 +157,7 @@ class Tank(GameObject):
         bullet_x = self.x + self.width // 2 - BULLET_SIZE // 2
         bullet_y = self.y + self.height // 2 - BULLET_SIZE // 2
         try:
-            bullet_sprite = self.texture_manager.get_sprite(f"bullet_{self.direction}")
+            bullet_sprite = self.atlas.get_sprite(f"bullet_{self.direction}")
         except KeyError:
             bullet_sprite = None
         return Bullet(

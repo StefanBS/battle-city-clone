@@ -58,7 +58,7 @@ def make_spawn_manager(mock_texture_manager, mock_game_map):
 
     def make(composition=None, **kwargs):
         return SpawnManager(
-            texture_manager=mock_texture_manager,
+            atlas=mock_texture_manager,
             game_map=mock_game_map,
             enemy_composition=(
                 composition if composition is not None else _DEFAULT_COMPOSITION

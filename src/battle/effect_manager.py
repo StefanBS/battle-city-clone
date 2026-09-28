@@ -15,15 +15,15 @@ from src.utils.constants import (
 class EffectManager:
     """Manages transient visual effects (explosions, etc.)."""
 
-    def __init__(self, texture_manager: SpriteAtlas) -> None:
+    def __init__(self, atlas: SpriteAtlas) -> None:
         """Initialize the EffectManager.
 
         Args:
-            texture_manager: Where the effects get their sprites.
+            atlas: Where the effects get their sprites.
         """
         self.effects: list[Effect] = []
         self._effect_data: dict[EffectType, tuple[list[pygame.Surface], float]] = {}
-        self._build_frame_cache(texture_manager)
+        self._build_frame_cache(atlas)
 
     @staticmethod
     def _apply_colorkey(
@@ -41,16 +41,16 @@ class EffectManager:
         result.blit(copy, (0, 0))
         return result
 
-    def _build_frame_cache(self, texture_manager: SpriteAtlas) -> None:
+    def _build_frame_cache(self, atlas: SpriteAtlas) -> None:
         """Pre-load and cache sprite frames for each effect type.
 
         Small explosion uses 3 frames at 32x32.
         Large explosion uses the same 3 frames at 32x32 followed by
         explosion_2 and explosion_3 scaled up to 64x64.
         """
-        frame_1 = self._apply_colorkey(texture_manager.get_sprite("explosion_1"))
-        frame_2 = self._apply_colorkey(texture_manager.get_sprite("explosion_2"))
-        frame_3 = self._apply_colorkey(texture_manager.get_sprite("explosion_3"))
+        frame_1 = self._apply_colorkey(atlas.get_sprite("explosion_1"))
+        frame_2 = self._apply_colorkey(atlas.get_sprite("explosion_2"))
+        frame_3 = self._apply_colorkey(atlas.get_sprite("explosion_3"))
 
         small_frames = [frame_1, frame_2, frame_3]
 
@@ -71,8 +71,7 @@ class EffectManager:
 
         # Spawn animation: 4 frames bounced twice (1→2→3→4→3→2→1→2→3→4→3→2)
         f1, f2, f3, f4 = [
-            self._apply_colorkey(texture_manager.get_sprite(f"spawn_{i}"))
-            for i in range(1, 5)
+            self._apply_colorkey(atlas.get_sprite(f"spawn_{i}")) for i in range(1, 5)
         ]
         bounce = [f1, f2, f3, f4, f3, f2]
         spawn_cycle = bounce + bounce

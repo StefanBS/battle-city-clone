@@ -125,7 +125,7 @@ class Tile:
             return True
         return False
 
-    def draw(self, surface: pygame.Surface, texture_manager: SpriteAtlas) -> None:
+    def draw(self, surface: pygame.Surface, atlas: SpriteAtlas) -> None:
         """Draw the tile on the given surface."""
         if self.type == TileType.EMPTY:
             return

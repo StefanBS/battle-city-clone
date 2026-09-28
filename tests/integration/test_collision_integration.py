@@ -390,7 +390,7 @@ def test_player_tank_vs_enemy_tank_no_overlap(game_manager_fixture, mocker):
         game_map=battle_map,
         effect_manager=effects,
         power_up_manager=PowerUpManager(game_manager.texture_manager, battle_map),
-        sound_manager=game_manager.sound_manager,
+        sound=game_manager.sound_manager,
     )
 
     dt = 1.0 / FPS

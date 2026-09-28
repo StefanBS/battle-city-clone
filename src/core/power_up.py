@@ -21,9 +21,9 @@ class PowerUp(GameObject):
         x: float,
         y: float,
         power_up_type: PowerUpType,
-        texture_manager: SpriteAtlas,
+        atlas: SpriteAtlas,
     ) -> None:
-        sprite = texture_manager.get_sprite(f"powerup_{power_up_type}")
+        sprite = atlas.get_sprite(f"powerup_{power_up_type}")
         super().__init__(x, y, TILE_SIZE, TILE_SIZE, sprite)
         self.power_up_type = power_up_type
         self.blink_timer: float = 0.0
