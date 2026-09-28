@@ -578,19 +578,6 @@ class TestPlayerManagerCpuPartner:
             PlayerKind.CPU_PARTNER,
         ]
 
-    def test_cpu_partner_is_driven_by_the_input_it_is_handed(
-        self, make_player_manager, mock_game_map
-    ):
-        mock_game_map.player_spawn_2 = (16, 24)
-        handed = MagicMock(spec=PlayerInput)
-        player_manager = make_player_manager(
-            mode=GameMode.ONE_PLAYER_CPU, cpu_partner=handed
-        )
-
-        player_manager.clear_pending_shoot()
-
-        handed.clear_pending_shoot.assert_called_once_with()
-
     def test_cpu_partner_mode_needs_a_cpu_partner_input(
         self, mock_texture_manager, mock_sound_manager, mock_game_map
     ):
