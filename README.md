@@ -128,8 +128,7 @@ battle-city-clone/
 │   │   ├── goal_timing.py                 # CPU Partner decision timing and hesitation
 │   │   ├── pathfinding.py                 # A* over the sub-tile grid
 │   │   ├── steering.py                    # CPU Partner: getting unstuck
-│   │   ├── refused_shots.py               # CPU Partner: giving up on unsafe shots
-│   │   ├── enemy_memory.py                # CPU Partner: per-Enemy memory until it moves
+│   │   ├── cut_off.py                     # CPU Partner: Refused Shots, given-up sides, Cut Off
 │   │   ├── dodge.py                       # CPU Partner: Dodge reflex against Incoming Shots
 │   │   ├── footprint.py                   # Grid cells a tank covers; blocked Enemy Spawn Points
 │   │   ├── input_handler.py               # Menu and system input (SDL GameController API)

@@ -27,8 +27,11 @@ A spot in a target's row or column from which a Player's Line of Fire reaches th
 **Reaction Delay**:
 The moment the CPU Partner takes before acting on a new Goal. Until it passes, it keeps acting on its previous Goal.
 
+**Refused Shot**:
+The CPU Partner lined up on an Enemy from a Firing Position but holding fire because the shot isn't safe. Held on one side for too long, the CPU Partner gives up firing from that side until the Enemy moves.
+
 **Cut Off**:
-An Enemy the CPU Partner has no Firing Position left to use against from where the Enemy stands: it found none it can reach, or it has given up firing from every side. It is left out of the CPU Partner's Goals until it moves.
+An Enemy the CPU Partner has no Firing Position left to use against from where the Enemy stands: it found none it can reach, or it has given up every side after holding a Refused Shot too long on each. It is left out of the CPU Partner's Goals until it moves.
 
 **Incoming Shot**:
 An Enemy bullet that will hit the CPU Partner if it stays where it is.
