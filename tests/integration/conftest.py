@@ -1,10 +1,15 @@
+import functools
 import os
 import pytest
 import pygame
+from src.battle.battle import Battle
 from src.core.enemy_ai import EnemyAI
 from src.core.enemy_tank import EnemyTank
+from src.core.map import Map
 from src.core.tile import Tile, TileType
+from src.cpu_partner.cpu_partner import CpuPartnerInput
 from src.shell.game_manager import GameManager
+from src.shell.texture_manager import TextureManager
 from src.states.game_mode import GameMode
 from src.states.screen import Screen
 from src.utils.constants import (
@@ -12,8 +17,11 @@ from src.utils.constants import (
     FPS,
     SUB_TILE_SIZE,
     TILE_SIZE,
+    WINDOW_HEIGHT,
+    WINDOW_WIDTH,
     TankType,
 )
+from src.utils.paths import resource_path
 
 # Use a virtual framebuffer so integration tests don't open real windows.
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
@@ -24,9 +32,86 @@ os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 # directly (without the fixture) still have a working pygame subsystem.
 pygame.init()
 
+DT = 1.0 / FPS
+
+
+# --- A bare Battle -----------------------------------------------------------
+
+
+@functools.cache
+def texture_manager():
+    """The real sprite atlas, loaded once for the whole run."""
+    if pygame.display.get_surface() is None:
+        # The atlas converts its sprites, which needs a display mode.
+        pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+    return TextureManager(resource_path("assets/sprites/sprites.png"))
+
+
+class SoundRecorder:
+    """Stands in for the SoundManager: remembers the sound calls a Battle makes."""
+
+    def __init__(self):
+        self.played: list[str] = []
+        self.engine_running: bool | None = None
+        self.power_up_blinking: bool | None = None
+
+    def play(self, name):
+        self.played.append(name)
+
+    def update_engine(self, any_moving):
+        self.engine_running = any_moving
+
+    def update_powerup_blink(self, any_active):
+        self.power_up_blinking = any_active
+
+
+def make_battle(mode=GameMode.ONE_PLAYER, sound=None, stage_map="level_01"):
+    """Build the first Battle of a game in `mode` on a real map.
+
+    ``sound`` is where the Battle plays its sounds (a ``SoundRecorder`` by
+    default). The Battle has not stepped yet; its first Enemy is Spawning.
+    """
+    atlas = texture_manager()
+    return Battle(
+        Map(resource_path(f"assets/maps/{stage_map}.tmx"), atlas),
+        mode=mode,
+        carried={},
+        difficulty=Difficulty.NORMAL,
+        controller_instance_ids=[],
+        atlas=atlas,
+        sound=sound if sound is not None else SoundRecorder(),
+        cpu_partner=CpuPartnerInput() if mode is GameMode.ONE_PLAYER_CPU else None,
+    )
+
+
+@pytest.fixture
+def battle():
+    """The first Battle of a 1 Player game, about to step."""
+    return make_battle()
+
+
+def tick(battle, n=1):
+    """Step the Battle n frames."""
+    for _ in range(n):
+        battle.step(DT)
+
+
+def tick_for(battle, seconds):
+    """Step the Battle for approximately `seconds` of frames."""
+    tick(battle, int(seconds * FPS))
+
+
+# --- A whole game, for the screens and the adapter ---------------------------
+
 
 # The title menu's modes, top to bottom.
 _TITLE_MODES = (GameMode.ONE_PLAYER, GameMode.TWO_PLAYERS, GameMode.ONE_PLAYER_CPU)
+
+
+def run_frames(game, n=1):
+    """Run n whole frames of the game: the Battle, then the Screen Flow."""
+    for _ in range(n):
+        game.update()
 
 
 def run_until_screen(game, screen, max_frames=600):
@@ -55,8 +140,8 @@ def start_game(mode=GameMode.ONE_PLAYER, **game_manager_kwargs):
 
 def reach_next_stage(game):
     """End the running Battle in Victory and run until the next Stage's Battle steps."""
-    use_up_roster(game)
-    tick(game)
+    use_up_roster(game.battle)
+    run_frames(game)
     assert game.flow.screen is Screen.VICTORY
     run_until_screen(game, Screen.RUNNING)
 
@@ -68,72 +153,73 @@ def game_manager_fixture():
     return start_game()
 
 
-def first_player(game):
+# --- Arranging and reading a Battle ------------------------------------------
+
+
+def first_player(battle):
     """Return the first active player tank, assuming one exists.
 
     Most integration tests are single-player and just want \"the\" player;
-    this centralises the get_active_players()[0] lookup.
+    this centralises the scene().players[0] lookup.
     """
-    return game.battle.scene().players[0]
+    return battle.scene().players[0]
 
 
-def score_of(game, player_id=1):
-    """A Player's score so far in the running Battle."""
-    return game.battle.carried_progress[player_id].score
+def score_of(battle, player_id=1):
+    """A Player's score so far in the Battle."""
+    return battle.carried_progress[player_id].score
 
 
-def total_score(game):
-    """Every Player's score so far in the running Battle, added up."""
-    return sum(p.score for p in game.battle.carried_progress.values())
+def total_score(battle):
+    """Every Player's score so far in the Battle, added up."""
+    return sum(p.score for p in battle.carried_progress.values())
 
 
-def use_roster(game, composition, carrier_indices=(), spawn_interval=None):
-    """Give the running Battle a fresh Roster, with nothing Spawning yet.
+def use_roster(battle, composition, carrier_indices=(), spawn_interval=None):
+    """Give the Battle a fresh Roster, with nothing Spawning yet.
 
     An empty ``composition`` means no Enemy will come: the Roster counts as
     used up, so the Battle ends in Victory once the battlefield is clear.
     ``carrier_indices`` says which Enemies, by draw order, are Carriers. The
     next Enemy starts Spawning after ``spawn_interval`` (the map's by default).
     """
-    game.battle.replace_roster(
+    battle.replace_roster(
         composition,
         carrier_indices=tuple(carrier_indices),
         spawn_interval=spawn_interval,
     )
 
 
-def hold_roster(game, composition):
-    """Give the running Battle a Roster none of whose Enemies ever come on their own.
+def hold_roster(battle, composition):
+    """Give the Battle a Roster none of whose Enemies ever come on their own.
 
     The Battle goes on, since the Roster is not used up; a test brings an
     Enemy in with ``start_spawning``.
     """
-    use_roster(game, composition, spawn_interval=float("inf"))
+    use_roster(battle, composition, spawn_interval=float("inf"))
 
 
-def let_spawning_enemies_appear(game, max_ticks=120):
+def let_spawning_enemies_appear(battle, max_ticks=120):
     """Step the Battle until every Spawning Enemy has Appeared.
 
     Real frames run, so tanks and bullets move too. Callers hold the Roster,
     so no new spawn starts meanwhile. The frame after the last animation ends
     brings its Enemy onto the battlefield.
     """
-    dt = 1.0 / FPS
-    battle = game.battle
     for _ in range(max_ticks):
         no_animation_left = not battle.scene().effects
-        battle.step(dt)
+        battle.step(DT)
         if no_animation_left:
             break
 
 
-def spawn_carrier(game):
+def spawn_carrier(battle):
     """Bring a Carrier onto a battlefield with no other Enemy, and return it."""
-    game.battle.clear_enemies()
-    use_roster(game, {TankType.BASIC: 1}, carrier_indices=(0,))
-    assert game.battle.start_spawning()
-    let_spawning_enemies_appear(game)
-    (carrier,) = game.battle.scene().enemies
+    battle.clear_enemies()
+    use_roster(battle, {TankType.BASIC: 1}, carrier_indices=(0,))
+    assert battle.start_spawning()
+    let_spawning_enemies_appear(battle)
+    (carrier,) = battle.scene().enemies
     return carrier
 
 
@@ -146,18 +232,18 @@ def clear_tiles(game_map, positions):
                 game_map.place_tile(gx, gy, Tile(TileType.EMPTY, gx, gy, SUB_TILE_SIZE))
 
 
-def spawn_enemy_at(game, grid_x, grid_y, *args, **kwargs):
+def spawn_enemy_at(battle, grid_x, grid_y, *args, **kwargs):
     """Spawn a single EnemyTank, paired with its EnemyAI, at a sub-tile grid position.
 
     Takes the same arguments as ``spawn_enemy_with_ai`` and returns the new
     EnemyTank so callers can tweak attributes (speed, shoot, etc.).
     """
-    enemy, _ = spawn_enemy_with_ai(game, grid_x, grid_y, *args, **kwargs)
+    enemy, _ = spawn_enemy_with_ai(battle, grid_x, grid_y, *args, **kwargs)
     return enemy
 
 
 def spawn_enemy_with_ai(
-    game,
+    battle,
     grid_x,
     grid_y,
     tank_type=TankType.BASIC,
@@ -176,13 +262,13 @@ def spawn_enemy_with_ai(
     on its own timer (it still turns away when blocked). Extra kwargs (e.g.
     is_carrier=...) are forwarded to EnemyTank.
     """
-    map_w_px = game.battle.map.width * SUB_TILE_SIZE
-    map_h_px = game.battle.map.height * SUB_TILE_SIZE
+    map_w_px = battle.map.width * SUB_TILE_SIZE
+    map_h_px = battle.map.height * SUB_TILE_SIZE
     enemy = EnemyTank(
         grid_x * SUB_TILE_SIZE,
         grid_y * SUB_TILE_SIZE,
         TILE_SIZE,
-        game.texture_manager,
+        texture_manager(),
         tank_type,
         map_width_px=map_w_px,
         map_height_px=map_h_px,
@@ -191,8 +277,8 @@ def spawn_enemy_with_ai(
     if direction is not None:
         enemy.direction = direction
     if replace:
-        game.battle.clear_enemies()
-    base = game.battle.map.get_base()
+        battle.clear_enemies()
+    base = battle.map.get_base()
     ai = EnemyAI(
         enemy,
         difficulty=difficulty,
@@ -204,7 +290,7 @@ def spawn_enemy_with_ai(
         shoot_interval=None if fires else float("inf"),
         direction_change_interval=None if turns else float("inf"),
     )
-    game.battle.add_enemy(enemy, ai)
+    battle.add_enemy(enemy, ai)
     return enemy, ai
 
 
@@ -218,57 +304,40 @@ class _FireInPlace:
         return True
 
 
-def fire_bullet_from(game, tank):
+def fire_bullet_from(battle, tank):
     """Step `tank` one frame in place with a shot queued; return its bullet.
 
     The shot respects the Bullet Cap, so at the cap this returns the bullet
     already in flight.
     """
-    game.battle.step_tank(tank, _FireInPlace(), 1.0 / FPS)
-    return next(b for b in game.battle.scene().bullets if b.owner is tank)
+    battle.step_tank(tank, _FireInPlace(), DT)
+    return next(b for b in battle.scene().bullets if b.owner is tank)
 
 
-def place_ice_patch(game, grid_x, grid_y, width=4, height=4):
+def place_ice_patch(battle, grid_x, grid_y, width=4, height=4):
     """Place a patch of ice tiles at the given sub-tile grid position."""
     for dy in range(height):
         for dx in range(width):
-            tile = game.battle.map.get_tile_at(grid_x + dx, grid_y + dy)
+            tile = battle.map.get_tile_at(grid_x + dx, grid_y + dy)
             if tile is not None:
-                game.battle.map.set_tile_type(tile, TileType.ICE)
+                battle.map.set_tile_type(tile, TileType.ICE)
 
 
-def place_player_at(game, x, y, player=None):
+def place_player_at(battle, x, y, player=None):
     """Place the (first) player at pixel coords, syncing prev_x/prev_y and rect."""
-    p = player if player is not None else first_player(game)
+    p = player if player is not None else first_player(battle)
     p.set_position(x, y)
     p.prev_x, p.prev_y = x, y
     p.rect.topleft = (round(x), round(y))
 
 
-def clear_enemies(game):
+def clear_enemies(battle):
     """Clear the battlefield of Enemies, with one still to come that never does."""
-    game.battle.clear_enemies()
-    hold_roster(game, {TankType.BASIC: 1})
+    battle.clear_enemies()
+    hold_roster(battle, {TankType.BASIC: 1})
 
 
-def use_up_roster(game):
+def use_up_roster(battle):
     """Clear the battlefield with no Enemy left to come: the Battle can be won."""
-    game.battle.clear_enemies()
-    use_roster(game, {})
-
-
-def tick(game, n=1):
-    """Run n update frames."""
-    for _ in range(n):
-        game.update()
-
-
-def tick_for(game, seconds):
-    """Run update frames totaling approximately `seconds` at FPS dt."""
-    tick(game, int(seconds * FPS))
-
-
-def send_event(game, event):
-    """Dispatch an event to both the input handler and the Battle's Players."""
-    game.input_handler.handle_event(event)
-    game.battle.handle_event(event)
+    battle.clear_enemies()
+    use_roster(battle, {})

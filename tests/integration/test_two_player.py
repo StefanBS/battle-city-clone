@@ -1,6 +1,7 @@
 """Integration tests for 2-player co-op mode.
 
-Tests the full pipeline: GameManager -> Map -> PlayerManager -> PlayerTank.
+Tests the pipeline Battle -> Map -> PlayerManager -> PlayerTank, and that both
+Players' progress carries into the next Stage through the whole game.
 Unit-level behavior (freeze, scoring, life steal, game over) is covered
 in the respective unit test files.
 """
@@ -11,6 +12,7 @@ from src.battle.outcomes import EnemyDestroyed
 from src.states.game_mode import GameMode
 from src.utils.constants import ENEMY_POINTS, FPS, TankType
 from tests.integration.conftest import (
+    make_battle,
     score_of,
     spawn_enemy_at,
     start_game,
@@ -19,44 +21,50 @@ from tests.integration.conftest import (
 
 
 @pytest.fixture
+def two_player_battle():
+    """The first Battle of a 2P game, about to step."""
+    return make_battle(GameMode.TWO_PLAYERS)
+
+
+@pytest.fixture
 def two_player_game():
-    """GameManager in 2P mode with game running."""
+    """A GameManager in 2P mode with the first Battle about to step."""
     pygame.init()
     return start_game(GameMode.TWO_PLAYERS)
 
 
 class TestTwoPlayerSetup:
-    def test_two_players_created(self, two_player_game):
+    def test_two_players_created(self, two_player_battle):
         """2P mode creates two active player tanks."""
-        players = two_player_game.battle.scene().players
+        players = two_player_battle.scene().players
         assert len(players) == 2
 
-    def test_players_have_different_ids(self, two_player_game):
+    def test_players_have_different_ids(self, two_player_battle):
         """P1 and P2 have player_id 1 and 2."""
-        players = two_player_game.battle.scene().players
+        players = two_player_battle.scene().players
         assert players[0].player_id == 1
         assert players[1].player_id == 2
 
-    def test_players_at_different_positions(self, two_player_game):
+    def test_players_at_different_positions(self, two_player_battle):
         """P1 and P2 spawn at different positions."""
-        players = two_player_game.battle.scene().players
+        players = two_player_battle.scene().players
         assert (players[0].x, players[0].y) != (players[1].x, players[1].y)
 
-    def test_player_spawn_positions_match_map(self, two_player_game):
+    def test_player_spawn_positions_match_map(self, two_player_battle):
         """Players spawn at positions defined in the map."""
-        gm = two_player_game
-        p1 = gm.battle.scene().players[0]
-        p2 = gm.battle.scene().players[1]
-        ts = gm.battle.map.tile_size
+        battle = two_player_battle
+        p1 = battle.scene().players[0]
+        p2 = battle.scene().players[1]
+        ts = battle.map.tile_size
         expected_p1 = (
-            gm.battle.map.player_spawn[0] * ts,
-            gm.battle.map.player_spawn[1] * ts,
+            battle.map.player_spawn[0] * ts,
+            battle.map.player_spawn[1] * ts,
         )
         assert (p1.x, p1.y) == expected_p1
-        if gm.battle.map.player_spawn_2 is not None:
+        if battle.map.player_spawn_2 is not None:
             expected_p2 = (
-                gm.battle.map.player_spawn_2[0] * ts,
-                gm.battle.map.player_spawn_2[1] * ts,
+                battle.map.player_spawn_2[0] * ts,
+                battle.map.player_spawn_2[1] * ts,
             )
             assert (p2.x, p2.y) == expected_p2
 
@@ -83,13 +91,13 @@ class TestTwoPlayerStageTransition:
         """A Player Eliminated at a Victory does not come back next Stage."""
         gm = two_player_game
         p2 = gm.battle.scene().players[1]
-        enemy = spawn_enemy_at(gm, 0, 0)
+        enemy = spawn_enemy_at(gm.battle, 0, 0)
         gm.battle.apply_outcomes([EnemyDestroyed(enemy, by=p2)])
         p2.eliminate()
 
         reach_next_stage(gm)
 
         assert [p.player_id for p in gm.battle.scene().players] == [1]
-        assert score_of(gm, 2) == ENEMY_POINTS[TankType.BASIC]
+        assert score_of(gm.battle, 2) == ENEMY_POINTS[TankType.BASIC]
         # P1 fights on, so the Battle goes on.
         assert gm.battle.step(1.0 / FPS) is None

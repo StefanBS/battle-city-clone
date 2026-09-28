@@ -6,39 +6,38 @@ from src.utils.constants import (
     TILE_SIZE,
     SUB_TILE_SIZE,
 )
-from src.states.screen import Screen
+from src.states.battle_result import BattleResult
 from src.core.tile import Tile, TileType
 from tests.integration.conftest import (
+    DT,
     clear_enemies,
     fire_bullet_from,
     first_player,
     place_player_at,
     spawn_enemy_at,
+    tick,
     use_up_roster,
     total_score,
 )
 
 
-def test_initial_game_state(game_manager_fixture):
-    """Test the initial state of the GameManager after initialization."""
-    game_manager = game_manager_fixture
+def test_first_battle_before_it_steps(battle):
+    """Test the state of the first Battle before it steps."""
 
-    assert game_manager.flow.screen == Screen.RUNNING, (
-        f"Expected initial screen RUNNING, got {game_manager.flow.screen.name}"
-    )
+    assert battle.result is None
 
     expected_initial_lives = 3
-    assert first_player(game_manager).lives == expected_initial_lives, (
+    assert first_player(battle).lives == expected_initial_lives, (
         f"Expected initial player lives {expected_initial_lives}, "
-        f"got {first_player(game_manager).lives}"
+        f"got {first_player(battle).lives}"
     )
 
     # The first Enemy of the Roster is Spawning, not on the battlefield yet.
     # Its spawn animation is the only effect playing.
-    assert len(game_manager.battle.scene().effects) == 1
-    assert not game_manager.battle.scene().enemies
+    assert len(battle.scene().effects) == 1
+    assert not battle.scene().enemies
 
-    game_map = game_manager.battle.map
+    game_map = battle.map
     base_tile = game_map.get_base()
     assert base_tile is not None, "Base tile not found in initial map."
     assert base_tile.type == TileType.BASE, "Base tile type is not BASE."
@@ -56,11 +55,10 @@ def test_initial_game_state(game_manager_fixture):
     )
 
 
-def test_player_bullet_hits_base(game_manager_fixture):
+def test_player_bullet_hits_base(battle):
     """Test that a player bullet hitting the base destroys it and causes game over."""
-    game_manager = game_manager_fixture
-    player_tank = first_player(game_manager)
-    game_map = game_manager.battle.map
+    player_tank = first_player(battle)
+    game_map = battle.map
 
     base_tile = game_map.get_base()
     assert base_tile is not None, "Base tile not found in the map."
@@ -92,12 +90,10 @@ def test_player_bullet_hits_base(game_manager_fixture):
     player_tank.prev_x, player_tank.prev_y = player_start_x, player_start_y
 
     player_tank.direction = Direction.DOWN
-    bullet = fire_bullet_from(game_manager, player_tank)
+    bullet = fire_bullet_from(battle, player_tank)
     assert bullet.active, "Player bullet spawned inactive."
 
-    assert game_manager.flow.screen == Screen.RUNNING, (
-        "The Battle should start on the RUNNING screen."
-    )
+    assert battle.result is None
 
     dt = 1.0 / FPS
     update_duration = 0.4
@@ -105,8 +101,8 @@ def test_player_bullet_hits_base(game_manager_fixture):
     hit_processed = False
 
     for _ in range(num_updates):
-        game_manager.update()
-        if game_manager.flow.screen != Screen.RUNNING or not bullet.active:
+        battle.step(dt)
+        if battle.result is not None or not bullet.active:
             hit_processed = True
             break
 
@@ -120,16 +116,12 @@ def test_player_bullet_hits_base(game_manager_fixture):
 
     assert not bullet.active, "Player bullet should be inactive after hitting base."
 
-    assert game_manager.flow.screen is Screen.GAME_OVER_ANIMATION, (
-        f"Screen did not change to GAME_OVER_ANIMATION. "
-        f"Is: {game_manager.flow.screen.name}"
-    )
+    assert battle.result is BattleResult.GAME_OVER
 
 
-def test_enemy_bullet_destroys_base_game_over(game_manager_fixture):
+def test_enemy_bullet_destroys_base_game_over(battle):
     """Test enemy bullet hitting the base destroys it and causes game over."""
-    game_manager = game_manager_fixture
-    game_map = game_manager.battle.map
+    game_map = battle.map
 
     base_tile = game_map.get_base()
     assert base_tile is not None, "Base tile not found in the map."
@@ -142,8 +134,7 @@ def test_enemy_bullet_destroys_base_game_over(game_manager_fixture):
     enemy_y_grid = base_y_grid - 6
 
     if not (
-        0 <= enemy_y_grid < game_manager.battle.map.height
-        and 0 <= enemy_x_grid < game_manager.battle.map.width
+        0 <= enemy_y_grid < battle.map.height and 0 <= enemy_x_grid < battle.map.width
     ):
         pytest.skip(
             f"Calculated enemy position ({enemy_x_grid}, {enemy_y_grid}) "
@@ -162,17 +153,15 @@ def test_enemy_bullet_destroys_base_game_over(game_manager_fixture):
                 )
 
     enemy_tank = spawn_enemy_at(
-        game_manager, enemy_x_grid, enemy_y_grid, direction=Direction.DOWN
+        battle, enemy_x_grid, enemy_y_grid, direction=Direction.DOWN
     )
     # Move player out of the bullet path.
-    place_player_at(game_manager, 0, 0)
+    place_player_at(battle, 0, 0)
 
-    bullet = fire_bullet_from(game_manager, enemy_tank)
+    bullet = fire_bullet_from(battle, enemy_tank)
     assert bullet.active, "Enemy bullet spawned inactive."
 
-    assert game_manager.flow.screen == Screen.RUNNING, (
-        "The Battle should start on the RUNNING screen."
-    )
+    assert battle.result is None
 
     dt = 1.0 / FPS
     update_duration = 1.0
@@ -180,8 +169,8 @@ def test_enemy_bullet_destroys_base_game_over(game_manager_fixture):
     hit_processed = False
 
     for _ in range(num_updates):
-        game_manager.update()
-        if game_manager.flow.screen != Screen.RUNNING or not bullet.active:
+        battle.step(dt)
+        if battle.result is not None or not bullet.active:
             hit_processed = True
             break
 
@@ -195,52 +184,45 @@ def test_enemy_bullet_destroys_base_game_over(game_manager_fixture):
         f"Base tile type did not change to BASE_DESTROYED. Is: {base_tile.type.name}"
     )
 
-    assert game_manager.flow.screen is Screen.GAME_OVER_ANIMATION, (
-        f"Screen did not change to GAME_OVER_ANIMATION. "
-        f"Is: {game_manager.flow.screen.name}"
-    )
+    assert battle.result is BattleResult.GAME_OVER
 
 
-def test_victory_condition(game_manager_fixture):
-    """Test that the screen changes to VICTORY when all enemies are gone
-    and the total spawn count has reached the maximum."""
-    game_manager = game_manager_fixture
+def test_victory_condition(battle):
+    """The Battle ends in Victory once the battlefield is clear and the Roster
+    is used up."""
 
-    use_up_roster(game_manager)
+    use_up_roster(battle)
 
-    assert game_manager.flow.screen == Screen.RUNNING, (
-        "Test setup assumes starting in RUNNING state."
-    )
+    assert battle.result is None
 
-    game_manager.update()
+    tick(battle)
 
-    assert game_manager.flow.screen == Screen.VICTORY, (
-        f"Screen did not change to VICTORY. Is: {game_manager.flow.screen.name}"
-    )
+    assert battle.result is BattleResult.VICTORY
 
 
-def test_score_accumulates_on_enemy_kill(game_manager_fixture):
+def test_score_accumulates_on_enemy_kill(battle):
     """Test that score increases when the player destroys an enemy."""
-    gm = game_manager_fixture
-    assert total_score(gm) == 0
+    assert total_score(battle) == 0
 
     for _ in range(60):
-        gm.update()
-        if gm.battle.scene().enemies:
+        battle.step(DT)
+        if battle.scene().enemies:
             break
 
-    enemy = gm.battle.scene().enemies[0]
+    enemy = battle.scene().enemies[0]
     tank_type = enemy.tank_type
     expected_points = ENEMY_POINTS.get(tank_type, 0)
 
-    player = first_player(gm)
-    place_player_at(gm, float(enemy.x), float(enemy.y + TILE_SIZE + 10), player=player)
+    player = first_player(battle)
+    place_player_at(
+        battle, float(enemy.x), float(enemy.y + TILE_SIZE + 10), player=player
+    )
     player.direction = Direction.UP
 
-    fire_bullet_from(gm, player)
+    fire_bullet_from(battle, player)
 
-    clear_enemies(gm)
-    gm.battle.add_enemy(enemy)
+    clear_enemies(battle)
+    battle.add_enemy(enemy)
 
     # Enemy AI chooses random directions; freeze it so it can't dodge the bullet.
     # Wear the Enemy down to its last hit so the one bullet destroys it.
@@ -249,11 +231,11 @@ def test_score_accumulates_on_enemy_kill(game_manager_fixture):
     enemy.speed = 0
 
     for _ in range(60):
-        gm.update()
-        if enemy not in gm.battle.scene().enemies:
+        battle.step(DT)
+        if enemy not in battle.scene().enemies:
             break
 
-    assert total_score(gm) == expected_points, (
+    assert total_score(battle) == expected_points, (
         f"Expected score {expected_points} after killing {tank_type} enemy, "
-        f"got {total_score(gm)}"
+        f"got {total_score(battle)}"
     )

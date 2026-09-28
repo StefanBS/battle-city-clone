@@ -13,7 +13,7 @@ from src.core.tile import Tile, TileType
 from tests.integration.conftest import (
     fire_bullet_from,
     first_player,
-    send_event,
+    tick,
     tick_for,
 )
 
@@ -27,13 +27,10 @@ from tests.integration.conftest import (
         (pygame.K_RIGHT, 0, 1, Direction.RIGHT),
     ],
 )
-def test_player_movement(
-    game_manager_fixture, key, axis, direction_sign, expected_direction
-):
+def test_player_movement(battle, key, axis, direction_sign, expected_direction):
     """Test player tank movement and direction in all four directions."""
-    game_manager = game_manager_fixture
-    player_tank = first_player(game_manager)
-    game_map = game_manager.battle.map
+    player_tank = first_player(battle)
+    game_map = battle.map
 
     start_grid_x, start_grid_y = 16, 16
     new_x = start_grid_x * SUB_TILE_SIZE
@@ -55,9 +52,9 @@ def test_player_movement(
 
     initial_pos = player_tank.get_position()
 
-    send_event(game_manager, pygame.event.Event(pygame.KEYDOWN, key=key))
-    tick_for(game_manager, 0.2)
-    send_event(game_manager, pygame.event.Event(pygame.KEYUP, key=key))
+    battle.handle_event(pygame.event.Event(pygame.KEYDOWN, key=key))
+    tick_for(battle, 0.2)
+    battle.handle_event(pygame.event.Event(pygame.KEYUP, key=key))
 
     final_pos = player_tank.get_position()
 
@@ -88,12 +85,11 @@ def test_player_movement(
     ],
 )
 def test_player_movement_blocked_by_tile(
-    game_manager_fixture, blocking_tile_type, move_direction, key, start_pos_offset
+    battle, blocking_tile_type, move_direction, key, start_pos_offset
 ):
     """Test player tank movement is blocked by specific tile types."""
-    game_manager = game_manager_fixture
-    player_tank = first_player(game_manager)
-    game_map = game_manager.battle.map
+    player_tank = first_player(battle)
+    game_map = battle.map
 
     # Target location (14,14) is clear of default map obstacles.
     target_x_grid = 14
@@ -155,9 +151,9 @@ def test_player_movement_blocked_by_tile(
         round(start_x), round(start_y), player_tank.width, player_tank.height
     )
 
-    send_event(game_manager, pygame.event.Event(pygame.KEYDOWN, key=key))
-    tick_for(game_manager, 0.2)
-    send_event(game_manager, pygame.event.Event(pygame.KEYUP, key=key))
+    battle.handle_event(pygame.event.Event(pygame.KEYDOWN, key=key))
+    tick_for(battle, 0.2)
+    battle.handle_event(pygame.event.Event(pygame.KEYUP, key=key))
 
     final_player_rect = player_tank.rect
     colliding_tile_rect = pygame.Rect(
@@ -215,22 +211,17 @@ def test_player_movement_blocked_by_tile(
     )
 
 
-def test_player_shooting(game_manager_fixture):
+def test_player_shooting(battle):
     """Test player shooting mechanics."""
-    game_manager = game_manager_fixture
-    player_tank = first_player(game_manager)
+    player_tank = first_player(battle)
 
-    assert len(game_manager.battle.scene().bullets) == 0, (
-        "No bullets should exist initially."
-    )
+    assert len(battle.scene().bullets) == 0, "No bullets should exist initially."
 
     player_tank.direction = Direction.RIGHT
-    fire_bullet_from(game_manager, player_tank)
+    fire_bullet_from(battle, player_tank)
 
-    assert len(game_manager.battle.scene().bullets) == 1, (
-        "One bullet should exist after shooting."
-    )
-    bullet = game_manager.battle.scene().bullets[0]
+    assert len(battle.scene().bullets) == 1, "One bullet should exist after shooting."
+    bullet = battle.scene().bullets[0]
     assert bullet.active, "Bullet should be active after shooting."
     assert bullet.direction == Direction.RIGHT, "Bullet direction is incorrect."
     assert bullet.owner_type == OwnerType.PLAYER, "Bullet owner type is incorrect."
@@ -245,12 +236,12 @@ def test_player_shooting(game_manager_fixture):
     )
 
     # One-bullet-per-tank limit: firing again while the first is active is a no-op.
-    fire_bullet_from(game_manager, player_tank)
+    fire_bullet_from(battle, player_tank)
 
-    assert len(game_manager.battle.scene().bullets) == 1, (
+    assert len(battle.scene().bullets) == 1, (
         "Firing again should not create a new bullet while the first is active."
     )
-    assert game_manager.battle.scene().bullets[0] is bullet, (
+    assert battle.scene().bullets[0] is bullet, (
         "Original bullet should still be present."
     )
     assert bullet.active, "Original bullet should still be active."
@@ -265,26 +256,21 @@ def test_player_shooting(game_manager_fixture):
         (Direction.RIGHT, 0, 1),
     ],
 )
-def test_player_bullet_movement(
-    game_manager_fixture, direction, axis_index, direction_sign
-):
+def test_player_bullet_movement(battle, direction, axis_index, direction_sign):
     """Test that the player's bullet moves correctly after firing."""
-    game_manager = game_manager_fixture
-    player_tank = first_player(game_manager)
+    player_tank = first_player(battle)
 
     player_tank.direction = direction
-    fire_bullet_from(game_manager, player_tank)
+    fire_bullet_from(battle, player_tank)
 
-    assert len(game_manager.battle.scene().bullets) == 1, "Bullet failed to spawn."
-    bullet = next(
-        b for b in game_manager.battle.scene().bullets if b.owner is player_tank
-    )
+    assert len(battle.scene().bullets) == 1, "Bullet failed to spawn."
+    bullet = next(b for b in battle.scene().bullets if b.owner is player_tank)
     assert bullet.active, "Bullet spawned but is not active."
     assert bullet.direction == direction, "Bullet has wrong direction."
 
     initial_pos = bullet.get_position()
 
-    tick_for(game_manager, 0.1)
+    tick_for(battle, 0.1)
 
     final_pos = bullet.get_position()
 
@@ -308,10 +294,9 @@ def test_player_bullet_movement(
     )
 
 
-def test_player_respawn(game_manager_fixture):
+def test_player_respawn(battle):
     """Test player respawn mechanics after taking lethal damage with lives remaining."""
-    game_manager = game_manager_fixture
-    player_tank = first_player(game_manager)
+    player_tank = first_player(battle)
 
     initial_lives = player_tank.lives
     initial_health = player_tank.health
@@ -364,10 +349,10 @@ def test_player_respawn(game_manager_fixture):
             f"Invincibility wore off early at frame {i + 1} "
             f"({i * dt:.2f}s of {invincibility_duration}s)"
         )
-        game_manager.update()
+        tick(battle)
 
     # Tick past the threshold; invincibility should now have expired.
     for _ in range(2):
-        game_manager.update()
+        tick(battle)
 
     assert not player_tank.is_invincible, "Player invincibility did not wear off."

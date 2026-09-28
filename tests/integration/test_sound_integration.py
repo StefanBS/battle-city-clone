@@ -1,43 +1,47 @@
-"""Integration tests for sound effect wiring with real game objects."""
+"""Integration tests for the sounds a Battle asks for, with real game objects."""
 
-from src.states.screen import Screen
 from src.utils.constants import FPS
-from tests.integration.conftest import first_player
+from tests.integration.conftest import (
+    SoundRecorder,
+    first_player,
+    make_battle,
+    tick,
+)
 
 
 class TestEngineSoundWiring:
     """Engine sound updates are called during the game loop."""
 
-    def test_engine_sound_updates_during_gameplay(self, game_manager_fixture):
-        """Verify update() calls update_engine without error during RUNNING."""
-        gm = game_manager_fixture
-        assert gm.flow.screen == Screen.RUNNING
-        for _ in range(5):
-            gm.update()
+    def test_engine_sound_updates_during_gameplay(self):
+        """Each frame tells the engine sound whether any tank is moving."""
+        sound = SoundRecorder()
+        battle = make_battle(sound=sound)
+        tick(battle, 5)
+        assert sound.engine_running is False
 
-    def test_player_movement_sets_is_moving(self, game_manager_fixture):
+    def test_player_movement_sets_is_moving(self, battle):
         """Verify player tank reports is_moving after move()."""
-        gm = game_manager_fixture
         dt = 1.0 / FPS
-        first_player(gm).move(1, 0, dt)
-        assert first_player(gm).is_moving is True
+        first_player(battle).move(1, 0, dt)
+        assert first_player(battle).is_moving is True
 
-    def test_player_is_moving_resets_after_update(self, game_manager_fixture):
+    def test_player_is_moving_resets_after_update(self, battle):
         """Verify is_moving resets to False after tank.update()."""
-        gm = game_manager_fixture
         dt = 1.0 / FPS
-        first_player(gm).move(1, 0, dt)
-        assert first_player(gm).is_moving is True
-        first_player(gm).update(dt)
-        assert first_player(gm).is_moving is False
+        first_player(battle).move(1, 0, dt)
+        assert first_player(battle).is_moving is True
+        first_player(battle).update(dt)
+        assert first_player(battle).is_moving is False
 
 
 class TestPowerupBlinkWiring:
     """Powerup blink sound updates during gameplay."""
 
-    def test_update_runs_with_active_powerups(self, game_manager_fixture):
-        """Verify update() doesn't error when powerups are active."""
-        gm = game_manager_fixture
-        gm.battle.drop_power_up()
-        assert len(gm.battle.scene().power_ups) > 0
-        gm.update()
+    def test_power_up_on_the_battlefield_blinks(self):
+        """A frame with a Power-Up on the battlefield turns its blink sound on."""
+        sound = SoundRecorder()
+        battle = make_battle(sound=sound)
+        battle.drop_power_up()
+        assert len(battle.scene().power_ups) > 0
+        tick(battle)
+        assert sound.power_up_blinking is True

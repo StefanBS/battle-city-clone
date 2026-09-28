@@ -16,28 +16,27 @@ from tests.integration.conftest import (
     spawn_enemy_at,
     spawn_enemy_with_ai,
     hold_roster,
+    tick,
 )
 import random
 
 
-def test_enemy_spawning_rules(game_manager_fixture):
+def test_enemy_spawning_rules(battle):
     """Test enemy spawning location, count, and limits."""
-    game_manager = game_manager_fixture
-    roster_size = sum(game_manager.battle.map.enemy_composition.values())
+    roster_size = sum(battle.map.enemy_composition.values())
 
     spawn_points_pixels = [
-        (gx * SUB_TILE_SIZE, gy * SUB_TILE_SIZE)
-        for gx, gy in game_manager.battle.map.spawn_points
+        (gx * SUB_TILE_SIZE, gy * SUB_TILE_SIZE) for gx, gy in battle.map.spawn_points
     ]
 
     for _ in range(60):
-        game_manager.update()
-        if game_manager.battle.scene().enemies:
+        tick(battle)
+        if battle.scene().enemies:
             break
-    assert len(game_manager.battle.scene().enemies) == 1, (
-        "GameManager should have 1 enemy after spawn animation completes."
+    assert len(battle.scene().enemies) == 1, (
+        "The Battle should have 1 enemy after the spawn animation completes."
     )
-    initial_enemy = game_manager.battle.scene().enemies[0]
+    initial_enemy = battle.scene().enemies[0]
     initial_enemy_pos = initial_enemy.get_position()
     assert initial_enemy_pos in spawn_points_pixels, (
         f"Initial enemy spawned at {initial_enemy_pos}, which is not in valid spawn "
@@ -45,9 +44,8 @@ def test_enemy_spawning_rules(game_manager_fixture):
     )
 
     # A fresh Roster: every one of its Enemies comes, and no more.
-    battle = game_manager.battle
     battle.clear_enemies()
-    hold_roster(game_manager, battle.map.enemy_composition)
+    hold_roster(battle, battle.map.enemy_composition)
     appeared = 0
 
     for _ in range(roster_size * 3):
@@ -60,8 +58,8 @@ def test_enemy_spawning_rules(game_manager_fixture):
         # A blocked spawn point starts nothing and uses up no Enemy.
         if battle.start_spawning():
             appeared += 1
-            let_spawning_enemies_appear(game_manager)
-            (new_enemy,) = game_manager.battle.scene().enemies
+            let_spawning_enemies_appear(battle)
+            (new_enemy,) = battle.scene().enemies
             new_enemy_pos = new_enemy.get_position()
             assert new_enemy_pos in spawn_points_pixels, (
                 f"Enemy spawned at {new_enemy_pos}, "
@@ -75,16 +73,15 @@ def test_enemy_spawning_rules(game_manager_fixture):
     assert not battle.start_spawning(), (
         "Spawn succeeded unexpectedly with the Roster used up."
     )
-    let_spawning_enemies_appear(game_manager)
+    let_spawning_enemies_appear(battle)
     assert battle.scene().enemies == enemies_before
 
 
-def test_enemy_spawn_blocked(game_manager_fixture):
+def test_enemy_spawn_blocked(battle):
     """Test that enemies do not spawn on a blocked spawn point."""
-    game_manager = game_manager_fixture
-    player_tank = first_player(game_manager)
+    player_tank = first_player(battle)
 
-    spawn_points_grid = game_manager.battle.map.spawn_points
+    spawn_points_grid = battle.map.spawn_points
     spawn_points_pixels = [
         (gx * SUB_TILE_SIZE, gy * SUB_TILE_SIZE) for gx, gy in spawn_points_grid
     ]
@@ -100,23 +97,23 @@ def test_enemy_spawn_blocked(game_manager_fixture):
     # sending the parked Player back to its own spawn point.
     player_tank.activate_invincibility(float("inf"))
 
-    game_manager.battle.clear_enemies()
-    hold_roster(game_manager, game_manager.battle.map.enemy_composition)
+    battle.clear_enemies()
+    hold_roster(battle, battle.map.enemy_composition)
 
     # Attempt more times than there are spawn points so the selection cycles.
     for _ in range(len(spawn_points_pixels) * 5):
-        spawned_count_before = len(game_manager.battle.scene().enemies)
-        if game_manager.battle.start_spawning():
-            let_spawning_enemies_appear(game_manager)
-            assert len(game_manager.battle.scene().enemies) == spawned_count_before + 1
-            new_enemy = game_manager.battle.scene().enemies[-1]
+        spawned_count_before = len(battle.scene().enemies)
+        if battle.start_spawning():
+            let_spawning_enemies_appear(battle)
+            assert len(battle.scene().enemies) == spawned_count_before + 1
+            new_enemy = battle.scene().enemies[-1]
             assert new_enemy.get_position() != blocked_spawn_point_pixels, (
                 f"Enemy spawned at the blocked point {blocked_spawn_point_pixels}."
             )
         else:
-            assert len(game_manager.battle.scene().enemies) == spawned_count_before
+            assert len(battle.scene().enemies) == spawned_count_before
 
-    for i, enemy in enumerate(game_manager.battle.scene().enemies):
+    for i, enemy in enumerate(battle.scene().enemies):
         assert enemy.get_position() != blocked_spawn_point_pixels, (
             f"Enemy {i} is located at the blocked spawn point "
             f"{blocked_spawn_point_pixels}."
@@ -128,16 +125,13 @@ original_random_choice = random.choice
 
 @patch("src.core.enemy_tank.random.choice")
 @patch("src.core.enemy_ai.random.uniform", return_value=0.0)
-def test_enemy_movement_and_direction_change(
-    mock_uniform, mock_choice, game_manager_fixture
-):
+def test_enemy_movement_and_direction_change(mock_uniform, mock_choice, battle):
     """Test that enemies move and change direction over time."""
-    game_manager = game_manager_fixture
 
-    clear_enemies(game_manager)
+    clear_enemies(battle)
     start_x_grid, start_y_grid = 16, 16
 
-    game_map = game_manager.battle.map
+    game_map = battle.map
     for dy in range(-4, 6):
         for dx in range(-4, 6):
             nx, ny = start_x_grid + dx, start_y_grid + dy
@@ -154,7 +148,7 @@ def test_enemy_movement_and_direction_change(
     # Held fire: a bullet could hit the base and trigger GAME_OVER before the
     # direction-change timer fires.
     enemy_tank, enemy_ai = spawn_enemy_with_ai(
-        game_manager,
+        battle,
         start_x_grid,
         start_y_grid,
         difficulty=Difficulty.EASY,
@@ -179,7 +173,7 @@ def test_enemy_movement_and_direction_change(
     direction_changed = False
     actual_new_direction = None
     for _ in range(num_updates):
-        game_manager.update()
+        tick(battle)
         current_direction = enemy_tank.direction
         observed_directions.add(current_direction)
         if current_direction != initial_direction and not direction_changed:
@@ -223,11 +217,10 @@ def test_enemy_movement_and_direction_change(
     ],
 )
 def test_enemy_movement_blocked_by_tile(
-    game_manager_fixture, blocking_tile_type, move_direction, start_pos_offset
+    battle, blocking_tile_type, move_direction, start_pos_offset
 ):
     """Test enemy tank movement is blocked by specific tile types."""
-    game_manager = game_manager_fixture
-    game_map = game_manager.battle.map
+    game_map = battle.map
 
     # (20, 20) is a known-empty spot on the test map (avoids default water).
     target_x_grid = 20
@@ -259,7 +252,7 @@ def test_enemy_movement_blocked_by_tile(
             f"are out of bounds."
         )
 
-    clear_enemies(game_manager)
+    clear_enemies(battle)
     # start_pos_offset is in tank-size units (2 sub-tiles), so the tank sits flush
     # against the 2x2 blocking tile.
     start_grid_x = target_x_grid + start_pos_offset[0] * 2
@@ -283,7 +276,7 @@ def test_enemy_movement_blocked_by_tile(
                     )
 
     enemy_tank = spawn_enemy_at(
-        game_manager, start_grid_x, start_grid_y, direction=move_direction
+        battle, start_grid_x, start_grid_y, direction=move_direction
     )
 
     initial_pos = enemy_tank.get_position()
@@ -291,7 +284,7 @@ def test_enemy_movement_blocked_by_tile(
     # Check after a single update: the first update attempts movement and gets
     # snapped back by the collision. A second update would let the AI turn
     # away from the obstacle, which would contaminate this test.
-    game_manager.update()
+    tick(battle)
 
     final_pos = enemy_tank.get_position()
 
@@ -301,13 +294,12 @@ def test_enemy_movement_blocked_by_tile(
     )
 
 
-def test_enemy_shooting(game_manager_fixture):
+def test_enemy_shooting(battle):
     """Test that enemies shoot periodically and their bullets travel correctly."""
-    game_manager = game_manager_fixture
 
-    clear_enemies(game_manager)
+    clear_enemies(battle)
     enemy_tank, enemy_ai = spawn_enemy_with_ai(
-        game_manager, 16, 16, direction=Direction.RIGHT
+        battle, 16, 16, direction=Direction.RIGHT
     )
 
     # Run longer than shoot_interval so we're guaranteed to see a shot.
@@ -323,11 +315,11 @@ def test_enemy_shooting(game_manager_fixture):
     fire_frame = -1
 
     for i in range(num_updates):
-        game_manager.update()
+        tick(battle)
 
         enemy_bullets = [
             b
-            for b in game_manager.battle.scene().bullets
+            for b in battle.scene().bullets
             if b.owner_type == OwnerType.ENEMY and b.active
         ]
         if not bullet_fired and len(enemy_bullets) > 0:
@@ -372,10 +364,9 @@ def test_enemy_shooting(game_manager_fixture):
     )
 
 
-def test_blocked_enemy_turns_away(game_manager_fixture):
+def test_blocked_enemy_turns_away(battle):
     """Running into a wall reaches the Enemy AI, which picks another way."""
-    game_manager = game_manager_fixture
-    game_map = game_manager.battle.map
+    game_map = battle.map
     for gx, gy in [(20, 20), (21, 20), (20, 21), (21, 21)]:
         game_map.place_tile(
             gx,
@@ -383,12 +374,12 @@ def test_blocked_enemy_turns_away(game_manager_fixture):
             Tile(TileType.STEEL, gx, gy, SUB_TILE_SIZE, blocks_tanks=True),
         )
     clear_tiles(game_map, [(22, 20), (23, 20), (22, 21), (23, 21)])
-    clear_enemies(game_manager)
+    clear_enemies(battle)
     enemy_tank, enemy_ai = spawn_enemy_with_ai(
-        game_manager, 22, 20, direction=Direction.LEFT, fires=False, turns=False
+        battle, 22, 20, direction=Direction.LEFT, fires=False, turns=False
     )
 
-    game_manager.update()
+    tick(battle)
 
     assert Direction.LEFT in enemy_ai._blocked_directions
     assert enemy_ai.get_movement_direction() in (

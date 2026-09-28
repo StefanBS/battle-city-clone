@@ -24,9 +24,8 @@ from tests.integration.conftest import (
 _DIRECTION_TO_KEY = {direction: key for key, direction in KEY_TO_DIRECTION.items()}
 
 
-def _set_input(game, direction):
+def _set_input(battle, direction):
     """Simulate holding exactly one direction key (or none)."""
-    battle = game.battle
     for key in _DIRECTION_TO_KEY.values():
         battle.handle_event(pygame.event.Event(pygame.KEYUP, key=key))
     if direction is not None:
@@ -35,165 +34,167 @@ def _set_input(game, direction):
         )
 
 
-def _clear_input(game):
+def _clear_input(battle):
     """Release all direction keys."""
-    _set_input(game, None)
+    _set_input(battle, None)
 
 
-def _steel_wall_right_of(game, tank):
+def _steel_wall_right_of(battle, tank):
     """Put a steel column one sub-tile to the right of ``tank``."""
     wall_x = int(tank.x // SUB_TILE_SIZE) + 3
     wall_y = int(tank.y // SUB_TILE_SIZE)
     for dy in range(2):
-        game.battle.map.set_tile_type(
-            game.battle.map.get_tile_at(wall_x, wall_y + dy), TileType.STEEL
+        battle.map.set_tile_type(
+            battle.map.get_tile_at(wall_x, wall_y + dy), TileType.STEEL
         )
 
 
 @pytest.fixture
-def game(game_manager_fixture):
-    gm = game_manager_fixture
-    clear_enemies(gm)
-    return gm
+def battle(battle):
+    """A Battle with no Enemies on the battlefield."""
+    clear_enemies(battle)
+    return battle
 
 
 class TestPlayerIceSlide:
     """Integration tests for player ice sliding."""
 
     @pytest.fixture
-    def ice_game(self, game):
-        """Game with player on a large ice patch."""
-        place_ice_patch(game, 4, 4, width=8, height=8)
-        place_player_at(game, 6 * SUB_TILE_SIZE, 6 * SUB_TILE_SIZE)
-        first_player(game).direction = Direction.UP
-        return game
+    def ice_game(self, battle):
+        """A Battle with the player on a large ice patch."""
+        place_ice_patch(battle, 4, 4, width=8, height=8)
+        place_player_at(battle, 6 * SUB_TILE_SIZE, 6 * SUB_TILE_SIZE)
+        first_player(battle).direction = Direction.UP
+        return battle
 
     def test_slide_on_key_release(self, ice_game):
         """Player slides when releasing keys on ice."""
-        game = ice_game
+        battle = ice_game
 
-        _set_input(game, Direction.UP)
-        tick(game, 5)
-        assert first_player(game).direction == Direction.UP
+        _set_input(battle, Direction.UP)
+        tick(battle, 5)
+        assert first_player(battle).direction == Direction.UP
 
-        _clear_input(game)
-        tick(game)
-        assert first_player(game).is_sliding is True
-        assert first_player(game)._slide_direction == Direction.UP
+        _clear_input(battle)
+        tick(battle)
+        assert first_player(battle).is_sliding is True
+        assert first_player(battle)._slide_direction == Direction.UP
 
-        pos_before = first_player(game).y
-        tick(game)
-        assert first_player(game).y < pos_before, "Tank should slide UP (decreasing y)"
+        pos_before = first_player(battle).y
+        tick(battle)
+        assert first_player(battle).y < pos_before, (
+            "Tank should slide UP (decreasing y)"
+        )
 
     def test_slide_on_perpendicular_direction_change(self, ice_game):
         """Player slides in old direction when changing to perpendicular."""
-        game = ice_game
+        battle = ice_game
 
-        _set_input(game, Direction.UP)
-        tick(game, 5)
+        _set_input(battle, Direction.UP)
+        tick(battle, 5)
 
-        _set_input(game, Direction.LEFT)
-        tick(game)
-        assert first_player(game).is_sliding is True, (
+        _set_input(battle, Direction.LEFT)
+        tick(battle)
+        assert first_player(battle).is_sliding is True, (
             "Tank should start sliding on perpendicular direction change"
         )
-        assert first_player(game)._slide_direction == Direction.UP, (
+        assert first_player(battle)._slide_direction == Direction.UP, (
             "Slide should be in the OLD direction (UP)"
         )
 
-        pos_before_y = first_player(game).y
-        tick(game)
-        assert first_player(game).y < pos_before_y, (
+        pos_before_y = first_player(battle).y
+        tick(battle)
+        assert first_player(battle).y < pos_before_y, (
             "Tank should continue moving UP during slide"
         )
 
     def test_slide_distance_approximately_one_tile(self, ice_game):
         """Slide covers approximately ICE_SLIDE_DISTANCE pixels."""
-        game = ice_game
+        battle = ice_game
 
-        first_player(game).direction = Direction.RIGHT
-        _set_input(game, Direction.RIGHT)
-        tick(game, 5)
+        first_player(battle).direction = Direction.RIGHT
+        _set_input(battle, Direction.RIGHT)
+        tick(battle, 5)
 
-        _clear_input(game)
-        tick(game)
-        pos_before = first_player(game).x
+        _clear_input(battle)
+        tick(battle)
+        pos_before = first_player(battle).x
 
         for _ in range(120):
-            tick(game)
-            if not first_player(game).is_sliding:
+            tick(battle)
+            if not first_player(battle).is_sliding:
                 break
 
-        distance = first_player(game).x - pos_before
+        distance = first_player(battle).x - pos_before
         assert abs(distance - ICE_SLIDE_DISTANCE) < 2.0, (
             f"Slide distance {distance:.1f} should be ~{ICE_SLIDE_DISTANCE}"
         )
 
-    def test_no_slide_when_not_on_ice(self, game):
+    def test_no_slide_when_not_on_ice(self, battle):
         """Player does NOT slide on normal tiles."""
-        _set_input(game, Direction.RIGHT)
-        tick(game, 5)
-        _clear_input(game)
-        tick(game)
+        _set_input(battle, Direction.RIGHT)
+        tick(battle, 5)
+        _clear_input(battle)
+        tick(battle)
 
-        assert first_player(game).is_sliding is False
+        assert first_player(battle).is_sliding is False
 
     def test_slide_cancelled_by_wall(self, ice_game):
         """Slide stops when tank hits a wall/obstacle."""
-        game = ice_game
+        battle = ice_game
 
-        px = first_player(game).x
-        py = first_player(game).y
+        px = first_player(battle).x
+        py = first_player(battle).y
         wall_grid_x = int(px // SUB_TILE_SIZE) + 2
         wall_grid_y = int(py // SUB_TILE_SIZE)
         for dy in range(2):
-            tile = game.battle.map.get_tile_at(wall_grid_x, wall_grid_y + dy)
+            tile = battle.map.get_tile_at(wall_grid_x, wall_grid_y + dy)
             if tile is not None:
-                game.battle.map.set_tile_type(tile, TileType.BRICK)
+                battle.map.set_tile_type(tile, TileType.BRICK)
 
-        first_player(game).direction = Direction.RIGHT
-        _set_input(game, Direction.RIGHT)
-        tick(game, 3)
-        _clear_input(game)
+        first_player(battle).direction = Direction.RIGHT
+        _set_input(battle, Direction.RIGHT)
+        tick(battle, 3)
+        _clear_input(battle)
 
         for _ in range(60):
-            tick(game)
-            if not first_player(game).is_sliding:
+            tick(battle)
+            if not first_player(battle).is_sliding:
                 break
 
-        assert first_player(game).is_sliding is False, (
+        assert first_player(battle).is_sliding is False, (
             "Slide should have been cancelled"
         )
 
     def test_slide_on_opposite_direction(self, ice_game):
         """Player slides when pressing opposite direction on ice."""
-        game = ice_game
+        battle = ice_game
 
-        _set_input(game, Direction.UP)
-        tick(game, 5)
+        _set_input(battle, Direction.UP)
+        tick(battle, 5)
 
-        _set_input(game, Direction.DOWN)
-        tick(game)
-        assert first_player(game).is_sliding is True, (
+        _set_input(battle, Direction.DOWN)
+        tick(battle)
+        assert first_player(battle).is_sliding is True, (
             "Tank should slide when pressing opposite direction"
         )
 
-        pos_before = first_player(game).y
-        tick(game)
-        assert first_player(game).y < pos_before, "Tank should continue sliding UP"
+        pos_before = first_player(battle).y
+        tick(battle)
+        assert first_player(battle).y < pos_before, "Tank should continue sliding UP"
 
     def test_turn_after_hitting_a_wall_does_not_slide(self, ice_game):
         """A tank that has just run into something turns without sliding."""
-        game = ice_game
-        player = first_player(game)
+        battle = ice_game
+        player = first_player(battle)
         player.direction = Direction.RIGHT
-        _steel_wall_right_of(game, player)
-        _set_input(game, Direction.RIGHT)
-        tick(game, 30)
+        _steel_wall_right_of(battle, player)
+        _set_input(battle, Direction.RIGHT)
+        tick(battle, 30)
 
-        _set_input(game, Direction.UP)
+        _set_input(battle, Direction.UP)
         y_before = player.y
-        tick(game)
+        tick(battle)
 
         assert player.is_sliding is False
         assert player.direction == Direction.UP
@@ -204,13 +205,13 @@ class TestEnemyIceSlide:
     """Enemies follow the same Slide rule as Players."""
 
     @pytest.fixture
-    def enemy_on_ice(self, game):
-        place_ice_patch(game, 4, 4, width=8, height=8)
+    def enemy_on_ice(self, battle):
+        place_ice_patch(battle, 4, 4, width=8, height=8)
         return spawn_enemy_with_ai(
-            game, 6, 6, direction=Direction.RIGHT, fires=False, turns=False
+            battle, 6, 6, direction=Direction.RIGHT, fires=False, turns=False
         )
 
-    def test_turn_on_arrival_frame_slides(self, game, enemy_on_ice):
+    def test_turn_on_arrival_frame_slides(self, battle, enemy_on_ice):
         """The ice flag comes from where the Enemy stands, not last frame."""
         enemy, ai = enemy_on_ice
         # It drove onto this ice: this is its first frame here.
@@ -219,12 +220,12 @@ class TestEnemyIceSlide:
         ai.direction_timer = ai.direction_change_interval
         ai._blocked_directions = {Direction.UP, Direction.RIGHT}
 
-        tick(game)
+        tick(battle)
 
         assert enemy.is_sliding is True
         assert enemy._slide_direction == Direction.RIGHT
 
-    def test_turns_once_the_slide_ends(self, game, enemy_on_ice):
+    def test_turns_once_the_slide_ends(self, battle, enemy_on_ice):
         enemy, ai = enemy_on_ice
         enemy._moving_this_frame = True
         ai.direction_timer = ai.direction_change_interval
@@ -232,22 +233,22 @@ class TestEnemyIceSlide:
         x_before = enemy.x
 
         for _ in range(120):
-            tick(game)
+            tick(battle)
             if not enemy.is_sliding:
                 break
 
         assert abs(enemy.x - x_before - ICE_SLIDE_DISTANCE) < 2.0
-        tick(game)
+        tick(battle)
         assert enemy.direction == Direction.DOWN
 
-    def test_turn_after_hitting_a_wall_does_not_slide(self, game, enemy_on_ice):
+    def test_turn_after_hitting_a_wall_does_not_slide(self, battle, enemy_on_ice):
         """A tank that has just run into something turns without sliding."""
         enemy, _ = enemy_on_ice
-        _steel_wall_right_of(game, enemy)
+        _steel_wall_right_of(battle, enemy)
 
         slid = False
         for _ in range(60):
-            tick(game)
+            tick(battle)
             slid = slid or enemy.is_sliding
             if enemy.direction != Direction.RIGHT:
                 break

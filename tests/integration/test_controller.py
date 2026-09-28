@@ -5,7 +5,7 @@ import pytest
 from src.shell.game_manager import GameManager
 from src.battle.player_input import AXIS_MAX
 from src.states.screen import Screen
-from tests.integration.conftest import first_player, send_event
+from tests.integration.conftest import first_player, tick
 
 
 def _up_event(source: str) -> pygame.event.Event:
@@ -31,29 +31,27 @@ class TestControllerGameplay:
     """Test controller input during gameplay via the SDL GameController API."""
 
     @pytest.mark.parametrize("source", ["dpad", "stick", "keyboard"])
-    def test_up_input_moves_player(self, game_manager_fixture, source: str) -> None:
+    def test_up_input_moves_player(self, battle, source: str) -> None:
         """D-pad, left stick, and keyboard all move the player tank up."""
-        gm = game_manager_fixture
-        initial_y = first_player(gm).y
+        initial_y = first_player(battle).y
 
-        send_event(gm, _up_event(source))
-        gm.update()
+        battle.handle_event(_up_event(source))
+        tick(battle)
 
-        assert first_player(gm).y < initial_y
+        assert first_player(battle).y < initial_y
 
-    def test_ctrl_a_button_fires_bullet(self, game_manager_fixture) -> None:
+    def test_ctrl_a_button_fires_bullet(self, battle) -> None:
         """Controller A button fires a bullet."""
-        gm = game_manager_fixture
 
         event = pygame.event.Event(
             pygame.CONTROLLERBUTTONDOWN,
             button=pygame.CONTROLLER_BUTTON_A,
             instance_id=0,
         )
-        send_event(gm, event)
-        gm.update()
+        battle.handle_event(event)
+        tick(battle)
 
-        assert len(gm.battle.scene().bullets) > 0
+        assert len(battle.scene().bullets) > 0
 
 
 class TestControllerMenuNavigation:
