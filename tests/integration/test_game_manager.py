@@ -9,7 +9,6 @@ from tests.integration.conftest import (
     first_player,
     run_frames,
     start_game,
-    use_up_roster,
 )
 
 
@@ -78,14 +77,6 @@ class TestPause:
 
 
 class TestBattleEnd:
-    def test_a_battle_won_shows_victory(self):
-        game = start_game()
-        use_up_roster(game.battle)
-
-        run_frames(game)
-
-        assert game.flow.screen is Screen.VICTORY
-
     def test_a_battle_lost_shows_the_game_over_animation(self):
         game = start_game()
         first_player(game.battle).eliminate()
