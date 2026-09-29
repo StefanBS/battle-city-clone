@@ -98,97 +98,6 @@ The same steps work on Linux. On Windows, install uv with `powershell -Execution
 
 With no controller connected, both Players in 2 Players mode share the keyboard's keys.
 
-## Project Structure
-
-```
-battle-city-clone/
-├── src/
-│   ├── core/                              # Game entities
-│   │   ├── game_object.py                 # Base class (position, rect, draw, update)
-│   │   ├── tank.py                        # Tank base (movement, shooting, health)
-│   │   ├── player_tank.py                 # Player tank (respawn, lives, Stars, shield)
-│   │   ├── enemy_tank.py                  # Enemy tank (4 types, Carrier flashing)
-│   │   ├── enemy_ai.py                    # Enemy AI: direction and shooting intent
-│   │   ├── bullet.py                      # Bullet (directional movement, bounds checking)
-│   │   ├── tile.py                        # Tile types, collision properties, variants
-│   │   ├── map.py                         # TMX map loading, tile grid, spawn points
-│   │   ├── effect.py                      # Visual effects (explosions, spawn)
-│   │   ├── power_up.py                    # Power-up entity (blink, timeout, collection)
-│   │   └── sprite_atlas.py                # Where entities get sprites (Protocol)
-│   │
-│   ├── shell/                             # Window, Screen Flow, menus, input, drawing
-│   │   ├── game_manager.py                # Main loop; pygame adapter around the Screen Flow
-│   │   ├── screen_flow.py                 # Screens, menus, curtain and which Stage comes next
-│   │   ├── input_handler.py               # Menu and system input (SDL GameController API)
-│   │   ├── menu_controller.py             # Declarative menu navigation (items + callbacks)
-│   │   ├── renderer.py                    # Rendering pipeline (logical -> display surface)
-│   │   ├── texture_manager.py             # Sprite atlas slicing and caching
-│   │   ├── sound_manager.py               # Sound effect loading and playback
-│   │   └── settings_manager.py            # Persistent game settings (volume, difficulty)
-│   │
-│   ├── battle/                            # One Stage and its collaborators
-│   │   ├── battle.py                      # One Stage: frame pipeline, outcomes, Game Over / Victory
-│   │   ├── tank_stepper.py                # Steps every tank through a frame; owns the bullets
-│   │   ├── player_manager.py              # Player slots: tanks, inputs, lives, and score
-│   │   ├── enemy_manager.py               # Enemies on the battlefield, their AIs, Frozen
-│   │   ├── player_input.py                # Per-player gameplay input (keyboard/controller)
-│   │   ├── collision_manager.py           # Finds and responds to collisions; returns outcomes
-│   │   ├── outcomes.py                    # Collision outcome types
-│   │   ├── spawn_manager.py               # The Stage's Roster, spawn timer and animations
-│   │   ├── effect_manager.py              # Effect lifecycle management
-│   │   ├── power_up_manager.py            # Power-up spawning, collection, effects
-│   │   └── sound_player.py                # The sound calls the Battle makes (Protocol)
-│   │
-│   ├── cpu_partner/                       # The CPU Partner
-│   │   ├── cpu_partner.py                 # CPU Partner input (Goals, aiming, safe shots)
-│   │   ├── goal_timing.py                 # CPU Partner decision timing and hesitation
-│   │   ├── pathfinding.py                 # A* over the sub-tile grid
-│   │   ├── steering.py                    # CPU Partner: getting unstuck
-│   │   ├── cut_off.py                     # CPU Partner: Refused Shots, given-up sides, Cut Off
-│   │   └── dodge.py                       # CPU Partner: Dodge reflex against Incoming Shots
-│   │
-│   ├── world_view/                        # What the Battle hands the CPU Partner
-│   │   ├── world_view.py                  # Read-only per-frame snapshot for Player inputs
-│   │   └── footprint.py                   # Grid cells a tank covers; blocked Enemy Spawn Points
-│   │
-│   ├── states/
-│   │   ├── screen.py                      # Screen enum (TITLE_SCREEN, RUNNING, PAUSED, ...)
-│   │   ├── battle_result.py               # BattleResult enum (Game Over, Victory)
-│   │   └── game_mode.py                   # GameMode enum (1 Player, 2 Players, 1 Player + CPU)
-│   │
-│   └── utils/
-│       ├── constants.py                   # Sizes, speeds, grid dimensions, enums, colors
-│       ├── animation.py                   # Blink timing helper
-│       └── paths.py                       # Resource path resolution (dev and packaged)
-│
-├── assets/
-│   ├── battle-city.tiled-project          # Tiled project (custom types and enums)
-│   ├── sprites/                           # Sprite sheet (sprites.png) and tileset (sprites.tsx)
-│   ├── sounds/                            # Sound effects (.wav)
-│   └── maps/                              # 35 TMX level maps
-│
-├── tests/
-│   ├── conftest.py                        # Shared fixtures
-│   ├── unit/                              # Entity and manager unit tests
-│   └── integration/                       # End-to-end tests with real objects
-│
-├── scripts/
-│   ├── generate_icons.py                  # App icon generation
-│   └── generate_sounds.py                 # Sound effect generation
-│
-├── docs/
-│   ├── cpu-partner.md                     # How the CPU Partner decides (state diagrams)
-│   ├── adr/                               # Architecture decision records
-│   └── images/                            # README screenshots
-│
-├── installer/                             # Platform-specific packaging
-├── main.py                                # Entry point
-├── battle-city.spec                       # PyInstaller build spec
-├── pyproject.toml                         # Project configuration and dependencies
-├── CONTEXT.md                             # Domain glossary (Player, Goal, Roster, ...)
-└── README.md
-```
-
 ## Documentation
 
 - [CONTEXT.md](CONTEXT.md): the domain language used in code, tests and docs
@@ -200,55 +109,32 @@ battle-city-clone/
   - [0004](docs/adr/0004-a-battle-owns-one-stage.md) A Battle owns one Stage
   - [0005](docs/adr/0005-dodge-is-a-reflex-not-a-goal.md) Dodge is a reflex, not a Goal
   - [0006](docs/adr/0006-spawning-and-the-enemies-on-the-battlefield-stay-separate.md) Spawning and the Enemies on the battlefield stay separate
+  - [0007](docs/adr/0007-the-screen-flow-never-holds-a-battle.md) The Screen Flow never holds a Battle
+  - [0008](docs/adr/0008-four-layered-packages-with-the-world-view-between-battle-and-cpu-partner.md) Four layered packages, with the World View between the Battle and the CPU Partner
 
 ## Development Setup
 
-Requires Python 3.13+.
+Requires [uv](https://docs.astral.sh/uv/), which downloads Python 3.13+ for you.
 
-1. Install [uv](https://docs.astral.sh/uv/) (if not already installed):
 ```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-
-2. Create and activate a virtual environment:
-```bash
-uv venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-```
-
-3. Install dependencies:
-```bash
-uv pip install -e ".[dev]"
-```
-
-4. Run the game:
-```bash
-python main.py
+uv sync --extra dev
+uv run python main.py
 ```
 
 ## Testing
 
 ```bash
-# Run all tests
-pytest
-
-# Run tests with coverage
-pytest --cov=src
-
-# Run a specific test file
-pytest tests/unit/core/test_tank.py
-
-# Run a specific test
-pytest tests/unit/core/test_tank.py::TestTank::test_shoot
+uv run pytest
+uv run pytest --cov=src
 ```
 
 ## Linting, Formatting and Type Checking
 
 ```bash
-ruff check src/ tests/
-ruff format src/ tests/
-mypy src
-lint-imports
+uv run ruff check src/ tests/
+uv run ruff format src/ tests/
+uv run mypy src
+uv run lint-imports
 ```
 
 The pre-commit hooks and CI run all four. `lint-imports` checks the package layers in `pyproject.toml`: `shell` → `battle` and `cpu_partner` → `world_view` → `core` (see ADR 0008).
@@ -258,8 +144,8 @@ The pre-commit hooks and CI run all four. `lint-imports` checks the package laye
 To build a standalone executable:
 
 ```bash
-uv pip install -e ".[build]"
-pyinstaller battle-city.spec
+uv sync --extra dev --extra build
+uv run pyinstaller battle-city.spec
 ```
 
 Release builds are made by CI when a `v*` tag is pushed: a Windows installer (PyInstaller + Inno Setup, `installer/windows/`) and a Linux Flatpak (`installer/linux/`).
