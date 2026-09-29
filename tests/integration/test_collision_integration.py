@@ -1,16 +1,19 @@
 import pytest
 from src.utils.constants import Direction, FPS, SUB_TILE_SIZE
-from src.states.screen import Screen
+from src.states.battle_result import BattleResult
 from src.core.tile import BrickVariant, Tile, TileDefaults, TileType
 from src.battle.collision_manager import CollisionManager
 from src.battle.effect_manager import EffectManager
 from src.battle.power_up_manager import PowerUpManager
 from tests.integration.conftest import (
+    SoundRecorder,
     clear_tiles,
     fire_bullet_from,
     first_player,
     place_player_at,
     spawn_enemy_at,
+    texture_manager,
+    tick,
 )
 
 
@@ -24,15 +27,14 @@ from tests.integration.conftest import (
     ],
 )
 def test_player_bullet_vs_tile(
-    game_manager_fixture,
+    battle,
     tile_to_place,
     expected_bullet_active,
     expected_tile_type,
 ):
     """Test player bullet interaction with various tile types."""
-    game_manager = game_manager_fixture
-    player_tank = first_player(game_manager)
-    game_map = game_manager.battle.map
+    player_tank = first_player(battle)
+    game_map = battle.map
 
     target_x_grid = 14
     target_y_grid = 20
@@ -71,21 +73,21 @@ def test_player_bullet_vs_tile(
 
     # Player below target (2 sub-tiles = 1 tank height).
     place_player_at(
-        game_manager,
+        battle,
         target_x_grid * SUB_TILE_SIZE,
         (target_y_grid + 2) * SUB_TILE_SIZE,
         player=player_tank,
     )
 
     player_tank.direction = Direction.UP
-    bullet = fire_bullet_from(game_manager, player_tank)
+    bullet = fire_bullet_from(battle, player_tank)
 
     dt = 1.0 / FPS
     update_duration = 0.2
     num_updates = int(update_duration / dt)
 
     for _ in range(num_updates):
-        game_manager.update()
+        tick(battle)
         if not expected_bullet_active and not bullet.active:
             break
 
@@ -108,36 +110,35 @@ def test_player_bullet_vs_tile(
         assert damaged, "Brick should be damaged or destroyed after being hit."
 
 
-def test_player_bullet_destroys_enemy_tank(game_manager_fixture, mocker):
+def test_player_bullet_destroys_enemy_tank(battle, mocker):
     """Test player bullet hitting and destroying a basic enemy tank."""
     mocker.patch("src.core.enemy_ai.random.uniform", return_value=0.0)
-    game_manager = game_manager_fixture
-    player_tank = first_player(game_manager)
+    player_tank = first_player(battle)
 
     enemy_x_grid = 14
     enemy_y_grid = 10
 
     # Clear enemy + player (2 sub-tiles each = 4 total) across 2 columns.
     clear_tiles(
-        game_manager.battle.map,
+        battle.map,
         [(enemy_x_grid + dx, enemy_y_grid + dy) for dy in range(4) for dx in range(2)],
     )
 
-    enemy_tank = spawn_enemy_at(game_manager, enemy_x_grid, enemy_y_grid)
+    enemy_tank = spawn_enemy_at(battle, enemy_x_grid, enemy_y_grid)
     # Prevent enemy shooting so its bullets don't interfere with the player bullet.
     enemy_tank.shoot = lambda: None
-    initial_enemy_count = len(game_manager.battle.scene().enemies)
+    initial_enemy_count = len(battle.scene().enemies)
 
     # Player below enemy (2 sub-tiles = 1 tank height).
     place_player_at(
-        game_manager,
+        battle,
         enemy_x_grid * SUB_TILE_SIZE,
         (enemy_y_grid + 2) * SUB_TILE_SIZE,
         player=player_tank,
     )
 
     player_tank.direction = Direction.UP
-    bullet = fire_bullet_from(game_manager, player_tank)
+    bullet = fire_bullet_from(battle, player_tank)
 
     dt = 1.0 / FPS
     max_simulation_time = 0.5
@@ -145,49 +146,48 @@ def test_player_bullet_destroys_enemy_tank(game_manager_fixture, mocker):
     bullet_became_inactive_during_loop = False
 
     for _ in range(max_updates):
-        game_manager.update()
+        tick(battle)
         if not bullet.active:
             bullet_became_inactive_during_loop = True
             break
-        if enemy_tank not in game_manager.battle.scene().enemies:
+        if enemy_tank not in battle.scene().enemies:
             if not bullet.active:
                 bullet_became_inactive_during_loop = True
             break
 
-    if enemy_tank in game_manager.battle.scene().enemies:
+    if enemy_tank in battle.scene().enemies:
         assert bullet_became_inactive_during_loop, (
             "Bullet remained active but enemy was not destroyed."
         )
 
-    assert enemy_tank not in game_manager.battle.scene().enemies, (
+    assert enemy_tank not in battle.scene().enemies, (
         "Enemy tank was not removed after being hit."
     )
-    assert len(game_manager.battle.scene().enemies) == initial_enemy_count - 1, (
+    assert len(battle.scene().enemies) == initial_enemy_count - 1, (
         "Enemy count did not decrease by one."
     )
 
 
 @pytest.mark.parametrize(
-    "player_initial_lives, player_is_invincible, expected_screen, "
+    "player_initial_lives, player_is_invincible, expected_result, "
     "expected_player_lives_after_hit",
     [
-        (1, False, Screen.GAME_OVER_ANIMATION, 0),
-        (3, False, Screen.RUNNING, 2),
-        (3, True, Screen.RUNNING, 3),
+        (1, False, BattleResult.GAME_OVER, 0),
+        (3, False, None, 2),
+        (3, True, None, 3),
     ],
 )
 def test_enemy_bullet_hits_player_tank(
-    game_manager_fixture,
+    battle,
     player_initial_lives,
     player_is_invincible,
-    expected_screen,
+    expected_result,
     expected_player_lives_after_hit,
     mocker,
 ):
     """Test enemy bullet hitting the player tank under different conditions."""
     mocker.patch("src.core.enemy_ai.random.uniform", return_value=0.0)
-    game_manager = game_manager_fixture
-    player_tank = first_player(game_manager)
+    player_tank = first_player(battle)
     initial_spawn_pos = player_tank.initial_position
 
     player_tank.restore_lives(player_initial_lives)
@@ -201,8 +201,7 @@ def test_enemy_bullet_hits_player_tank(
     enemy_y_grid = player_y_grid - 4
 
     if not (
-        0 <= enemy_y_grid < game_manager.battle.map.height
-        and 0 <= enemy_x_grid < game_manager.battle.map.width
+        0 <= enemy_y_grid < battle.map.height and 0 <= enemy_x_grid < battle.map.width
     ):
         pytest.skip(
             f"Calculated enemy position ({enemy_x_grid}, {enemy_y_grid}) "
@@ -210,7 +209,7 @@ def test_enemy_bullet_hits_player_tank(
         )
 
     clear_tiles(
-        game_manager.battle.map,
+        battle.map,
         [
             (enemy_x_grid + dx, y)
             for y in range(enemy_y_grid, player_y_grid + 2)
@@ -219,10 +218,10 @@ def test_enemy_bullet_hits_player_tank(
     )
 
     enemy_tank = spawn_enemy_at(
-        game_manager, enemy_x_grid, enemy_y_grid, direction=Direction.DOWN
+        battle, enemy_x_grid, enemy_y_grid, direction=Direction.DOWN
     )
 
-    enemy_bullet = fire_bullet_from(game_manager, enemy_tank)
+    enemy_bullet = fire_bullet_from(battle, enemy_tank)
     assert enemy_bullet.active, "Enemy bullet spawned inactive."
 
     dt = 1.0 / FPS
@@ -233,10 +232,10 @@ def test_enemy_bullet_hits_player_tank(
     original_player_lives = player_tank.lives
 
     for i in range(max_updates):
-        game_manager.update()
+        tick(battle)
 
         current_lives = player_tank.lives
-        current_state = game_manager.flow.screen
+        current_result = battle.result
 
         if not player_is_invincible:
             if not enemy_bullet.active:
@@ -246,8 +245,8 @@ def test_enemy_bullet_hits_player_tank(
                 interaction_processed = True
                 break
             if (
-                current_state is Screen.GAME_OVER_ANIMATION
-                and expected_screen is Screen.GAME_OVER_ANIMATION
+                current_result is BattleResult.GAME_OVER
+                and expected_result is BattleResult.GAME_OVER
             ):
                 interaction_processed = True
                 break
@@ -256,7 +255,7 @@ def test_enemy_bullet_hits_player_tank(
                 interaction_processed = True
                 break
 
-        if current_state != Screen.RUNNING and current_state != expected_screen:
+        if current_result is not None and current_result is not expected_result:
             interaction_processed = True
             break
     else:
@@ -266,21 +265,18 @@ def test_enemy_bullet_hits_player_tank(
         assert interaction_processed, (
             f"Enemy bullet interaction with vulnerable player not detected. "
             f"Bullet active: {enemy_bullet.active}, Player lives: {player_tank.lives}, "
-            f"Screen: {game_manager.flow.screen.name}"
+            f"Result: {battle.result}"
         )
         if (
             player_tank.lives < original_player_lives
-            or game_manager.flow.screen is Screen.GAME_OVER_ANIMATION
+            or battle.result is BattleResult.GAME_OVER
         ):
             assert not enemy_bullet.active, (
                 "Enemy bullet should be inactive after "
                 "damaging player or causing game over."
             )
 
-    assert game_manager.flow.screen == expected_screen, (
-        f"Expected screen {expected_screen.name}, "
-        f"but got {game_manager.flow.screen.name}"
-    )
+    assert battle.result is expected_result
 
     assert player_tank.lives == expected_player_lives_after_hit, (
         f"Expected player lives {expected_player_lives_after_hit}, "
@@ -289,7 +285,7 @@ def test_enemy_bullet_hits_player_tank(
 
     if (
         expected_player_lives_after_hit == player_initial_lives - 1
-        and expected_screen == Screen.RUNNING
+        and expected_result is None
     ):
         assert player_tank.get_position() == initial_spawn_pos, (
             "Player did not return to spawn position after losing a life."
@@ -301,29 +297,28 @@ def test_enemy_bullet_hits_player_tank(
         )
 
 
-def test_enemy_bullet_hits_other_enemy(game_manager_fixture, mocker):
+def test_enemy_bullet_hits_other_enemy(battle, mocker):
     """Test that an enemy bullet has no effect on another enemy tank."""
     mocker.patch("src.core.enemy_ai.random.uniform", return_value=0.0)
-    game_manager = game_manager_fixture
 
     # enemy1 shoots down at enemy2 (4 sub-tiles apart).
     enemy1_x_grid, enemy1_y_grid = 16, 16
     enemy2_x_grid, enemy2_y_grid = 16, 20
 
     clear_tiles(
-        game_manager.battle.map,
+        battle.map,
         [(16 + dx, y) for y in range(16, 22) for dx in range(2)],
     )
 
     enemy1 = spawn_enemy_at(
-        game_manager, enemy1_x_grid, enemy1_y_grid, direction=Direction.DOWN
+        battle, enemy1_x_grid, enemy1_y_grid, direction=Direction.DOWN
     )
-    enemy2 = spawn_enemy_at(game_manager, enemy2_x_grid, enemy2_y_grid, replace=False)
+    enemy2 = spawn_enemy_at(battle, enemy2_x_grid, enemy2_y_grid, replace=False)
 
-    initial_enemy_count = len(game_manager.battle.scene().enemies)
+    initial_enemy_count = len(battle.scene().enemies)
     initial_enemy2_health = enemy2.health
 
-    bullet = fire_bullet_from(game_manager, enemy1)
+    bullet = fire_bullet_from(battle, enemy1)
     assert bullet.active, "Enemy1 bullet spawned inactive."
 
     dt = 1.0 / FPS
@@ -333,7 +328,7 @@ def test_enemy_bullet_hits_other_enemy(game_manager_fixture, mocker):
     initial_bullet_state = bullet.active
 
     for _ in range(num_updates):
-        game_manager.update()
+        tick(battle)
         if not bullet.active:
             break
 
@@ -345,21 +340,18 @@ def test_enemy_bullet_hits_other_enemy(game_manager_fixture, mocker):
         f"Got: {enemy2.health}"
     )
 
-    assert enemy2 in game_manager.battle.scene().enemies, (
-        "Enemy2 was removed from the list."
-    )
+    assert enemy2 in battle.scene().enemies, "Enemy2 was removed from the list."
 
-    assert len(game_manager.battle.scene().enemies) == initial_enemy_count, (
+    assert len(battle.scene().enemies) == initial_enemy_count, (
         f"Enemy count changed. Expected: {initial_enemy_count}, "
-        f"Got: {len(game_manager.battle.scene().enemies)}"
+        f"Got: {len(battle.scene().enemies)}"
     )
 
 
-def test_player_tank_vs_enemy_tank_no_overlap(game_manager_fixture, mocker):
+def test_player_tank_vs_enemy_tank_no_overlap(battle, mocker):
     """Test that a player tank driving into an enemy tank does not overlap."""
     mocker.patch("src.core.enemy_ai.random.uniform", return_value=0.0)
-    game_manager = game_manager_fixture
-    player_tank = first_player(game_manager)
+    player_tank = first_player(battle)
 
     player_x_grid = int(player_tank.x // SUB_TILE_SIZE)
     player_y_grid = int(player_tank.y // SUB_TILE_SIZE)
@@ -368,7 +360,7 @@ def test_player_tank_vs_enemy_tank_no_overlap(game_manager_fixture, mocker):
     enemy_y_grid = player_y_grid - 2
 
     clear_tiles(
-        game_manager.battle.map,
+        battle.map,
         [
             (enemy_x_grid + dx, y)
             for y in range(enemy_y_grid, player_y_grid + 2)
@@ -377,20 +369,20 @@ def test_player_tank_vs_enemy_tank_no_overlap(game_manager_fixture, mocker):
     )
 
     enemy_tank = spawn_enemy_at(
-        game_manager, enemy_x_grid, enemy_y_grid, fires=False, turns=False
+        battle, enemy_x_grid, enemy_y_grid, fires=False, turns=False
     )
     # Pin the enemy so only the player moves; we want to test the collision, not AI.
     enemy_tank.speed = 0
 
     # Only this pair's collision is under test, so it gets its own
     # CollisionManager rather than the Battle's.
-    battle_map = game_manager.battle.map
-    effects = EffectManager(game_manager.texture_manager)
+    battle_map = battle.map
+    effects = EffectManager(texture_manager())
     collisions = CollisionManager(
         game_map=battle_map,
         effect_manager=effects,
-        power_up_manager=PowerUpManager(game_manager.texture_manager, battle_map),
-        sound=game_manager.sound_manager,
+        power_up_manager=PowerUpManager(texture_manager(), battle_map),
+        sound=SoundRecorder(),
     )
 
     dt = 1.0 / FPS
@@ -410,32 +402,31 @@ def test_player_tank_vs_enemy_tank_no_overlap(game_manager_fixture, mocker):
     )
 
 
-def test_enemy_bullets_collide(game_manager_fixture, mocker):
+def test_enemy_bullets_collide(battle, mocker):
     """Test that two enemy bullets pass through each other."""
     mocker.patch("src.core.enemy_ai.random.uniform", return_value=0.0)
-    game_manager = game_manager_fixture
 
     enemy1_x_grid, enemy1_y_grid = 2, 16
     enemy2_x_grid, enemy2_y_grid = 8, 16
 
     clear_tiles(
-        game_manager.battle.map,
+        battle.map,
         [(x, 16 + dy) for x in range(2, 10) for dy in range(2)],
     )
 
     enemy1 = spawn_enemy_at(
-        game_manager, enemy1_x_grid, enemy1_y_grid, direction=Direction.RIGHT
+        battle, enemy1_x_grid, enemy1_y_grid, direction=Direction.RIGHT
     )
     enemy2 = spawn_enemy_at(
-        game_manager,
+        battle,
         enemy2_x_grid,
         enemy2_y_grid,
         direction=Direction.LEFT,
         replace=False,
     )
 
-    bullet1 = fire_bullet_from(game_manager, enemy1)
-    bullet2 = fire_bullet_from(game_manager, enemy2)
+    bullet1 = fire_bullet_from(battle, enemy1)
+    bullet2 = fire_bullet_from(battle, enemy2)
     assert bullet1.active, "Enemy1 bullet spawned inactive."
     assert bullet2.active, "Enemy2 bullet spawned inactive."
 
@@ -445,7 +436,7 @@ def test_enemy_bullets_collide(game_manager_fixture, mocker):
     num_updates = int(update_duration / dt)
 
     for _ in range(num_updates):
-        game_manager.update()
+        tick(battle)
         if not (bullet1.active and bullet2.active):
             break
 

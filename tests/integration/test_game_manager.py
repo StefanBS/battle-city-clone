@@ -5,7 +5,11 @@ import pygame
 from src.shell.game_manager import stage_map_path
 from src.battle.player_input import AXIS_MAX
 from src.states.screen import Screen
-from tests.integration.conftest import start_game, tick
+from tests.integration.conftest import (
+    first_player,
+    run_frames,
+    start_game,
+)
 
 
 def post(*events):
@@ -50,7 +54,7 @@ class TestPause:
         post(button(pygame.CONTROLLER_BUTTON_A))
         game.handle_events()
         assert game.flow.screen is Screen.RUNNING
-        tick(game)
+        run_frames(game)
 
         assert not game.battle.scene().bullets
 
@@ -70,6 +74,16 @@ class TestPause:
         game.handle_events()
 
         assert game.flow.menu.selection == 1
+
+
+class TestBattleEnd:
+    def test_a_battle_lost_shows_the_game_over_animation(self):
+        game = start_game()
+        first_player(game.battle).eliminate()
+
+        run_frames(game)
+
+        assert game.flow.screen is Screen.GAME_OVER_ANIMATION
 
 
 class TestStageMapPath:

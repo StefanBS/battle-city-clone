@@ -15,53 +15,51 @@ from tests.integration.conftest import (
     fire_bullet_from,
     first_player,
     run_until_screen,
+    tick,
 )
 
 
 class TestEffectLifecycle:
-    """Test that explosions spawn, animate, and clean up through GameManager."""
+    """Test that explosions spawn, animate, and clean up through the Battle."""
 
-    def test_bullet_tile_collision_spawns_and_expires_effect(
-        self, game_manager_fixture
-    ):
+    def test_bullet_tile_collision_spawns_and_expires_effect(self, battle):
         """A bullet hitting a steel tile spawns an effect that expires."""
-        gm = game_manager_fixture
         dt = 1.0 / FPS
 
-        steel_tiles = gm.battle.map.get_tiles_by_type([TileType.STEEL])
+        steel_tiles = battle.map.get_tiles_by_type([TileType.STEEL])
         if not steel_tiles:
-            steel_tiles = gm.battle.map.get_tiles_by_type([TileType.BRICK])
+            steel_tiles = battle.map.get_tiles_by_type([TileType.BRICK])
         assert steel_tiles, "Need at least one destructible/steel tile"
         target = steel_tiles[0]
 
-        player = first_player(gm)
+        player = first_player(battle)
         player.x = float(target.rect.centerx)
         player.y = float(target.rect.bottom + 10)
         player.rect.topleft = (round(player.x), round(player.y))
 
         # Clear enemies so they don't interfere (e.g., shoot the player instead).
-        clear_enemies(gm)
+        clear_enemies(battle)
 
-        fire_bullet_from(gm, player)
+        fire_bullet_from(battle, player)
 
         effect_spawned = False
         for _ in range(30):
-            gm.update()
-            if gm.battle.scene().effects:
+            tick(battle)
+            if battle.scene().effects:
                 effect_spawned = True
                 break
 
         assert effect_spawned, (
             "Expected an explosion effect after bullet-tile collision"
         )
-        assert len(gm.battle.scene().effects) >= 1
+        assert len(battle.scene().effects) >= 1
 
         for _ in range(60):
-            gm.battle.step(dt)
-            if not gm.battle.scene().effects:
+            battle.step(dt)
+            if not battle.scene().effects:
                 break
 
-        assert len(gm.battle.scene().effects) == 0, (
+        assert len(battle.scene().effects) == 0, (
             "Effect should have expired after playing through all frames"
         )
 
@@ -69,7 +67,7 @@ class TestEffectLifecycle:
         """A new game leaves no effect from the game before behind."""
         gm = game_manager_fixture
 
-        gm.battle.apply_outcomes([PlayerDestroyed(first_player(gm))])
+        gm.battle.apply_outcomes([PlayerDestroyed(first_player(gm.battle))])
         assert len(gm.battle.scene().effects) == 2
 
         # Pause, choose Title Screen, then 1 Player.
